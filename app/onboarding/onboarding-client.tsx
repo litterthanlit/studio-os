@@ -20,13 +20,38 @@ import {
 const TOTAL_STEPS = 5;
 const STORAGE_KEY = "studio_os_onboarding";
 
+export type Archetype = "visual" | "typography" | "systems";
+
 interface StoredOnboarding {
   complete: boolean;
   email: string;
+  archetype: Archetype | null;
   templateChosen: TemplateId | "empty" | null;
   pinterestConnected: boolean;
   searchPerformed: boolean;
   completedAt: string;
+}
+
+// Returns archetype stored in onboarding localStorage (used by sidebar + tagger)
+export function getStoredArchetype(): Archetype | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return (JSON.parse(raw) as Partial<StoredOnboarding>).archetype ?? null;
+  } catch { return null; }
+}
+
+const ARCHETYPE_TEMPLATE_ORDER: Record<Archetype, TemplateId[]> = {
+  visual:     ["brand-identity", "editorial", "web-redesign", "packaging"],
+  typography: ["editorial", "brand-identity", "web-redesign", "packaging"],
+  systems:    ["web-redesign", "brand-identity", "editorial", "packaging"],
+};
+
+function getOrderedTemplates(archetype: Archetype | null) {
+  if (!archetype) return TEMPLATE_LIST;
+  const order = ARCHETYPE_TEMPLATE_ORDER[archetype];
+  return [...TEMPLATE_LIST].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 
 // ─── Animations ───────────────────────────────────────────────────────────────
@@ -227,16 +252,106 @@ function StepWelcome({
   );
 }
 
-// ─── Step 2: Template Picker ──────────────────────────────────────────────────
+// ─── Step 2: Archetype ────────────────────────────────────────────────────────
+
+const ARCHETYPE_OPTIONS: {
+  id: Archetype;
+  title: string;
+  subtitle: string;
+}[] = [
+  { id: "visual",     title: "Collect visual inspiration",    subtitle: "Mood boards, references, vibes"    },
+  { id: "typography", title: "Pick fonts and set the tone",   subtitle: "Typography, hierarchy, voice"      },
+  { id: "systems",    title: "Set up systems and constraints", subtitle: "Components, tokens, structure"    },
+];
+
+function StepArchetype({
+  chosen,
+  onChoose,
+  onNext,
+}: {
+  chosen: Archetype | null;
+  onChoose: (a: Archetype) => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="space-y-8 py-4">
+      <div className="space-y-2">
+        <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-white">
+          When starting a new project,<br />what&apos;s your first move?
+        </h2>
+        <p className="text-[13px] text-[#444]">This helps us personalize your studio.</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {ARCHETYPE_OPTIONS.map((opt) => {
+          const isSelected = chosen === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChoose(opt.id)}
+              className={cn(
+                "w-full p-5 text-left transition-all duration-150",
+                "border cursor-pointer",
+                isSelected
+                  ? "border-solid border-[#0070F3] bg-[#0070F3]/5"
+                  : "border-dashed border-[#222] bg-[#0a0a0a] hover:border-[#444]"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className={cn(
+                    "text-[8px] leading-none",
+                    isSelected ? "text-accent" : "text-[#555]"
+                  )}
+                >
+                  ■
+                </span>
+                <span className="text-sm font-medium text-white">{opt.title}</span>
+              </div>
+              <p className="text-[11px] text-[#555] pl-[18px]">{opt.subtitle}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={chosen === null}
+          className={cn(
+            "rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white",
+            "transition-[opacity] duration-200 ease-out hover:opacity-90",
+            "disabled:cursor-not-allowed disabled:opacity-30"
+          )}
+        >
+          Continue →
+        </button>
+        <button
+          type="button"
+          onClick={() => { onChoose("visual"); onNext(); }}
+          className="text-[13px] text-[#3a3a3a] transition-colors duration-200 ease-out hover:text-[#777]"
+        >
+          Skip →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 3: Template Picker ──────────────────────────────────────────────────
 
 function StepTemplatePicker({
   chosen,
   onChoose,
   onNext,
+  templates,
 }: {
   chosen: TemplateId | "empty" | null;
   onChoose: (id: TemplateId | "empty") => void;
   onNext: () => void;
+  templates: typeof TEMPLATE_LIST;
 }) {
   return (
     <div className="space-y-8 py-4">
@@ -251,7 +366,7 @@ function StepTemplatePicker({
 
       {/* 2×2 Template grid */}
       <div className="grid grid-cols-2 gap-3">
-        {TEMPLATE_LIST.map((tpl) => (
+        {templates.map((tpl) => (
           <TemplateCard
             key={tpl.id}
             template={tpl}
@@ -885,13 +1000,13 @@ export function OnboardingClient() {
   const [email, setEmail] = React.useState("");
 
   // Step 2
-  const [chosenTemplate, setChosenTemplate] = React.useState<TemplateId | "empty" | null>(null);
+  const [chosenArchetype, setChosenArchetype] = React.useState<Archetype | null>(null);
 
   // Step 3
-  const [searchPerformed, setSearchPerformed] = React.useState(false);
+  const [chosenTemplate, setChosenTemplate] = React.useState<TemplateId | "empty" | null>(null);
 
   // Step 4
-  const [pinterestConnected, setPinterestConnected] = React.useState(false);
+  const [searchPerformed, setSearchPerformed] = React.useState(false);
 
   // ── Check if onboarding is already complete ──────────────────────────────
 
@@ -975,8 +1090,9 @@ export function OnboardingClient() {
       const onboarding: StoredOnboarding = {
         complete: true,
         email: email.trim(),
+        archetype: chosenArchetype ?? "visual",
         templateChosen: chosenTemplate,
-        pinterestConnected,
+        pinterestConnected: false,
         searchPerformed,
         completedAt: new Date().toISOString(),
       };
@@ -1024,8 +1140,8 @@ export function OnboardingClient() {
       if (e.key === "Escape" && step > 1) { goBack(); return; }
       if (e.key === "Enter" && !isTextarea) {
         if (step === 1 && !isInput) { goNext(); return; }
-        if (step === 2 && chosenTemplate) { goNext(); return; }
-        if (step === 3) { goNext(); return; }
+        if (step === 2 && chosenArchetype) { goNext(); return; }
+        if (step === 3 && chosenTemplate) { goNext(); return; }
         if (step === 4) { goNext(); return; }
         if (step === 5) { finalize("studio"); return; }
       }
@@ -1113,24 +1229,25 @@ export function OnboardingClient() {
               />
             )}
             {step === 2 && (
-              <StepTemplatePicker
-                chosen={chosenTemplate}
-                onChoose={setChosenTemplate}
+              <StepArchetype
+                chosen={chosenArchetype}
+                onChoose={setChosenArchetype}
                 onNext={goNext}
               />
             )}
             {step === 3 && (
+              <StepTemplatePicker
+                chosen={chosenTemplate}
+                onChoose={setChosenTemplate}
+                onNext={goNext}
+                templates={getOrderedTemplates(chosenArchetype)}
+              />
+            )}
+            {step === 4 && (
               <StepStudio
                 template={activeTemplate}
                 onSearch={() => setSearchPerformed(true)}
                 searchPerformed={searchPerformed}
-                onNext={goNext}
-              />
-            )}
-            {step === 4 && (
-              <StepConnect
-                connected={pinterestConnected}
-                onConnect={() => setPinterestConnected(true)}
                 onNext={goNext}
               />
             )}

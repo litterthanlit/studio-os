@@ -233,6 +233,15 @@ const INITIAL_REFERENCES: Reference[] = [
   },
 ];
 
+function getArchetype(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = localStorage.getItem("studio_os_onboarding");
+    if (!raw) return undefined;
+    return (JSON.parse(raw) as { archetype?: string }).archetype ?? undefined;
+  } catch { return undefined; }
+}
+
 async function triggerAutoTag(
   referenceId: string,
   imageUrl: string,
@@ -244,7 +253,7 @@ async function triggerAutoTag(
     const res = await fetch("/api/ai/tag", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ referenceId, imageUrl }),
+      body: JSON.stringify({ referenceId, imageUrl, archetype: getArchetype() }),
     });
     if (!res.ok) return;
     const data = await res.json();

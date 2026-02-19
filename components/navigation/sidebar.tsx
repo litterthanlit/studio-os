@@ -21,10 +21,11 @@ import {
   type StoredProject,
 } from "@/components/new-project-modal";
 import { useNewProjectModal } from "@/components/new-project-modal";
+import { getStoredArchetype, type Archetype } from "@/app/onboarding/onboarding-client";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { href: "/home",     label: "Home",     Icon: HomeIcon     },
   { href: "/brief",    label: "Brief",    Icon: BriefIcon    },
   { href: "/vision",   label: "Vision",   Icon: VisionIcon   },
@@ -32,6 +33,26 @@ const NAV_ITEMS = [
   { href: "/projects", label: "Projects", Icon: ProjectsIcon },
   { href: "/flow",     label: "Flow",     Icon: FlowIcon     },
 ] as const;
+
+type NavItem = (typeof BASE_NAV_ITEMS)[number];
+
+const ARCHETYPE_PRIORITY: Record<Archetype, string> = {
+  visual:     "/vision",
+  typography: "/type",
+  systems:    "/projects",
+};
+
+function getNavItems(archetype: Archetype | null): NavItem[] {
+  if (!archetype) return [...BASE_NAV_ITEMS];
+  const priorityHref = ARCHETYPE_PRIORITY[archetype];
+  const priority = BASE_NAV_ITEMS.find((i) => i.href === priorityHref);
+  if (!priority) return [...BASE_NAV_ITEMS];
+  return [
+    BASE_NAV_ITEMS[0], // Home always first
+    priority,
+    ...BASE_NAV_ITEMS.slice(1).filter((i) => i.href !== priorityHref),
+  ] as NavItem[];
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -106,15 +127,16 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { openModal: openNewProject } = useNewProjectModal();
   const [projects, setProjects] = React.useState<StoredProject[]>([]);
+  const [navItems, setNavItems] = React.useState<NavItem[]>([...BASE_NAV_ITEMS]);
 
   React.useEffect(() => {
-    setProjects(getStoredProjects());
-    // Re-read when storage changes (cross-tab or same-tab via custom event)
-    function onStorage() {
+    function refresh() {
       setProjects(getStoredProjects());
+      setNavItems(getNavItems(getStoredArchetype()));
     }
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    refresh();
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
   }, []);
 
   function isActive(href: string) {
@@ -144,7 +166,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── Section 2: Primary Nav ── */}
       <nav className="flex flex-col gap-0.5">
-        {NAV_ITEMS.map(({ href, label, Icon }) => (
+        {navItems.map(({ href, label, Icon }) => (
           <NavItem
             key={href}
             href={href}

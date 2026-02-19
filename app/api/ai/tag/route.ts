@@ -3,14 +3,14 @@ import { tagReference } from "@/lib/ai/tagger";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
-  let body: { referenceId?: string; imageUrl?: string };
+  let body: { referenceId?: string; imageUrl?: string; archetype?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { referenceId, imageUrl } = body;
+  const { referenceId, imageUrl, archetype } = body;
   if (!imageUrl) {
     return NextResponse.json({ error: "imageUrl is required" }, { status: 400 });
   }
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true, reason: "blob url" });
   }
 
-  const result = await tagReference(imageUrl);
+  const result = await tagReference(imageUrl, archetype);
 
   // Persist to Supabase if we have a real DB reference ID
   if (referenceId && !referenceId.startsWith("local-") && !referenceId.startsWith("ref-")) {

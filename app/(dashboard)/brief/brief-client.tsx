@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { nanoid } from "nanoid";
 import {
   FlameIcon as Flame,
   ImageIcon,
@@ -14,6 +15,322 @@ import {
 } from "@/components/ui/icon";
 import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
+import {
+  getStoredProjects,
+  type StoredProject,
+} from "@/components/new-project-modal";
+
+// ─── Ideas types & storage ────────────────────────────────────────────────────
+
+interface Idea {
+  id: string;
+  text: string;
+  createdAt: string;
+  reminder: "none" | "today" | "tomorrow" | "this-week";
+  projectId: string | null;
+  projectName?: string;
+  status: "active" | "done" | "dismissed";
+}
+
+const IDEAS_KEY = "studio-os-ideas";
+const COLLAPSE_THRESHOLD = 5;
+const COLLAPSE_SHOW = 3;
+
+const REMINDER_LABELS: Record<Idea["reminder"], string> = {
+  none: "No reminder",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  "this-week": "This week",
+};
+
+function loadIdeas(): Idea[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(IDEAS_KEY) ?? "[]") as Idea[];
+  } catch { return []; }
+}
+
+function persistIdeas(ideas: Idea[]): void {
+  try { localStorage.setItem(IDEAS_KEY, JSON.stringify(ideas)); } catch { /* ignore */ }
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "yesterday";
+  return `${days}d ago`;
+}
+
+// ─── Ideas Section ────────────────────────────────────────────────────────────
+
+type MenuState = { ideaId: string; sub: "main" | "reminder" | "project" } | null;
+
+function IdeasSection({
+  onTodayReminders,
+}: {
+  onTodayReminders: (ideas: Idea[]) => void;
+}) {
+  const [ideas, setIdeas] = React.useState<Idea[]>([]);
+  const [input, setInput] = React.useState("");
+  const [flashId, setFlashId] = React.useState<string | null>(null);
+  const [expanded, setExpanded] = React.useState(false);
+  const [menu, setMenu] = React.useState<MenuState>(null);
+  const [projects, setProjects] = React.useState<StoredProject[]>([]);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setIdeas(loadIdeas());
+    setProjects(getStoredProjects());
+  }, []);
+
+  React.useEffect(() => {
+    persistIdeas(ideas);
+  }, [ideas]);
+
+  React.useEffect(() => {
+    onTodayReminders(ideas.filter((i) => i.status === "active" && i.reminder === "today"));
+  }, [ideas, onTodayReminders]);
+
+  // Close menu on outside click
+  React.useEffect(() => {
+    if (!menu) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menu]);
+
+  function addIdea(text: string) {
+    const id = nanoid();
+    const next: Idea[] = [
+      { id, text, createdAt: new Date().toISOString(), reminder: "none", projectId: null, status: "active" },
+      ...ideas,
+    ];
+    setIdeas(next);
+    persistIdeas(next);
+    setFlashId(id);
+    setTimeout(() => setFlashId(null), 500);
+  }
+
+  function update(id: string, patch: Partial<Idea>) {
+    setIdeas((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    setMenu(null);
+  }
+
+  const active = ideas.filter((i) => i.status === "active");
+  const done = ideas.filter((i) => i.status === "done");
+  const sorted = [
+    ...active.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    ...done.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+  ];
+
+  const shouldCollapse = active.length > COLLAPSE_THRESHOLD;
+  const visible = shouldCollapse && !expanded ? sorted.slice(0, COLLAPSE_SHOW) : sorted;
+  const hiddenCount = sorted.length - COLLAPSE_SHOW;
+  const todayCount = active.filter((i) => i.reminder === "today").length;
+
+  return (
+    <div className="space-y-3">
+      <SectionLabel>Ideas</SectionLabel>
+
+      {/* Input */}
+      <div className="flex items-center border border-dashed border-[#222] bg-[#0a0a0a]">
+        <input
+          type="text"
+          placeholder="Quick idea..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && input.trim()) {
+              addIdea(input.trim());
+              setInput("");
+            }
+          }}
+          className="h-11 flex-1 bg-transparent px-4 text-sm text-white placeholder:text-[#333] focus:outline-none"
+        />
+        <span className="pr-3 font-mono text-[11px] text-[#333] select-none">↵</span>
+      </div>
+
+      {/* Empty state */}
+      {sorted.length === 0 && (
+        <p className="pt-0.5 font-mono text-[11px] text-[#333]">
+          Capture ideas as they come. Set reminders so they resurface.
+        </p>
+      )}
+
+      {/* List */}
+      {sorted.length > 0 && (
+        <div className="overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a]">
+          {visible.map((idea, idx) => {
+            const isLast = idx === visible.length - 1 && !shouldCollapse;
+            const hasMenu = menu?.ideaId === idea.id;
+            const isFlash = flashId === idea.id;
+            const todayReminder = idea.reminder === "today";
+
+            return (
+              <div
+                key={idea.id}
+                className={cn(
+                  "group relative flex items-start justify-between gap-3 px-4 py-3 transition-colors duration-150",
+                  !isLast && "border-b border-dashed border-[#1a1a1a]",
+                  todayReminder && "border-l-2 border-[#0070F3]",
+                  isFlash && "bg-[#111]",
+                  idea.status === "done" && "opacity-30"
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className={cn("text-sm text-white leading-relaxed", idea.status === "done" && "line-through")}>
+                    {idea.text}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-0 font-mono text-[11px] text-[#444]">
+                    <span>{relativeTime(idea.createdAt)}</span>
+                    {idea.reminder !== "none" && (
+                      <span className="text-[#555]">&nbsp;· ⏰ {REMINDER_LABELS[idea.reminder]}</span>
+                    )}
+                    {idea.projectName && (
+                      <span className="text-[#555]">&nbsp;· 📁 {idea.projectName}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Three-dot menu */}
+                <div
+                  className="relative shrink-0"
+                  ref={hasMenu ? menuRef : undefined}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMenu(hasMenu ? null : { ideaId: idea.id, sub: "main" })
+                    }
+                    className="pt-0.5 text-sm leading-none text-[#333] opacity-0 transition-opacity hover:text-[#888] group-hover:opacity-100"
+                  >
+                    ···
+                  </button>
+
+                  {hasMenu && (
+                    <div className="absolute right-0 top-full z-50 mt-1 w-48 border border-dashed border-[#333] bg-[#0d0d0d] shadow-xl">
+                      {menu.sub === "main" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setMenu({ ideaId: idea.id, sub: "reminder" })}
+                            className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-[#888] transition-colors hover:bg-white/[0.04] hover:text-white"
+                          >
+                            <span>⏰ Set reminder</span>
+                            <span className="text-[#444]">→</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMenu({ ideaId: idea.id, sub: "project" })}
+                            className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-[#888] transition-colors hover:bg-white/[0.04] hover:text-white"
+                          >
+                            <span>📁 Add to project</span>
+                            <span className="text-[#444]">→</span>
+                          </button>
+                          <div className="my-1 border-t border-dashed border-[#222]" />
+                          <button
+                            type="button"
+                            onClick={() => update(idea.id, { status: "done" })}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-[#888] transition-colors hover:bg-white/[0.04] hover:text-white"
+                          >
+                            ✓ Mark as done
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => update(idea.id, { status: "dismissed" })}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-[#555] transition-colors hover:bg-white/[0.04] hover:text-red-400"
+                          >
+                            ✕ Dismiss
+                          </button>
+                        </>
+                      )}
+
+                      {menu.sub === "reminder" && (
+                        (["today", "tomorrow", "this-week", "none"] as Idea["reminder"][]).map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => update(idea.id, { reminder: r })}
+                            className={cn(
+                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/[0.04]",
+                              idea.reminder === r ? "text-white" : "text-[#888] hover:text-white"
+                            )}
+                          >
+                            {REMINDER_LABELS[r]}
+                            {idea.reminder === r && (
+                              <span className="text-[10px] text-accent">✓</span>
+                            )}
+                          </button>
+                        ))
+                      )}
+
+                      {menu.sub === "project" && (
+                        <>
+                          {projects.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => update(idea.id, { projectId: p.id, projectName: p.name })}
+                              className={cn(
+                                "flex w-full items-center gap-2 px-3 py-2 text-[12px] transition-colors hover:bg-white/[0.04]",
+                                idea.projectId === p.id ? "text-white" : "text-[#888] hover:text-white"
+                              )}
+                            >
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full"
+                                style={{ backgroundColor: p.color }}
+                              />
+                              {p.name}
+                            </button>
+                          ))}
+                          {projects.length === 0 && (
+                            <p className="px-3 py-2 font-mono text-[11px] text-[#444]">No projects yet</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Expand / collapse */}
+          {shouldCollapse && (
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              className="w-full border-t border-dashed border-[#1a1a1a] px-4 py-2.5 text-left font-mono text-[11px] text-[#444] transition-colors hover:text-[#777]"
+            >
+              {expanded
+                ? "↑ Collapse"
+                : `↓ Show ${hiddenCount} more idea${hiddenCount !== 1 ? "s" : ""}`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Summary */}
+      {sorted.length > 0 && (
+        <p className="font-mono text-[11px] text-[#333]">
+          {active.length} idea{active.length !== 1 ? "s" : ""}
+          {todayCount > 0 && ` · ${todayCount} reminder${todayCount !== 1 ? "s" : ""} today`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const USER_NAME = "Nick";
 
@@ -109,10 +426,15 @@ const PENDING_ITEMS = [
 export function BriefPage() {
   const [greeting, setGreeting] = React.useState("Good morning");
   const [dateStr, setDateStr] = React.useState("");
+  const [todayIdeaReminders, setTodayIdeaReminders] = React.useState<Idea[]>([]);
 
   React.useEffect(() => {
     setGreeting(getGreeting());
     setDateStr(getDateString());
+  }, []);
+
+  const handleTodayReminders = React.useCallback((ideas: Idea[]) => {
+    setTodayIdeaReminders(ideas);
   }, []);
 
   return (
@@ -126,6 +448,9 @@ export function BriefPage() {
         </h1>
         <p className="text-sm text-[#888] leading-relaxed">{FOCUS_SUMMARY}</p>
       </header>
+
+      {/* Section 0 — Ideas */}
+      <IdeasSection onTodayReminders={handleTodayReminders} />
 
       {/* Section 1 — Today's Focus */}
       <div className="space-y-3">
@@ -257,6 +582,22 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Needs Attention</SectionLabel>
         <ul className="space-y-2">
+          {/* Today-reminder ideas surface here */}
+          {todayIdeaReminders.map((idea) => (
+            <li
+              key={`idea-${idea.id}`}
+              className="flex items-start gap-3 border border-l-2 border-dashed border-[#222] border-l-[#0070F3] bg-[#0a0a0a] px-4 py-3"
+            >
+              <span className="mt-0.5 shrink-0 text-sm">💡</span>
+              <div className="min-w-0 flex-1">
+                <span className="block text-sm text-[#888]">&ldquo;{idea.text}&rdquo;</span>
+                <span className="font-mono text-[11px] text-[#444]">
+                  Idea from {relativeTime(idea.createdAt)} · Reminder: today
+                </span>
+              </div>
+            </li>
+          ))}
+
           {PENDING_ITEMS.map((item) => {
             const Icon = item.icon;
             return (

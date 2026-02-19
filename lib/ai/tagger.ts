@@ -90,7 +90,13 @@ IMPORTANT:
 - If you see text/typography, ALWAYS tag the typography style
 - If it's a UI screenshot, ALWAYS tag the UI patterns you see`;
 
-export async function tagReference(imageUrl: string): Promise<TagResult> {
+const ARCHETYPE_BOOST: Record<string, string> = {
+  visual:     "PRIORITY: Focus especially on style, mood, color palette, and composition tags.",
+  typography: "PRIORITY: Focus especially on typography style, font classification, and type hierarchy tags.",
+  systems:    "PRIORITY: Focus especially on UI patterns, layout patterns, and component types.",
+};
+
+export async function tagReference(imageUrl: string, archetype?: string): Promise<TagResult> {
   const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey || apiKey === "your_gemini_api_key_here") {
     return FALLBACK;
@@ -109,8 +115,12 @@ export async function tagReference(imageUrl: string): Promise<TagResult> {
     const buffer = await imageRes.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
 
+    const fullPrompt = archetype && ARCHETYPE_BOOST[archetype]
+      ? `${PROMPT}\n\n${ARCHETYPE_BOOST[archetype]}`
+      : PROMPT;
+
     const result = await model.generateContent([
-      PROMPT,
+      fullPrompt,
       {
         inlineData: {
           data: base64,

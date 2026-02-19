@@ -184,8 +184,8 @@ function openCommandPalette() {
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[8px] text-[#555] leading-none">■</span>
-      <span className="text-[11px] text-[#555] uppercase tracking-[0.15em] font-medium">
+      <span className="text-[8px] text-section-dot leading-none">■</span>
+      <span className="text-[11px] text-section-label uppercase tracking-[0.15em] font-medium">
         {children}
       </span>
     </div>
@@ -201,8 +201,8 @@ function ProjectCard({ project, onClick }: { project: StoredProject; onClick: ()
       onClick={onClick}
       className={cn(
         "flex flex-col justify-between shrink-0 w-[156px] h-[112px]",
-        "bg-[#0a0a0a] border border-dashed border-[#222] p-4 text-left cursor-pointer",
-        "hover:border-[#444] hover:bg-[#0d0d0d] transition-colors duration-150 ease-out"
+        "bg-card-bg border border-[#1a1a1a] p-4 text-left cursor-pointer",
+        "hover:border-[#252525] transition-colors duration-150 ease-out"
       )}
     >
       <div className="flex items-start gap-2">
@@ -210,11 +210,11 @@ function ProjectCard({ project, onClick }: { project: StoredProject; onClick: ()
           className="mt-[3px] w-[7px] h-[7px] rounded-full shrink-0"
           style={{ backgroundColor: project.color }}
         />
-        <span className="text-sm font-medium text-[#ccc] leading-tight line-clamp-2">
+        <span className="text-sm font-medium text-text-primary leading-tight line-clamp-2">
           {project.name}
         </span>
       </div>
-      <span className="text-[10px] text-[#333] font-mono">{timeAgo(project.createdAt)}</span>
+      <span className="text-[10px] text-text-muted font-mono">{timeAgo(project.createdAt)}</span>
     </button>
   );
 }
@@ -226,12 +226,12 @@ function NewProjectCard({ onOpen }: { onOpen: () => void }) {
       onClick={onOpen}
       className={cn(
         "flex flex-col items-center justify-center gap-2 shrink-0 w-[156px] h-[112px]",
-        "bg-transparent border border-dashed border-[#222]",
-        "hover:border-[#444] hover:bg-[#0a0a0a] transition-colors duration-150 ease-out cursor-pointer"
+        "bg-transparent border border-dashed border-card-border",
+        "hover:border-border-hover transition-colors duration-150 ease-out cursor-pointer"
       )}
     >
-      <PlusIcon className="w-3.5 h-3.5 text-[#333]" />
-      <span className="text-[10px] text-[#333] uppercase tracking-wider">New</span>
+      <PlusIcon className="w-3.5 h-3.5 text-text-muted" />
+      <span className="text-[10px] text-text-muted uppercase tracking-wider">New</span>
     </button>
   );
 }
@@ -245,8 +245,8 @@ function RefThumbnail({ item, onClick }: { item: RecentRef; onClick: () => void 
       onClick={onClick}
       className={cn(
         "relative w-[72px] h-[72px] shrink-0 overflow-hidden",
-        "bg-[#0a0a0a] border border-[#222]",
-        "hover:border-[#444] hover:scale-[1.03] transition-all duration-150 ease-out"
+        "bg-card-bg",
+        "hover:scale-[1.03] transition-all duration-150 ease-out"
       )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -269,9 +269,9 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 border border-[#222] bg-[#0a0a0a] text-xs text-[#777] whitespace-nowrap font-mono"
+      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 border border-border-secondary bg-card-bg text-xs text-text-tertiary whitespace-nowrap font-mono"
     >
-      <span className="text-[8px] text-[#444]">■</span>
+      <span className="text-[8px] text-text-muted">■</span>
       {message}
     </motion.div>
   );
@@ -287,10 +287,9 @@ const ASCII_CHARS = [
   "0", "1", "{", "}", "[", "]", "<", ">",
 ] as const;
 
-const CELL_SIZE = 28;
-const FONT_SIZE = 11;
-const REVEAL_RADIUS = 180;
-const MAX_OPACITY = 0.06;
+const CELL_SIZE = 18;
+const FONT_SIZE = 9;
+const REVEAL_RADIUS = 200;
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -336,6 +335,11 @@ export function HomeClient() {
     let prevY = -1001;
     let raf: number;
 
+    function getAsciiColor(): string {
+      const style = getComputedStyle(document.documentElement);
+      return style.getPropertyValue("--ascii-color").trim() || "rgba(0, 112, 243, 0.06)";
+    }
+
     function draw() {
       raf = requestAnimationFrame(draw);
       if (mouseX === prevX && mouseY === prevY) return;
@@ -347,6 +351,8 @@ export function HomeClient() {
       ctx!.textAlign = "center";
       ctx!.textBaseline = "middle";
 
+      const baseColor = getAsciiColor();
+
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const x = col * CELL_SIZE + CELL_SIZE / 2;
@@ -354,7 +360,8 @@ export function HomeClient() {
           const dist = Math.sqrt((x - mouseX) ** 2 + (y - mouseY) ** 2);
           if (dist < REVEAL_RADIUS) {
             const t = 1 - dist / REVEAL_RADIUS;
-            ctx!.fillStyle = `rgba(0, 112, 243, ${t * t * MAX_OPACITY})`;
+            // Parse base color and modulate its opacity
+            ctx!.fillStyle = baseColor.replace(/[\d.]+\)$/, `${t * t})`);
             ctx!.fillText(ASCII_CHARS[grid[row][col]], x, y);
           }
         }
@@ -458,7 +465,7 @@ export function HomeClient() {
       className="relative flex flex-col items-center justify-start pt-[14vh] min-h-screen px-10 pb-16"
       style={{
         backgroundImage:
-          "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
+          "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
         backgroundSize: "28px 28px",
       }}
     >
@@ -472,34 +479,34 @@ export function HomeClient() {
 
         {/* ── Studio OS label ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          <span className="text-[8px] text-[#555]">■</span>
-          <span className="text-[10px] text-[#555] uppercase tracking-[0.25em] font-mono">
+          <span className="text-[8px] text-section-dot">■</span>
+          <span className="text-[10px] text-section-label uppercase tracking-[0.25em] font-mono">
             Studio OS
           </span>
         </div>
 
         {/* ── Greeting ────────────────────────────────────────────────────── */}
         <div className="text-center mb-9">
-          <h1 className="text-[48px] font-semibold text-white tracking-tight leading-tight">
+          <h1 className="text-[48px] font-semibold text-text-primary tracking-tight leading-tight">
             Good {timeOfDay}, {USER_NAME}
           </h1>
-          <p className="text-[13px] text-[#555] mt-1.5 font-mono">{dateStr}</p>
+          <p className="text-[13px] text-text-tertiary mt-1.5 font-mono">{dateStr}</p>
         </div>
 
         {/* ── Chat input box ───────────────────────────────────────────────── */}
         <div className="w-full mx-auto mb-3">
           <div
             className={cn(
-              "border overflow-hidden bg-[#0a0a0a]",
+              "border overflow-hidden bg-bg-input",
               "transition-[border-color] duration-150",
               isFocused
-                ? "border-solid border-[#444]"
-                : "border-dashed border-[#222]"
+                ? "border-solid border-border-hover"
+                : "border-dashed border-border-subtle"
             )}
           >
             {/* Input row */}
             <div className="px-4 pt-[14px] pb-3 flex items-center gap-3">
-              <AiSparkIcon className="w-[15px] h-[15px] text-[#333] shrink-0" bare />
+              <AiSparkIcon className="w-[15px] h-[15px] text-text-muted shrink-0" bare />
               <input
                 type="text"
                 placeholder="What are you building today?"
@@ -510,19 +517,19 @@ export function HomeClient() {
                 onBlur={() => setIsFocused(false)}
                 // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-[#333] outline-none"
+                className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-placeholder outline-none"
               />
             </div>
 
             {/* Bottom toolbar */}
-            <div className="flex items-center justify-between px-3 pt-1 pb-3 border-t border-[#111]">
+            <div className="flex items-center justify-between px-3 pt-1 pb-3 border-t border-border-subtle">
               <div className="flex items-center gap-0.5">
                 {/* + new project */}
                 <button
                   type="button"
                   onClick={() => openNewProject()}
                   title="New project"
-                  className="w-7 h-7 flex items-center justify-center text-[#333] hover:text-[#555] hover:bg-[#111] transition-colors duration-150"
+                  className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-text-tertiary hover:bg-bg-tertiary transition-colors duration-150"
                 >
                   <PlusIcon className="w-3.5 h-3.5" />
                 </button>
@@ -531,7 +538,7 @@ export function HomeClient() {
                   type="button"
                   onClick={openCommandPalette}
                   title="Search (⌘K)"
-                  className="h-7 px-2 flex items-center text-[#333] hover:text-[#555] hover:bg-[#111] transition-colors duration-150"
+                  className="h-7 px-2 flex items-center text-text-muted hover:text-text-tertiary hover:bg-bg-tertiary transition-colors duration-150"
                 >
                   <span className="text-[10px] font-mono tracking-tight">⌘K</span>
                 </button>
@@ -547,8 +554,8 @@ export function HomeClient() {
                   "w-7 h-7 flex items-center justify-center text-xs font-medium",
                   "transition-[background-color,opacity] duration-150",
                   query.trim()
-                    ? "bg-white text-black hover:bg-[#e0e0e0]"
-                    : "bg-[#111] text-[#333] cursor-not-allowed"
+                    ? "bg-button-primary-bg text-button-primary-text"
+                    : "bg-bg-tertiary text-text-muted cursor-not-allowed"
                 )}
               >
                 ↑
@@ -567,7 +574,7 @@ export function HomeClient() {
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="mb-4"
             >
-              <div className="border border-dashed border-[#222] px-4 py-3 flex items-center justify-between gap-4 bg-[#0a0a0a]">
+              <div className="border border-[#1a1a1a] px-4 py-3 flex items-center justify-between gap-4 bg-card-bg">
                 <div className="flex items-center gap-3 min-w-0">
                   {suggestion.project && (
                     <span
@@ -575,21 +582,21 @@ export function HomeClient() {
                       style={{ backgroundColor: suggestion.project.color }}
                     />
                   )}
-                  <span className="text-sm text-[#888] truncate">{suggestion.label}</span>
-                  <span className="text-sm text-[#333] shrink-0 font-mono">{suggestion.action}</span>
+                  <span className="text-sm text-text-secondary truncate">{suggestion.label}</span>
+                  <span className="text-sm text-text-muted shrink-0 font-mono">{suggestion.action}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <button
                     type="button"
                     onClick={commit}
-                    className="text-[11px] bg-white text-black px-3 py-1 font-medium hover:bg-[#e0e0e0] transition-colors duration-150"
+                    className="text-[11px] bg-button-primary-bg text-button-primary-text px-3 py-1 font-medium hover:opacity-90 transition-opacity duration-150"
                   >
                     {suggestion.isNew ? "Create" : "Open"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setSuggestion(null)}
-                    className="text-[11px] text-[#333] hover:text-[#777] transition-colors duration-150 font-mono"
+                    className="text-[11px] text-text-muted hover:text-text-secondary transition-colors duration-150 font-mono"
                   >
                     skip
                   </button>
@@ -608,7 +615,7 @@ export function HomeClient() {
             <Label>Recent Projects</Label>
             <Link
               href="/projects"
-              className="text-[10px] text-[#333] hover:text-[#555] transition-colors duration-150 font-mono uppercase tracking-wider"
+              className="text-[10px] text-text-muted hover:text-text-tertiary transition-colors duration-150 font-mono uppercase tracking-wider"
             >
               All →
             </Link>
@@ -634,13 +641,13 @@ export function HomeClient() {
             <Label>Recently Saved</Label>
             <Link
               href="/vision"
-              className="text-[10px] text-[#333] hover:text-[#555] transition-colors duration-150 font-mono uppercase tracking-wider"
+              className="text-[10px] text-text-muted hover:text-text-tertiary transition-colors duration-150 font-mono uppercase tracking-wider"
             >
               Vision →
             </Link>
           </div>
           {recentRefs.length === 0 ? (
-            <p className="text-[11px] text-[#333] font-mono py-1">
+            <p className="text-[11px] text-text-muted font-mono py-1">
               · · · save your first reference from Vision or Pinterest · · ·
             </p>
           ) : (
@@ -654,7 +661,7 @@ export function HomeClient() {
 
         {/* ── Quote ────────────────────────────────────────────────────────── */}
         <DotSeparator />
-        <p className="text-sm italic text-[#333] text-center pb-4">
+        <p className="font-mono text-sm italic text-quote text-center pb-4">
           &ldquo;{quote}&rdquo;
         </p>
 

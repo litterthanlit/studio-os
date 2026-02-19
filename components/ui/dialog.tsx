@@ -67,7 +67,7 @@ export function DialogContent({ className, ...props }: DialogContentProps) {
       role="dialog"
       aria-modal="true"
       className={cn(
-        "w-full max-w-[640px] border border-[#222] bg-[#0a0a0a] px-4 py-3 md:px-6 md:py-4",
+        "w-full max-w-[640px] border border-card-border bg-card-bg px-4 py-3 md:px-6 md:py-4",
         className
       )}
       onClick={(e) => e.stopPropagation()}
@@ -100,7 +100,7 @@ type DialogTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
 export function DialogTitle({ className, ...props }: DialogTitleProps) {
   return (
     <h2
-      className={cn("text-sm font-semibold text-white", className)}
+      className={cn("text-sm font-semibold text-text-primary", className)}
       {...props}
     />
   );

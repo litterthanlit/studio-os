@@ -22,6 +22,7 @@ import {
 } from "@/components/new-project-modal";
 import { useNewProjectModal } from "@/components/new-project-modal";
 import { getStoredArchetype, type Archetype } from "@/app/onboarding/onboarding-client";
+import { ThemeToggle } from "@/components/navigation/theme-toggle";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
@@ -82,8 +83,8 @@ function NavItem({
         "flex items-center gap-3 h-9 px-3 cursor-pointer",
         "transition-colors duration-150 ease-out",
         active
-          ? "bg-[#1a1a1a] text-white font-medium"
-          : "text-[#666] hover:text-[#999] hover:bg-[#111]"
+          ? "bg-sidebar-active text-text-primary font-medium"
+          : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
       )}
     >
       <Icon className="w-[18px] h-[18px] shrink-0" />
@@ -108,8 +109,8 @@ function ProjectDot({
         "flex items-center gap-3 h-9 px-3 cursor-pointer",
         "transition-colors duration-150 ease-out",
         active
-          ? "bg-[#1a1a1a] text-white"
-          : "text-[#666] hover:text-[#999] hover:bg-[#111]"
+          ? "bg-sidebar-active text-text-primary"
+          : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
       )}
     >
       <span
@@ -148,8 +149,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
     <div className="flex flex-col h-full px-3 py-4">
       {/* ── Section 1: Logo ── */}
       <div className="flex items-center gap-2.5 px-3 mb-4 h-10">
-        <div className="w-4 h-4 bg-white shrink-0" />
-        <span className="text-sm font-medium text-[#999]">Studio OS</span>
+        <div className="w-4 h-4 bg-text-primary shrink-0" />
+        <span className="text-sm font-medium text-text-tertiary">Studio OS</span>
 
         {/* Close button — mobile only */}
         {onClose && (
@@ -157,7 +158,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             type="button"
             onClick={onClose}
             aria-label="Close sidebar"
-            className="ml-auto text-[#555] hover:text-[#999] transition-colors duration-150"
+            className="ml-auto text-text-muted hover:text-text-secondary transition-colors duration-150"
           >
             <CloseIcon className="w-4 h-4" />
           </button>
@@ -179,16 +180,16 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── Section 3: Projects ── */}
       <div className="mt-4">
-        <div className="border-t border-dashed border-[#1a1a1a] mb-3" />
+        <div className="border-t border-[#151515] mb-3" />
         <div className="flex items-center px-3 mb-1">
-          <span className="text-[11px] text-[#444] uppercase tracking-wider font-medium flex-1">
+          <span className="text-[11px] text-section-label uppercase tracking-wider font-medium flex-1">
             Projects
           </span>
           <button
             type="button"
             onClick={() => openNewProject()}
             aria-label="New project"
-            className="text-[#444] hover:text-[#999] transition-colors duration-150"
+            className="text-text-muted hover:text-text-secondary transition-colors duration-150"
           >
             <PlusIcon className="w-3.5 h-3.5" />
           </button>
@@ -201,7 +202,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           )}
         >
           {projects.length === 0 ? (
-            <p className="px-3 text-[11px] text-[#333] py-1">No projects yet</p>
+            <p className="px-3 text-[11px] text-text-muted py-1">No projects yet</p>
           ) : (
             projects.map((p) => (
               <ProjectDot
@@ -216,7 +217,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── Section 4: Bottom ── */}
       <div className="mt-auto">
-        <div className="border-t border-dashed border-[#1a1a1a] mb-2" />
+        <div className="border-t border-[#151515] mb-2" />
 
         {/* Search / ⌘K */}
         <button
@@ -224,16 +225,19 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           onClick={openCommandPalette}
           className={cn(
             "flex items-center gap-3 w-full h-9 px-3 cursor-pointer",
-            "text-[#666] hover:text-[#999] hover:bg-[#111]",
+            "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover",
             "transition-colors duration-150 ease-out"
           )}
         >
           <SearchIcon className="w-[18px] h-[18px] shrink-0" bare />
           <span className="text-sm flex-1 text-left">Search</span>
-          <span className="text-[11px] text-[#444] bg-[#0a0a0a] px-1.5 py-0.5 border border-[#333]">
+          <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary">
             ⌘K
           </span>
         </button>
+
+        {/* Theme toggle */}
+        <ThemeToggle />
 
         {/* Settings */}
         <Link
@@ -242,29 +246,29 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             "flex items-center gap-3 h-9 px-3 cursor-pointer",
             "transition-colors duration-150 ease-out",
             pathname === "/settings"
-              ? "bg-[#1a1a1a] text-white"
-              : "text-[#666] hover:text-[#999] hover:bg-[#111]"
+              ? "bg-sidebar-active text-text-primary"
+              : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
           )}
         >
           <SettingsIcon className="w-[18px] h-[18px] shrink-0" />
           <span className="text-sm">Settings</span>
         </Link>
 
-        <div className="border-t border-dashed border-[#1a1a1a] my-2" />
+        <div className="border-t border-[#151515] my-2" />
 
         {/* User row */}
         <div className="flex items-center gap-3 px-3 py-2">
           <div
             className={cn(
               "w-7 h-7 rounded-full shrink-0",
-              "bg-[#222] border border-[#333]",
+              "bg-bg-tertiary border border-border-primary",
               "flex items-center justify-center",
-              "text-[11px] font-medium text-[#666]"
+              "text-[11px] font-medium text-text-tertiary"
             )}
           >
             N
           </div>
-          <span className="text-sm text-[#666]">Nick</span>
+          <span className="text-sm text-text-tertiary">Nick</span>
         </div>
       </div>
     </div>
@@ -289,7 +293,7 @@ export function Sidebar() {
         className={cn(
           "hidden md:flex flex-col",
           "w-[220px] shrink-0 h-screen",
-          "bg-[#0a0a0a] border-r border-[#1a1a1a]",
+          "bg-sidebar-bg border-r border-sidebar-border",
           "sticky top-0"
         )}
       >
@@ -301,7 +305,7 @@ export function Sidebar() {
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open sidebar"
-        className="md:hidden fixed top-4 left-4 z-50 flex items-center justify-center w-8 h-8 text-[#666] hover:text-white transition-colors duration-150"
+        className="md:hidden fixed top-4 left-4 z-50 flex items-center justify-center w-8 h-8 text-text-tertiary hover:text-text-primary transition-colors duration-150"
       >
         <svg
           viewBox="0 0 20 20"
@@ -330,7 +334,7 @@ export function Sidebar() {
       <aside
         className={cn(
           "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col",
-          "w-[220px] bg-[#0a0a0a] border-r border-[#1a1a1a]",
+          "w-[220px] bg-sidebar-bg border-r border-sidebar-border",
           "transform transition-transform duration-200 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}

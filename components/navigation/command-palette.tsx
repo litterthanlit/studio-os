@@ -200,7 +200,7 @@ function SimilarityBar({ value }: { value: number }) {
     pct >= 80 ? "#0070f3" : pct >= 60 ? "#22c55e" : "#f97316";
   return (
     <div className="flex items-center gap-1.5 shrink-0">
-        <div className="relative h-1 w-12 bg-[#222]">
+        <div className="relative h-1 w-12 bg-border-secondary">
         <div
           className="absolute inset-y-0 left-0 transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -241,7 +241,7 @@ function SemanticResultRow({
       )}
     >
       {/* Thumbnail */}
-      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-[#333] bg-[#0a0a0a]">
+      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-border-primary bg-bg-input">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -251,17 +251,17 @@ function SemanticResultRow({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <ImageIcon className="h-3 w-3 text-gray-600" bare />
+            <ImageIcon className="h-3 w-3 text-text-tertiary" bare />
           </div>
         )}
       </div>
 
       {/* Text */}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-white">{label}</div>
-        {sub && (
-          <div className="truncate text-[11px] text-gray-500">{sub}</div>
-        )}
+                          <div className="truncate text-sm font-medium text-text-primary">{label}</div>
+                        {sub && (
+                          <div className="truncate text-[11px] text-text-tertiary">{sub}</div>
+                        )}
       </div>
 
       {/* Similarity */}
@@ -478,10 +478,10 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Search (⌘K)"
-          className="flex items-center justify-start gap-2 border border-[#222] bg-black/80 px-2.5 py-1.5 text-[#555] backdrop-blur-sm transition-[border-color,color] duration-200 ease-out hover:border-[#444] hover:text-white"
+          className="flex items-center justify-start gap-2 border border-border-secondary bg-bg-primary/80 px-2.5 py-1.5 text-text-tertiary backdrop-blur-sm transition-[border-color,color] duration-200 ease-out hover:border-border-hover hover:text-text-primary"
         >
           <SearchIcon className="h-3.5 w-3.5 shrink-0" bare />
-          <kbd className="border border-[#333] bg-[#0a0a0a] px-1.5 py-0.5 font-mono text-[9px] text-[#444]">
+          <kbd className="border border-border-primary bg-bg-input px-1.5 py-0.5 font-mono text-[9px] text-text-placeholder">
             ⌘K
           </kbd>
         </button>
@@ -516,21 +516,21 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="w-full max-w-[600px] border border-[#222] bg-[#0a0a0a] shadow-2xl"
+                    className="w-full max-w-[600px] border border-card-border bg-card-bg shadow-2xl"
                   >
                     {/* Input */}
-                    <div className="flex items-center gap-2 border-b border-[#1e1e1e] px-3">
-                      <SearchIcon className="h-4 w-4 shrink-0 text-gray-500" bare />
+                    <div className="flex items-center gap-2 border-b border-border-subtle px-3">
+                      <SearchIcon className="h-4 w-4 shrink-0 text-text-tertiary" bare />
                       <input
                         ref={inputRef}
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search everything… or describe a visual"
-                        className="h-12 w-full bg-transparent px-2 text-sm text-white outline-none placeholder:text-gray-600"
+                        className="h-12 w-full bg-transparent px-2 text-sm text-text-primary outline-none placeholder:text-text-placeholder"
                       />
                       {semanticLoading && (
-                        <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-gray-600">
+                        <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-text-tertiary">
                           <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
@@ -555,7 +555,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                               Vision — AI Search
                             </span>
                             {!semanticLoading && semanticResults.length === 0 && (
-                              <span className="ml-auto text-[10px] text-gray-700">
+                              <span className="ml-auto text-[10px] text-text-muted">
                                 no matches
                               </span>
                             )}
@@ -569,12 +569,12 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                                   key={i}
                                   className="flex items-center gap-3 rounded py-2"
                                 >
-                                  <div className="h-10 w-8 animate-pulse rounded bg-[#1a1a1a]" />
-                                  <div className="flex-1 space-y-1.5">
-                                    <div className="h-2.5 w-3/4 animate-pulse rounded bg-[#1a1a1a]" />
-                                    <div className="h-2 w-1/2 animate-pulse rounded bg-[#161616]" />
-                                  </div>
-                                  <div className="h-1 w-12 animate-pulse rounded-full bg-[#1a1a1a]" />
+                          <div className="h-10 w-8 animate-pulse rounded bg-border-subtle" />
+                          <div className="flex-1 space-y-1.5">
+                            <div className="h-2.5 w-3/4 animate-pulse rounded bg-border-subtle" />
+                            <div className="h-2 w-1/2 animate-pulse rounded bg-bg-tertiary" />
+                          </div>
+                          <div className="h-1 w-12 animate-pulse rounded-full bg-border-subtle" />
                                 </div>
                               ))}
                             </div>
@@ -595,7 +595,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
 
                           {/* Separator */}
                           {(semanticResults.length > 0 || semanticLoading) && (
-                            <div className="mx-3 my-2 border-t border-[#1a1a1a]" />
+                            <div className="mx-3 my-2 border-t border-border-subtle" />
                           )}
                         </div>
                       )}
@@ -610,7 +610,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                               const Icon = CATEGORY_ICONS[category];
                               return (
                                 <div key={category} className="mb-3 last:mb-0">
-                                  <div className="mb-1 px-3 text-[9px] font-medium uppercase tracking-[0.15em] text-gray-500">
+                                  <div className="mb-1 px-3 text-[9px] font-medium uppercase tracking-[0.15em] text-text-tertiary">
                                     {CATEGORY_LABELS[category]}
                                   </div>
                                   {items.map((item) => {
@@ -641,19 +641,19 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                                           isSelected ? "bg-accent/10" : "hover:bg-white/5"
                                         )}
                                       >
-                                        <Icon className="h-4 w-4 shrink-0 text-gray-500" />
+                                        <Icon className="h-4 w-4 shrink-0 text-text-tertiary" />
                                         <div className="min-w-0 flex-1">
                                           <div className="text-sm font-medium text-white truncate">
                                             {item.title}
                                           </div>
                                           {item.subtitle && (
-                                            <div className="text-[11px] text-gray-500 truncate">
+                                            <div className="text-[11px] text-text-tertiary truncate">
                                               {item.subtitle}
                                             </div>
                                           )}
                                         </div>
                                         {isAction(item) && item.shortcut && (
-                                          <span className="shrink-0 text-[10px] text-gray-500">
+                                          <span className="shrink-0 text-[10px] text-text-tertiary">
                                             {item.shortcut}
                                           </span>
                                         )}
@@ -667,7 +667,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                         </>
                       ) : (
                         <div className="space-y-1">
-                          <div className="mb-1 px-3 text-[9px] font-medium uppercase tracking-[0.15em] text-gray-500">
+                          <div className="mb-1 px-3 text-[9px] font-medium uppercase tracking-[0.15em] text-text-tertiary">
                             Recent &amp; suggested
                           </div>
                           {flatItems.map((item, index) => {
@@ -691,19 +691,19 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                                   isSelected ? "bg-accent/10" : "hover:bg-white/5"
                                 )}
                               >
-                                <Icon className="h-4 w-4 shrink-0 text-gray-500" />
+                                <Icon className="h-4 w-4 shrink-0 text-text-tertiary" />
                                 <div className="min-w-0 flex-1">
                                   <div className="text-sm font-medium text-white truncate">
                                     {item.title}
                                   </div>
                                   {item.subtitle && (
-                                    <div className="text-[11px] text-gray-500 truncate">
+                                    <div className="text-[11px] text-text-tertiary truncate">
                                       {item.subtitle}
                                     </div>
                                   )}
                                 </div>
                                 {isAction(item) && item.shortcut && (
-                                  <span className="shrink-0 text-[10px] text-gray-500">
+                                  <span className="shrink-0 text-[10px] text-text-tertiary">
                                     {item.shortcut}
                                   </span>
                                 )}
@@ -715,22 +715,22 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     </div>
 
                     {/* Footer hint */}
-                    <div className="flex items-center justify-between border-t border-[#1a1a1a] px-3 py-2">
-                      <div className="flex items-center gap-3 text-[10px] text-gray-700">
+                    <div className="flex items-center justify-between border-t border-border-subtle px-3 py-2">
+                      <div className="flex items-center gap-3 text-[10px] text-text-muted">
                         <span className="flex items-center gap-1">
-                          <kbd className="rounded border border-[#222] bg-[#111] px-1 py-0.5 font-mono text-[9px]">↑↓</kbd>
+                          <kbd className="rounded border border-card-border bg-bg-tertiary px-1 py-0.5 font-mono text-[9px]">↑↓</kbd>
                           Navigate
                         </span>
                         <span className="flex items-center gap-1">
-                          <kbd className="rounded border border-[#222] bg-[#111] px-1 py-0.5 font-mono text-[9px]">↵</kbd>
+                          <kbd className="rounded border border-card-border bg-bg-tertiary px-1 py-0.5 font-mono text-[9px]">↵</kbd>
                           Select
                         </span>
                         <span className="flex items-center gap-1">
-                          <kbd className="rounded border border-[#222] bg-[#111] px-1 py-0.5 font-mono text-[9px]">esc</kbd>
+                          <kbd className="rounded border border-card-border bg-bg-tertiary px-1 py-0.5 font-mono text-[9px]">esc</kbd>
                           Close
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-gray-700">
+                      <div className="flex items-center gap-1 text-[10px] text-text-muted">
                         <AiSparkIcon className="h-2.5 w-2.5 text-accent/50" bare />
                         <span>AI semantic search</span>
                       </div>

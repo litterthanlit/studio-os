@@ -10,14 +10,12 @@ export type ThemeProviderProps = React.ComponentProps<
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return (
     <NextThemesProvider
-      attribute="class"
+      attribute="data-theme"
       defaultTheme="dark"
-      forcedTheme="dark"
-      enableSystem={false}
+      enableSystem
       {...props}
     >
       {children}
     </NextThemesProvider>
   );
 }
-

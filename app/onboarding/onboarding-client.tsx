@@ -145,7 +145,7 @@ function StepWelcome({
     <div className="space-y-10 py-4 text-center">
       {/* Logo mark */}
       <motion.div
-        className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-[#1a1a1a] bg-[#0a0a0a]"
+        className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-border-subtle bg-card-bg"
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5, ease: SPRING }}
@@ -169,7 +169,7 @@ function StepWelcome({
           Welcome to Studio OS
         </motion.h1>
         <motion.p
-          className="text-[15px] text-[#555]"
+          className="text-[15px] text-text-tertiary"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.4 }}
@@ -203,10 +203,10 @@ function StepWelcome({
                 onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
                 placeholder="your@email.com"
                 className={cn(
-                  "w-full rounded-lg border bg-[#0a0a0a] px-4 py-3 text-sm text-white outline-none",
-                  "placeholder:text-[#2a2a2a] transition-[border-color] duration-200 ease-out",
-                  "focus:border-[#333]",
-                  error ? "border-red-900/60" : "border-[#1a1a1a]"
+                  "w-full rounded-lg border bg-card-bg px-4 py-3 text-sm text-white outline-none",
+                  "placeholder:text-text-muted transition-[border-color] duration-200 ease-out",
+                  "focus:border-border-primary",
+                  error ? "border-red-900/60" : "border-border-subtle"
                 )}
               />
             </div>
@@ -228,7 +228,7 @@ function StepWelcome({
             <button
               type="button"
               onClick={() => onNext(false)}
-              className="text-[13px] text-[#3a3a3a] transition-colors duration-200 ease-out hover:text-[#777]"
+              className="text-[13px] text-text-muted transition-colors duration-200 ease-out hover:text-text-secondary"
             >
               Skip sign in →
             </button>
@@ -238,13 +238,13 @@ function StepWelcome({
 
       {/* Sign-in link */}
       <motion.p
-        className="text-[12px] text-[#2a2a2a]"
+        className="text-[12px] text-text-muted"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
       >
         Already have an account?{" "}
-        <a href="/auth/login" className="text-[#444] underline transition-colors hover:text-white">
+        <a href="/auth/login" className="text-text-placeholder underline transition-colors hover:text-white">
           Sign in
         </a>
       </motion.p>
@@ -279,7 +279,7 @@ function StepArchetype({
         <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-white">
           When starting a new project,<br />what&apos;s your first move?
         </h2>
-        <p className="text-[13px] text-[#444]">This helps us personalize your studio.</p>
+        <p className="text-[13px] text-text-placeholder">This helps us personalize your studio.</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -295,21 +295,21 @@ function StepArchetype({
                 "border cursor-pointer",
                 isSelected
                   ? "border-solid border-[#0070F3] bg-[#0070F3]/5"
-                  : "border-dashed border-[#222] bg-[#0a0a0a] hover:border-[#444]"
+                  : "border-[#1a1a1a] bg-card-bg hover:border-[#252525]"
               )}
             >
               <div className="flex items-center gap-2 mb-1">
                 <span
                   className={cn(
                     "text-[8px] leading-none",
-                    isSelected ? "text-accent" : "text-[#555]"
+                    isSelected ? "text-accent" : "text-text-tertiary"
                   )}
                 >
                   ■
                 </span>
                 <span className="text-sm font-medium text-white">{opt.title}</span>
               </div>
-              <p className="text-[11px] text-[#555] pl-[18px]">{opt.subtitle}</p>
+              <p className="text-[11px] text-text-tertiary pl-[18px]">{opt.subtitle}</p>
             </button>
           );
         })}
@@ -331,7 +331,7 @@ function StepArchetype({
         <button
           type="button"
           onClick={() => { onChoose("visual"); onNext(); }}
-          className="text-[13px] text-[#3a3a3a] transition-colors duration-200 ease-out hover:text-[#777]"
+          className="text-[13px] text-text-muted transition-colors duration-200 ease-out hover:text-text-secondary"
         >
           Skip →
         </button>
@@ -359,7 +359,7 @@ function StepTemplatePicker({
         <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-white">
           Pick a starting point.
         </h2>
-        <p className="text-[14px] text-[#555]">
+        <p className="text-[14px] text-text-tertiary">
           Pre-loaded with references, palette, and font pairings.
         </p>
       </div>
@@ -393,7 +393,7 @@ function StepTemplatePicker({
         <button
           type="button"
           onClick={() => { onChoose("empty"); onNext(); }}
-          className="text-[13px] text-[#3a3a3a] transition-colors duration-200 ease-out hover:text-[#777]"
+          className="text-[13px] text-text-muted transition-colors duration-200 ease-out hover:text-text-secondary"
         >
           Or start empty →
         </button>
@@ -420,11 +420,11 @@ function TemplateCard({
         "transition-[border-color,box-shadow] duration-200 ease-out",
         selected
           ? "border-accent shadow-[0_0_0_1px_rgba(0,112,243,0.3)] shadow-accent/10"
-          : "border-[#222] hover:border-[#555]"
+          : "border-card-border hover:border-border-hover"
       )}
     >
       {/* Cover image */}
-      <div className="relative h-[110px] w-full overflow-hidden bg-[#0a0a0a]">
+      <div className="relative h-[110px] w-full overflow-hidden bg-card-bg">
         <Image
           src={template.cover}
           alt={template.name}
@@ -441,9 +441,9 @@ function TemplateCard({
       </div>
 
       {/* Info */}
-      <div className="bg-[#111] px-3 py-2.5">
+      <div className="bg-bg-secondary px-3 py-2.5">
         <div className="text-[13px] font-medium text-white">{template.name}</div>
-        <div className="mt-0.5 text-[11px] text-[#555]">
+        <div className="mt-0.5 text-[11px] text-text-tertiary">
           {template.refCount} references
         </div>
       </div>
@@ -566,7 +566,7 @@ function StepStudio({
         <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-white">
           Your studio is ready.
         </h2>
-        <p className="text-[13px] text-[#555]">
+        <p className="text-[13px] text-text-tertiary">
           {template ? `${template.name} template loaded.` : "Empty studio ready."} Try searching your references.
         </p>
       </div>
@@ -574,18 +574,18 @@ function StepStudio({
       {/* Search bar with pulse ring */}
       <div
         className={cn(
-          "relative flex items-center gap-2 rounded-lg border border-[#222] bg-[#0a0a0a] px-3 py-2.5",
-          "transition-[border-color] duration-200 focus-within:border-[#333]",
+          "relative flex items-center gap-2 rounded-lg border border-card-border bg-card-bg px-3 py-2.5",
+          "transition-[border-color] duration-200 focus-within:border-border-primary",
           pulsed && "search-pulse"
         )}
       >
-        <svg className="h-3.5 w-3.5 flex-shrink-0 text-[#444]" viewBox="0 0 20 20" fill="none">
+        <svg className="h-3.5 w-3.5 flex-shrink-0 text-text-placeholder" viewBox="0 0 20 20" fill="none">
           <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.5" />
           <path d="M13 13l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         {/* Custom animated placeholder */}
         {!query && (
-          <span className="pointer-events-none absolute left-9 select-none text-[13px] text-[#2a2a2a]">
+          <span className="pointer-events-none absolute left-9 select-none text-[13px] text-text-muted">
             {placeholder}
             {!placeholderDone && <span className="ml-px opacity-70">|</span>}
           </span>
@@ -602,7 +602,7 @@ function StepStudio({
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="flex-shrink-0 text-[#444] transition-colors hover:text-white"
+            className="flex-shrink-0 text-text-placeholder transition-colors hover:text-white"
           >
             <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -619,7 +619,7 @@ function StepStudio({
               key={s}
               type="button"
               onClick={() => { setQuery(s); if (!searchPerformed) onSearch(); }}
-              className="rounded-full border border-[#222] bg-[#0a0a0a] px-2.5 py-1 text-[11px] text-[#555] transition-[border-color,color] duration-150 hover:border-[#444] hover:text-white"
+              className="rounded-full border border-card-border bg-card-bg px-2.5 py-1 text-[11px] text-text-tertiary transition-[border-color,color] duration-150 hover:border-border-hover hover:text-white"
             >
               {s}
             </button>
@@ -633,7 +633,7 @@ function StepStudio({
           {filtered.slice(0, 9).map((ref, i) => (
             <motion.div
               key={ref.imageUrl}
-              className="relative aspect-[4/3] overflow-hidden rounded-md bg-[#0a0a0a]"
+              className="relative aspect-[4/3] overflow-hidden rounded-md bg-card-bg"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.04, duration: 0.25, ease: "easeOut" }}
@@ -669,14 +669,14 @@ function StepStudio({
 
         {/* "No results" state */}
         {filtered.length === 0 && (
-          <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-[#222] text-[13px] text-[#444]">
+          <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-card-border text-[13px] text-text-placeholder">
             No matches — try a different search
           </div>
         )}
 
         {/* Result count */}
         {query && filtered.length > 0 && (
-          <p className="mt-1.5 text-[11px] text-[#444]">
+          <p className="mt-1.5 text-[11px] text-text-placeholder">
             {filtered.length} of {refs.length} references
           </p>
         )}
@@ -707,7 +707,7 @@ function StepStudio({
           <button
             type="button"
             onClick={useSuggestion}
-            className="text-[12px] text-[#3a3a3a] transition-colors duration-200 hover:text-[#777]"
+            className="text-[12px] text-text-muted transition-colors duration-200 hover:text-text-secondary"
           >
             Try a search first
           </button>
@@ -742,7 +742,7 @@ function StepConnect({
         <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-white">
           Want to search YOUR references too?
         </h2>
-        <p className="text-[14px] text-[#555]">
+        <p className="text-[14px] text-text-tertiary">
           Connect Pinterest to import boards directly into Vision.
         </p>
       </div>
@@ -758,13 +758,13 @@ function StepConnect({
             "transition-all duration-200 ease-out",
             pinterestConnected
               ? "border-emerald-800/40 bg-emerald-950/20"
-              : "border-[#222] bg-[#0a0a0a] hover:border-[#444]"
+              : "border-card-border bg-card-bg hover:border-border-hover"
           )}
         >
           {/* Pinterest icon */}
           <div className={cn(
             "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border",
-            pinterestConnected ? "border-emerald-800/40 bg-emerald-950/30 text-emerald-400" : "border-[#222] bg-[#111] text-[#e60023]"
+            pinterestConnected ? "border-emerald-800/40 bg-emerald-950/30 text-emerald-400" : "border-card-border bg-bg-secondary text-[#e60023]"
           )}>
             <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
               <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.25" />
@@ -777,7 +777,7 @@ function StepConnect({
 
           <div className="flex-1 space-y-0.5">
             <div className="text-[13px] font-medium text-white">Pinterest</div>
-            <div className="text-[11px] text-[#444]">
+            <div className="text-[11px] text-text-placeholder">
               Import boards and pins as references
             </div>
           </div>
@@ -790,18 +790,18 @@ function StepConnect({
               Connected
             </span>
           ) : importing ? (
-            <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-[#555]">
+            <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-text-tertiary">
               <span className="h-1.5 w-1.5 animate-ping rounded-full bg-accent" />
               Connecting…
             </span>
           ) : (
-            <span className="shrink-0 text-[12px] text-[#444] transition-colors duration-200 group-hover:text-white">
+            <span className="shrink-0 text-[12px] text-text-placeholder transition-colors duration-200 group-hover:text-white">
               Connect →
             </span>
           )}
         </button>
 
-        <p className="text-[11px] text-[#2a2a2a]">
+        <p className="text-[11px] text-text-muted">
           You can connect more sources anytime in Settings.
         </p>
       </div>
@@ -818,7 +818,7 @@ function StepConnect({
         <button
           type="button"
           onClick={onNext}
-          className="text-[13px] text-[#3a3a3a] transition-colors duration-200 ease-out hover:text-[#777]"
+          className="text-[13px] text-text-muted transition-colors duration-200 ease-out hover:text-text-secondary"
         >
           Skip for now →
         </button>
@@ -878,7 +878,7 @@ function StepReady({
           Your studio is ready.
         </motion.h2>
         <motion.p
-          className="text-[14px] text-[#555]"
+          className="text-[14px] text-text-tertiary"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
@@ -910,9 +910,9 @@ function StepReady({
           transition={{ delay: 0.65 }}
         >
           {template.fonts.slice(0, 1).map((pair, i) => (
-            <div key={i} className="rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2.5">
+            <div key={i} className="rounded-lg border border-border-subtle bg-card-bg px-3 py-2.5">
               <div className="text-[18px] font-semibold text-white">{pair.heading}</div>
-              <div className="text-[12px] text-[#555]">{pair.body} · body</div>
+              <div className="text-[12px] text-text-tertiary">{pair.body} · body</div>
             </div>
           ))}
         </motion.div>
@@ -932,13 +932,13 @@ function StepReady({
         ].map(({ icon, label, desc }) => (
           <motion.div
             key={label}
-            className="flex flex-col items-center gap-1.5 rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] py-3"
+            className="flex flex-col items-center gap-1.5 rounded-lg border border-border-subtle bg-card-bg py-3"
             variants={iconItemVariants}
           >
-            <span className="text-[16px] text-[#333]">{icon}</span>
+            <span className="text-[16px] text-text-muted">{icon}</span>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#666]">{label}</div>
-              <div className="text-[10px] text-[#333]">{desc}</div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-text-secondary">{label}</div>
+              <div className="text-[10px] text-text-muted">{desc}</div>
             </div>
           </motion.div>
         ))}
@@ -965,7 +965,7 @@ function StepReady({
         <button
           type="button"
           onClick={onDemo}
-          className="w-full rounded-lg border border-[#1a1a1a] bg-transparent px-8 py-2.5 text-sm text-[#555] transition-[border-color,color] duration-200 hover:border-[#333] hover:text-white"
+          className="w-full rounded-lg border border-border-subtle bg-transparent px-8 py-2.5 text-sm text-text-tertiary transition-[border-color,color] duration-200 hover:border-border-primary hover:text-white"
         >
           Explore Demo Project →
         </button>
@@ -979,7 +979,7 @@ function StepReady({
         transition={{ delay: 1.2 }}
       >
         Press{" "}
-        <kbd className="rounded border border-[#222] bg-[#0a0a0a] px-1 py-0.5 font-mono text-[10px] text-[#333]">
+        <kbd className="rounded border border-card-border bg-card-bg px-1 py-0.5 font-mono text-[10px] text-text-muted">
           ⌘K
         </kbd>{" "}
         anytime to search, create, or navigate
@@ -1196,7 +1196,7 @@ export function OnboardingClient() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -4 }}
                 transition={{ duration: 0.2 }}
-                className="flex h-7 w-7 items-center justify-center rounded text-[#3a3a3a] transition-colors duration-200 hover:text-white"
+                className="flex h-7 w-7 items-center justify-center rounded text-text-muted transition-colors duration-200 hover:text-white"
                 aria-label="Go back"
               >
                 <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
@@ -1264,7 +1264,7 @@ export function OnboardingClient() {
 
       {/* Footer */}
       <div className="absolute bottom-5 left-0 right-0 text-center">
-        <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#1e1e1e]">
+        <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-text-muted">
           Studio OS
         </span>
       </div>

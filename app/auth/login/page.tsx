@@ -45,7 +45,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-black px-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-bg-primary px-6">
       {/* Ambient glow */}
       <div
         className="pointer-events-none fixed inset-0"
@@ -58,7 +58,7 @@ export default function LoginPage() {
       <div className="relative w-full max-w-[360px]">
         {/* Logo mark */}
         <div className="mb-10 flex justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#1a1a1a] bg-[#0a0a0a]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border-subtle bg-card-bg">
             <svg
               viewBox="0 0 24 24"
               className="h-6 w-6 text-accent"
@@ -103,19 +103,19 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-white">
+                <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-text-primary">
                   Check your inbox
                 </h1>
-                <p className="text-[13px] text-[#555]">
+                <p className="text-[13px] text-text-tertiary">
                   Magic link sent to{" "}
-                  <span className="text-[#888]">{email}</span>
+                  <span className="text-text-secondary">{email}</span>
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => { setState("idle"); setErrorMsg(""); }}
-                className="text-[12px] text-[#3a3a3a] transition-colors duration-200 hover:text-[#777]"
+                className="text-[12px] text-text-muted transition-colors duration-200 hover:text-text-secondary"
               >
                 Use a different email
               </button>
@@ -132,10 +132,10 @@ export default function LoginPage() {
               className="space-y-10"
             >
               <div className="space-y-2">
-                <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.02em] text-white">
+                <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.02em] text-text-primary">
                   Sign in to<br />Studio OS
                 </h1>
-                <p className="text-[13px] text-[#555]">
+                <p className="text-[13px] text-text-tertiary">
                   No password. We&apos;ll email you a magic link.
                 </p>
               </div>
@@ -150,11 +150,11 @@ export default function LoginPage() {
                   required
                   autoComplete="email"
                   className={cn(
-                    "w-full border-b bg-transparent py-3 text-[17px] text-white outline-none placeholder:text-[#282828]",
+                    "w-full border-b bg-transparent py-3 text-[17px] text-text-primary outline-none placeholder:text-text-muted",
                     "transition-[border-color] duration-200 ease-out",
                     email.trim()
-                      ? "border-[#444]"
-                      : "border-[#282828] focus:border-[#3a3a3a]"
+                      ? "border-border-hover"
+                      : "border-border-subtle focus:border-border-secondary"
                   )}
                 />
 
@@ -190,7 +190,7 @@ export default function LoginPage() {
       </div>
 
       <div className="absolute bottom-5 left-0 right-0 text-center">
-        <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#1e1e1e]">
+        <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-text-muted">
           Studio OS
         </span>
       </div>

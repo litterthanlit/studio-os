@@ -248,10 +248,10 @@ export function TypeLibraryPage() {
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-3xl font-bold text-text-primary tracking-tight">
             Type Library
           </h2>
-          <p className="text-sm text-[#888]">
+          <p className="text-sm text-text-secondary">
             Define the typographic spine of your studio — systems, scales, and
             pairings that stay consistent across products and decks.
           </p>
@@ -266,7 +266,7 @@ export function TypeLibraryPage() {
           />
 
           {/* Underline tab indicator */}
-          <div className="flex items-center gap-0 overflow-x-auto pb-0 border-b border-[#1a1a1a]">
+          <div className="flex items-center gap-0 overflow-x-auto pb-0 border-b border-border-subtle">
             {CLASS_TABS.map((tab) => {
               const active = activeClass === tab;
               return (
@@ -279,8 +279,8 @@ export function TypeLibraryPage() {
                     "transition-colors duration-200 whitespace-nowrap",
                     "border-b-2 -mb-px",
                     active
-                      ? "border-white text-white"
-                      : "border-transparent text-[#555] hover:text-[#888]"
+                      ? "border-text-primary text-text-primary"
+                      : "border-transparent text-text-tertiary hover:text-text-secondary"
                   )}
                 >
                   {tab}
@@ -297,29 +297,29 @@ export function TypeLibraryPage() {
               type="button"
               onClick={() => handleOpenDetail(font.id)}
               className={cn(
-                "flex flex-col border border-dashed border-[#222] bg-[#0a0a0a] text-left",
-                "overflow-hidden transition-[border-color] duration-200 ease-out hover:border-[#444]"
+                "flex flex-col border border-[#1a1a1a] bg-card-bg text-left",
+                "overflow-hidden transition-[border-color] duration-200 ease-out hover:border-[#252525]"
               )}
             >
-              <div className={cn("border-b border-dashed border-[#1a1a1a] p-5", font.fontClassName)}>
-                <div className="mb-2 text-4xl leading-none text-white">Aa</div>
-                <div className="text-sm font-bold text-white">
+              <div className={cn("border-b border-[#151515] p-5", font.fontClassName)}>
+                <div className="mb-2 text-4xl leading-none text-text-primary">Aa</div>
+                <div className="text-sm font-bold text-text-primary">
                   {font.name}
                 </div>
-                <div className="text-[11px] text-[#555] font-mono">{font.foundry}</div>
+                <div className="text-[11px] text-text-tertiary font-mono">{font.foundry}</div>
               </div>
 
-              <div className={cn("border-b border-dashed border-[#1a1a1a] p-5 text-sm", font.fontClassName)}>
-                <p className="text-[#888]">
+              <div className={cn("border-b border-[#151515] p-5 text-sm", font.fontClassName)}>
+                <p className="text-text-secondary">
                   The quick brown fox jumps over the lazy dog.
                 </p>
               </div>
 
               <div className="flex items-center justify-between gap-2 p-5">
-                <span className="border border-[#222] bg-black px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[#555]">
+                <span className="border border-card-border bg-black px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
                   {font.classification}
                 </span>
-                <span className="text-[11px] text-[#555] font-mono">
+                <span className="text-[11px] text-text-tertiary font-mono">
                   {font.usageCount} project{font.usageCount === 1 ? "" : "s"}
                 </span>
               </div>
@@ -327,21 +327,21 @@ export function TypeLibraryPage() {
           ))}
         </div>
 
-        <div className="mt-8 space-y-3 border-t border-dashed border-[#222] pt-6">
+        <div className="mt-8 space-y-3 border-t border-[#151515] pt-6">
           <SectionLabel>Font Pairings</SectionLabel>
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-[#888]">
+            <div className="text-sm text-text-secondary">
               Curate heading/body pairs that feel like your studio.
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-[11px] uppercase tracking-[0.15em] text-[#555]">
+              <span className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
                 Heading font
               </span>
               <select
                 value={selectedHeading}
                 onChange={(e) => setSelectedHeading(e.target.value)}
-                className="h-8 border border-[#222] bg-[#0a0a0a] px-2 text-xs uppercase tracking-[0.15em] text-white outline-none transition-[border-color] duration-200 ease-out focus:border-[#444]"
+                className="h-8 border border-card-border bg-card-bg px-2 text-xs uppercase tracking-[0.15em] text-white outline-none transition-[border-color] duration-200 ease-out focus:border-border-hover"
               >
                 {["Inter", "Playfair Display", "Space Grotesk"].map(
                   (name) => (
@@ -365,7 +365,7 @@ export function TypeLibraryPage() {
               return (
                 <div
                   key={`${selectedHeading}-${pair.bodyId}`}
-                  className="flex flex-col border border-dashed border-[#222] bg-[#0a0a0a] p-4 transition-colors duration-200 hover:border-[#444]"
+                  className="flex flex-col border border-[#1a1a1a] bg-card-bg p-4 transition-colors duration-200 hover:border-[#252525]"
                 >
                   <div className="mb-2 space-y-1">
                     <div
@@ -433,7 +433,7 @@ export function TypeLibraryPage() {
               onClick={handleCloseDetail}
             />
             <motion.aside
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-[#222] bg-[#0a0a0a] p-4"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-hidden border-l border-[#1a1a1a] bg-bg-secondary p-4"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -444,7 +444,7 @@ export function TypeLibraryPage() {
                   <SectionLabel>Specimen</SectionLabel>
                   <div
                     className={cn(
-                      "text-lg font-bold text-white",
+                      "text-lg font-bold text-text-primary",
                       selectedFont.fontClassName
                     )}
                   >
@@ -457,7 +457,7 @@ export function TypeLibraryPage() {
                 <button
                   type="button"
                   onClick={handleCloseDetail}
-                  className="text-xs uppercase tracking-[0.15em] text-gray-400 transition-colors duration-200 hover:text-white"
+                  className="text-xs uppercase tracking-[0.15em] text-text-tertiary transition-colors duration-200 hover:text-text-primary"
                 >
                   Close
                 </button>
@@ -465,7 +465,7 @@ export function TypeLibraryPage() {
 
               <div
                 className={cn(
-                  "mb-4 border border-dashed border-[#222] bg-[#0a0a0a] p-3",
+                  "mb-4 border border-[#1a1a1a] bg-card-bg p-3",
                   selectedFont.fontClassName
                 )}
               >
@@ -546,17 +546,17 @@ export function TypeLibraryPage() {
                     }))
                   }
                   placeholder="Where does this font belong in the studio? Document decisions, constraints, and examples."
-                  className="h-20 w-full border border-[#222222] bg-transparent px-2 py-1 text-sm text-white outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
+                  className="h-20 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-white outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
                 />
               </div>
 
-              <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#222] pt-3 text-xs">
-                <div className="text-[11px] text-[#333] font-mono">
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-[#151515] pt-3 text-xs">
+                <div className="text-[11px] text-text-muted font-mono">
                   Tag this face with use cases once you know where it wins.
                 </div>
                 <button
                   type="button"
-                  className="border border-[#1a1a1a] bg-black px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]"
+                  className="border border-border-subtle bg-black px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white transition-[border-color] duration-200 ease-out hover:border-border-subtle"
                 >
                   Add to Project
                 </button>

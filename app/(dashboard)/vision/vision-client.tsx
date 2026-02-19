@@ -329,8 +329,8 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
           <span
             key={`${referenceId}-tag-${tag}`}
             className={cn(
-              "border border-dashed bg-[#1a1a1a] px-2 py-0.5 text-[11px] uppercase tracking-[0.12em]",
-              isConfirmed ? "border-[#222] text-[#888]" : "border-[#1e1e1e] text-[#555]"
+              "border bg-sidebar-active px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em]",
+              isConfirmed ? "border-card-border text-text-secondary" : "border-border-subtle text-text-tertiary"
             )}
           >
             {tag}
@@ -343,7 +343,7 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
         possible.map((tag) => (
           <span
             key={`${referenceId}-possible-${tag}`}
-            className="border border-dashed border-[#1a1a1a] bg-[#111] px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-[#444]"
+            className="border border-[#222] bg-bg-secondary px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-placeholder"
           >
             {tag}
           </span>
@@ -357,7 +357,7 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
             e.stopPropagation();
             setShowMore(true);
           }}
-          className="pointer-events-auto px-1 text-[10px] text-[#555] transition-colors hover:text-[#888]"
+          className="pointer-events-auto px-1 text-[10px] text-text-tertiary transition-colors hover:text-text-secondary"
         >
           +{primaryOverflow + possible.length} more
         </button>
@@ -369,7 +369,7 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
             e.stopPropagation();
             setShowMore(false);
           }}
-          className="pointer-events-auto px-1 text-[10px] text-[#444] transition-colors hover:text-[#666]"
+          className="pointer-events-auto px-1 text-[10px] text-text-placeholder transition-colors hover:text-text-secondary"
         >
           less
         </button>
@@ -833,16 +833,16 @@ export function VisionPage() {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
-        <span className="text-[8px] leading-none text-[#555]">■</span>
-        <span className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#555]">Vision</span>
+        <span className="text-[8px] leading-none text-text-tertiary">■</span>
+        <span className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">Vision</span>
       </div>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-[42px] font-semibold text-white tracking-tight">
+          <h2 className="text-[42px] font-semibold text-text-primary tracking-tight">
             Moodboard
           </h2>
-          <p className="text-sm text-[#888]">
+          <p className="text-sm text-text-secondary">
             Vision is your evolving visual field — references, palettes, layouts
             and artifacts that define the studio&apos;s current gravity.
           </p>
@@ -858,7 +858,7 @@ export function VisionPage() {
 
           {/* Board tabs + source imports — underline indicator */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-0 overflow-x-auto pb-0 border-b border-[#1a1a1a]">
+            <div className="flex min-w-0 flex-1 items-center gap-0 overflow-x-auto pb-0 border-b border-border-subtle">
               {BOARDS.map((board) => {
                 const active = !isStockActive && activeBoard === board;
                 return (
@@ -874,8 +874,8 @@ export function VisionPage() {
                       "transition-colors duration-200 whitespace-nowrap",
                       "border-b-2 -mb-px",
                       active
-                        ? "border-white text-white"
-                        : "border-transparent text-[#555] hover:text-[#888]"
+                        ? "border-text-primary text-text-primary"
+                        : "border-transparent text-text-tertiary hover:text-text-secondary"
                     )}
                   >
                     {board}
@@ -892,8 +892,8 @@ export function VisionPage() {
                     "flex items-center gap-1 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
                     "transition-colors duration-200 whitespace-nowrap border-b-2 -mb-px",
                     isStockActive
-                      ? "border-white text-white"
-                      : "border-transparent text-[#555] hover:text-[#888]"
+                      ? "border-text-primary text-text-primary"
+                      : "border-transparent text-text-tertiary hover:text-text-secondary"
                   )}
                 >
                   Stock
@@ -904,14 +904,14 @@ export function VisionPage() {
             <button
               type="button"
               onClick={() => setArenaOpen(true)}
-              className="border border-[#333] bg-[#0a0a0a] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-[border-color] duration-200 ease-out hover:border-[#666] hover:text-white"
+              className="border border-border-primary bg-card-bg px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-[border-color] duration-200 ease-out hover:border-border-hover hover:text-white"
             >
               Import from Are.na
             </button>
             <button
               type="button"
               onClick={() => setPinterestOpen(true)}
-              className="flex items-center gap-1.5 border border-[#333] bg-[#0a0a0a] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-[border-color,color] duration-200 ease-out hover:border-[#E60023]/40 hover:text-[#E60023]"
+              className="flex items-center gap-1.5 border border-border-primary bg-card-bg px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-[border-color,color] duration-200 ease-out hover:border-[#E60023]/40 hover:text-[#E60023]"
             >
               <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="currentColor">
                 <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
@@ -937,7 +937,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => setActiveTags([])}
-                    className="shrink-0 border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#555] transition-colors hover:border-[#666] hover:text-white"
+                    className="shrink-0 border border-border-primary bg-bg-secondary px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white"
                   >
                     Clear
                   </button>
@@ -953,7 +953,7 @@ export function VisionPage() {
                         "shrink-0 border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition-colors duration-150 whitespace-nowrap",
                         isActive
                           ? "border-white bg-white text-black"
-                          : "border-[#333] bg-[#111] text-[#555] hover:border-[#666] hover:text-white"
+                          : "border-border-primary bg-bg-secondary text-text-tertiary hover:border-border-hover hover:text-white"
                       )}
                     >
                       {tag}
@@ -965,20 +965,20 @@ export function VisionPage() {
           )}
 
           {/* Keyboard curation hint */}
-          <div className="flex items-center gap-4 text-[10px] text-[#555]">
+          <div className="flex items-center gap-4 text-[10px] text-text-tertiary">
             <span className="flex items-center gap-1.5">
-              <kbd className="border border-[#333] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#555]">P</kbd>
+              <kbd className="border border-border-primary bg-bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">P</kbd>
               Flag
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="border border-[#333] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#555]">X</kbd>
+              <kbd className="border border-border-primary bg-bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">X</kbd>
               Reject
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="border border-[#333] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#555]">U</kbd>
+              <kbd className="border border-border-primary bg-bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">U</kbd>
               Undo
             </span>
-            <span className="text-[#333]">— hover a card first</span>
+            <span className="text-text-muted">— hover a card first</span>
           </div>
         </div>
 
@@ -1013,12 +1013,12 @@ export function VisionPage() {
                         onClick={() => importArenaChannel(ch.slug)}
                         disabled={arenaImporting !== null}
                         className={cn(
-                          "flex w-full items-center gap-3 border border-dashed border-[#222] bg-[#0a0a0a] p-3 text-left transition-[border-color] duration-200 ease-out hover:border-[#444]",
+                          "flex w-full items-center gap-3 border border-[#1a1a1a] bg-card-bg p-3 text-left transition-[border-color] duration-200 ease-out hover:border-[#252525]",
                           arenaImporting === ch.slug && "opacity-60"
                         )}
                       >
                         {ch.thumb ? (
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-[#333] bg-[#0a0a0a]">
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-border-primary bg-card-bg">
                             <Image
                               src={ch.thumb}
                               alt=""
@@ -1029,7 +1029,7 @@ export function VisionPage() {
                             />
                           </div>
                         ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-[#333] bg-[#0a0a0a] text-[10px] uppercase text-[#555]">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border-primary bg-card-bg text-[10px] uppercase text-text-tertiary">
                             —
                           </div>
                         )}
@@ -1082,7 +1082,7 @@ export function VisionPage() {
               <button
                 type="submit"
                 disabled={lummiLoading}
-                className="border border-[#333] bg-[#0a0a0a] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-colors hover:border-[#666] hover:text-white disabled:opacity-50"
+                className="border border-border-primary bg-card-bg px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white disabled:opacity-50"
               >
                 {lummiLoading ? "…" : "Search"}
               </button>
@@ -1118,7 +1118,7 @@ export function VisionPage() {
                     return (
                       <div
                         key={img.id}
-                        className="group relative mb-2 break-inside-avoid overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a] transition-[border-color] duration-200 hover:border-[#444]"
+                        className="group relative mb-2 break-inside-avoid overflow-hidden bg-card-bg"
                       >
                         <Image
                           src={img.thumbnailUrl || img.imageUrl}
@@ -1160,10 +1160,10 @@ export function VisionPage() {
                     Array.from({ length: 8 }).map((_, i) => (
                       <div
                         key={`skel-${i}`}
-                        className="mb-2 break-inside-avoid border border-dashed border-[#222] bg-[#0a0a0a]"
+                        className="mb-2 break-inside-avoid bg-card-bg"
                         style={{ height: `${140 + (i % 3) * 60}px` }}
                       >
-                        <div className="h-full w-full animate-pulse bg-[#1a1a1a]" />
+                        <div className="h-full w-full animate-pulse bg-sidebar-active" />
                       </div>
                     ))}
                 </div>
@@ -1173,7 +1173,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => fetchLummi(lummiQuery, lummiPage + 1, true)}
-                    className="w-full border border-[#333] bg-[#0a0a0a] py-2.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-colors hover:border-[#666] hover:text-white"
+                    className="w-full border border-border-primary bg-card-bg py-2.5 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white"
                   >
                     Load more
                   </button>
@@ -1188,7 +1188,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => fetchLummi("", 0, false)}
-                    className="border border-[#333] bg-[#0a0a0a] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-colors hover:border-[#666] hover:text-white"
+                    className="border border-border-primary bg-card-bg px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white"
                   >
                   Browse random images
                 </button>
@@ -1222,7 +1222,7 @@ export function VisionPage() {
               <div className="flex flex-col items-center gap-6 py-24 text-center">
                 <svg
                   viewBox="0 0 48 48"
-                  className="h-12 w-12 text-[#333]"
+                  className="h-12 w-12 text-text-muted"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.5"
@@ -1236,10 +1236,10 @@ export function VisionPage() {
                   <line x1="4" y1="16" x2="44" y2="16" />
                 </svg>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-white">
+                  <h3 className="text-xl font-semibold text-text-primary">
                     Your moodboard is empty
                   </h3>
-                  <p className="text-sm text-[#666]">
+                  <p className="text-sm text-text-secondary">
                     Start collecting visual references
                   </p>
                 </div>
@@ -1255,20 +1255,20 @@ export function VisionPage() {
                     <button
                       type="button"
                       onClick={() => setIsStockActive(true)}
-                      className="border border-[#333] px-4 py-2 text-sm font-medium text-white transition-[border-color] duration-200 hover:border-[#666]"
+                      className="border border-border-primary px-4 py-2 text-sm font-medium text-white transition-[border-color] duration-200 hover:border-border-hover"
                     >
                       Browse Stock
                     </button>
                   )}
                 </div>
-                <p className="text-xs text-[#444]">or drag images here</p>
+                <p className="text-xs text-text-placeholder">or drag images here</p>
               </div>
             )}
 
             {/* ── Filtered empty state ── */}
             {references.length > 0 && filtered.length === 0 && (
               <div className="flex flex-col items-center gap-3 py-20 text-center">
-                <p className="text-sm text-[#666]">
+                <p className="text-sm text-text-secondary">
                   No references
                   {activeBoard !== "All" ? ` in ${activeBoard}` : ""}
                   {activeTags.length > 0 ? " matching these tags" : ""}.
@@ -1312,14 +1312,14 @@ export function VisionPage() {
                   >
                     <div
                       className={cn(
-                        "group relative overflow-hidden border bg-[#111111]",
+                        "group relative overflow-hidden border bg-bg-secondary",
                         ref.curationStatus === "flag"
                           ? "border-amber-500/60"
                           : ref.curationStatus === "reject"
                           ? "border-red-700/50"
                           : hoveredRefId === ref.id
                           ? "border-white/20"
-                          : "border-[#222222]"
+                          : "border-card-border"
                       )}
                     >
                       <div className="relative w-full">
@@ -1426,7 +1426,7 @@ export function VisionPage() {
                 "flex items-center gap-2 px-4 py-2.5 text-sm font-medium shadow-xl",
                 toast.type === "error"
                   ? "bg-red-950 text-red-200"
-                  : "bg-[#0a0a0a] text-white"
+                  : "bg-card-bg text-white"
               )}
               style={{ border: "1px solid rgba(255,255,255,0.1)" }}
             >

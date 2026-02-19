@@ -159,7 +159,7 @@ export function ExportMenu({
         }}
         disabled={exportable.length === 0}
         className={cn(
-          "flex items-center gap-1.5 border border-[#333333] bg-[#111111] px-3 py-1.5",
+          "flex items-center gap-1.5 border border-border-primary bg-bg-secondary px-3 py-1.5",
           "text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400",
           "transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-white",
           "disabled:cursor-not-allowed disabled:opacity-40",
@@ -188,7 +188,7 @@ export function ExportMenu({
         <div
           className={cn(
             "absolute right-0 top-[calc(100%+6px)] z-50 min-w-[220px]",
-            "border border-[#333333] bg-[#111111] p-2 shadow-2xl"
+            "border border-border-primary bg-bg-secondary p-2 shadow-2xl"
           )}
         >
           <p className="mb-1 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.15em] text-gray-600">
@@ -203,7 +203,7 @@ export function ExportMenu({
               disabled={isLoading}
               className={cn(
                 "flex w-full items-center justify-between px-3 py-2.5",
-                "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
+                "text-sm text-gray-300 transition-colors duration-150 hover:bg-sidebar-active hover:text-white",
                 "disabled:cursor-not-allowed disabled:opacity-40"
               )}
             >
@@ -237,7 +237,7 @@ export function ExportMenu({
                   disabled={isLoading}
                   className={cn(
                     "flex w-full items-center justify-between px-3 py-2.5",
-                    "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
+                    "text-sm text-gray-300 transition-colors duration-150 hover:bg-sidebar-active hover:text-white",
                     "disabled:cursor-not-allowed disabled:opacity-40"
                   )}
                 >
@@ -261,7 +261,7 @@ export function ExportMenu({
                 </button>
               ) : (
                 /* Layout picker sub-menu */
-                <div className="border border-[#222] bg-[#0d0d0d] p-2">
+                <div className="border border-card-border bg-bg-tertiary p-2">
                   <div className="mb-1.5 flex items-center gap-2 px-2">
                     <button
                       type="button"
@@ -287,7 +287,7 @@ export function ExportMenu({
                       onClick={() => handleCollage(opt.id)}
                       className={cn(
                         "flex w-full items-center justify-between px-3 py-2",
-                        "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
+                        "text-sm text-gray-300 transition-colors duration-150 hover:bg-sidebar-active hover:text-white",
                         "disabled:cursor-not-allowed disabled:opacity-40"
                       )}
                     >
@@ -310,7 +310,7 @@ export function ExportMenu({
                   disabled={isLoading}
                   className={cn(
                     "flex w-full items-center justify-between px-3 py-2.5",
-                    "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
+                    "text-sm text-gray-300 transition-colors duration-150 hover:bg-sidebar-active hover:text-white",
                     "disabled:cursor-not-allowed disabled:opacity-40"
                   )}
                 >
@@ -334,7 +334,7 @@ export function ExportMenu({
                 </button>
               ) : (
                 /* Share URL display */
-                <div className="border border-[#222] bg-[#0d0d0d] p-3">
+                <div className="border border-card-border bg-bg-tertiary p-3">
                   <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-gray-600">
                     Share link ready
                   </p>
@@ -342,16 +342,16 @@ export function ExportMenu({
                     <input
                       readOnly
                       value={shareUrl ?? ""}
-                      className="min-w-0 flex-1 rounded border border-[#333] bg-[#111] px-2 py-1.5 font-mono text-[10px] text-gray-400 outline-none focus:border-white/20"
+                      className="min-w-0 flex-1 rounded border border-border-primary bg-bg-secondary px-2 py-1.5 font-mono text-[10px] text-gray-400 outline-none focus:border-white/20"
                     />
                     <button
                       type="button"
                       onClick={copyShareUrl}
                       className={cn(
-                        "shrink-0 rounded border border-[#333] px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                        "shrink-0 rounded border border-border-primary px-2.5 py-1.5 text-[11px] font-medium transition-colors",
                         copied
                           ? "border-green-700/50 bg-green-950 text-green-400"
-                          : "bg-[#1a1a1a] text-gray-300 hover:border-white/20 hover:text-white"
+                          : "bg-sidebar-active text-gray-300 hover:border-white/20 hover:text-white"
                       )}
                     >
                       {copied ? "Copied" : "Copy"}
@@ -374,7 +374,7 @@ export function ExportMenu({
 
           {/* ── Divider ── */}
           {step !== "png-layout" && step !== "share-done" && (
-            <div className="my-1 h-px bg-[#222222]" />
+            <div className="my-1 h-px bg-bg-input" />
           )}
 
           {/* ── Brand Package (PRO) ── */}
@@ -384,7 +384,7 @@ export function ExportMenu({
               onClick={() => setStep("pro-prompt")}
               className={cn(
                 "flex w-full items-center justify-between px-3 py-2.5",
-                "text-sm text-gray-500 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-gray-400"
+                "text-sm text-gray-500 transition-colors duration-150 hover:bg-sidebar-active hover:text-gray-400"
               )}
             >
               <span className="flex items-center gap-2.5">
@@ -399,7 +399,7 @@ export function ExportMenu({
 
           {/* PRO upgrade prompt */}
           {step === "pro-prompt" && (
-            <div className="mt-1 border border-[#222] bg-[#0d0d0d] p-3">
+            <div className="mt-1 border border-card-border bg-bg-tertiary p-3">
               <p className="mb-1 text-xs font-medium text-white">
                 Brand Package
               </p>

@@ -1,21 +1,40 @@
 'use client';
 
 import * as React from "react";
-import { MoonIcon as Moon } from "@/components/ui/icon";
+import { useTheme } from "next-themes";
+import { SunIcon, MoonIcon } from "@/components/ui/icon";
 
-/**
- * Studio OS is a dark-mode-only tool — the entire component library is built
- * with hardcoded dark values. This indicator communicates that intentionally
- * instead of showing a broken toggle.
- */
 export function ThemeToggle() {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-3 h-9 px-3 w-full text-text-tertiary">
+        <div className="w-[18px] h-[18px]" />
+        <span className="text-sm">Theme</span>
+      </div>
+    );
+  }
+
+  const isDark = resolvedTheme === "dark";
+
   return (
-    <div
-      aria-label="Dark mode"
-      title="Studio OS is dark mode only"
-      className="flex h-8 w-8 items-center justify-center opacity-30"
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="flex items-center gap-3 h-9 px-3 w-full text-text-tertiary hover:text-text-primary hover:bg-sidebar-hover transition-colors duration-150"
     >
-      <Moon className="h-4 w-4 text-gray-400" />
-    </div>
+      {isDark ? (
+        <SunIcon className="w-[18px] h-[18px] shrink-0" bare />
+      ) : (
+        <MoonIcon className="w-[18px] h-[18px] shrink-0" bare />
+      )}
+      <span className="text-sm">{isDark ? "Light mode" : "Dark mode"}</span>
+    </button>
   );
 }

@@ -142,7 +142,7 @@ function IdeasSection({
       <SectionLabel>Ideas</SectionLabel>
 
       {/* Input */}
-      <div className="flex items-center border border-dashed border-[#222] bg-[#0a0a0a]">
+      <div className="flex items-center border border-dashed border-card-border bg-card-bg">
         <input
           type="text"
           placeholder="Quick idea..."
@@ -154,21 +154,21 @@ function IdeasSection({
               setInput("");
             }
           }}
-          className="h-11 flex-1 bg-transparent px-4 text-sm text-white placeholder:text-[#333] focus:outline-none"
+          className="h-11 flex-1 bg-transparent px-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
         />
-        <span className="pr-3 font-mono text-[11px] text-[#333] select-none">↵</span>
+        <span className="pr-3 font-mono text-[11px] text-text-muted select-none">↵</span>
       </div>
 
       {/* Empty state */}
       {sorted.length === 0 && (
-        <p className="pt-0.5 font-mono text-[11px] text-[#333]">
+        <p className="pt-0.5 font-mono text-[11px] text-text-muted">
           Capture ideas as they come. Set reminders so they resurface.
         </p>
       )}
 
       {/* List */}
       {sorted.length > 0 && (
-        <div className="overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a]">
+        <div className="overflow-hidden border border-[#1a1a1a] bg-card-bg">
           {visible.map((idea, idx) => {
             const isLast = idx === visible.length - 1 && !shouldCollapse;
             const hasMenu = menu?.ideaId === idea.id;
@@ -180,23 +180,23 @@ function IdeasSection({
                 key={idea.id}
                 className={cn(
                   "group relative flex items-start justify-between gap-3 px-4 py-3 transition-colors duration-150",
-                  !isLast && "border-b border-dashed border-[#1a1a1a]",
-                  todayReminder && "border-l-2 border-[#0070F3]",
-                  isFlash && "bg-[#111]",
+                  !isLast && "border-b border-[#151515]",
+                  todayReminder && "border-l-2 border-accent",
+                  isFlash && "bg-bg-tertiary",
                   idea.status === "done" && "opacity-30"
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className={cn("text-sm text-white leading-relaxed", idea.status === "done" && "line-through")}>
+                  <p className={cn("text-sm text-text-primary leading-relaxed", idea.status === "done" && "line-through")}>
                     {idea.text}
                   </p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-0 font-mono text-[11px] text-[#444]">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-0 font-mono text-[11px] text-text-placeholder">
                     <span>{relativeTime(idea.createdAt)}</span>
                     {idea.reminder !== "none" && (
-                      <span className="text-[#555]">&nbsp;· ⏰ {REMINDER_LABELS[idea.reminder]}</span>
+                      <span className="text-text-tertiary">&nbsp;· ⏰ {REMINDER_LABELS[idea.reminder]}</span>
                     )}
                     {idea.projectName && (
-                      <span className="text-[#555]">&nbsp;· 📁 {idea.projectName}</span>
+                      <span className="text-text-tertiary">&nbsp;· 📁 {idea.projectName}</span>
                     )}
                   </div>
                 </div>
@@ -211,43 +211,43 @@ function IdeasSection({
                     onClick={() =>
                       setMenu(hasMenu ? null : { ideaId: idea.id, sub: "main" })
                     }
-                    className="pt-0.5 text-sm leading-none text-[#333] opacity-0 transition-opacity hover:text-[#888] group-hover:opacity-100"
+                    className="pt-0.5 text-sm leading-none text-text-muted opacity-0 transition-opacity hover:text-text-secondary group-hover:opacity-100"
                   >
                     ···
                   </button>
 
                   {hasMenu && (
-                    <div className="absolute right-0 top-full z-50 mt-1 w-48 border border-dashed border-[#333] bg-[#0d0d0d] shadow-xl">
+                    <div className="absolute right-0 top-full z-50 mt-1 w-48 border border-[#1a1a1a] bg-bg-secondary shadow-xl">
                       {menu.sub === "main" && (
                         <>
                           <button
                             type="button"
                             onClick={() => setMenu({ ideaId: idea.id, sub: "reminder" })}
-                            className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-[#888] transition-colors hover:bg-white/[0.04] hover:text-white"
+                            className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-text-secondary transition-colors hover:bg-sidebar-hover hover:text-text-primary"
                           >
                             <span>⏰ Set reminder</span>
-                            <span className="text-[#444]">→</span>
+                            <span className="text-text-placeholder">→</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setMenu({ ideaId: idea.id, sub: "project" })}
-                            className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-[#888] transition-colors hover:bg-white/[0.04] hover:text-white"
+                            className="flex w-full items-center justify-between px-3 py-2 text-[12px] text-text-secondary transition-colors hover:bg-sidebar-hover hover:text-text-primary"
                           >
                             <span>📁 Add to project</span>
-                            <span className="text-[#444]">→</span>
+                            <span className="text-text-placeholder">→</span>
                           </button>
-                          <div className="my-1 border-t border-dashed border-[#222]" />
+                          <div className="my-1 border-t border-[#151515]" />
                           <button
                             type="button"
                             onClick={() => update(idea.id, { status: "done" })}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-[#888] transition-colors hover:bg-white/[0.04] hover:text-white"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-text-secondary transition-colors hover:bg-sidebar-hover hover:text-text-primary"
                           >
                             ✓ Mark as done
                           </button>
                           <button
                             type="button"
                             onClick={() => update(idea.id, { status: "dismissed" })}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-[#555] transition-colors hover:bg-white/[0.04] hover:text-red-400"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-text-tertiary transition-colors hover:bg-sidebar-hover hover:text-red-400"
                           >
                             ✕ Dismiss
                           </button>
@@ -261,8 +261,8 @@ function IdeasSection({
                             type="button"
                             onClick={() => update(idea.id, { reminder: r })}
                             className={cn(
-                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-white/[0.04]",
-                              idea.reminder === r ? "text-white" : "text-[#888] hover:text-white"
+                              "flex w-full items-center justify-between px-3 py-2 text-[12px] transition-colors hover:bg-sidebar-hover",
+                              idea.reminder === r ? "text-text-primary" : "text-text-secondary hover:text-text-primary"
                             )}
                           >
                             {REMINDER_LABELS[r]}
@@ -281,8 +281,8 @@ function IdeasSection({
                               type="button"
                               onClick={() => update(idea.id, { projectId: p.id, projectName: p.name })}
                               className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-[12px] transition-colors hover:bg-white/[0.04]",
-                                idea.projectId === p.id ? "text-white" : "text-[#888] hover:text-white"
+                                "flex w-full items-center gap-2 px-3 py-2 text-[12px] transition-colors hover:bg-sidebar-hover",
+                                idea.projectId === p.id ? "text-text-primary" : "text-text-secondary hover:text-text-primary"
                               )}
                             >
                               <span
@@ -293,7 +293,7 @@ function IdeasSection({
                             </button>
                           ))}
                           {projects.length === 0 && (
-                            <p className="px-3 py-2 font-mono text-[11px] text-[#444]">No projects yet</p>
+                            <p className="px-3 py-2 font-mono text-[11px] text-text-placeholder">No projects yet</p>
                           )}
                         </>
                       )}
@@ -309,7 +309,7 @@ function IdeasSection({
             <button
               type="button"
               onClick={() => setExpanded((e) => !e)}
-              className="w-full border-t border-dashed border-[#1a1a1a] px-4 py-2.5 text-left font-mono text-[11px] text-[#444] transition-colors hover:text-[#777]"
+              className="w-full border-t border-[#151515] px-4 py-2.5 text-left font-mono text-[11px] text-text-placeholder transition-colors hover:text-text-tertiary"
             >
               {expanded
                 ? "↑ Collapse"
@@ -321,7 +321,7 @@ function IdeasSection({
 
       {/* Summary */}
       {sorted.length > 0 && (
-        <p className="font-mono text-[11px] text-[#333]">
+        <p className="font-mono text-[11px] text-text-muted">
           {active.length} idea{active.length !== 1 ? "s" : ""}
           {todayCount > 0 && ` · ${todayCount} reminder${todayCount !== 1 ? "s" : ""} today`}
         </p>
@@ -442,11 +442,11 @@ export function BriefPage() {
 
       {/* Header */}
       <header className="space-y-3">
-        <p className="text-[11px] text-[#555] font-mono tracking-wide">{dateStr}</p>
-        <h1 className="text-[42px] font-semibold leading-tight text-white tracking-tight">
+        <p className="text-[11px] text-text-tertiary font-mono tracking-wide">{dateStr}</p>
+        <h1 className="text-[42px] font-semibold leading-tight text-text-primary tracking-tight">
           {greeting}, {USER_NAME}.
         </h1>
-        <p className="text-sm text-[#888] leading-relaxed">{FOCUS_SUMMARY}</p>
+        <p className="text-sm text-text-secondary leading-relaxed">{FOCUS_SUMMARY}</p>
       </header>
 
       {/* Section 0 — Ideas */}
@@ -455,9 +455,9 @@ export function BriefPage() {
       {/* Section 1 — Today's Focus */}
       <div className="space-y-3">
         <SectionLabel>Today&apos;s Focus</SectionLabel>
-        <div className="flex items-center justify-between gap-4 border border-dashed border-[#222] bg-[#0a0a0a] p-5 transition-[border-color] duration-200 ease-out hover:border-[#444]">
+        <div className="flex items-center justify-between gap-4 border border-[#1a1a1a] bg-card-bg p-5 transition-[border-color] duration-200 ease-out hover:border-[#252525]">
           <div className="flex min-w-0 flex-1 items-center gap-4">
-            <div className="relative h-16 w-24 flex-none overflow-hidden border border-[#1a1a1a] bg-[#050505]">
+            <div className="relative h-16 w-24 flex-none overflow-hidden border border-border-subtle bg-bg-tertiary">
               <Image
                 src={ACTIVE_PROJECT.leadImage}
                 alt={ACTIVE_PROJECT.name}
@@ -468,23 +468,23 @@ export function BriefPage() {
               />
             </div>
             <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="text-sm font-medium text-white">
+              <div className="text-sm font-medium text-text-primary">
                 {ACTIVE_PROJECT.name}
               </div>
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
-                    "px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em]",
+                    "px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.15em]",
                     PHASE_STYLES[ACTIVE_PROJECT.phase]
                   )}
                 >
                   {ACTIVE_PROJECT.phase}
                 </span>
-                <span className="text-[11px] text-[#555] font-mono">
+                <span className="text-[11px] text-text-tertiary font-mono">
                   {ACTIVE_PROJECT.progress}%
                 </span>
               </div>
-              <div className="h-px w-24 bg-[#1a1a1a]">
+              <div className="h-px w-24 bg-border-subtle">
                 <div
                   className="h-full bg-accent"
                   style={{ width: `${ACTIVE_PROJECT.progress}%` }}
@@ -504,16 +504,16 @@ export function BriefPage() {
       {/* Section 2 — Schedule */}
       <div className="space-y-3">
         <SectionLabel>Schedule</SectionLabel>
-        <div className="border border-dashed border-[#222] bg-[#0a0a0a] overflow-hidden">
+        <div className="border border-[#1a1a1a] bg-card-bg overflow-hidden">
           {SCHEDULE.map((event, index) => (
             <div
               key={`${event.time}-${event.title}`}
               className={cn(
-                "group flex items-center gap-4 py-3 pl-4 pr-4 transition-colors duration-150 hover:bg-white/[0.02]",
-                index < SCHEDULE.length - 1 && "border-b border-dashed border-[#1a1a1a]"
+                "group flex items-center gap-4 py-3 pl-4 pr-4 transition-colors duration-150 hover:bg-sidebar-hover",
+                index < SCHEDULE.length - 1 && "border-b border-[#151515]"
               )}
             >
-              <div className="w-10 shrink-0 text-[11px] text-[#555] font-mono">
+              <div className="w-10 shrink-0 text-[11px] text-text-tertiary font-mono">
                 {event.time}
               </div>
               <div
@@ -522,10 +522,10 @@ export function BriefPage() {
                   EVENT_DOT[event.type]
                 )}
               />
-              <div className="min-w-0 flex-1 text-sm text-[#888]">
+              <div className="min-w-0 flex-1 text-sm text-text-secondary">
                 {event.title}
               </div>
-              <span className="shrink-0 text-[10px] text-[#555] font-mono uppercase tracking-wider">
+              <span className="shrink-0 text-[10px] text-text-tertiary font-mono uppercase tracking-wider">
                 {event.type}
               </span>
             </div>
@@ -536,7 +536,7 @@ export function BriefPage() {
       {/* Section 3 — Inspiration Pulse */}
       <div className="space-y-3">
         <SectionLabel>Inspiration Pulse</SectionLabel>
-        <p className="text-[11px] text-[#555] font-mono">
+        <p className="text-[11px] text-text-tertiary font-mono">
           Recent references · {ACTIVE_PROJECT.name}
         </p>
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -544,7 +544,7 @@ export function BriefPage() {
             <Link
               key={src}
               href="/vision"
-              className="relative h-24 w-32 shrink-0 overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a] transition-[border-color] duration-150 hover:border-[#444]"
+              className="relative h-24 w-32 shrink-0 overflow-hidden bg-card-bg"
             >
               <Image
                 src={src}
@@ -566,13 +566,13 @@ export function BriefPage() {
           {STATS.map(({ value, label, icon: Icon }) => (
             <div
               key={label}
-              className="flex flex-col gap-1.5 border border-dashed border-[#222] bg-[#0a0a0a] p-5"
+              className="flex flex-col gap-1.5 border border-[#1a1a1a] bg-card-bg p-5"
             >
-              <Icon className="h-3.5 w-3.5 text-[#555]" />
-              <div className="text-2xl font-medium text-white font-mono">
+              <Icon className="h-3.5 w-3.5 text-text-tertiary" />
+              <div className="text-2xl font-medium text-text-primary font-mono">
                 {value}
               </div>
-              <div className="text-[10px] text-[#555] uppercase tracking-wider">{label}</div>
+              <div className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{label}</div>
             </div>
           ))}
         </div>
@@ -586,12 +586,12 @@ export function BriefPage() {
           {todayIdeaReminders.map((idea) => (
             <li
               key={`idea-${idea.id}`}
-              className="flex items-start gap-3 border border-l-2 border-dashed border-[#222] border-l-[#0070F3] bg-[#0a0a0a] px-4 py-3"
+              className="flex items-start gap-3 border border-l-2 border-[#1a1a1a] border-l-accent bg-card-bg px-4 py-3"
             >
               <span className="mt-0.5 shrink-0 text-sm">💡</span>
               <div className="min-w-0 flex-1">
-                <span className="block text-sm text-[#888]">&ldquo;{idea.text}&rdquo;</span>
-                <span className="font-mono text-[11px] text-[#444]">
+                <span className="block text-sm text-text-secondary">&ldquo;{idea.text}&rdquo;</span>
+                <span className="font-mono text-[11px] text-text-placeholder">
                   Idea from {relativeTime(idea.createdAt)} · Reminder: today
                 </span>
               </div>
@@ -603,16 +603,16 @@ export function BriefPage() {
             return (
               <li
                 key={item.text}
-                className="flex items-center gap-3 border border-dashed border-[#222] bg-[#0a0a0a] px-4 py-3 transition-[border-color] duration-150 hover:border-[#444]"
+                className="flex items-center gap-3 border border-[#1a1a1a] bg-card-bg px-4 py-3 transition-[border-color] duration-150 hover:border-[#252525]"
               >
-                <Icon className="h-4 w-4 shrink-0 text-[#555]" />
-                <span className="min-w-0 flex-1 text-sm text-[#888]">
+                <Icon className="h-4 w-4 shrink-0 text-text-tertiary" />
+                <span className="min-w-0 flex-1 text-sm text-text-secondary">
                   {item.text}
                 </span>
-                <span className="shrink-0 border border-[#222] bg-black px-1.5 py-0.5 text-[10px] font-mono text-[#555]">
+                <span className="shrink-0 border border-card-border bg-bg-primary px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary">
                   {item.project}
                 </span>
-                <span className="shrink-0 text-[10px] text-[#555] font-mono">
+                <span className="shrink-0 text-[10px] text-text-tertiary font-mono">
                   {item.time}
                 </span>
               </li>

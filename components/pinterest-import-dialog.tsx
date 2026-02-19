@@ -82,7 +82,7 @@ function StepBoards({
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="animate-pulse border border-[#1a1a1a] bg-[#111]"
+              className="animate-pulse border border-border-subtle bg-bg-secondary"
               style={{ height: 112 }}
             />
           ))}
@@ -145,11 +145,11 @@ function StepBoards({
                 "group relative flex flex-col overflow-hidden border text-left transition-all duration-200",
                 isSelected
                   ? "border-[#E60023]/50 bg-[#E60023]/[0.06]"
-                  : "border-[#222] bg-[#111] hover:border-[#444]"
+                  : "border-card-border bg-bg-secondary hover:border-border-hover"
               )}
             >
               {/* Thumbnail */}
-              <div className="relative h-24 w-full overflow-hidden bg-[#0a0a0a]">
+              <div className="relative h-24 w-full overflow-hidden bg-card-bg">
                 {board.image_thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -159,7 +159,7 @@ function StepBoards({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <PinterestLogo className="h-6 w-6 text-[#333]" />
+                    <PinterestLogo className="h-6 w-6 text-text-muted" />
                   </div>
                 )}
                 {/* Selected checkmark */}
@@ -191,7 +191,7 @@ function StepBoards({
         })}
       </div>
 
-      <div className="flex items-center justify-between border-t border-[#1a1a1a] pt-3">
+      <div className="flex items-center justify-between border-t border-border-subtle pt-3">
         <span className="text-[11px] text-gray-600">
           {selected.size === 0
             ? "Select boards to import"
@@ -247,7 +247,7 @@ function StepDestination({
                 "border px-3 py-3 text-left transition-all duration-200",
                 isActive
                   ? "border-white/30 bg-white/[0.08] text-white"
-                  : "border-[#222] bg-[#111] text-gray-400 hover:border-[#444] hover:text-white"
+                  : "border-card-border bg-bg-secondary text-gray-400 hover:border-border-hover hover:text-white"
               )}
             >
               <div className="text-[12px] font-medium">{board}</div>
@@ -256,7 +256,7 @@ function StepDestination({
         })}
       </div>
 
-      <div className="border border-[#1a1a1a] bg-[#0a0a0a] px-3.5 py-3">
+      <div className="border border-border-subtle bg-card-bg px-3.5 py-3">
         <div className="text-[11px] text-gray-600">Import summary</div>
         <div className="mt-1 text-[12px] text-white">
           {selectedBoardCount} board{selectedBoardCount !== 1 ? "s" : ""} →{" "}
@@ -266,7 +266,7 @@ function StepDestination({
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-[#1a1a1a] pt-3">
+      <div className="flex items-center justify-between border-t border-border-subtle pt-3">
         <button
           type="button"
           onClick={onBack}
@@ -317,7 +317,7 @@ function StepImporting({
       </div>
 
       <div className="w-full space-y-2">
-        <div className="relative h-1 w-full overflow-hidden rounded-full bg-[#1a1a1a]">
+        <div className="relative h-1 w-full overflow-hidden rounded-full bg-sidebar-active">
           <motion.div
             className="absolute inset-y-0 left-0 rounded-full bg-[#E60023]"
             animate={{ width: `${pct}%` }}
@@ -372,7 +372,7 @@ function StepDone({
       <button
         type="button"
         onClick={onClose}
-        className="border border-[#333] bg-[#111] px-5 py-2 text-[12px] font-medium text-white transition-colors hover:border-white/20"
+        className="border border-border-primary bg-bg-secondary px-5 py-2 text-[12px] font-medium text-white transition-colors hover:border-white/20"
       >
         Close
       </button>
@@ -504,7 +504,7 @@ export function PinterestImportDialog({ open, onOpenChange, activeBoard, onImpor
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-[480px] overflow-hidden">
-        <div className="flex items-center gap-2.5 border-b border-[#1a1a1a] pb-4">
+        <div className="flex items-center gap-2.5 border-b border-border-subtle pb-4">
           <PinterestLogo className="h-4 w-4 text-[#E60023]" />
           <DialogTitle className="text-[14px] font-medium text-white">
             {stepTitles[step]}

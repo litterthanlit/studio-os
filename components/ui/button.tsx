@@ -17,11 +17,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
       default:
-        "bg-white text-black border-white hover:bg-[#eee] hover:border-[#eee]",
+        "bg-button-primary-bg text-button-primary-text border-button-primary-bg hover:opacity-90",
       secondary:
-        "bg-transparent text-white border-[#333] hover:border-[#666] hover:text-white",
+        "bg-transparent text-text-primary border-border-primary hover:border-border-hover",
       ghost:
-        "bg-transparent text-[#555] border-transparent hover:text-white",
+        "bg-transparent text-text-tertiary border-transparent hover:text-text-primary",
       danger:
         "bg-transparent text-[#EE0000] border-[#EE0000]/30 hover:bg-[#EE0000]/10",
     };

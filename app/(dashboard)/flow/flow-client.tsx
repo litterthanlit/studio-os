@@ -101,10 +101,10 @@ export function FlowPage() {
           >
             <div className="space-y-1">
               <SectionLabel>Flow</SectionLabel>
-              <h2 className="text-[32px] font-semibold text-white tracking-tight mt-1">
+              <h2 className="text-[32px] font-semibold text-text-primary tracking-tight mt-1">
                 Focus Mode
               </h2>
-              <p className="text-sm text-[#888]">
+              <p className="text-sm text-text-secondary">
                 Enter a distraction-free environment scoped to one project.
                 All other context goes quiet.
               </p>
@@ -122,14 +122,14 @@ export function FlowPage() {
                       type="button"
                       onClick={() => setSelectedProjectId(project.id)}
                       className={cn(
-                        "flex w-full items-center justify-between border bg-[#0a0a0a] px-4 py-3 text-left transition-[border-color] duration-200 ease-out",
+                        "flex w-full items-center justify-between border bg-card-bg px-4 py-3 text-left transition-[border-color] duration-200 ease-out",
                         active
                           ? "border-accent/60"
-                          : "border-dashed border-[#222] hover:border-[#444]"
+                          : "border-[#1a1a1a] hover:border-[#252525]"
                       )}
                     >
                       <div>
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-text-primary">
                           {project.name}
                         </div>
                         <div className="text-[11px] text-gray-500">
@@ -146,7 +146,7 @@ export function FlowPage() {
             </div>
 
             {/* Selected project preview */}
-            <div className="border border-dashed border-[#222] bg-[#0a0a0a] p-5 space-y-3">
+            <div className="border border-[#1a1a1a] bg-card-bg p-5 space-y-3">
               <SectionLabel>{selectedProject.name} — Preview</SectionLabel>
 
               {/* 4 thumbnails */}
@@ -154,7 +154,7 @@ export function FlowPage() {
                 {[0, 1, 2, 3].map((i) => (
                   <div
                     key={i}
-                    className="relative h-12 w-12 overflow-hidden border border-[#222] bg-[#0d0d0d]"
+                    className="relative h-12 w-12 overflow-hidden border border-card-border bg-bg-tertiary"
                   >
                     <Image
                       src={`https://picsum.photos/seed/${selectedProject.id}-${i}/96/96`}
@@ -165,7 +165,7 @@ export function FlowPage() {
                     />
                   </div>
                 ))}
-                <span className="ml-1 text-[11px] text-[#666]">
+                <span className="ml-1 font-mono text-[11px] text-text-secondary">
                   {selectedProject.references} refs
                 </span>
               </div>
@@ -181,7 +181,7 @@ export function FlowPage() {
                     />
                   ))}
                 </div>
-                <span className="text-[11px] text-[#666]">{selectedProject.phase}</span>
+                <span className="text-[11px] text-text-secondary">{selectedProject.phase}</span>
               </div>
             </div>
 
@@ -192,9 +192,9 @@ export function FlowPage() {
                 {RECENT_ACTIONS.map((action, i) => (
                   <li
                     key={i}
-                    className="flex items-center gap-3 text-[11px] text-[#333] font-mono"
+                    className="flex items-center gap-3 text-[11px] text-text-muted font-mono"
                   >
-                    <span className="text-[#252525]">·</span>
+                    <span className="text-text-muted">·</span>
                     {action}
                   </li>
                 ))}
@@ -210,16 +210,16 @@ export function FlowPage() {
                   "flex h-12 items-center justify-center border border-white bg-white",
                   "px-8 text-sm font-medium text-black",
                   "transition-[background-color] duration-200 ease-out",
-                  "hover:bg-[#eee]"
+                  "hover:bg-button-primary-bg/90"
                 )}
               >
                 Enter Flow — {selectedProject.name}
               </button>
-              <span className="text-[11px] text-[#444]">⌘⇧F to enter instantly</span>
+              <span className="text-[11px] text-text-placeholder">⌘⇧F to enter instantly</span>
             </div>
 
             {/* Tips */}
-            <div className="space-y-2 border-t border-dashed border-[#222] pt-4">
+            <div className="space-y-2 border-t border-[#151515] pt-4">
               <SectionLabel>Tips</SectionLabel>
               <ul className="space-y-1">
                 {[
@@ -227,7 +227,7 @@ export function FlowPage() {
                   "All import syncs queue silently — nothing interrupts",
                   "Exit any time — you'll see a summary of what you did",
                 ].map((tip) => (
-                  <li key={tip} className="text-[11px] text-[#333] font-mono">
+                  <li key={tip} className="text-[11px] text-text-muted font-mono">
                     · {tip}
                   </li>
                 ))}
@@ -286,7 +286,7 @@ export function FlowPage() {
             className="flex min-h-[70vh] flex-col"
           >
             {/* Ambient progress glow at top */}
-            <div className="relative mb-8 h-px w-full bg-[#222222]">
+            <div className="relative mb-8 h-px w-full bg-bg-input">
               <motion.div
                 className="absolute inset-y-0 left-0 bg-accent"
                 animate={{ width: `${glowProgress * 100}%` }}
@@ -299,13 +299,13 @@ export function FlowPage() {
               {/* Project name */}
               <div className="space-y-1">
                   <SectionLabel>Flow — {selectedProject.phase}</SectionLabel>
-                <div className="text-2xl font-semibold text-white">
+                <div className="text-2xl font-semibold text-text-primary">
                   {selectedProject.name}
                 </div>
               </div>
 
               {/* Elapsed time */}
-              <div className="font-mono text-5xl font-light tabular-nums text-white">
+              <div className="font-mono text-5xl font-light tabular-nums text-text-primary">
                 {formatElapsed(elapsed)}
               </div>
 
@@ -357,7 +357,7 @@ export function FlowPage() {
               <button
                 type="button"
                 onClick={endFlow}
-                className="border border-[#333] bg-transparent px-6 py-2 text-sm font-medium text-[#555] transition-[border-color,color] duration-200 ease-out hover:border-[#666] hover:text-white"
+                className="border border-border-primary bg-transparent px-6 py-2 text-sm font-medium text-text-tertiary transition-[border-color,color] duration-200 ease-out hover:border-border-hover hover:text-white"
               >
                 End Flow
               </button>
@@ -377,24 +377,24 @@ export function FlowPage() {
           >
             <div className="space-y-1">
               <SectionLabel>Flow Complete</SectionLabel>
-              <h2 className="text-2xl font-semibold text-white">
+              <h2 className="text-2xl font-semibold text-text-primary">
                 {selectedProject.name}
               </h2>
             </div>
 
             {/* Summary stats */}
             <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="space-y-1 border border-dashed border-[#222] bg-[#0a0a0a] p-4">
-                <div className="font-mono text-3xl font-light text-white">
+              <div className="space-y-1 border border-[#1a1a1a] bg-card-bg p-4">
+                <div className="font-mono text-3xl font-light text-text-primary">
                   {formatElapsed(exitSummary.duration)}
                 </div>
-                <div className="text-[11px] text-[#555] font-mono uppercase tracking-wider">Focus time</div>
+                <div className="text-[11px] text-text-tertiary font-mono uppercase tracking-wider">Focus time</div>
               </div>
-              <div className="space-y-1 border border-dashed border-[#222] bg-[#0a0a0a] p-4">
-                <div className="font-mono text-3xl font-light text-white">
+              <div className="space-y-1 border border-[#1a1a1a] bg-card-bg p-4">
+                <div className="font-mono text-3xl font-light text-text-primary">
                   {exitSummary.actions}
                 </div>
-                <div className="text-[11px] text-[#555] font-mono uppercase tracking-wider">Actions taken</div>
+                <div className="text-[11px] text-text-tertiary font-mono uppercase tracking-wider">Actions taken</div>
               </div>
             </div>
 
@@ -406,7 +406,7 @@ export function FlowPage() {
                   (action, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-3 text-[11px] text-[#333] font-mono"
+                      className="flex items-center gap-3 text-[11px] text-text-muted font-mono"
                     >
                       <span className="text-accent">·</span>
                       {action}
@@ -420,14 +420,14 @@ export function FlowPage() {
               <button
                 type="button"
                 onClick={startFlow}
-                className="flex h-10 items-center border border-white bg-white px-4 text-sm font-medium text-black transition-[background-color] duration-200 ease-out hover:bg-[#eee]"
+                className="flex h-10 items-center border border-white bg-white px-4 text-sm font-medium text-black transition-[background-color] duration-200 ease-out hover:bg-button-primary-bg/90"
               >
                 Start Another Session
               </button>
               <button
                 type="button"
                 onClick={resetFlow}
-                className="flex h-10 items-center border border-[#333] px-4 text-sm font-medium text-[#555] transition-[border-color,color] duration-200 ease-out hover:border-[#666] hover:text-white"
+                className="flex h-10 items-center border border-border-primary px-4 text-sm font-medium text-text-tertiary transition-[border-color,color] duration-200 ease-out hover:border-border-hover hover:text-white"
               >
                 Done
               </button>

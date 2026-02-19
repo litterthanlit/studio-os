@@ -106,13 +106,13 @@ export default async function SharePage({
     <div className="min-h-screen bg-white text-[#111111]">
       {/* ── Header ──────────────────────────────────────────────── */}
       <header className="mx-auto max-w-[1200px] px-8 py-16">
-        <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-[#999999]">
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-text-tertiary">
           Moodboard
         </p>
         <h1 className="mb-3 text-4xl font-semibold tracking-tight text-[#111111] md:text-5xl">
           {share.project_name}
         </h1>
-        <p className="text-sm text-[#888888]">
+        <p className="text-sm text-text-secondary">
           {references.length} reference{references.length !== 1 ? "s" : ""} ·{" "}
           {date}
         </p>
@@ -137,7 +137,7 @@ export default async function SharePage({
                 />
               </div>
               {ref.notes && (
-                <p className="mt-2 text-xs text-[#888888]">{ref.notes}</p>
+                <p className="mt-2 text-xs text-text-secondary">{ref.notes}</p>
               )}
             </div>
           ))}
@@ -146,7 +146,7 @@ export default async function SharePage({
         {/* ── Color palette ─────────────────────────────────────── */}
         {allColors.length > 0 && (
           <section className="mt-20 border-t border-[#eeeeee] pt-16">
-            <h2 className="mb-8 text-xs font-medium uppercase tracking-[0.2em] text-[#999999]">
+            <h2 className="mb-8 text-xs font-medium uppercase tracking-[0.2em] text-text-tertiary">
               Palette
             </h2>
             <div className="flex flex-wrap gap-3">
@@ -170,7 +170,7 @@ export default async function SharePage({
       {/* ── Footer ──────────────────────────────────────────────── */}
       <footer className="border-t border-[#eeeeee] py-10">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between px-8">
-          <p className="text-xs text-[#cccccc]">
+          <p className="text-xs text-text-primary">
             Made with{" "}
             <a
               href="https://studioos.app"

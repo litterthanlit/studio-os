@@ -25,7 +25,7 @@ export function ProjectRoomTabs({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 border-b border-[#222222] pb-2">
+      <div className="flex gap-2 border-b border-card-border pb-2">
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -36,7 +36,7 @@ export function ProjectRoomTabs({ project }: { project: Project }) {
               className={cn(
                 "px-3 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
                 "border-b-2 -mb-px border-transparent transition-colors duration-200",
-                active ? "border-white text-white" : "text-[#555] hover:text-[#888]"
+                active ? "border-text-primary text-text-primary" : "text-text-tertiary hover:text-text-secondary"
               )}
             >
               {tab.label}
@@ -68,32 +68,32 @@ function OverviewTab({ project }: { project: Project }) {
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="h-24 w-full border border-[#222222] bg-transparent px-2 py-1 text-sm text-white outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
+          className="h-24 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-text-primary outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
         />
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-xs">
-        <div className="border border-[#222222] bg-[#111111] p-2">
+        <div className="border border-card-border bg-bg-secondary p-2">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400">
             References
           </div>
-          <div className="mt-1 text-sm font-bold text-white">
+          <div className="mt-1 text-sm font-bold text-text-primary">
             {project.references}
           </div>
         </div>
-        <div className="border border-[#222222] bg-[#111111] p-2">
+        <div className="border border-card-border bg-bg-secondary p-2">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400">
             Fonts
           </div>
-          <div className="mt-1 text-sm font-bold text-white">
+          <div className="mt-1 text-sm font-bold text-text-primary">
             {project.fontsSelected}
           </div>
         </div>
-        <div className="border border-[#222222] bg-[#111111] p-2">
+        <div className="border border-card-border bg-bg-secondary p-2">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400">
             Days Active
           </div>
-          <div className="mt-1 text-sm font-bold text-white">
+          <div className="mt-1 text-sm font-bold text-text-primary">
             {project.daysActive}
           </div>
         </div>
@@ -112,7 +112,7 @@ function BoardTab({ project }: { project: Project }) {
         This will mirror a filtered view of Vision scoped to this project&apos;s
         references. For now, treat this as a conceptual placeholder.
       </p>
-      <div className="border border-dashed border-[#333333] bg-[#111111] p-4 text-xs text-gray-500">
+      <div className="border border-[#1a1a1a] bg-bg-secondary p-4 text-xs text-gray-500">
         {project.references} references connected · future state: live Vision
         subset with same masonry grid UX.
       </div>
@@ -130,12 +130,12 @@ function TypeTab() {
         Lock the heading/body pairing that defines this project. This will sync
         with the Type Library.
       </p>
-      <div className="border border-[#222222] bg-[#111111] p-3">
+      <div className="border border-card-border bg-bg-secondary p-3">
         <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
           <span>Heading: Inter</span>
           <span>Body: Sora</span>
         </div>
-        <div className="space-y-1 text-sm text-white">
+        <div className="space-y-1 text-sm text-text-primary">
           <div className="text-lg font-bold">Studio OS project spine</div>
           <div className="text-xs">
             The quick brown fox jumps over the lazy dog.
@@ -144,7 +144,7 @@ function TypeTab() {
         <div className="mt-3 flex justify-end">
           <button
             type="button"
-            className="border border-[#222222] bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-white"
+            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
           >
             Change Font
           </button>
@@ -208,7 +208,7 @@ function PaletteTab({ project }: { project: Project }) {
         {swatches.map((swatch) => (
           <div
             key={swatch.id}
-            className="group flex items-center gap-3 border border-transparent px-2 py-1.5 transition-[border-color,background] duration-150 hover:border-[#222] hover:bg-white/[0.02]"
+            className="group flex items-center gap-3 border border-transparent px-2 py-1.5 transition-[border-color,background] duration-150 hover:border-card-border hover:bg-sidebar-hover"
           >
             {/* Color picker trigger */}
             <ColorPicker
@@ -234,7 +234,7 @@ function PaletteTab({ project }: { project: Project }) {
                 }}
                 placeholder="Name this swatch…"
                 autoFocus
-                className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-gray-700"
+                className="flex-1 bg-transparent text-xs text-text-primary outline-none placeholder:text-gray-700"
               />
             ) : (
               <button
@@ -253,7 +253,7 @@ function PaletteTab({ project }: { project: Project }) {
               type="button"
               onClick={() => removeSwatch(swatch.id)}
               aria-label="Remove swatch"
-              className="ml-auto flex-shrink-0 p-1 text-[#444] opacity-0 transition-[opacity,color] duration-150 group-hover:opacity-100 hover:text-red-400"
+              className="ml-auto flex-shrink-0 p-1 text-text-placeholder opacity-0 transition-[opacity,color] duration-150 group-hover:opacity-100 hover:text-red-400"
             >
               <svg
                 width="11"
@@ -291,13 +291,13 @@ function PaletteTab({ project }: { project: Project }) {
         <button
           type="button"
           onClick={addSwatch}
-          className="border border-[#222222] bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-white"
+          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
         >
           + Add Color
         </button>
         <button
           type="button"
-          className="border border-[#222222] bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-white"
+          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
         >
           Extract from Reference
         </button>
@@ -344,7 +344,7 @@ function TasksTab() {
         {tasks.map((task) => (
           <label
             key={task.id}
-            className="flex items-center gap-2 text-xs text-white"
+            className="flex items-center gap-2 text-xs text-text-primary"
           >
             <input
               type="checkbox"
@@ -365,7 +365,7 @@ function TasksTab() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Add task..."
-          className="flex-1 border border-[#222222] bg-transparent px-2 py-1 text-xs text-white outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
+          className="flex-1 border border-card-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -376,7 +376,7 @@ function TasksTab() {
         <button
           type="button"
           onClick={addTask}
-          className="border border-[#222222] bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-white"
+          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
         >
           Add
         </button>

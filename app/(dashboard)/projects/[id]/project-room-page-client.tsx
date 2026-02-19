@@ -84,7 +84,7 @@ export function ProjectRoomPageClient({
 
       {/* Room header */}
       <div className="flex gap-4">
-        <div className="relative h-20 w-32 flex-none overflow-hidden border border-[#222222] bg-[#0a0a0a]">
+        <div className="relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg">
           <Image
             src={project.leadImage}
             alt={project.name}
@@ -102,7 +102,7 @@ export function ProjectRoomPageClient({
                 {project.name}
               </h1>
               <span
-                className={`px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em] ${PHASE_STYLES[project.phase]}`}
+                className={`px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.15em] ${PHASE_STYLES[project.phase]}`}
               >
                 {project.phase}
               </span>
@@ -127,7 +127,7 @@ export function ProjectRoomPageClient({
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-4 border-b border-[#222222] pb-4 text-[11px] text-gray-500">
+      <div className="flex items-center gap-4 border-b border-card-border pb-4 text-[11px] text-gray-500">
         <span>{project.references} references</span>
         <span>·</span>
         <span>{project.fontsSelected} fonts selected</span>

@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "Studio OS",
-  description: "Designer’s operating system for studio work.",
+  description: "Designer's operating system for studio work.",
 };
 
 export default function RootLayout({
@@ -20,6 +20,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
+      <head>
+        {/* Prevent flash of wrong theme — runs before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);})();`,
+          }}
+        />
+      </head>
       <body className={GeistSans.className}>
         <ThemeProvider>
           <div className="min-h-screen">{children}</div>
@@ -28,4 +36,3 @@ export default function RootLayout({
     </html>
   );
 }
-

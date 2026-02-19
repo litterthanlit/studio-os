@@ -284,13 +284,13 @@ function NewProjectModalInner({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[480px] border border-[#222] bg-[#0a0a0a] shadow-2xl"
+          className="w-full max-w-[480px] border border-card-border bg-card-bg shadow-2xl"
           role="dialog"
           aria-modal="true"
           aria-label="New Project"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#222] px-5 py-4">
+          <div className="flex items-center justify-between border-b border-card-border px-5 py-4">
             <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
               New Project
             </span>
@@ -298,7 +298,7 @@ function NewProjectModalInner({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="rounded p-0.5 text-gray-500 transition-colors duration-150 hover:text-white"
+              className="rounded p-0.5 text-text-tertiary transition-colors duration-150 hover:text-text-primary"
             >
               <X className="h-4 w-4" />
             </button>
@@ -308,7 +308,7 @@ function NewProjectModalInner({
           <div className="space-y-5 px-5 py-5">
             {/* Project Name */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-gray-500">
+              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-text-tertiary">
                 Project Name
               </label>
               <input
@@ -317,13 +317,13 @@ function NewProjectModalInner({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Project name"
-                className="w-full border border-[#222] bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-[#444] outline-none transition-[border-color] duration-150 focus:border-[#444]"
+                className="w-full border border-border-secondary bg-bg-input px-3 py-2.5 text-sm text-text-primary placeholder:text-text-placeholder outline-none transition-[border-color] duration-150 focus:border-border-hover"
               />
             </div>
 
             {/* Brief */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-gray-500">
+              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-text-tertiary">
                 Brief
               </label>
               <textarea
@@ -331,13 +331,13 @@ function NewProjectModalInner({
                 onChange={(e) => setBrief(e.target.value)}
                 placeholder="What's this project about? A few words is fine."
                 rows={3}
-                className="w-full resize-none border border-[#222] bg-[#0a0a0a] px-3 py-2.5 text-sm leading-relaxed text-white placeholder:text-[#444] outline-none transition-[border-color] duration-150 focus:border-[#444]"
+                className="w-full resize-none border border-border-secondary bg-bg-input px-3 py-2.5 text-sm leading-relaxed text-text-primary placeholder:text-text-placeholder outline-none transition-[border-color] duration-150 focus:border-border-hover"
               />
             </div>
 
             {/* Color */}
             <div className="space-y-2">
-              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-gray-500">
+              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-text-tertiary">
                 Accent Color
               </label>
               <div className="flex items-center gap-2.5">
@@ -350,14 +350,14 @@ function NewProjectModalInner({
                     className={cn(
                       "h-6 w-6 rounded-full transition-[box-shadow,transform,opacity] duration-150",
                       color.toUpperCase() === c.toUpperCase()
-                        ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-[#111]"
+                        ? "scale-110 ring-2 ring-button-primary-bg ring-offset-2 ring-offset-bg-tertiary"
                         : "opacity-60 hover:scale-110 hover:opacity-100"
                     )}
                     style={{ backgroundColor: c }}
                   />
                 ))}
                 {/* Divider */}
-                <div className="h-4 w-px bg-[#333]" />
+                <div className="h-4 w-px bg-border-primary" />
                 {/* Custom color trigger */}
                 <ColorPicker value={color} onChange={setColor} />
               </div>
@@ -365,13 +365,13 @@ function NewProjectModalInner({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between border-t border-[#222] px-5 py-4">
-            <p className="text-[10px] text-gray-600">
-              <kbd className="rounded border border-[#333] bg-black px-1 py-0.5 font-mono text-[9px]">
+          <div className="flex items-center justify-between border-t border-card-border px-5 py-4">
+            <p className="text-[10px] text-text-muted">
+              <kbd className="rounded border border-border-primary bg-bg-tertiary px-1 py-0.5 font-mono text-[9px]">
                 ↵
               </kbd>{" "}
               to create,{" "}
-              <kbd className="rounded border border-[#333] bg-black px-1 py-0.5 font-mono text-[9px]">
+              <kbd className="rounded border border-border-primary bg-bg-tertiary px-1 py-0.5 font-mono text-[9px]">
                 Esc
               </kbd>{" "}
               to cancel
@@ -383,8 +383,8 @@ function NewProjectModalInner({
               className={cn(
                 "px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150",
                 name.trim()
-                  ? "cursor-pointer bg-white text-black hover:bg-white/90"
-                  : "cursor-not-allowed bg-white/10 text-white/25"
+                  ? "cursor-pointer bg-button-primary-bg text-button-primary-text hover:opacity-90"
+                  : "cursor-not-allowed bg-bg-tertiary text-text-muted"
               )}
             >
               Create

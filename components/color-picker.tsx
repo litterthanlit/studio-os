@@ -158,7 +158,7 @@ export function ColorPicker({
         aria-label={`Color: ${value}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="relative h-6 w-6 flex-shrink-0 rounded-full border border-[#333] transition-[box-shadow] duration-200 hover:ring-2 hover:ring-white/20 hover:ring-offset-1 hover:ring-offset-[#111]"
+        className="relative h-6 w-6 flex-shrink-0 rounded-full border border-border-primary transition-[box-shadow] duration-200 hover:ring-2 hover:ring-white/20 hover:ring-offset-1 hover:ring-offset-[#111]"
         style={{ backgroundColor: value }}
       />
       {mounted &&
@@ -423,7 +423,7 @@ function ColorPickerPanel({
         left: position.left,
         zIndex: 9999,
       }}
-      className="w-[248px] space-y-3 rounded-xl border border-[#333] bg-[#111] p-4 shadow-2xl"
+      className="w-[248px] space-y-3 rounded-xl border border-border-primary bg-bg-secondary p-4 shadow-2xl"
       role="dialog"
       aria-label="Color picker"
     >
@@ -479,7 +479,7 @@ function ColorPickerPanel({
 
         {/* Live preview swatch */}
         <div
-          className="h-6 w-6 flex-shrink-0 rounded-full border border-[#333] shadow-inner"
+          className="h-6 w-6 flex-shrink-0 rounded-full border border-border-primary shadow-inner"
           style={{ backgroundColor: currentColor }}
         />
 
@@ -489,7 +489,7 @@ function ColorPickerPanel({
             type="button"
             onClick={activateEyedropper}
             title="Pick color from screen"
-            className="flex-shrink-0 rounded p-1 text-[#555] transition-colors duration-150 hover:bg-white/[0.05] hover:text-white"
+            className="flex-shrink-0 rounded p-1 text-text-tertiary transition-colors duration-150 hover:bg-white/[0.05] hover:text-white"
           >
             <PipetteIcon />
           </button>
@@ -498,7 +498,7 @@ function ColorPickerPanel({
 
       {/* ── Hex input ── */}
       <div className="flex items-center gap-1.5 rounded-lg border border-[#2a2a2a] bg-black/50 px-2.5 py-1.5">
-        <span className="select-none font-mono text-[11px] text-[#555]">#</span>
+        <span className="select-none font-mono text-[11px] text-text-tertiary">#</span>
         <input
           type="text"
           value={hexInput.replace("#", "")}
@@ -521,7 +521,7 @@ function ColorPickerPanel({
 
       {/* ── Preset swatches ── */}
       <div className="space-y-1.5">
-        <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-[#444]">
+        <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-text-placeholder">
           Presets
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -539,7 +539,7 @@ function ColorPickerPanel({
       {/* ── Recent colors ── */}
       {recent.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-[#444]">
+          <p className="text-[9px] font-medium uppercase tracking-[0.15em] text-text-placeholder">
             Recent
           </p>
           <div className="flex flex-wrap gap-1.5">

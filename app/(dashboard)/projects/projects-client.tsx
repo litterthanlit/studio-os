@@ -55,7 +55,7 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
     <Link
       href={`/projects/${DEMO_PROJECT_ID}`}
       className={cn(
-        "group relative flex w-full flex-col border border-dashed border-[#333] bg-[#0a0a0a] text-left",
+        "group relative flex w-full flex-col border border-[#1a1a1a] bg-card-bg text-left",
         "transition-[border-color] duration-200 ease-out hover:border-accent/40"
       )}
     >
@@ -71,14 +71,14 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDismiss(); }}
         aria-label="Dismiss demo project"
-        className="absolute right-2 top-2 z-10 rounded p-1 text-[#333] transition-colors duration-150 hover:bg-white/[0.05] hover:text-white"
+        className="absolute right-2 top-2 z-10 rounded p-1 text-text-muted transition-colors duration-150 hover:bg-white/[0.05] hover:text-white"
       >
         <X className="h-3.5 w-3.5" />
       </button>
 
       <div className="flex gap-3 p-3 pt-10">
         {/* Color palette strip as "lead image" */}
-        <div className="relative h-20 w-32 flex-none overflow-hidden border border-[#1a1a1a] bg-[#0a0a0a]">
+        <div className="relative h-20 w-32 flex-none overflow-hidden border border-border-subtle bg-card-bg">
           <div className="flex h-full">
             {DEMO_PROJECT.palette.map((c, i) => (
               <div key={i} className="flex-1" style={{ backgroundColor: c }} />
@@ -89,7 +89,7 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
               {DEMO_PROJECT.references.slice(0, 6).map((ref) => (
                 <div
                   key={ref.imageUrl}
-                  className="h-4 w-6 overflow-hidden bg-[#111]"
+                  className="h-4 w-6 overflow-hidden bg-bg-secondary"
                 >
                   <Image src={ref.imageUrl} alt="" width={24} height={16} className="h-full w-full object-cover opacity-70" unoptimized />
                 </div>
@@ -100,18 +100,18 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
 
         <div className="flex flex-1 flex-col justify-between gap-1">
           <div>
-            <div className="text-sm font-bold text-white">{DEMO_PROJECT.name}</div>
+            <div className="text-sm font-bold text-text-primary">{DEMO_PROJECT.name}</div>
             <div className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
               {DEMO_PROJECT.brief}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-[#333]">
+          <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
             <span>Explore Studio OS →</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-[#1a1a1a] px-3 py-2 text-[11px] text-[#333]">
+      <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-3 py-2 text-[11px] text-text-muted">
         <div className="flex items-center gap-3">
           <span>{DEMO_PROJECT.references.length} references</span>
           <span>·</span>
@@ -159,8 +159,8 @@ export function ProjectsPage() {
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-3xl font-semibold text-white tracking-tight">Project Rooms</h2>
-          <p className="text-sm text-[#888]">
+          <h2 className="text-3xl font-semibold text-text-primary tracking-tight">Project Rooms</h2>
+          <p className="text-sm text-text-secondary">
             Each room is a self-contained project spine — context, decisions,
             references and tasks in one place, without the Notion overhead.
           </p>
@@ -172,7 +172,7 @@ export function ProjectsPage() {
             <button
               type="button"
               onClick={openModal}
-              className="flex items-center gap-1 border border-[#333] bg-[#0a0a0a] px-2.5 py-1.5 text-[10px] font-medium text-[#555] font-mono transition-[border-color,color] duration-150 hover:border-[#666] hover:text-white"
+              className="flex items-center gap-1 border border-border-primary bg-card-bg px-2.5 py-1.5 text-[10px] font-medium text-text-tertiary font-mono transition-[border-color,color] duration-150 hover:border-border-hover hover:text-white"
             >
               <Plus className="h-3 w-3" />
               New Project
@@ -181,13 +181,13 @@ export function ProjectsPage() {
 
           {/* Empty state */}
           {allProjects.length === 0 && !showDemo && (
-            <div className="flex flex-col items-center gap-3 border border-dashed border-[#222] bg-[#0a0a0a] py-10 text-center">
-              <p className="text-sm text-[#555]">No projects yet.</p>
+            <div className="flex flex-col items-center gap-3 border border-dashed border-card-border bg-card-bg py-10 text-center">
+              <p className="text-sm text-text-tertiary">No projects yet.</p>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={openModal}
-                  className="border border-[#333] bg-[#111] px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30"
+                  className="border border-border-primary bg-bg-secondary px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30"
                 >
                   + Create Project
                 </button>
@@ -225,12 +225,12 @@ export function ProjectsPage() {
                   key={project.id}
                   href={`/projects/${project.id}`}
                   className={cn(
-                    "flex w-full flex-col overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a] text-left",
-                    "transition-[border-color] duration-200 ease-out hover:border-[#444]"
+                    "flex w-full flex-col overflow-hidden border border-[#1a1a1a] bg-card-bg text-left",
+                    "transition-[border-color] duration-200 ease-out hover:border-[#252525]"
                   )}
                 >
                   {/* Full-width thumbnail */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-[#0a0a0a]">
+                  <div className="relative aspect-video w-full overflow-hidden bg-card-bg">
                     <Image
                       src={project.leadImage}
                       alt={project.name}
@@ -243,18 +243,18 @@ export function ProjectsPage() {
                   {/* Card content */}
                   <div className="flex flex-col gap-2 p-4">
                     {/* Name */}
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-text-primary">
                       {project.name}
                     </div>
 
                     {/* Client + Phase on same line */}
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#999]">
+                      <span className="text-[11px] text-text-tertiary">
                         {project.client}
                       </span>
                       <span
                         className={cn(
-                          "px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                          "px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.12em]",
                           PHASE_STYLES[project.phase]
                         )}
                       >
@@ -264,13 +264,13 @@ export function ProjectsPage() {
 
                     {/* Progress bar + % */}
                     <div className="space-y-1">
-                      <div className="h-0.5 w-full bg-[#222]">
+                      <div className="h-0.5 w-full bg-bg-input">
                         <div
                           className="h-full bg-accent"
                           style={{ width: `${project.progress}%` }}
                         />
                       </div>
-                      <div className="text-[11px] text-[#666]">
+                      <div className="text-[11px] text-text-secondary">
                         {project.progress}%
                       </div>
                     </div>
@@ -286,7 +286,7 @@ export function ProjectsPage() {
                           />
                         ))}
                       </div>
-                      <span className="text-[11px] text-[#2a2a2a] font-mono">
+                      <span className="text-[11px] text-text-muted font-mono">
                         {project.references} refs · {project.lastActivity}
                       </span>
                     </div>
@@ -297,7 +297,7 @@ export function ProjectsPage() {
           </div>
         </div>
 
-        <div className="border-t border-dashed border-[#141414] pt-4">
+        <div className="border-t border-[#151515] pt-4">
           <button
             type="button"
             onClick={() => setShowArchived((prev) => !prev)}

@@ -6,7 +6,7 @@ import { NewProjectModalProvider } from "@/components/new-project-modal";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <NewProjectModalProvider>
-      <div className="flex h-screen bg-black">
+      <div className="flex h-screen bg-bg-primary">
         {/* Left Sidebar — fixed width */}
         <Sidebar />
 
@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           className="flex-1 overflow-y-auto"
           style={{
             backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.028) 1px, transparent 1px)",
+              "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
             backgroundSize: "28px 28px",
           }}
         >

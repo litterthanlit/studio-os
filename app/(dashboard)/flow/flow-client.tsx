@@ -1,14 +1,19 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { SectionLabel } from "@/components/ui/section-label";
 import { PROJECTS } from "../projects/projects-data";
 
 const FLOW_PROJECTS = PROJECTS.map((p) => ({
   id: p.id,
   name: p.name,
   phase: p.phase,
+  palette: p.palette,
+  references: p.references,
+  leadImage: p.leadImage,
 }));
 
 const RECENT_ACTIONS = [
@@ -92,16 +97,14 @@ export function FlowPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="space-y-8"
+            className="space-y-6"
           >
             <div className="space-y-1">
-              <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-                Flow
-              </div>
-              <h2 className="text-2xl font-medium text-white">
+              <SectionLabel accent>Flow</SectionLabel>
+              <h2 className="text-2xl font-semibold text-white tracking-tight mt-1">
                 Focus Mode
               </h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-[#444]">
                 Enter a distraction-free environment scoped to one project.
                 All other context goes quiet.
               </p>
@@ -109,9 +112,7 @@ export function FlowPage() {
 
             {/* Project selector */}
             <div className="space-y-2">
-              <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-                Select Project
-              </div>
+              <SectionLabel>Select Project</SectionLabel>
               <div className="space-y-2">
                 {FLOW_PROJECTS.map((project) => {
                   const active = selectedProjectId === project.id;
@@ -121,10 +122,10 @@ export function FlowPage() {
                       type="button"
                       onClick={() => setSelectedProjectId(project.id)}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-lg border bg-[#111111] px-4 py-3 text-left transition-[border-color] duration-200 ease-out",
+                        "flex w-full items-center justify-between rounded-lg border bg-[#080808] px-4 py-3 text-left transition-[border-color] duration-200 ease-out",
                         active
-                          ? "border-accent"
-                          : "border-[#222222] hover:border-white/20"
+                          ? "border-accent/60"
+                          : "border-[#1a1a1a] hover:border-[#2a2a2a]"
                       )}
                     >
                       <div>
@@ -144,46 +145,90 @@ export function FlowPage() {
               </div>
             </div>
 
+            {/* Selected project preview */}
+            <div className="rounded-lg border border-[#1a1a1a] bg-[#080808] p-4 space-y-3">
+              <SectionLabel>{selectedProject.name} — Preview</SectionLabel>
+
+              {/* 4 thumbnails */}
+              <div className="flex items-center gap-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="relative h-12 w-12 overflow-hidden rounded border border-[#2a2a2a] bg-[#0d0d0d]"
+                  >
+                    <Image
+                      src={`https://picsum.photos/seed/${selectedProject.id}-${i}/96/96`}
+                      alt=""
+                      fill
+                      className="object-cover opacity-80"
+                      unoptimized
+                    />
+                  </div>
+                ))}
+                <span className="ml-1 text-[11px] text-[#666]">
+                  {selectedProject.references} refs
+                </span>
+              </div>
+
+              {/* Palette swatches */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {selectedProject.palette.slice(0, 6).map((color) => (
+                    <span
+                      key={color}
+                      className="h-3.5 w-3.5 rounded-full border border-white/10"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] text-[#666]">{selectedProject.phase}</span>
+              </div>
+            </div>
+
             {/* Recent context preview */}
             <div className="space-y-2">
-              <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-                Your Last 5 Actions in This Project
-              </div>
+              <SectionLabel>Your Last 5 Actions</SectionLabel>
               <ul className="space-y-1">
                 {RECENT_ACTIONS.map((action, i) => (
                   <li
                     key={i}
-                    className="flex items-center gap-3 text-[11px] text-gray-500"
+                    className="flex items-center gap-3 text-[11px] text-[#333] font-mono"
                   >
-                    <span className="h-px w-3 bg-[#333333]" />
+                    <span className="text-[#252525]">·</span>
                     {action}
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Start button */}
-            <button
-              type="button"
-              onClick={startFlow}
-              className="flex h-10 w-full items-center justify-center rounded-md border border-white bg-white font-medium text-sm text-black transition-[background-color,border-color] duration-200 ease-out hover:bg-white/90"
-            >
-              Enter Flow — {selectedProject.name}
-            </button>
+            {/* Start button — centered, prominent */}
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={startFlow}
+                className={cn(
+                  "flex h-12 items-center justify-center rounded-lg border border-white bg-white",
+                  "px-8 text-sm font-medium text-black",
+                  "transition-[background-color,box-shadow] duration-200 ease-out",
+                  "hover:bg-white/90 hover:shadow-[0_0_20px_rgba(0,112,243,0.15)]"
+                )}
+              >
+                Enter Flow — {selectedProject.name}
+              </button>
+              <span className="text-[11px] text-[#444]">⌘⇧F to enter instantly</span>
+            </div>
 
             {/* Tips */}
-            <div className="space-y-1 border-t border-[#222222] pt-4">
-              <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-500">
-                Tips
-              </div>
+            <div className="space-y-2 border-t border-dashed border-[#141414] pt-4">
+              <SectionLabel>Tips</SectionLabel>
               <ul className="space-y-1">
                 {[
                   "Cmd+K is scoped to this project while in Flow",
                   "All import syncs queue silently — nothing interrupts",
                   "Exit any time — you'll see a summary of what you did",
                 ].map((tip) => (
-                  <li key={tip} className="text-[11px] text-gray-500">
-                    {tip}
+                  <li key={tip} className="text-[11px] text-[#333] font-mono">
+                    · {tip}
                   </li>
                 ))}
               </ul>
@@ -201,9 +246,7 @@ export function FlowPage() {
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="flex min-h-[60vh] flex-col items-center justify-center gap-6"
           >
-            <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-              Getting you back in context
-            </div>
+          <SectionLabel accent>Getting you back in context</SectionLabel>
             <div className="h-12 text-center">
               <AnimatePresence mode="wait">
                 <motion.p
@@ -255,9 +298,7 @@ export function FlowPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-8 py-12 text-center">
               {/* Project name */}
               <div className="space-y-1">
-                <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-                  Flow — {selectedProject.phase}
-                </div>
+                <SectionLabel accent>Flow — {selectedProject.phase}</SectionLabel>
                 <div className="text-2xl font-semibold text-white">
                   {selectedProject.name}
                 </div>
@@ -335,9 +376,7 @@ export function FlowPage() {
             className="flex min-h-[60vh] flex-col items-center justify-center gap-8 text-center"
           >
             <div className="space-y-1">
-              <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-                Flow Complete
-              </div>
+              <SectionLabel accent>Flow Complete</SectionLabel>
               <h2 className="text-2xl font-semibold text-white">
                 {selectedProject.name}
               </h2>
@@ -345,33 +384,31 @@ export function FlowPage() {
 
             {/* Summary stats */}
             <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="space-y-1 border border-[#222222] bg-[#111111] p-4 rounded-lg">
+              <div className="space-y-1 border border-[#1a1a1a] bg-[#080808] p-4 rounded-lg">
                 <div className="font-mono text-3xl font-light text-white">
                   {formatElapsed(exitSummary.duration)}
                 </div>
-                <div className="text-[11px] text-gray-500">Focus time</div>
+                <div className="text-[11px] text-[#333] font-mono uppercase tracking-wider">Focus time</div>
               </div>
-              <div className="space-y-1 border border-[#222222] bg-[#111111] p-4 rounded-lg">
+              <div className="space-y-1 border border-[#1a1a1a] bg-[#080808] p-4 rounded-lg">
                 <div className="font-mono text-3xl font-light text-white">
                   {exitSummary.actions}
                 </div>
-                <div className="text-[11px] text-gray-500">Actions taken</div>
+                <div className="text-[11px] text-[#333] font-mono uppercase tracking-wider">Actions taken</div>
               </div>
             </div>
 
             {/* Exit summary actions */}
             <div className="space-y-2 w-full max-w-xs">
-              <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-500">
-                What you did
-              </div>
+              <SectionLabel>What you did</SectionLabel>
               <ul className="space-y-1">
                 {RECENT_ACTIONS.slice(0, exitSummary.actions).map(
                   (action, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-3 text-[11px] text-gray-400"
+                      className="flex items-center gap-3 text-[11px] text-[#333] font-mono"
                     >
-                      <span className="h-px w-3 bg-accent" />
+                      <span className="text-accent">·</span>
                       {action}
                     </li>
                   )

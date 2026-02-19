@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type IconName =
-  // ── Navigation (5) ──
+  // ── Navigation (6) ──
+  | "home"
   | "brief"
   | "vision"
   | "type"
@@ -69,6 +70,14 @@ const STRUCTURAL = new Set<IconName>([
 function renderContent(name: IconName): React.ReactNode {
   switch (name) {
     // ── Navigation ─────────────────────────────────────────────────────────
+
+    case "home":
+      return (
+        <>
+          <path d="M4 10l8-7 8 7v10a1 1 0 01-1 1H5a1 1 0 01-1-1z" />
+          <path d="M9 21V12h6v9" opacity="0.5" />
+        </>
+      );
 
     case "brief":
       return (
@@ -346,6 +355,7 @@ function makeIcon(name: IconName, defaultBare?: boolean) {
 }
 
 // Navigation
+export const HomeIcon     = makeIcon("home");
 export const BriefIcon    = makeIcon("brief");
 export const VisionIcon   = makeIcon("vision");
 export const TypeIcon     = makeIcon("type");

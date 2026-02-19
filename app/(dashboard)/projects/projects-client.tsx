@@ -10,6 +10,7 @@ import {
   PlusIcon as Plus,
   CloseIcon as X,
 } from "@/components/ui/icon";
+import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
 import { PROJECTS, PHASE_STYLES } from "./projects-data";
 import type { Project } from "./projects-data";
@@ -154,14 +155,12 @@ export function ProjectsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-        Projects
-      </div>
+      <SectionLabel accent>Projects</SectionLabel>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-medium text-white">Project Rooms</h2>
-          <p>
+          <h2 className="text-2xl font-semibold text-white tracking-tight">Project Rooms</h2>
+          <p className="text-sm text-[#444]">
             Each room is a self-contained project spine — context, decisions,
             references and tasks in one place, without the Notion overhead.
           </p>
@@ -169,13 +168,11 @@ export function ProjectsPage() {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-              Active Projects
-            </div>
+            <SectionLabel>Active Projects</SectionLabel>
             <button
               type="button"
               onClick={openModal}
-              className="flex items-center gap-1 rounded-md border border-[#222] bg-[#111] px-2.5 py-1.5 text-[10px] font-medium text-gray-400 transition-[border-color,color] duration-150 hover:border-white/20 hover:text-white"
+              className="flex items-center gap-1 rounded-md border border-[#1a1a1a] bg-[#080808] px-2.5 py-1.5 text-[10px] font-medium text-[#444] font-mono transition-[border-color,color] duration-150 hover:border-[#2a2a2a] hover:text-white"
             >
               <Plus className="h-3 w-3" />
               New Project
@@ -221,82 +218,77 @@ export function ProjectsPage() {
             )}
           </AnimatePresence>
 
-          <div className="space-y-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             {allProjects.map((project) => {
               return (
                 <Link
                   key={project.id}
                   href={`/projects/${project.id}`}
                   className={cn(
-                    "flex w-full flex-col rounded-lg border border-[#222222] bg-[#111111] text-left transition-[border-color] duration-200 ease-out",
-                    "hover:border-white/20"
+                    "flex w-full flex-col overflow-hidden rounded-lg border border-[#1a1a1a] bg-[#080808] text-left",
+                    "transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]"
                   )}
                 >
-                  <div className="flex gap-3 p-3">
-                    <div className="relative h-20 w-32 flex-none overflow-hidden border border-[#222222] bg-[#0a0a0a]">
-                      <Image
-                        src={project.leadImage}
-                        alt={project.name}
-                        width={160}
-                        height={120}
-                        className="h-full w-full object-cover"
-                        unoptimized
-                      />
-                    </div>
-
-                    <div className="flex flex-1 flex-col justify-between gap-1">
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className="text-sm font-bold text-white">
-                              {project.name}
-                            </div>
-                            <div className="text-[12px] text-gray-400">
-                              {project.client}
-                            </div>
-                          </div>
-                          <span
-                            className={cn(
-                              "px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em]",
-                              PHASE_STYLES[project.phase]
-                            )}
-                          >
-                            {project.phase}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="h-0.5 w-full bg-[#333333]">
-                          <div
-                            className="h-full bg-accent"
-                            style={{ width: `${project.progress}%` }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] text-gray-400">
-                          <span>{project.progress}% complete</span>
-                          <span>Last activity · {project.lastActivity}</span>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Full-width thumbnail */}
+                  <div className="relative aspect-video w-full overflow-hidden bg-[#0a0a0a]">
+                    <Image
+                      src={project.leadImage}
+                      alt={project.name}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-[#222222] px-3 py-2 text-[11px] text-gray-500">
-                    <div className="flex items-center gap-3">
-                      <span>{project.references} references</span>
-                      <span>·</span>
-                      <span>{project.fontsSelected} fonts selected</span>
-                      <span>·</span>
-                      <span>{project.daysActive} days active</span>
+                  {/* Card content */}
+                  <div className="flex flex-col gap-2 p-4">
+                    {/* Name */}
+                    <div className="text-sm font-semibold text-white">
+                      {project.name}
                     </div>
-                    <div className="flex items-center gap-1">
-                      {project.palette.slice(0, 5).map((color) => (
-                        <span
-                          key={`${project.id}-${color}`}
-                          className="h-3 w-3 border border-white/10"
-                          style={{ backgroundColor: color }}
+
+                    {/* Client + Phase on same line */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-[#999]">
+                        {project.client}
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                          PHASE_STYLES[project.phase]
+                        )}
+                      >
+                        {project.phase}
+                      </span>
+                    </div>
+
+                    {/* Progress bar + % */}
+                    <div className="space-y-1">
+                      <div className="h-0.5 w-full rounded-full bg-[#2a2a2a]">
+                        <div
+                          className="h-full rounded-full bg-accent"
+                          style={{ width: `${project.progress}%` }}
                         />
-                      ))}
+                      </div>
+                      <div className="text-[11px] text-[#666]">
+                        {project.progress}%
+                      </div>
+                    </div>
+
+                    {/* Palette + ref count + time */}
+                    <div className="flex items-center justify-between pt-0.5">
+                      <div className="flex items-center gap-1">
+                        {project.palette.slice(0, 5).map((color) => (
+                          <span
+                            key={`${project.id}-${color}`}
+                            className="h-3 w-3 rounded-full border border-white/10"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-[#2a2a2a] font-mono">
+                        {project.references} refs · {project.lastActivity}
+                      </span>
                     </div>
                   </div>
                 </Link>
@@ -305,15 +297,13 @@ export function ProjectsPage() {
           </div>
         </div>
 
-        <div className="border-t border-[#222222] pt-4">
+        <div className="border-t border-dashed border-[#141414] pt-4">
           <button
             type="button"
             onClick={() => setShowArchived((prev) => !prev)}
             className="flex w-full items-center justify-between text-left text-xs text-gray-500 transition-colors duration-200 hover:text-white"
           >
-            <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-              Archived
-            </span>
+            <SectionLabel>Archived</SectionLabel>
             {showArchived ? (
               <ChevronDown className="h-3 w-3" />
             ) : (

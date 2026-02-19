@@ -702,8 +702,9 @@ export function VisionPage() {
 
   return (
     <section className="space-y-4">
-      <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-        Vision
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] leading-none text-accent/50">■</span>
+        <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-accent">Vision</span>
       </div>
 
       <div className="space-y-6">
@@ -1085,6 +1086,85 @@ export function VisionPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* ── True empty state ── */}
+            {references.length === 0 && (
+              <div className="flex flex-col items-center gap-6 py-24 text-center">
+                <svg
+                  viewBox="0 0 48 48"
+                  className="h-12 w-12 text-[#333]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="4" y="10" width="40" height="28" rx="3" />
+                  <circle cx="24" cy="24" r="6" />
+                  <circle cx="24" cy="24" r="2" fill="currentColor" stroke="none" />
+                  <line x1="4" y1="16" x2="44" y2="16" />
+                </svg>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold text-white">
+                    Your moodboard is empty
+                  </h3>
+                  <p className="text-sm text-[#666]">
+                    Start collecting visual references
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPinterestOpen(true)}
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity duration-200 hover:opacity-90"
+                  >
+                    Connect Pinterest
+                  </button>
+                  {lummiConfigured && (
+                    <button
+                      type="button"
+                      onClick={() => setIsStockActive(true)}
+                      className="rounded-lg border border-[#333] px-4 py-2 text-sm font-medium text-white transition-[border-color] duration-200 hover:border-white/20"
+                    >
+                      Browse Stock
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-[#444]">or drag images here</p>
+              </div>
+            )}
+
+            {/* ── Filtered empty state ── */}
+            {references.length > 0 && filtered.length === 0 && (
+              <div className="flex flex-col items-center gap-3 py-20 text-center">
+                <p className="text-sm text-[#666]">
+                  No references
+                  {activeBoard !== "All" ? ` in ${activeBoard}` : ""}
+                  {activeTags.length > 0 ? " matching these tags" : ""}.
+                </p>
+                <div className="flex items-center gap-3">
+                  {activeBoard !== "All" && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveBoard("All")}
+                      className="text-xs text-accent transition-opacity hover:opacity-70"
+                    >
+                      Show all boards
+                    </button>
+                  )}
+                  {activeTags.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTags([])}
+                      className="text-xs text-accent transition-opacity hover:opacity-70"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="columns-2 gap-2 md:columns-3">
               <AnimatePresence>

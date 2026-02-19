@@ -1,27 +1,32 @@
 import type { ReactNode } from "react";
-import { Dock } from "@/components/navigation/dock";
+import { Sidebar } from "@/components/navigation/sidebar";
 import { CommandPalette } from "@/components/navigation/command-palette";
 import { NewProjectModalProvider } from "@/components/new-project-modal";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <NewProjectModalProvider>
-      <>
-        <div className="flex w-full flex-1 justify-center px-6 pt-8 pb-24 md:px-16 md:pt-12">
-          <div className="w-full max-w-[800px]">
-            <main className="pb-8">{children}</main>
-          </div>
-        </div>
+      <div className="flex h-screen bg-black">
+        {/* Left Sidebar — fixed width */}
+        <Sidebar />
 
-        <div className="flex min-h-screen flex-col items-center bg-black">
-          {/* Fixed top-right search */}
-          <div className="fixed right-5 top-5 z-30">
-            <CommandPalette />
+        {/* Main Content Area — fills remaining space */}
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, rgba(255,255,255,0.028) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        >
+          <div className="mx-auto max-w-[960px] px-8 py-8">
+            {children}
           </div>
+        </main>
 
-          <Dock />
-        </div>
-      </>
+        {/* Command Palette — fixed overlay, keyboard-triggered */}
+        <CommandPalette showTrigger={false} />
+      </div>
     </NewProjectModalProvider>
   );
 }

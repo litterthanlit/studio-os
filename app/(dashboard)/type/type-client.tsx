@@ -13,6 +13,7 @@ import {
 } from "next/font/google";
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
+import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
 
 const interFont = Inter({ subsets: ["latin"], weight: ["400", "700"] });
@@ -243,16 +244,14 @@ export function TypeLibraryPage() {
 
   return (
     <section className="space-y-6">
-      <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-        Type
-      </div>
+      <SectionLabel accent>Type</SectionLabel>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-medium text-white">
+          <h2 className="text-2xl font-semibold text-white tracking-tight">
             Type Library
           </h2>
-          <p>
+          <p className="text-sm text-[#444]">
             Define the typographic spine of your studio — systems, scales, and
             pairings that stay consistent across products and decks.
           </p>
@@ -290,65 +289,45 @@ export function TypeLibraryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           {filteredFonts.map((font) => (
             <button
               key={font.id}
               type="button"
               onClick={() => handleOpenDetail(font.id)}
               className={cn(
-                "flex flex-col border border-[#222222] bg-[#111111] text-left transition-colors duration-200",
-                " ",
-                "hover:border-white/20"
+                "flex flex-col rounded-lg border border-[#1a1a1a] bg-[#080808] text-left",
+                "overflow-hidden transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]"
               )}
             >
-              <div className={cn("border-b border-[#222222] p-3 ", font.fontClassName)}>
-                <div className="mb-2 text-4xl leading-none">Aa</div>
+              <div className={cn("border-b border-[#1a1a1a] p-4", font.fontClassName)}>
+                <div className="mb-2 text-4xl leading-none text-white">Aa</div>
                 <div className="text-sm font-bold text-white">
                   {font.name}
                 </div>
-                <div className="text-[11px] text-gray-400">{font.foundry}</div>
+                <div className="text-[11px] text-[#333] font-mono">{font.foundry}</div>
               </div>
 
-              <div className={cn("border-b border-[#222222] p-3 text-sm ", font.fontClassName)}>
+              <div className={cn("border-b border-[#1a1a1a] p-4 text-sm", font.fontClassName)}>
                 <p className="text-gray-400">
                   The quick brown fox jumps over the lazy dog.
                 </p>
               </div>
 
-              <div className="flex items-center justify-between gap-2 p-3">
-                <span className="border border-[#222222] bg-[#111111] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em] text-gray-400">
+              <div className="flex items-center justify-between gap-2 p-4">
+                <span className="border border-[#1a1a1a] bg-[#050505] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[#333]">
                   {font.classification}
                 </span>
-                <span className="text-[11px] text-gray-400">
-                  Used in {font.usageCount} project
-                  {font.usageCount === 1 ? "" : "s"}
+                <span className="text-[11px] text-[#2a2a2a] font-mono">
+                  {font.usageCount} project{font.usageCount === 1 ? "" : "s"}
                 </span>
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, index) => {
-                    const filled = index < font.rating;
-                    return (
-                      <span
-                        key={index}
-                        className={cn(
-                          "text-[11px]",
-                          filled ? "text-accent" : "text-gray-600"
-                        )}
-                      >
-                        ★
-                      </span>
-                    );
-                  })}
-                </div>
               </div>
             </button>
           ))}
         </div>
 
-        <div className="mt-8 space-y-3 border-t border-[#222222] pt-6 ">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-            Font Pairings
-          </div>
+        <div className="mt-8 space-y-3 border-t border-dashed border-[#141414] pt-6">
+          <SectionLabel>Font Pairings</SectionLabel>
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-sm text-gray-400">
@@ -385,7 +364,7 @@ export function TypeLibraryPage() {
               return (
                 <div
                   key={`${selectedHeading}-${pair.bodyId}`}
-                  className="flex flex-col border border-[#222222] bg-[#111111] p-3 transition-colors duration-200 hover:border-white/20  "
+                  className="flex flex-col border border-[#1a1a1a] bg-[#080808] p-3 transition-colors duration-200 hover:border-[#2a2a2a]"
                 >
                   <div className="mb-2 space-y-1">
                     <div
@@ -453,7 +432,7 @@ export function TypeLibraryPage() {
               onClick={handleCloseDetail}
             />
             <motion.aside
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-[#222222] bg-[#111111] p-4"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-[#1a1a1a] bg-[#060606] p-4"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -461,9 +440,7 @@ export function TypeLibraryPage() {
             >
               <div className="mb-4 flex items-center justify-between">
                 <div className="space-y-1">
-                  <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-                    Specimen
-                  </div>
+                  <SectionLabel>Specimen</SectionLabel>
                   <div
                     className={cn(
                       "text-lg font-bold text-white",
@@ -487,7 +464,7 @@ export function TypeLibraryPage() {
 
               <div
                 className={cn(
-                  "mb-4 border border-[#222222] bg-[#111111] p-3  ",
+                  "mb-4 border border-[#1a1a1a] bg-[#080808] p-3",
                   selectedFont.fontClassName
                 )}
               >
@@ -572,13 +549,13 @@ export function TypeLibraryPage() {
                 />
               </div>
 
-              <div className="mt-auto flex items-center justify-between gap-3 border-t border-[#222222] pt-3 text-xs ">
-                <div className="text-[11px] text-gray-500">
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#141414] pt-3 text-xs">
+                <div className="text-[11px] text-[#333] font-mono">
                   Tag this face with use cases once you know where it wins.
                 </div>
                 <button
                   type="button"
-                  className="border border-[#222222] bg-black px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-white transition-[border-color] duration-200 ease-out hover:border-white/20"
+                  className="border border-[#1a1a1a] bg-black px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]"
                 >
                   Add to Project
                 </button>

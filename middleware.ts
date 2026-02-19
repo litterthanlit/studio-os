@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
   if (isPublic(pathname)) {
     if (user && pathname.startsWith("/auth/login")) {
       const url = request.nextUrl.clone();
-      url.pathname = "/brief";
+      url.pathname = "/home";
       return NextResponse.redirect(url);
     }
     return response;

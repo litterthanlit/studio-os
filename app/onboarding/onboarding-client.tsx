@@ -902,7 +902,7 @@ export function OnboardingClient() {
         if (raw) {
           const data = JSON.parse(raw) as StoredOnboarding;
           if (data.complete) {
-            router.replace("/brief");
+            router.replace("/home");
             return;
           }
         }
@@ -918,7 +918,7 @@ export function OnboardingClient() {
             .eq("id", user.id)
             .single();
           if (profile?.onboarding_complete) {
-            router.replace("/brief");
+            router.replace("/home");
             return;
           }
         }
@@ -989,7 +989,7 @@ export function OnboardingClient() {
     } else if (tpl) {
       router.push(`/projects/${projectId}`);
     } else {
-      router.push("/brief");
+      router.push("/home");
     }
 
     // 3. Background Supabase sync

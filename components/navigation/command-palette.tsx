@@ -270,7 +270,7 @@ function SemanticResultRow({
   );
 }
 
-export function CommandPalette() {
+export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }) {
   const router = useRouter();
   const { openModal: openNewProjectModal } = useNewProjectModal();
   const [open, setOpen] = React.useState(false);
@@ -473,17 +473,19 @@ export function CommandPalette() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Search (⌘K)"
-        className="flex items-center justify-start gap-2 rounded-md border border-[#222] bg-black/80 px-2.5 py-1.5 text-[#555] backdrop-blur-sm transition-[border-color,color] duration-200 ease-out hover:border-[#444] hover:text-white"
-      >
-        <SearchIcon className="h-3.5 w-3.5 shrink-0" bare />
-        <kbd className="rounded border border-[#2a2a2a] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#444]">
-          ⌘K
-        </kbd>
-      </button>
+      {showTrigger && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Search (⌘K)"
+          className="flex items-center justify-start gap-2 rounded-md border border-[#222] bg-black/80 px-2.5 py-1.5 text-[#555] backdrop-blur-sm transition-[border-color,color] duration-200 ease-out hover:border-[#444] hover:text-white"
+        >
+          <SearchIcon className="h-3.5 w-3.5 shrink-0" bare />
+          <kbd className="rounded border border-[#2a2a2a] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#444]">
+            ⌘K
+          </kbd>
+        </button>
+      )}
 
       {mounted &&
         typeof document !== "undefined" &&

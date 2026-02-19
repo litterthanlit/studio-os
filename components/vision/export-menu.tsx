@@ -159,7 +159,7 @@ export function ExportMenu({
         }}
         disabled={exportable.length === 0}
         className={cn(
-          "flex items-center gap-1.5 rounded-md border border-[#333333] bg-[#111111] px-3 py-1.5",
+          "flex items-center gap-1.5 border border-[#333333] bg-[#111111] px-3 py-1.5",
           "text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400",
           "transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-white",
           "disabled:cursor-not-allowed disabled:opacity-40",
@@ -188,7 +188,7 @@ export function ExportMenu({
         <div
           className={cn(
             "absolute right-0 top-[calc(100%+6px)] z-50 min-w-[220px]",
-            "rounded-xl border border-[#333333] bg-[#111111] p-2 shadow-2xl"
+            "border border-[#333333] bg-[#111111] p-2 shadow-2xl"
           )}
         >
           <p className="mb-1 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.15em] text-gray-600">
@@ -202,7 +202,7 @@ export function ExportMenu({
               onClick={handlePDF}
               disabled={isLoading}
               className={cn(
-                "flex w-full items-center justify-between rounded-lg px-3 py-2.5",
+                "flex w-full items-center justify-between px-3 py-2.5",
                 "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
                 "disabled:cursor-not-allowed disabled:opacity-40"
               )}
@@ -236,7 +236,7 @@ export function ExportMenu({
                   onClick={() => setStep("png-layout")}
                   disabled={isLoading}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2.5",
+                    "flex w-full items-center justify-between px-3 py-2.5",
                     "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
                     "disabled:cursor-not-allowed disabled:opacity-40"
                   )}
@@ -261,7 +261,7 @@ export function ExportMenu({
                 </button>
               ) : (
                 /* Layout picker sub-menu */
-                <div className="rounded-lg border border-[#222] bg-[#0d0d0d] p-2">
+                <div className="border border-[#222] bg-[#0d0d0d] p-2">
                   <div className="mb-1.5 flex items-center gap-2 px-2">
                     <button
                       type="button"
@@ -286,7 +286,7 @@ export function ExportMenu({
                       type="button"
                       onClick={() => handleCollage(opt.id)}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-md px-3 py-2",
+                        "flex w-full items-center justify-between px-3 py-2",
                         "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
                         "disabled:cursor-not-allowed disabled:opacity-40"
                       )}
@@ -309,7 +309,7 @@ export function ExportMenu({
                   onClick={handleShareLink}
                   disabled={isLoading}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2.5",
+                    "flex w-full items-center justify-between px-3 py-2.5",
                     "text-sm text-gray-300 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-white",
                     "disabled:cursor-not-allowed disabled:opacity-40"
                   )}
@@ -334,7 +334,7 @@ export function ExportMenu({
                 </button>
               ) : (
                 /* Share URL display */
-                <div className="rounded-lg border border-[#222] bg-[#0d0d0d] p-3">
+                <div className="border border-[#222] bg-[#0d0d0d] p-3">
                   <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-gray-600">
                     Share link ready
                   </p>
@@ -383,7 +383,7 @@ export function ExportMenu({
               type="button"
               onClick={() => setStep("pro-prompt")}
               className={cn(
-                "flex w-full items-center justify-between rounded-lg px-3 py-2.5",
+                "flex w-full items-center justify-between px-3 py-2.5",
                 "text-sm text-gray-500 transition-colors duration-150 hover:bg-[#1a1a1a] hover:text-gray-400"
               )}
             >
@@ -399,7 +399,7 @@ export function ExportMenu({
 
           {/* PRO upgrade prompt */}
           {step === "pro-prompt" && (
-            <div className="mt-1 rounded-lg border border-[#222] bg-[#0d0d0d] p-3">
+            <div className="mt-1 border border-[#222] bg-[#0d0d0d] p-3">
               <p className="mb-1 text-xs font-medium text-white">
                 Brand Package
               </p>
@@ -409,7 +409,7 @@ export function ExportMenu({
               </p>
               <button
                 type="button"
-                className="w-full rounded-lg bg-[#0070F3] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                className="w-full bg-[#0070F3] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90"
                 onClick={() => {
                   setStep("idle");
                   setOpen(false);

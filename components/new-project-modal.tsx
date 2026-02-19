@@ -139,7 +139,7 @@ function SyncErrorBanner({
   return (
     <div
       role="alert"
-      className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2.5 text-sm text-amber-200 shadow-lg backdrop-blur-sm"
+      className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 border border-amber-500/40 bg-amber-950/90 px-4 py-2.5 text-sm text-amber-200 shadow-lg backdrop-blur-sm"
     >
       <span>{message}</span>
       <button
@@ -284,7 +284,7 @@ function NewProjectModalInner({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[480px] rounded-xl border border-[#222] bg-[#111] shadow-2xl"
+          className="w-full max-w-[480px] border border-[#222] bg-[#0a0a0a] shadow-2xl"
           role="dialog"
           aria-modal="true"
           aria-label="New Project"
@@ -317,7 +317,7 @@ function NewProjectModalInner({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Project name"
-                className="w-full rounded-lg border border-[#2a2a2a] bg-black/50 px-3 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none transition-[border-color] duration-150 focus:border-[#444]"
+                className="w-full border border-[#222] bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-[#444] outline-none transition-[border-color] duration-150 focus:border-[#444]"
               />
             </div>
 
@@ -331,7 +331,7 @@ function NewProjectModalInner({
                 onChange={(e) => setBrief(e.target.value)}
                 placeholder="What's this project about? A few words is fine."
                 rows={3}
-                className="w-full resize-none rounded-lg border border-[#2a2a2a] bg-black/50 px-3 py-2.5 text-sm leading-relaxed text-white placeholder:text-gray-600 outline-none transition-[border-color] duration-150 focus:border-[#444]"
+                className="w-full resize-none border border-[#222] bg-[#0a0a0a] px-3 py-2.5 text-sm leading-relaxed text-white placeholder:text-[#444] outline-none transition-[border-color] duration-150 focus:border-[#444]"
               />
             </div>
 
@@ -381,7 +381,7 @@ function NewProjectModalInner({
               onClick={handleCreate}
               disabled={!name.trim()}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150",
+                "px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150",
                 name.trim()
                   ? "cursor-pointer bg-white text-black hover:bg-white/90"
                   : "cursor-not-allowed bg-white/10 text-white/25"

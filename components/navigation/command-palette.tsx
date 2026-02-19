@@ -200,9 +200,9 @@ function SimilarityBar({ value }: { value: number }) {
     pct >= 80 ? "#0070f3" : pct >= 60 ? "#22c55e" : "#f97316";
   return (
     <div className="flex items-center gap-1.5 shrink-0">
-      <div className="relative h-1 w-12 rounded-full bg-[#222]">
+        <div className="relative h-1 w-12 bg-[#222]">
         <div
-          className="absolute inset-y-0 left-0 rounded-full transition-all"
+          className="absolute inset-y-0 left-0 transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
@@ -241,7 +241,7 @@ function SemanticResultRow({
       )}
     >
       {/* Thumbnail */}
-      <div className="relative h-10 w-8 shrink-0 overflow-hidden rounded border border-[#333] bg-[#0a0a0a]">
+      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-[#333] bg-[#0a0a0a]">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -478,10 +478,10 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Search (⌘K)"
-          className="flex items-center justify-start gap-2 rounded-md border border-[#222] bg-black/80 px-2.5 py-1.5 text-[#555] backdrop-blur-sm transition-[border-color,color] duration-200 ease-out hover:border-[#444] hover:text-white"
+          className="flex items-center justify-start gap-2 border border-[#222] bg-black/80 px-2.5 py-1.5 text-[#555] backdrop-blur-sm transition-[border-color,color] duration-200 ease-out hover:border-[#444] hover:text-white"
         >
           <SearchIcon className="h-3.5 w-3.5 shrink-0" bare />
-          <kbd className="rounded border border-[#2a2a2a] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#444]">
+          <kbd className="border border-[#333] bg-[#0a0a0a] px-1.5 py-0.5 font-mono text-[9px] text-[#444]">
             ⌘K
           </kbd>
         </button>
@@ -516,7 +516,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="w-full max-w-[600px] rounded-xl border border-[#222222] bg-[#0d0d0d] shadow-2xl"
+                    className="w-full max-w-[600px] border border-[#222] bg-[#0a0a0a] shadow-2xl"
                   >
                     {/* Input */}
                     <div className="flex items-center gap-2 border-b border-[#1e1e1e] px-3">
@@ -527,7 +527,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search everything… or describe a visual"
-                        className="h-12 w-full rounded-md bg-transparent px-2 text-sm text-white outline-none placeholder:text-gray-600"
+                        className="h-12 w-full bg-transparent px-2 text-sm text-white outline-none placeholder:text-gray-600"
                       />
                       {semanticLoading && (
                         <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-gray-600">

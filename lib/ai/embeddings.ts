@@ -11,6 +11,9 @@ export function buildEmbeddingText(fields: {
   style?: string | null;
   contentType?: string | null;
   board?: string | null;
+  era?: string | null;
+  composition?: string | null;
+  typography?: string | null;
 }): string {
   return [
     fields.title,
@@ -18,6 +21,9 @@ export function buildEmbeddingText(fields: {
     fields.mood,
     fields.style,
     fields.contentType,
+    fields.era,
+    fields.composition,
+    fields.typography,
     ...(fields.tags ?? []),
   ]
     .filter(Boolean)

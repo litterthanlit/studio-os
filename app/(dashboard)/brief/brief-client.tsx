@@ -39,7 +39,7 @@ const FOCUS_SUMMARY =
 type Phase = "Discovery" | "Concept" | "Refine" | "Deliver";
 
 const PHASE_STYLES: Record<Phase, string> = {
-  Discovery: "border border-amber-500/30 bg-amber-900/20 text-amber-300",
+  Discovery: "bg-[rgba(187,77,0,0.1)] text-[#BB4D00]",
   Concept:   "border border-purple-500/30 bg-purple-900/20 text-purple-300",
   Refine:    "border border-sky-500/30 bg-sky-900/20 text-sky-300",
   Deliver:   "border border-emerald-500/30 bg-emerald-900/20 text-emerald-300",
@@ -120,19 +120,19 @@ export function BriefPage() {
 
       {/* Header */}
       <header className="space-y-3">
-        <p className="text-[11px] text-[#2a2a2a] font-mono tracking-wide">{dateStr}</p>
-        <h1 className="text-[32px] font-semibold leading-tight text-white tracking-[-0.02em]">
+        <p className="text-[11px] text-[#555] font-mono tracking-wide">{dateStr}</p>
+        <h1 className="text-[42px] font-semibold leading-tight text-white tracking-tight">
           {greeting}, {USER_NAME}.
         </h1>
-        <p className="text-sm text-[#555] leading-relaxed">{FOCUS_SUMMARY}</p>
+        <p className="text-sm text-[#888] leading-relaxed">{FOCUS_SUMMARY}</p>
       </header>
 
       {/* Section 1 — Today's Focus */}
       <div className="space-y-3">
-        <SectionLabel accent>Today&apos;s Focus</SectionLabel>
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-[#1a1a1a] bg-[#080808] p-4 transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]">
+        <SectionLabel>Today&apos;s Focus</SectionLabel>
+        <div className="flex items-center justify-between gap-4 border border-dashed border-[#222] bg-[#0a0a0a] p-5 transition-[border-color] duration-200 ease-out hover:border-[#444]">
           <div className="flex min-w-0 flex-1 items-center gap-4">
-            <div className="relative h-16 w-24 flex-none overflow-hidden rounded-md border border-[#1a1a1a] bg-[#050505]">
+            <div className="relative h-16 w-24 flex-none overflow-hidden border border-[#1a1a1a] bg-[#050505]">
               <Image
                 src={ACTIVE_PROJECT.leadImage}
                 alt={ACTIVE_PROJECT.name}
@@ -149,13 +149,13 @@ export function BriefPage() {
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
-                    "rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em]",
+                    "px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em]",
                     PHASE_STYLES[ACTIVE_PROJECT.phase]
                   )}
                 >
                   {ACTIVE_PROJECT.phase}
                 </span>
-                <span className="text-[11px] text-[#444] font-mono">
+                <span className="text-[11px] text-[#555] font-mono">
                   {ACTIVE_PROJECT.progress}%
                 </span>
               </div>
@@ -179,16 +179,16 @@ export function BriefPage() {
       {/* Section 2 — Schedule */}
       <div className="space-y-3">
         <SectionLabel>Schedule</SectionLabel>
-        <div className="rounded-lg border border-[#1a1a1a] bg-[#080808] overflow-hidden">
+        <div className="border border-dashed border-[#222] bg-[#0a0a0a] overflow-hidden">
           {SCHEDULE.map((event, index) => (
             <div
               key={`${event.time}-${event.title}`}
               className={cn(
                 "group flex items-center gap-4 py-3 pl-4 pr-4 transition-colors duration-150 hover:bg-white/[0.02]",
-                index < SCHEDULE.length - 1 && "border-b border-dashed border-[#141414]"
+                index < SCHEDULE.length - 1 && "border-b border-dashed border-[#1a1a1a]"
               )}
             >
-              <div className="w-10 shrink-0 text-[11px] text-[#333] font-mono">
+              <div className="w-10 shrink-0 text-[11px] text-[#555] font-mono">
                 {event.time}
               </div>
               <div
@@ -197,10 +197,10 @@ export function BriefPage() {
                   EVENT_DOT[event.type]
                 )}
               />
-              <div className="min-w-0 flex-1 text-sm text-[#999]">
+              <div className="min-w-0 flex-1 text-sm text-[#888]">
                 {event.title}
               </div>
-              <span className="shrink-0 text-[10px] text-[#2a2a2a] font-mono uppercase tracking-wider">
+              <span className="shrink-0 text-[10px] text-[#555] font-mono uppercase tracking-wider">
                 {event.type}
               </span>
             </div>
@@ -211,7 +211,7 @@ export function BriefPage() {
       {/* Section 3 — Inspiration Pulse */}
       <div className="space-y-3">
         <SectionLabel>Inspiration Pulse</SectionLabel>
-        <p className="text-[11px] text-[#2a2a2a] font-mono">
+        <p className="text-[11px] text-[#555] font-mono">
           Recent references · {ACTIVE_PROJECT.name}
         </p>
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -219,7 +219,7 @@ export function BriefPage() {
             <Link
               key={src}
               href="/vision"
-              className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg border border-[#1a1a1a] bg-[#080808] transition-[border-color] duration-150 hover:border-[#2a2a2a]"
+              className="relative h-24 w-32 shrink-0 overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a] transition-[border-color] duration-150 hover:border-[#444]"
             >
               <Image
                 src={src}
@@ -237,17 +237,17 @@ export function BriefPage() {
       {/* Section 4 — Creative Pulse */}
       <div className="space-y-3">
         <SectionLabel>Creative Pulse</SectionLabel>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {STATS.map(({ value, label, icon: Icon }) => (
             <div
               key={label}
-              className="flex flex-col gap-1.5 rounded-lg border border-[#1a1a1a] bg-[#080808] p-3"
+              className="flex flex-col gap-1.5 border border-dashed border-[#222] bg-[#0a0a0a] p-5"
             >
-              <Icon className="h-3.5 w-3.5 text-[#333]" />
+              <Icon className="h-3.5 w-3.5 text-[#555]" />
               <div className="text-2xl font-medium text-white font-mono">
                 {value}
               </div>
-              <div className="text-[10px] text-[#333] uppercase tracking-wider">{label}</div>
+              <div className="text-[10px] text-[#555] uppercase tracking-wider">{label}</div>
             </div>
           ))}
         </div>
@@ -262,16 +262,16 @@ export function BriefPage() {
             return (
               <li
                 key={item.text}
-                className="flex items-center gap-3 rounded-lg border border-[#1a1a1a] bg-[#080808] px-3 py-2.5 transition-[border-color] duration-150 hover:border-[#2a2a2a]"
+                className="flex items-center gap-3 border border-dashed border-[#222] bg-[#0a0a0a] px-4 py-3 transition-[border-color] duration-150 hover:border-[#444]"
               >
-                <Icon className="h-4 w-4 shrink-0 text-[#333]" />
+                <Icon className="h-4 w-4 shrink-0 text-[#555]" />
                 <span className="min-w-0 flex-1 text-sm text-[#888]">
                   {item.text}
                 </span>
-                <span className="shrink-0 border border-[#1a1a1a] bg-black px-1.5 py-0.5 text-[10px] font-mono text-[#333]">
+                <span className="shrink-0 border border-[#222] bg-black px-1.5 py-0.5 text-[10px] font-mono text-[#555]">
                   {item.project}
                 </span>
-                <span className="shrink-0 text-[10px] text-[#2a2a2a] font-mono">
+                <span className="shrink-0 text-[10px] text-[#555] font-mono">
                   {item.time}
                 </span>
               </li>

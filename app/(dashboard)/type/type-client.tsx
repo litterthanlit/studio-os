@@ -244,14 +244,14 @@ export function TypeLibraryPage() {
 
   return (
     <section className="space-y-6">
-      <SectionLabel accent>Type</SectionLabel>
+      <SectionLabel>Type</SectionLabel>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-white tracking-tight">
+          <h2 className="text-3xl font-bold text-white tracking-tight">
             Type Library
           </h2>
-          <p className="text-sm text-[#444]">
+          <p className="text-sm text-[#888]">
             Define the typographic spine of your studio — systems, scales, and
             pairings that stay consistent across products and decks.
           </p>
@@ -262,10 +262,11 @@ export function TypeLibraryPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search fonts... try 'mono', 'display', or 'editorial'"
-            className="h-12 border border-[#222222] text-sm "
+            className="h-12 text-sm"
           />
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {/* Underline tab indicator */}
+          <div className="flex items-center gap-0 overflow-x-auto pb-0 border-b border-[#1a1a1a]">
             {CLASS_TABS.map((tab) => {
               const active = activeClass === tab;
               return (
@@ -274,12 +275,12 @@ export function TypeLibraryPage() {
                   type="button"
                   onClick={() => setActiveClass(tab)}
                   className={cn(
-                    "px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em]",
-                    "border border-transparent transition-colors duration-200",
-                    "whitespace-nowrap",
+                    "px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
+                    "transition-colors duration-200 whitespace-nowrap",
+                    "border-b-2 -mb-px",
                     active
-                      ? "bg-accent text-white"
-                      : "bg-[#111111] text-gray-400 hover:text-white"
+                      ? "border-white text-white"
+                      : "border-transparent text-[#555] hover:text-[#888]"
                   )}
                 >
                   {tab}
@@ -289,36 +290,36 @@ export function TypeLibraryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filteredFonts.map((font) => (
             <button
               key={font.id}
               type="button"
               onClick={() => handleOpenDetail(font.id)}
               className={cn(
-                "flex flex-col rounded-lg border border-[#1a1a1a] bg-[#080808] text-left",
-                "overflow-hidden transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]"
+                "flex flex-col border border-dashed border-[#222] bg-[#0a0a0a] text-left",
+                "overflow-hidden transition-[border-color] duration-200 ease-out hover:border-[#444]"
               )}
             >
-              <div className={cn("border-b border-[#1a1a1a] p-4", font.fontClassName)}>
+              <div className={cn("border-b border-dashed border-[#1a1a1a] p-5", font.fontClassName)}>
                 <div className="mb-2 text-4xl leading-none text-white">Aa</div>
                 <div className="text-sm font-bold text-white">
                   {font.name}
                 </div>
-                <div className="text-[11px] text-[#333] font-mono">{font.foundry}</div>
+                <div className="text-[11px] text-[#555] font-mono">{font.foundry}</div>
               </div>
 
-              <div className={cn("border-b border-[#1a1a1a] p-4 text-sm", font.fontClassName)}>
-                <p className="text-gray-400">
+              <div className={cn("border-b border-dashed border-[#1a1a1a] p-5 text-sm", font.fontClassName)}>
+                <p className="text-[#888]">
                   The quick brown fox jumps over the lazy dog.
                 </p>
               </div>
 
-              <div className="flex items-center justify-between gap-2 p-4">
-                <span className="border border-[#1a1a1a] bg-[#050505] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[#333]">
+              <div className="flex items-center justify-between gap-2 p-5">
+                <span className="border border-[#222] bg-black px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[#555]">
                   {font.classification}
                 </span>
-                <span className="text-[11px] text-[#2a2a2a] font-mono">
+                <span className="text-[11px] text-[#555] font-mono">
                   {font.usageCount} project{font.usageCount === 1 ? "" : "s"}
                 </span>
               </div>
@@ -326,21 +327,21 @@ export function TypeLibraryPage() {
           ))}
         </div>
 
-        <div className="mt-8 space-y-3 border-t border-dashed border-[#141414] pt-6">
+        <div className="mt-8 space-y-3 border-t border-dashed border-[#222] pt-6">
           <SectionLabel>Font Pairings</SectionLabel>
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-[#888]">
               Curate heading/body pairs that feel like your studio.
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">
+              <span className="text-[11px] uppercase tracking-[0.15em] text-[#555]">
                 Heading font
               </span>
               <select
                 value={selectedHeading}
                 onChange={(e) => setSelectedHeading(e.target.value)}
-                className="h-8 border border-[#222222] bg-transparent px-2 text-xs uppercase tracking-[0.15em] text-white outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
+                className="h-8 border border-[#222] bg-[#0a0a0a] px-2 text-xs uppercase tracking-[0.15em] text-white outline-none transition-[border-color] duration-200 ease-out focus:border-[#444]"
               >
                 {["Inter", "Playfair Display", "Space Grotesk"].map(
                   (name) => (
@@ -364,7 +365,7 @@ export function TypeLibraryPage() {
               return (
                 <div
                   key={`${selectedHeading}-${pair.bodyId}`}
-                  className="flex flex-col border border-[#1a1a1a] bg-[#080808] p-3 transition-colors duration-200 hover:border-[#2a2a2a]"
+                  className="flex flex-col border border-dashed border-[#222] bg-[#0a0a0a] p-4 transition-colors duration-200 hover:border-[#444]"
                 >
                   <div className="mb-2 space-y-1">
                     <div
@@ -432,7 +433,7 @@ export function TypeLibraryPage() {
               onClick={handleCloseDetail}
             />
             <motion.aside
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-[#1a1a1a] bg-[#060606] p-4"
+              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-[#222] bg-[#0a0a0a] p-4"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -464,7 +465,7 @@ export function TypeLibraryPage() {
 
               <div
                 className={cn(
-                  "mb-4 border border-[#1a1a1a] bg-[#080808] p-3",
+                  "mb-4 border border-dashed border-[#222] bg-[#0a0a0a] p-3",
                   selectedFont.fontClassName
                 )}
               >
@@ -549,7 +550,7 @@ export function TypeLibraryPage() {
                 />
               </div>
 
-              <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#141414] pt-3 text-xs">
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#222] pt-3 text-xs">
                 <div className="text-[11px] text-[#333] font-mono">
                   Tag this face with use cases once you know where it wins.
                 </div>

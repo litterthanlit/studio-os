@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import type { TagResult } from "@/lib/ai/tagger";
+import type { TagResult, TagTiers } from "@/lib/ai/tagger";
 import { buildEmbeddingText } from "@/lib/ai/embeddings";
 import {
   PinterestImportDialog,
@@ -26,7 +26,11 @@ type Reference = {
     colors: string[];
     contentType: string[];
     mood: string[];
-    ai: string[];
+    ai: string[];       // flat union of all tiers for search
+    era?: string;
+    composition?: string;
+    typography?: string;
+    tiers?: TagTiers;
   };
   createdAt: Date;
   notes?: string;
@@ -257,6 +261,9 @@ async function triggerAutoTag(
       mood: result.mood,
       style: result.style,
       contentType: result.contentType,
+      era: result.era,
+      composition: result.composition,
+      typography: result.typography,
     });
     fetch("/api/ai/embed", {
       method: "POST",
@@ -266,6 +273,100 @@ async function triggerAutoTag(
   } catch {
     // Non-fatal — silently skip
   }
+}
+
+// ─── Tag overlay shown on reference card hover ────────────────────────────────
+
+type TagOverlayProps = {
+  referenceId: string;
+  tags: {
+    ai: string[];
+    style: string[];
+    contentType: string[];
+    mood: string[];
+    tiers?: TagTiers;
+  };
+};
+
+function TagOverlay({ referenceId, tags }: TagOverlayProps) {
+  const [showMore, setShowMore] = React.useState(false);
+
+  // Prefer tiered confirmed tags; fall back to legacy flat ai[] slice
+  const confirmed: string[] = tags.tiers?.confirmed?.length
+    ? tags.tiers.confirmed
+    : tags.ai.slice(0, 5);
+
+  const suggested: string[] = tags.tiers?.suggested?.length
+    ? tags.tiers.suggested
+    : [...tags.style, ...tags.contentType, ...tags.mood].slice(0, 3);
+
+  const possible: string[] = tags.tiers?.possible ?? [];
+
+  // Max 5 visible on card; show confirmed first, then suggested
+  const MAX_VISIBLE = 5;
+  const primaryVisible = [...confirmed, ...suggested].slice(0, MAX_VISIBLE);
+  const primaryOverflow = Math.max(
+    0,
+    confirmed.length + suggested.length - MAX_VISIBLE
+  );
+
+  if (primaryVisible.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {primaryVisible.map((tag, i) => {
+        const isConfirmed = i < confirmed.length;
+        return (
+          <span
+            key={`${referenceId}-tag-${tag}`}
+            className={cn(
+              "border border-dashed bg-[#1a1a1a] px-2 py-0.5 text-[11px] uppercase tracking-[0.12em]",
+              isConfirmed ? "border-[#222] text-[#888]" : "border-[#1e1e1e] text-[#555]"
+            )}
+          >
+            {tag}
+          </span>
+        );
+      })}
+
+      {/* Possible tags — hidden until toggled */}
+      {showMore &&
+        possible.map((tag) => (
+          <span
+            key={`${referenceId}-possible-${tag}`}
+            className="border border-dashed border-[#1a1a1a] bg-[#111] px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-[#444]"
+          >
+            {tag}
+          </span>
+        ))}
+
+      {/* Overflow count / show more toggle */}
+      {(primaryOverflow > 0 || possible.length > 0) && !showMore && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMore(true);
+          }}
+          className="pointer-events-auto px-1 text-[10px] text-[#555] transition-colors hover:text-[#888]"
+        >
+          +{primaryOverflow + possible.length} more
+        </button>
+      )}
+      {showMore && possible.length > 0 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMore(false);
+          }}
+          className="pointer-events-auto px-1 text-[10px] text-[#444] transition-colors hover:text-[#666]"
+        >
+          less
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function VisionPage() {
@@ -324,6 +425,10 @@ export function VisionPage() {
                   : ref.tags.contentType,
                 mood: result.mood ? [result.mood] : ref.tags.mood,
                 ai: result.tags,
+                era: result.era || ref.tags.era,
+                composition: result.composition || ref.tags.composition,
+                typography: result.typography || ref.tags.typography,
+                tiers: result.tagTiers,
               },
             }
           : ref
@@ -445,6 +550,10 @@ export function VisionPage() {
             contentType: row.content_type ? [row.content_type] : [],
             mood: row.mood ? [row.mood] : [],
             ai: row.tags ?? [],
+            era: row.era ?? undefined,
+            composition: row.composition ?? undefined,
+            typography: row.typography ?? undefined,
+            tiers: row.tag_tiers ?? undefined,
           },
           createdAt: new Date(row.created_at),
           notes: row.title ?? undefined,
@@ -522,6 +631,9 @@ export function VisionPage() {
       ref.tags.style.forEach((t) => tagSet.add(t));
       ref.tags.mood.forEach((t) => tagSet.add(t));
       ref.tags.contentType.forEach((t) => tagSet.add(t));
+      if (ref.tags.era) tagSet.add(ref.tags.era);
+      if (ref.tags.composition) tagSet.add(ref.tags.composition);
+      if (ref.tags.typography) tagSet.add(ref.tags.typography);
     });
     return Array.from(tagSet).sort();
   }, [references]);
@@ -546,6 +658,7 @@ export function VisionPage() {
 
       if (!query.trim()) return true;
       const q = query.toLowerCase();
+      // Search all tag tiers + metadata fields so any designer term finds a match
       const haystack = [
         ref.notes,
         ...ref.tags.style,
@@ -553,10 +666,18 @@ export function VisionPage() {
         ...ref.tags.contentType,
         ...ref.tags.mood,
         ...ref.tags.ai,
+        ref.tags.era,
+        ref.tags.composition,
+        ref.tags.typography,
+        // Also include possible/suggested tiers explicitly (already in ai[], belt-and-suspenders)
+        ...(ref.tags.tiers?.confirmed ?? []),
+        ...(ref.tags.tiers?.suggested ?? []),
+        ...(ref.tags.tiers?.possible ?? []),
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
+      // Fuzzy: "brutalist" matches "brutalism" etc. via simple includes
       return haystack.includes(q);
     });
   }, [references, activeBoard, query, activeTags]);
@@ -703,16 +824,16 @@ export function VisionPage() {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
-        <span className="text-[9px] leading-none text-accent/50">■</span>
-        <span className="text-[10px] uppercase tracking-[0.18em] font-medium text-accent">Vision</span>
+        <span className="text-[8px] leading-none text-[#555]">■</span>
+        <span className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#555]">Vision</span>
       </div>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-medium text-white">
+          <h2 className="text-[42px] font-semibold text-white tracking-tight">
             Moodboard
           </h2>
-          <p className="text-xs font-light">
+          <p className="text-sm text-[#888]">
             Vision is your evolving visual field — references, palettes, layouts
             and artifacts that define the studio&apos;s current gravity.
           </p>
@@ -723,12 +844,12 @@ export function VisionPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search references... try 'blue minimal serif'"
-            className="h-12 rounded-md border border-[#333333] text-sm "
+            className="h-12 text-sm"
           />
 
-          {/* Board tabs + source imports */}
+          {/* Board tabs + source imports — underline indicator */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+            <div className="flex min-w-0 flex-1 items-center gap-0 overflow-x-auto pb-0 border-b border-[#1a1a1a]">
               {BOARDS.map((board) => {
                 const active = !isStockActive && activeBoard === board;
                 return (
@@ -740,12 +861,12 @@ export function VisionPage() {
                       setIsStockActive(false);
                     }}
                     className={cn(
-                      "px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em]",
-                      "border border-transparent transition-colors duration-200",
-                      "whitespace-nowrap",
+                      "px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
+                      "transition-colors duration-200 whitespace-nowrap",
+                      "border-b-2 -mb-px",
                       active
-                        ? "bg-accent text-white"
-                        : "bg-[#111111] text-gray-400 hover:text-white"
+                        ? "border-white text-white"
+                        : "border-transparent text-[#555] hover:text-[#888]"
                     )}
                   >
                     {board}
@@ -759,11 +880,11 @@ export function VisionPage() {
                   type="button"
                   onClick={() => setIsStockActive(true)}
                   className={cn(
-                    "flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em]",
-                    "border transition-colors duration-200 whitespace-nowrap",
+                    "flex items-center gap-1 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
+                    "transition-colors duration-200 whitespace-nowrap border-b-2 -mb-px",
                     isStockActive
-                      ? "border-transparent bg-accent text-white"
-                      : "border-transparent bg-[#111111] text-gray-400 hover:text-white"
+                      ? "border-white text-white"
+                      : "border-transparent text-[#555] hover:text-[#888]"
                   )}
                 >
                   Stock
@@ -774,14 +895,14 @@ export function VisionPage() {
             <button
               type="button"
               onClick={() => setArenaOpen(true)}
-              className="rounded-md border border-[#333333] bg-[#111111] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-white"
+              className="border border-[#333] bg-[#0a0a0a] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-[border-color] duration-200 ease-out hover:border-[#666] hover:text-white"
             >
               Import from Are.na
             </button>
             <button
               type="button"
               onClick={() => setPinterestOpen(true)}
-              className="flex items-center gap-1.5 rounded-md border border-[#333333] bg-[#111111] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-[#E60023]/40 hover:text-[#E60023]"
+              className="flex items-center gap-1.5 border border-[#333] bg-[#0a0a0a] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-[border-color,color] duration-200 ease-out hover:border-[#E60023]/40 hover:text-[#E60023]"
             >
               <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="currentColor">
                 <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
@@ -807,7 +928,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => setActiveTags([])}
-                    className="shrink-0 rounded border border-[#444] bg-[#1a1a1a] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-gray-500 transition-colors hover:border-white/20 hover:text-white"
+                    className="shrink-0 border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#555] transition-colors hover:border-[#666] hover:text-white"
                   >
                     Clear
                   </button>
@@ -820,10 +941,10 @@ export function VisionPage() {
                       type="button"
                       onClick={() => toggleTag(tag)}
                       className={cn(
-                        "shrink-0 rounded px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition-colors duration-150 whitespace-nowrap",
+                        "shrink-0 border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition-colors duration-150 whitespace-nowrap",
                         isActive
-                          ? "bg-white text-black"
-                          : "border border-[#333] bg-[#111] text-[#999] hover:border-white/20 hover:text-white"
+                          ? "border-white bg-white text-black"
+                          : "border-[#333] bg-[#111] text-[#555] hover:border-[#666] hover:text-white"
                       )}
                     >
                       {tag}
@@ -835,20 +956,20 @@ export function VisionPage() {
           )}
 
           {/* Keyboard curation hint */}
-          <div className="flex items-center gap-4 text-[10px] text-gray-600">
+          <div className="flex items-center gap-4 text-[10px] text-[#555]">
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-[#333333] bg-[#111111] px-1.5 py-0.5 font-mono text-[9px] text-gray-500">P</kbd>
+              <kbd className="border border-[#333] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#555]">P</kbd>
               Flag
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-[#333333] bg-[#111111] px-1.5 py-0.5 font-mono text-[9px] text-gray-500">X</kbd>
+              <kbd className="border border-[#333] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#555]">X</kbd>
               Reject
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded border border-[#333333] bg-[#111111] px-1.5 py-0.5 font-mono text-[9px] text-gray-500">U</kbd>
+              <kbd className="border border-[#333] bg-[#111] px-1.5 py-0.5 font-mono text-[9px] text-[#555]">U</kbd>
               Undo
             </span>
-            <span className="text-gray-700">— hover a card first</span>
+            <span className="text-[#333]">— hover a card first</span>
           </div>
         </div>
 
@@ -861,7 +982,7 @@ export function VisionPage() {
               Choose a channel to import all image blocks into this board.
             </p>
             {arenaError && (
-              <p className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <p className="border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-400">
                 {arenaError}
               </p>
             )}
@@ -883,12 +1004,12 @@ export function VisionPage() {
                         onClick={() => importArenaChannel(ch.slug)}
                         disabled={arenaImporting !== null}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-lg border border-[#222222] bg-[#111111] p-3 text-left transition-[border-color] duration-200 ease-out hover:border-white/20",
+                          "flex w-full items-center gap-3 border border-dashed border-[#222] bg-[#0a0a0a] p-3 text-left transition-[border-color] duration-200 ease-out hover:border-[#444]",
                           arenaImporting === ch.slug && "opacity-60"
                         )}
                       >
                         {ch.thumb ? (
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border border-[#333333] bg-[#0a0a0a]">
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-[#333] bg-[#0a0a0a]">
                             <Image
                               src={ch.thumb}
                               alt=""
@@ -899,7 +1020,7 @@ export function VisionPage() {
                             />
                           </div>
                         ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded border border-[#333333] bg-[#0a0a0a] text-[10px] uppercase text-gray-600">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-[#333] bg-[#0a0a0a] text-[10px] uppercase text-[#555]">
                             —
                           </div>
                         )}
@@ -947,12 +1068,12 @@ export function VisionPage() {
                 value={lummiQuery}
                 onChange={(e) => setLummiQuery(e.target.value)}
                 placeholder="Search AI stock images..."
-                className="h-10 flex-1 rounded-md border border-[#333333] text-sm"
+                className="h-10 flex-1 text-sm"
               />
               <button
                 type="submit"
                 disabled={lummiLoading}
-                className="rounded-md border border-[#333333] bg-[#111111] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors hover:border-white/20 hover:text-white disabled:opacity-50"
+                className="border border-[#333] bg-[#0a0a0a] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-colors hover:border-[#666] hover:text-white disabled:opacity-50"
               >
                 {lummiLoading ? "…" : "Search"}
               </button>
@@ -974,7 +1095,7 @@ export function VisionPage() {
 
             {/* Error state */}
             {lummiError && (
-              <p className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <p className="border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm text-red-400">
                 {lummiError}
               </p>
             )}
@@ -988,7 +1109,7 @@ export function VisionPage() {
                     return (
                       <div
                         key={img.id}
-                        className="group relative mb-2 break-inside-avoid overflow-hidden rounded border border-[#222222] bg-[#111111] transition-[border-color] duration-200 hover:border-white/20"
+                        className="group relative mb-2 break-inside-avoid overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a] transition-[border-color] duration-200 hover:border-[#444]"
                       >
                         <Image
                           src={img.thumbnailUrl || img.imageUrl}
@@ -1007,7 +1128,7 @@ export function VisionPage() {
                           disabled={saved}
                           title={saved ? "Saved" : "Add to board"}
                           className={cn(
-                            "pointer-events-auto absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded border text-sm font-bold",
+                            "pointer-events-auto absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center border text-sm font-bold",
                             "opacity-0 transition-all duration-200 group-hover:opacity-100",
                             saved
                               ? "border-green-500/60 bg-green-950/90 text-green-400 cursor-default"
@@ -1018,7 +1139,7 @@ export function VisionPage() {
                         </button>
 
                         {/* Lummi source badge */}
-                        <span className="pointer-events-none absolute left-2 top-2 rounded border border-white/10 bg-black/70 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-gray-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <span className="pointer-events-none absolute left-2 top-2 border border-white/10 bg-black/70 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-gray-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                           Lummi ✦
                         </span>
                       </div>
@@ -1030,7 +1151,7 @@ export function VisionPage() {
                     Array.from({ length: 8 }).map((_, i) => (
                       <div
                         key={`skel-${i}`}
-                        className="mb-2 break-inside-avoid rounded border border-[#222222] bg-[#111111]"
+                        className="mb-2 break-inside-avoid border border-dashed border-[#222] bg-[#0a0a0a]"
                         style={{ height: `${140 + (i % 3) * 60}px` }}
                       >
                         <div className="h-full w-full animate-pulse bg-[#1a1a1a]" />
@@ -1043,7 +1164,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => fetchLummi(lummiQuery, lummiPage + 1, true)}
-                    className="w-full rounded-md border border-[#333333] bg-[#111111] py-2.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-500 transition-colors hover:border-white/20 hover:text-white"
+                    className="w-full border border-[#333] bg-[#0a0a0a] py-2.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-colors hover:border-[#666] hover:text-white"
                   >
                     Load more
                   </button>
@@ -1055,11 +1176,11 @@ export function VisionPage() {
                 <p className="text-sm text-gray-600">
                   Search for AI stock images, or leave blank for a curated selection.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => fetchLummi("", 0, false)}
-                  className="rounded-md border border-[#333333] bg-[#111111] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors hover:border-white/20 hover:text-white"
-                >
+                  <button
+                    type="button"
+                    onClick={() => fetchLummi("", 0, false)}
+                    className="border border-[#333] bg-[#0a0a0a] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#555] transition-colors hover:border-[#666] hover:text-white"
+                  >
                   Browse random images
                 </button>
               </div>
@@ -1080,7 +1201,7 @@ export function VisionPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-accent bg-accent/10 text-xs font-medium uppercase tracking-[0.15em] text-accent"
+                  className="absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-accent bg-accent/10 text-xs font-medium uppercase tracking-[0.15em] text-accent"
                 >
                   Drop images here
                 </motion.div>
@@ -1117,7 +1238,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => setPinterestOpen(true)}
-                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-opacity duration-200 hover:opacity-90"
+                    className="bg-white px-4 py-2 text-sm font-medium text-black transition-opacity duration-200 hover:opacity-90"
                   >
                     Connect Pinterest
                   </button>
@@ -1125,7 +1246,7 @@ export function VisionPage() {
                     <button
                       type="button"
                       onClick={() => setIsStockActive(true)}
-                      className="rounded-lg border border-[#333] px-4 py-2 text-sm font-medium text-white transition-[border-color] duration-200 hover:border-white/20"
+                      className="border border-[#333] px-4 py-2 text-sm font-medium text-white transition-[border-color] duration-200 hover:border-[#666]"
                     >
                       Browse Stock
                     </button>
@@ -1176,7 +1297,7 @@ export function VisionPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="mb-2 break-inside-avoid rounded-lg overflow-hidden"
+                    className="mb-2 break-inside-avoid overflow-hidden"
                     onMouseEnter={() => setHoveredRefId(ref.id)}
                     onMouseLeave={() => setHoveredRefId((prev) => prev === ref.id ? null : prev)}
                   >
@@ -1207,7 +1328,7 @@ export function VisionPage() {
 
                         {/* Tagging indicator */}
                         {ref.isTagging && (
-                          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded border border-white/10 bg-black/80 px-1.5 py-0.5">
+                          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 border border-white/10 bg-black/80 px-1.5 py-0.5">
                             <span className="relative flex h-1.5 w-1.5">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
                               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
@@ -1220,22 +1341,22 @@ export function VisionPage() {
 
                         {/* Curation status badges */}
                         {ref.curationStatus === "flag" && (
-                          <span className="absolute left-2 top-2 z-10 rounded border border-amber-500/50 bg-amber-900/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-amber-300">
+                          <span className="absolute left-2 top-2 z-10 border border-amber-500/50 bg-amber-900/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-amber-300">
                             Flagged
                           </span>
                         )}
                         {ref.curationStatus === "reject" && (
-                          <span className="absolute left-2 top-2 z-10 rounded border border-red-700/50 bg-red-950/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-red-400">
+                          <span className="absolute left-2 top-2 z-10 border border-red-700/50 bg-red-950/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-red-400">
                             Rejected
                           </span>
                         )}
                         {ref.source === "arena" && !ref.isTagging && (
-                          <span className="absolute right-2 top-2 rounded border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-white">
+                          <span className="absolute right-2 top-2 border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-white">
                             Are.na
                           </span>
                         )}
                         {ref.source === "pinterest" && !ref.isTagging && (
-                          <span className="absolute right-2 top-2 flex items-center gap-1 rounded border border-[#E60023]/40 bg-black/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-[#E60023]">
+                          <span className="absolute right-2 top-2 flex items-center gap-1 border border-[#E60023]/40 bg-black/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-[#E60023]">
                             <svg viewBox="0 0 24 24" className="h-2 w-2 shrink-0" fill="currentColor">
                               <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
                             </svg>
@@ -1243,7 +1364,7 @@ export function VisionPage() {
                           </span>
                         )}
                         {ref.source === "lummi" && !ref.isTagging && (
-                          <span className="absolute right-2 top-2 rounded border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-white">
+                          <span className="absolute right-2 top-2 border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-white">
                             Lummi ✦
                           </span>
                         )}
@@ -1251,47 +1372,13 @@ export function VisionPage() {
                         {/* Hover overlay */}
                         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between bg-black/0 opacity-0 transition-opacity duration-200 group-hover:bg-black/40 group-hover:opacity-100">
                           <div className="flex items-start justify-between gap-2 p-2">
-                            <span className="inline-flex rounded border border-white/20 bg-black/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em] text-white">
+                            <span className="inline-flex border border-white/20 bg-black/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em] text-white">
                               {ref.board}
                             </span>
                           </div>
 
                           <div className="space-y-1 p-2">
-                            <div className="flex flex-wrap gap-1">
-                              {/* AI tags first, then style/mood/contentType */}
-                              {ref.tags.ai.slice(0, 4).map((tag) => (
-                                <span
-                                  key={`ai-${ref.id}-${tag}`}
-                                  className="rounded border border-accent/40 bg-black/80 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.15em] text-accent"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {ref.tags.style.map((tag) => (
-                                <span
-                                  key={`style-${ref.id}-${tag}`}
-                                  className="rounded border border-white/20 bg-black/80 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.15em] text-white"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {ref.tags.contentType.map((tag) => (
-                                <span
-                                  key={`type-${ref.id}-${tag}`}
-                                  className="rounded border border-white/20 bg-black/80 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.15em] text-white"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {ref.tags.mood.map((tag) => (
-                                <span
-                                  key={`mood-${ref.id}-${tag}`}
-                                  className="rounded border border-white/20 bg-black/80 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.15em] text-white"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
+                            <TagOverlay referenceId={ref.id} tags={ref.tags} />
 
                             <div className="flex">
                               {ref.tags.colors.slice(0, 5).map((color) => (
@@ -1327,15 +1414,15 @@ export function VisionPage() {
           >
             <div
               className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-xl",
+                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium shadow-xl",
                 toast.type === "error"
                   ? "bg-red-950 text-red-200"
-                  : "bg-[#111] text-white"
+                  : "bg-[#0a0a0a] text-white"
               )}
               style={{ border: "1px solid rgba(255,255,255,0.1)" }}
             >
               {toast.type === "loading" && (
-                <span className="h-3 w-3 animate-spin rounded-full border border-white/25 border-t-white" />
+                <span className="h-3 w-3 animate-spin border border-white/25 border-t-white" />
               )}
               {toast.type === "success" && (
                 <span className="text-[11px] text-green-400">✓</span>

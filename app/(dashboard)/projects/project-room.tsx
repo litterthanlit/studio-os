@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ColorPicker } from "@/components/color-picker";
+import type { Project } from "./projects-data";
 
 export type { Phase, Project } from "./projects-data";
 export { PROJECTS, PHASE_STYLES } from "./projects-data";
@@ -33,9 +34,9 @@ export function ProjectRoomTabs({ project }: { project: Project }) {
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "px-2 py-1 text-[11px] font-medium uppercase tracking-[0.15em]",
-                "border-b-2 border-transparent text-gray-500 transition-colors duration-200",
-                active && "border-accent text-white"
+                "px-3 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
+                "border-b-2 -mb-px border-transparent transition-colors duration-200",
+                active ? "border-white text-white" : "text-[#555] hover:text-[#888]"
               )}
             >
               {tab.label}
@@ -207,7 +208,7 @@ function PaletteTab({ project }: { project: Project }) {
         {swatches.map((swatch) => (
           <div
             key={swatch.id}
-            className="group flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 transition-[border-color,background] duration-150 hover:border-[#2a2a2a] hover:bg-white/[0.02]"
+            className="group flex items-center gap-3 border border-transparent px-2 py-1.5 transition-[border-color,background] duration-150 hover:border-[#222] hover:bg-white/[0.02]"
           >
             {/* Color picker trigger */}
             <ColorPicker
@@ -252,7 +253,7 @@ function PaletteTab({ project }: { project: Project }) {
               type="button"
               onClick={() => removeSwatch(swatch.id)}
               aria-label="Remove swatch"
-              className="ml-auto flex-shrink-0 rounded p-1 text-[#444] opacity-0 transition-[opacity,color] duration-150 group-hover:opacity-100 hover:text-red-400"
+              className="ml-auto flex-shrink-0 p-1 text-[#444] opacity-0 transition-[opacity,color] duration-150 group-hover:opacity-100 hover:text-red-400"
             >
               <svg
                 width="11"
@@ -273,7 +274,7 @@ function PaletteTab({ project }: { project: Project }) {
 
       {/* Preview strip */}
       {swatches.length > 0 && (
-        <div className="flex h-8 overflow-hidden rounded-md">
+        <div className="flex h-8 overflow-hidden">
           {swatches.map((s) => (
             <div
               key={s.id}

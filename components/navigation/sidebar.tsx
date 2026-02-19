@@ -58,7 +58,7 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 h-9 px-3 rounded-md cursor-pointer",
+        "flex items-center gap-3 h-9 px-3 cursor-pointer",
         "transition-colors duration-150 ease-out",
         active
           ? "bg-[#1a1a1a] text-white font-medium"
@@ -84,7 +84,7 @@ function ProjectDot({
     <Link
       href={`/projects/${project.id}`}
       className={cn(
-        "flex items-center gap-3 h-9 px-3 rounded-md cursor-pointer",
+        "flex items-center gap-3 h-9 px-3 cursor-pointer",
         "transition-colors duration-150 ease-out",
         active
           ? "bg-[#1a1a1a] text-white"
@@ -126,7 +126,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
     <div className="flex flex-col h-full px-3 py-4">
       {/* ── Section 1: Logo ── */}
       <div className="flex items-center gap-2.5 px-3 mb-4 h-10">
-        <div className="w-4 h-4 rounded-sm bg-white shrink-0" />
+        <div className="w-4 h-4 bg-white shrink-0" />
         <span className="text-sm font-medium text-[#999]">Studio OS</span>
 
         {/* Close button — mobile only */}
@@ -157,7 +157,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── Section 3: Projects ── */}
       <div className="mt-4">
-        <div className="border-t border-[#1a1a1a] mb-3" />
+        <div className="border-t border-dashed border-[#1a1a1a] mb-3" />
         <div className="flex items-center px-3 mb-1">
           <span className="text-[11px] text-[#444] uppercase tracking-wider font-medium flex-1">
             Projects
@@ -194,21 +194,21 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── Section 4: Bottom ── */}
       <div className="mt-auto">
-        <div className="border-t border-[#1a1a1a] mb-2" />
+        <div className="border-t border-dashed border-[#1a1a1a] mb-2" />
 
         {/* Search / ⌘K */}
         <button
           type="button"
           onClick={openCommandPalette}
           className={cn(
-            "flex items-center gap-3 w-full h-9 px-3 rounded-md cursor-pointer",
+            "flex items-center gap-3 w-full h-9 px-3 cursor-pointer",
             "text-[#666] hover:text-[#999] hover:bg-[#111]",
             "transition-colors duration-150 ease-out"
           )}
         >
           <SearchIcon className="w-[18px] h-[18px] shrink-0" bare />
           <span className="text-sm flex-1 text-left">Search</span>
-          <span className="text-[11px] text-[#444] bg-[#111] px-1.5 py-0.5 rounded border border-[#222]">
+          <span className="text-[11px] text-[#444] bg-[#0a0a0a] px-1.5 py-0.5 border border-[#333]">
             ⌘K
           </span>
         </button>
@@ -217,7 +217,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <Link
           href="/settings"
           className={cn(
-            "flex items-center gap-3 h-9 px-3 rounded-md cursor-pointer",
+            "flex items-center gap-3 h-9 px-3 cursor-pointer",
             "transition-colors duration-150 ease-out",
             pathname === "/settings"
               ? "bg-[#1a1a1a] text-white"
@@ -228,7 +228,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           <span className="text-sm">Settings</span>
         </Link>
 
-        <div className="border-t border-[#1a1a1a] my-2" />
+        <div className="border-t border-dashed border-[#1a1a1a] my-2" />
 
         {/* User row */}
         <div className="flex items-center gap-3 px-3 py-2">

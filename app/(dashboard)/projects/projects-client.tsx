@@ -55,12 +55,12 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
     <Link
       href={`/projects/${DEMO_PROJECT_ID}`}
       className={cn(
-        "group relative flex w-full flex-col rounded-lg border border-dashed border-[#333] bg-[#0a0a0a] text-left",
+        "group relative flex w-full flex-col border border-dashed border-[#333] bg-[#0a0a0a] text-left",
         "transition-[border-color] duration-200 ease-out hover:border-accent/40"
       )}
     >
       {/* Demo badge */}
-      <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent/10 px-2 py-0.5">
+      <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 border border-accent/25 bg-accent/10 px-2 py-0.5">
         <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
           Demo Project
         </span>
@@ -78,7 +78,7 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
 
       <div className="flex gap-3 p-3 pt-10">
         {/* Color palette strip as "lead image" */}
-        <div className="relative h-20 w-32 flex-none overflow-hidden rounded border border-[#1a1a1a] bg-[#0a0a0a]">
+        <div className="relative h-20 w-32 flex-none overflow-hidden border border-[#1a1a1a] bg-[#0a0a0a]">
           <div className="flex h-full">
             {DEMO_PROJECT.palette.map((c, i) => (
               <div key={i} className="flex-1" style={{ backgroundColor: c }} />
@@ -89,7 +89,7 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
               {DEMO_PROJECT.references.slice(0, 6).map((ref) => (
                 <div
                   key={ref.imageUrl}
-                  className="h-4 w-6 overflow-hidden rounded-sm bg-[#111]"
+                  className="h-4 w-6 overflow-hidden bg-[#111]"
                 >
                   <Image src={ref.imageUrl} alt="" width={24} height={16} className="h-full w-full object-cover opacity-70" unoptimized />
                 </div>
@@ -155,12 +155,12 @@ export function ProjectsPage() {
 
   return (
     <section className="space-y-6">
-      <SectionLabel accent>Projects</SectionLabel>
+      <SectionLabel>Projects</SectionLabel>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-white tracking-tight">Project Rooms</h2>
-          <p className="text-sm text-[#444]">
+          <h2 className="text-3xl font-semibold text-white tracking-tight">Project Rooms</h2>
+          <p className="text-sm text-[#888]">
             Each room is a self-contained project spine — context, decisions,
             references and tasks in one place, without the Notion overhead.
           </p>
@@ -172,7 +172,7 @@ export function ProjectsPage() {
             <button
               type="button"
               onClick={openModal}
-              className="flex items-center gap-1 rounded-md border border-[#1a1a1a] bg-[#080808] px-2.5 py-1.5 text-[10px] font-medium text-[#444] font-mono transition-[border-color,color] duration-150 hover:border-[#2a2a2a] hover:text-white"
+              className="flex items-center gap-1 border border-[#333] bg-[#0a0a0a] px-2.5 py-1.5 text-[10px] font-medium text-[#555] font-mono transition-[border-color,color] duration-150 hover:border-[#666] hover:text-white"
             >
               <Plus className="h-3 w-3" />
               New Project
@@ -181,13 +181,13 @@ export function ProjectsPage() {
 
           {/* Empty state */}
           {allProjects.length === 0 && !showDemo && (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#222] bg-[#0a0a0a] py-10 text-center">
-              <p className="text-sm text-gray-600">No projects yet.</p>
+            <div className="flex flex-col items-center gap-3 border border-dashed border-[#222] bg-[#0a0a0a] py-10 text-center">
+              <p className="text-sm text-[#555]">No projects yet.</p>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={openModal}
-                  className="rounded-lg border border-[#333] bg-[#111] px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30"
+                  className="border border-[#333] bg-[#111] px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30"
                 >
                   + Create Project
                 </button>
@@ -225,8 +225,8 @@ export function ProjectsPage() {
                   key={project.id}
                   href={`/projects/${project.id}`}
                   className={cn(
-                    "flex w-full flex-col overflow-hidden rounded-lg border border-[#1a1a1a] bg-[#080808] text-left",
-                    "transition-[border-color] duration-200 ease-out hover:border-[#2a2a2a]"
+                    "flex w-full flex-col overflow-hidden border border-dashed border-[#222] bg-[#0a0a0a] text-left",
+                    "transition-[border-color] duration-200 ease-out hover:border-[#444]"
                   )}
                 >
                   {/* Full-width thumbnail */}
@@ -254,7 +254,7 @@ export function ProjectsPage() {
                       </span>
                       <span
                         className={cn(
-                          "rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+                          "px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
                           PHASE_STYLES[project.phase]
                         )}
                       >
@@ -264,9 +264,9 @@ export function ProjectsPage() {
 
                     {/* Progress bar + % */}
                     <div className="space-y-1">
-                      <div className="h-0.5 w-full rounded-full bg-[#2a2a2a]">
+                      <div className="h-0.5 w-full bg-[#222]">
                         <div
-                          className="h-full rounded-full bg-accent"
+                          className="h-full bg-accent"
                           style={{ width: `${project.progress}%` }}
                         />
                       </div>

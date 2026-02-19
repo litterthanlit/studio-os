@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AiSparkIcon, PlusIcon } from "@/components/ui/icon";
+import { DotSeparator } from "@/components/ui/dot-separator";
 import {
   getStoredProjects,
   useNewProjectModal,
@@ -41,6 +42,29 @@ type Capture = {
 
 const USER_NAME = "Nick";
 const CAPTURES_KEY = "studio-os:captures";
+
+const QUOTES = [
+  "Build taste. Everything else follows.",
+  "Constraints are creative fuel.",
+  "Ship taste, not features.",
+  "The best interface is the one you don't notice.",
+  "Design is decisions.",
+  "Less, but better.",
+  "Your moodboard is your manifesto.",
+  "Curate ruthlessly. Create fearlessly.",
+  "Every pixel is a choice.",
+  "The work is the proof.",
+  "Taste compounds.",
+  "Good design is obvious. Great design is transparent.",
+  "Start with what you'd steal.",
+  "Your references reveal your ambition.",
+  "Simplicity is the ultimate sophistication.",
+  "Don't collect. Curate.",
+  "The best creative tool is the one that disappears.",
+  "Design systems are belief systems.",
+  "Ship it. Then ship it better.",
+  "Your taste is your edge.",
+];
 
 const TAB_KEYWORDS: { keywords: string[]; tab: string; path: string }[] = [
   {
@@ -160,8 +184,8 @@ function openCommandPalette() {
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[9px] text-[#2a2a2a] leading-none">■</span>
-      <span className="text-[10px] text-[#3a3a3a] uppercase tracking-[0.18em] font-medium">
+      <span className="text-[8px] text-[#555] leading-none">■</span>
+      <span className="text-[11px] text-[#555] uppercase tracking-[0.15em] font-medium">
         {children}
       </span>
     </div>
@@ -177,8 +201,8 @@ function ProjectCard({ project, onClick }: { project: StoredProject; onClick: ()
       onClick={onClick}
       className={cn(
         "flex flex-col justify-between shrink-0 w-[156px] h-[112px]",
-        "bg-[#080808] border border-[#1a1a1a] rounded-lg p-4 text-left cursor-pointer",
-        "hover:border-[#2a2a2a] hover:bg-[#0d0d0d] transition-colors duration-150 ease-out"
+        "bg-[#0a0a0a] border border-dashed border-[#222] p-4 text-left cursor-pointer",
+        "hover:border-[#444] hover:bg-[#0d0d0d] transition-colors duration-150 ease-out"
       )}
     >
       <div className="flex items-start gap-2">
@@ -190,7 +214,7 @@ function ProjectCard({ project, onClick }: { project: StoredProject; onClick: ()
           {project.name}
         </span>
       </div>
-      <span className="text-[10px] text-[#2a2a2a] font-mono">{timeAgo(project.createdAt)}</span>
+      <span className="text-[10px] text-[#333] font-mono">{timeAgo(project.createdAt)}</span>
     </button>
   );
 }
@@ -202,12 +226,12 @@ function NewProjectCard({ onOpen }: { onOpen: () => void }) {
       onClick={onOpen}
       className={cn(
         "flex flex-col items-center justify-center gap-2 shrink-0 w-[156px] h-[112px]",
-        "bg-transparent border border-dashed border-[#1a1a1a] rounded-lg",
-        "hover:border-[#2a2a2a] hover:bg-[#080808] transition-colors duration-150 ease-out cursor-pointer"
+        "bg-transparent border border-dashed border-[#222]",
+        "hover:border-[#444] hover:bg-[#0a0a0a] transition-colors duration-150 ease-out cursor-pointer"
       )}
     >
-      <PlusIcon className="w-3.5 h-3.5 text-[#2a2a2a]" />
-      <span className="text-[10px] text-[#2a2a2a] uppercase tracking-wider">New</span>
+      <PlusIcon className="w-3.5 h-3.5 text-[#333]" />
+      <span className="text-[10px] text-[#333] uppercase tracking-wider">New</span>
     </button>
   );
 }
@@ -220,9 +244,9 @@ function RefThumbnail({ item, onClick }: { item: RecentRef; onClick: () => void 
       type="button"
       onClick={onClick}
       className={cn(
-        "relative w-[72px] h-[72px] shrink-0 rounded-md overflow-hidden",
-        "bg-[#0d0d0d] border border-[#1a1a1a]",
-        "hover:border-[#2a2a2a] hover:scale-[1.03] transition-all duration-150 ease-out"
+        "relative w-[72px] h-[72px] shrink-0 overflow-hidden",
+        "bg-[#0a0a0a] border border-[#222]",
+        "hover:border-[#444] hover:scale-[1.03] transition-all duration-150 ease-out"
       )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -245,34 +269,124 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#222] bg-[#111] text-xs text-[#777] whitespace-nowrap font-mono"
+      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 border border-[#222] bg-[#0a0a0a] text-xs text-[#777] whitespace-nowrap font-mono"
     >
-      <span className="text-[9px] text-[#444]">■</span>
+      <span className="text-[8px] text-[#444]">■</span>
       {message}
     </motion.div>
   );
 }
 
-const QUICK_ACTIONS = [
-  { label: "Search references", sub: "vision", href: "/vision" },
-  { label: "Browse stock", sub: "lummi", href: "/vision?import=lummi" },
-  { label: "Enter flow", sub: "focus", href: "/flow" },
-  { label: "Connect Pinterest", sub: "import", href: "/vision?connect=pinterest" },
+// ─── ASCII canvas constants ────────────────────────────────────────────────────
+
+const ASCII_CHARS = [
+  "■", "□", "▪", "▫", "●", "○", "◆", "◇",
+  "△", "▽", "▲", "▼", "◁", "▷", "◀", "▶",
+  "+", "×", "÷", "=", "~", "·", ":", ";",
+  "/", "\\", "|", "-", "_", "#", "*", ".",
+  "0", "1", "{", "}", "[", "]", "<", ">",
 ] as const;
+
+const CELL_SIZE = 28;
+const FONT_SIZE = 11;
+const REVEAL_RADIUS = 180;
+const MAX_OPACITY = 0.06;
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function HomeClient() {
   const router = useRouter();
   const { openModal: openNewProject } = useNewProjectModal();
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  // ── ASCII cursor reveal ─────────────────────────────────────────────────────
+  React.useEffect(() => {
+    if (!window.matchMedia("(hover: hover)").matches) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let cols = 0;
+    let rows = 0;
+    let grid: number[][] = [];
+
+    function buildGrid() {
+      cols = Math.ceil(canvas!.width / CELL_SIZE);
+      rows = Math.ceil(canvas!.height / CELL_SIZE);
+      grid = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () =>
+          Math.floor(Math.random() * ASCII_CHARS.length)
+        )
+      );
+    }
+
+    function resize() {
+      canvas!.width = window.innerWidth;
+      canvas!.height = window.innerHeight;
+      buildGrid();
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    let mouseX = -1000;
+    let mouseY = -1000;
+    let prevX = -1001;
+    let prevY = -1001;
+    let raf: number;
+
+    function draw() {
+      raf = requestAnimationFrame(draw);
+      if (mouseX === prevX && mouseY === prevY) return;
+      prevX = mouseX;
+      prevY = mouseY;
+
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+      ctx!.font = `${FONT_SIZE}px "Geist Mono", monospace`;
+      ctx!.textAlign = "center";
+      ctx!.textBaseline = "middle";
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = col * CELL_SIZE + CELL_SIZE / 2;
+          const y = row * CELL_SIZE + CELL_SIZE / 2;
+          const dist = Math.sqrt((x - mouseX) ** 2 + (y - mouseY) ** 2);
+          if (dist < REVEAL_RADIUS) {
+            const t = 1 - dist / REVEAL_RADIUS;
+            ctx!.fillStyle = `rgba(0, 112, 243, ${t * t * MAX_OPACITY})`;
+            ctx!.fillText(ASCII_CHARS[grid[row][col]], x, y);
+          }
+        }
+      }
+    }
+
+    function onMouseMove(e: MouseEvent) { mouseX = e.clientX; mouseY = e.clientY; }
+    function onMouseLeave() { mouseX = -1000; mouseY = -1000; }
+
+    window.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseleave", onMouseLeave);
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseleave", onMouseLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   const [timeOfDay, setTimeOfDay] = React.useState(getTimeOfDay);
   const [dateStr, setDateStr] = React.useState(getDateString);
   const [query, setQuery] = React.useState("");
+  const [isFocused, setIsFocused] = React.useState(false);
   const [suggestion, setSuggestion] = React.useState<Suggestion | null>(null);
   const [projects, setProjects] = React.useState<StoredProject[]>([]);
   const [recentRefs, setRecentRefs] = React.useState<RecentRef[]>([]);
   const [toast, setToast] = React.useState<string | null>(null);
+  const [quote] = React.useState(
+    () => QUOTES[Math.floor(Math.random() * QUOTES.length)]
+  );
 
   // ── Load projects ──────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -338,57 +452,65 @@ export function HomeClient() {
   }
 
   const visibleProjects = projects.slice(0, 5);
-  const showQuickActions = projects.length < 3;
 
   return (
     <div
-      className="flex flex-col items-center justify-start pt-[14vh] min-h-screen px-6 pb-16"
+      className="relative flex flex-col items-center justify-start pt-[14vh] min-h-screen px-10 pb-16"
       style={{
         backgroundImage:
-          "radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)",
+          "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)",
         backgroundSize: "28px 28px",
       }}
     >
-      <div className="w-full max-w-[580px]">
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 pointer-events-none z-0"
+        aria-hidden
+      />
+
+      <div className="relative z-10 w-full max-w-[580px]">
 
         {/* ── Studio OS label ─────────────────────────────────────────────── */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          <span className="text-[9px] text-[#222]">■</span>
-          <span className="text-[9px] text-[#252525] uppercase tracking-[0.25em] font-mono">
+          <span className="text-[8px] text-[#555]">■</span>
+          <span className="text-[10px] text-[#555] uppercase tracking-[0.25em] font-mono">
             Studio OS
           </span>
         </div>
 
         {/* ── Greeting ────────────────────────────────────────────────────── */}
         <div className="text-center mb-9">
-          <h1 className="text-[28px] font-semibold text-white tracking-tight leading-tight">
+          <h1 className="text-[48px] font-semibold text-white tracking-tight leading-tight">
             Good {timeOfDay}, {USER_NAME}
           </h1>
-          <p className="text-[13px] text-[#3a3a3a] mt-1.5 font-mono">{dateStr}</p>
+          <p className="text-[13px] text-[#555] mt-1.5 font-mono">{dateStr}</p>
         </div>
 
         {/* ── Chat input box ───────────────────────────────────────────────── */}
         <div className="w-full mx-auto mb-3">
           <div
             className={cn(
-              "border border-[#1c1c1c] rounded-xl overflow-hidden",
-              "bg-[#070707]",
+              "border overflow-hidden bg-[#0a0a0a]",
               "transition-[border-color] duration-150",
-              "focus-within:border-[#272727]"
+              isFocused
+                ? "border-solid border-[#444]"
+                : "border-dashed border-[#222]"
             )}
           >
             {/* Input row */}
             <div className="px-4 pt-[14px] pb-3 flex items-center gap-3">
-              <AiSparkIcon className="w-[15px] h-[15px] text-[#2a2a2a] shrink-0" bare />
+              <AiSparkIcon className="w-[15px] h-[15px] text-[#333] shrink-0" bare />
               <input
                 type="text"
                 placeholder="What are you building today?"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
                 // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-[#282828] outline-none"
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-[#333] outline-none"
               />
             </div>
 
@@ -400,7 +522,7 @@ export function HomeClient() {
                   type="button"
                   onClick={() => openNewProject()}
                   title="New project"
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-[#2a2a2a] hover:text-[#555] hover:bg-[#111] transition-colors duration-150"
+                  className="w-7 h-7 flex items-center justify-center text-[#333] hover:text-[#555] hover:bg-[#111] transition-colors duration-150"
                 >
                   <PlusIcon className="w-3.5 h-3.5" />
                 </button>
@@ -409,7 +531,7 @@ export function HomeClient() {
                   type="button"
                   onClick={openCommandPalette}
                   title="Search (⌘K)"
-                  className="h-7 px-2 rounded-md flex items-center text-[#252525] hover:text-[#555] hover:bg-[#111] transition-colors duration-150"
+                  className="h-7 px-2 flex items-center text-[#333] hover:text-[#555] hover:bg-[#111] transition-colors duration-150"
                 >
                   <span className="text-[10px] font-mono tracking-tight">⌘K</span>
                 </button>
@@ -422,11 +544,11 @@ export function HomeClient() {
                 disabled={!query.trim()}
                 title="Submit (↵)"
                 className={cn(
-                  "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium",
+                  "w-7 h-7 flex items-center justify-center text-xs font-medium",
                   "transition-[background-color,opacity] duration-150",
                   query.trim()
                     ? "bg-white text-black hover:bg-[#e0e0e0]"
-                    : "bg-[#111] text-[#2a2a2a] cursor-not-allowed"
+                    : "bg-[#111] text-[#333] cursor-not-allowed"
                 )}
               >
                 ↑
@@ -445,7 +567,7 @@ export function HomeClient() {
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="mb-4"
             >
-              <div className="border border-[#1a1a1a] rounded-lg px-4 py-3 flex items-center justify-between gap-4 bg-[#070707]">
+              <div className="border border-dashed border-[#222] px-4 py-3 flex items-center justify-between gap-4 bg-[#0a0a0a]">
                 <div className="flex items-center gap-3 min-w-0">
                   {suggestion.project && (
                     <span
@@ -453,14 +575,14 @@ export function HomeClient() {
                       style={{ backgroundColor: suggestion.project.color }}
                     />
                   )}
-                  <span className="text-sm text-[#999] truncate">{suggestion.label}</span>
+                  <span className="text-sm text-[#888] truncate">{suggestion.label}</span>
                   <span className="text-sm text-[#333] shrink-0 font-mono">{suggestion.action}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <button
                     type="button"
                     onClick={commit}
-                    className="text-[11px] bg-white text-black px-3 py-1 rounded-md font-medium hover:bg-[#e0e0e0] transition-colors duration-150"
+                    className="text-[11px] bg-white text-black px-3 py-1 font-medium hover:bg-[#e0e0e0] transition-colors duration-150"
                   >
                     {suggestion.isNew ? "Create" : "Open"}
                   </button>
@@ -477,21 +599,21 @@ export function HomeClient() {
           )}
         </AnimatePresence>
 
-        {/* ── Dashed separator ─────────────────────────────────────────────── */}
-        <div className="my-10 border-t border-dashed border-[#161616]" />
+        {/* ── Dot separator ────────────────────────────────────────────────── */}
+        <DotSeparator />
 
         {/* ── Recent Projects ──────────────────────────────────────────────── */}
-        <section className="mb-10">
+        <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <Label>Recent Projects</Label>
             <Link
               href="/projects"
-              className="text-[10px] text-[#252525] hover:text-[#555] transition-colors duration-150 font-mono uppercase tracking-wider"
+              className="text-[10px] text-[#333] hover:text-[#555] transition-colors duration-150 font-mono uppercase tracking-wider"
             >
               All →
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1">
             {visibleProjects.map((p) => (
               <ProjectCard
                 key={p.id}
@@ -503,19 +625,22 @@ export function HomeClient() {
           </div>
         </section>
 
+        {/* ── Dot separator ────────────────────────────────────────────────── */}
+        <DotSeparator />
+
         {/* ── Recently Saved ───────────────────────────────────────────────── */}
-        <section className="mb-10">
+        <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <Label>Recently Saved</Label>
             <Link
               href="/vision"
-              className="text-[10px] text-[#252525] hover:text-[#555] transition-colors duration-150 font-mono uppercase tracking-wider"
+              className="text-[10px] text-[#333] hover:text-[#555] transition-colors duration-150 font-mono uppercase tracking-wider"
             >
               Vision →
             </Link>
           </div>
           {recentRefs.length === 0 ? (
-            <p className="text-[11px] text-[#222] font-mono py-1">
+            <p className="text-[11px] text-[#333] font-mono py-1">
               · · · save your first reference from Vision or Pinterest · · ·
             </p>
           ) : (
@@ -527,27 +652,12 @@ export function HomeClient() {
           )}
         </section>
 
-        {/* ── Quick Actions (new users) ─────────────────────────────────────── */}
-        {showQuickActions && (
-          <section className="mb-4">
-            <div className="flex gap-2 flex-wrap">
-              {QUICK_ACTIONS.map(({ label, sub, href }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className={cn(
-                    "border border-[#141414] rounded-lg px-4 py-2.5 bg-[#070707]",
-                    "text-[12px] text-[#3a3a3a] hover:text-[#777] hover:border-[#222]",
-                    "transition-colors duration-150 ease-out"
-                  )}
-                >
-                  {label}
-                  <span className="ml-2 text-[10px] text-[#1e1e1e] font-mono">{sub}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        {/* ── Quote ────────────────────────────────────────────────────────── */}
+        <DotSeparator />
+        <p className="text-sm italic text-[#333] text-center pb-4">
+          &ldquo;{quote}&rdquo;
+        </p>
+
       </div>
 
       {/* ── Toast ─────────────────────────────────────────────────────────── */}

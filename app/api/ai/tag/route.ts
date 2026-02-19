@@ -30,10 +30,14 @@ export async function POST(req: NextRequest) {
         .from("references")
         .update({
           tags: result.tags,
+          tag_tiers: result.tagTiers,
           colors: result.colors,
           mood: result.mood,
           style: result.style,
           content_type: result.contentType,
+          era: result.era || null,
+          composition: result.composition || null,
+          typography: result.typography || null,
         })
         .eq("id", referenceId);
     } catch (err) {

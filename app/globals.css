@@ -37,10 +37,10 @@
   --color-gray-700: #333333;
   --color-gray-800: #222222;
   --color-gray-900: #111111;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 }
 
 /* Hide scrollbar but keep scrollable */

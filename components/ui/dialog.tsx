@@ -67,7 +67,7 @@ export function DialogContent({ className, ...props }: DialogContentProps) {
       role="dialog"
       aria-modal="true"
       className={cn(
-        "w-full max-w-[640px] rounded-xl border border-[#222222] bg-[#111111] px-4 py-3 md:px-6 md:py-4",
+        "w-full max-w-[640px] border border-[#222] bg-[#0a0a0a] px-4 py-3 md:px-6 md:py-4",
         className
       )}
       onClick={(e) => e.stopPropagation()}

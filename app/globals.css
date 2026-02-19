@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
+/* Search bar ring pulse — 2 iterations then stops */
+@keyframes search-ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 112, 243, 0.35); }
+  60% { box-shadow: 0 0 0 5px rgba(0, 112, 243, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 112, 243, 0); }
+}
+
+.search-pulse {
+  animation: search-ring-pulse 0.85s ease-out 2;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-geist-sans: "Geist", system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono", SFMono-Regular, monospace;
+  --background: #000000;
+  --foreground: #ffffff;
+  --accent: #0070f3;
+  --gray-200: #eaeaea;
+  --gray-700: #333333;
+  --gray-800: #222222;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-gray-100: #fafafa;
+  --color-gray-200: #eaeaea;
+  --color-gray-300: #999999;
+  --color-gray-400: #888888;
+  --color-gray-500: #666666;
+  --color-gray-600: #444444;
+  --color-gray-700: #333333;
+  --color-gray-800: #222222;
+  --color-gray-900: #111111;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #000000;
+  color: #ffffff;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+::selection {
+  background-color: rgba(0, 112, 243, 0.25);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+  }
+
+  p {
+    color: #999999;
+    line-height: 1.6;
+  }
 }

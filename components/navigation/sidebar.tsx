@@ -5,12 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  HomeIcon,
-  BriefIcon,
-  VisionIcon,
-  TypeIcon,
-  ProjectsIcon,
-  FlowIcon,
   SearchIcon,
   SettingsIcon,
   PlusIcon,
@@ -21,75 +15,13 @@ import {
   type StoredProject,
 } from "@/components/new-project-modal";
 import { useNewProjectModal } from "@/components/new-project-modal";
-import { getStoredArchetype, type Archetype } from "@/app/onboarding/onboarding-client";
 import { ThemeToggle } from "@/components/navigation/theme-toggle";
-
-// ─── Nav items ────────────────────────────────────────────────────────────────
-
-const BASE_NAV_ITEMS = [
-  { href: "/home",     label: "Home",     Icon: HomeIcon     },
-  { href: "/brief",    label: "Brief",    Icon: BriefIcon    },
-  { href: "/vision",   label: "Vision",   Icon: VisionIcon   },
-  { href: "/type",     label: "Type",     Icon: TypeIcon     },
-  { href: "/projects", label: "Projects", Icon: ProjectsIcon },
-  { href: "/flow",     label: "Flow",     Icon: FlowIcon     },
-] as const;
-
-type NavItem = (typeof BASE_NAV_ITEMS)[number];
-
-const ARCHETYPE_PRIORITY: Record<Archetype, string> = {
-  visual:     "/vision",
-  typography: "/type",
-  systems:    "/projects",
-};
-
-function getNavItems(archetype: Archetype | null): NavItem[] {
-  if (!archetype) return [...BASE_NAV_ITEMS];
-  const priorityHref = ARCHETYPE_PRIORITY[archetype];
-  const priority = BASE_NAV_ITEMS.find((i) => i.href === priorityHref);
-  if (!priority) return [...BASE_NAV_ITEMS];
-  return [
-    BASE_NAV_ITEMS[0], // Home always first
-    priority,
-    ...BASE_NAV_ITEMS.slice(1).filter((i) => i.href !== priorityHref),
-  ] as NavItem[];
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function openCommandPalette() {
   window.dispatchEvent(
     new KeyboardEvent("keydown", { metaKey: true, key: "k", bubbles: true })
-  );
-}
-
-// ─── NavItem ──────────────────────────────────────────────────────────────────
-
-function NavItem({
-  href,
-  label,
-  Icon,
-  active,
-}: {
-  href: string;
-  label: string;
-  Icon: React.ComponentType<{ className?: string }>;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex items-center gap-3 h-9 px-3 cursor-pointer",
-        "transition-colors duration-150 ease-out",
-        active
-          ? "bg-sidebar-active text-text-primary font-medium"
-          : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
-      )}
-    >
-      <Icon className="w-[18px] h-[18px] shrink-0" />
-      <span className="text-sm truncate">{label}</span>
-    </Link>
   );
 }
 
@@ -106,15 +38,16 @@ function ProjectDot({
     <Link
       href={`/projects/${project.id}`}
       className={cn(
-        "flex items-center gap-3 h-9 px-3 cursor-pointer",
+        "flex items-center gap-3 h-9 cursor-pointer",
         "transition-colors duration-150 ease-out",
+        "border-l-2 pl-[10px] pr-3",
         active
-          ? "bg-sidebar-active text-text-primary"
-          : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
+          ? "bg-sidebar-active text-text-primary border-l-[var(--accent)]"
+          : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover border-l-transparent"
       )}
     >
       <span
-        className="w-2 h-2 rounded-full shrink-0"
+        className="w-2 h-2 shrink-0"
         style={{ backgroundColor: project.color }}
       />
       <span className="text-sm truncate">{project.name}</span>
@@ -128,29 +61,31 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const { openModal: openNewProject } = useNewProjectModal();
   const [projects, setProjects] = React.useState<StoredProject[]>([]);
-  const [navItems, setNavItems] = React.useState<NavItem[]>([...BASE_NAV_ITEMS]);
 
   React.useEffect(() => {
     function refresh() {
       setProjects(getStoredProjects());
-      setNavItems(getNavItems(getStoredArchetype()));
     }
     refresh();
     window.addEventListener("storage", refresh);
-    return () => window.removeEventListener("storage", refresh);
+    window.addEventListener("projects-updated", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("projects-updated", refresh);
+    };
   }, []);
-
-  function isActive(href: string) {
-    if (href === "/home") return pathname === "/home";
-    return pathname.startsWith(href);
-  }
 
   return (
     <div className="flex flex-col h-full px-3 py-4">
       {/* ── Section 1: Logo ── */}
       <div className="flex items-center gap-2.5 px-3 mb-4 h-10">
-        <div className="w-4 h-4 bg-text-primary shrink-0" />
-        <span className="text-sm font-medium text-text-tertiary">Studio OS</span>
+        <Link
+          href="/home"
+          className="flex items-center gap-2.5 text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
+        >
+          <div className="w-4 h-4 bg-text-primary shrink-0" />
+          <span className="text-sm font-medium">Studio OS</span>
+        </Link>
 
         {/* Close button — mobile only */}
         {onClose && (
@@ -165,24 +100,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         )}
       </div>
 
-      {/* ── Section 2: Primary Nav ── */}
-      <nav className="flex flex-col gap-0.5">
-        {navItems.map(({ href, label, Icon }) => (
-          <NavItem
-            key={href}
-            href={href}
-            label={label}
-            Icon={Icon}
-            active={isActive(href)}
-          />
-        ))}
-      </nav>
-
-      {/* ── Section 3: Projects ── */}
-      <div className="mt-4">
-        <div className="border-t border-[#151515] mb-3" />
+      {/* ── Section 2: Projects ── */}
+      <div>
         <div className="flex items-center px-3 mb-1">
-          <span className="text-[11px] text-section-label uppercase tracking-wider font-medium flex-1">
+          <span className="text-[11px] font-mono text-section-label uppercase tracking-[0.12em] font-medium flex-1">
             Projects
           </span>
           <button
@@ -198,7 +119,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <div
           className={cn(
             "flex flex-col gap-0.5",
-            projects.length > 6 && "overflow-y-auto max-h-[200px]"
+            projects.length > 7 && "overflow-y-auto max-h-[260px]"
           )}
         >
           {projects.length === 0 ? (
@@ -217,7 +138,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* ── Section 4: Bottom ── */}
       <div className="mt-auto">
-        <div className="border-t border-[#151515] mb-2" />
+        <div className="border-t border-[var(--border-primary)] mb-2" />
 
         {/* Search / ⌘K */}
         <button
@@ -231,7 +152,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         >
           <SearchIcon className="w-[18px] h-[18px] shrink-0" bare />
           <span className="text-sm flex-1 text-left">Search</span>
-          <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary">
+          <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary rounded-none">
             ⌘K
           </span>
         </button>
@@ -254,13 +175,13 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           <span className="text-sm">Settings</span>
         </Link>
 
-        <div className="border-t border-[#151515] my-2" />
+        <div className="border-t border-[var(--border-primary)] my-2" />
 
         {/* User row */}
         <div className="flex items-center gap-3 px-3 py-2">
           <div
             className={cn(
-              "w-7 h-7 rounded-full shrink-0",
+              "w-7 h-7 shrink-0",
               "bg-bg-tertiary border border-border-primary",
               "flex items-center justify-center",
               "text-[11px] font-medium text-text-tertiary"

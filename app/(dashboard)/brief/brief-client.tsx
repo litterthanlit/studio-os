@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { nanoid } from "nanoid";
 import {
@@ -9,9 +8,6 @@ import {
   ImageIcon,
   ClockIcon as Clock,
   CheckIcon as Check,
-  MessageIcon as MessageSquare,
-  FileTextIcon as FileText,
-  CalendarIcon as Calendar,
 } from "@/components/ui/icon";
 import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
@@ -19,6 +15,7 @@ import {
   getStoredProjects,
   type StoredProject,
 } from "@/components/new-project-modal";
+import { createClient } from "@/lib/supabase/client";
 
 // ─── Ideas types & storage ────────────────────────────────────────────────────
 
@@ -350,9 +347,6 @@ function getDateString(): string {
   });
 }
 
-const FOCUS_SUMMARY =
-  "You have 3 hours of focus time before your 2pm client review.";
-
 type Phase = "Discovery" | "Concept" | "Refine" | "Deliver";
 
 const PHASE_STYLES: Record<Phase, string> = {
@@ -362,80 +356,121 @@ const PHASE_STYLES: Record<Phase, string> = {
   Deliver:   "border border-emerald-500/30 bg-emerald-900/20 text-emerald-300",
 };
 
-const ACTIVE_PROJECT = {
-  id: "acme-rebrand",
-  name: "Acme Rebrand",
-  phase: "Discovery" as Phase,
-  progress: 40,
-  leadImage: "https://picsum.photos/seed/acme-rebrand/400/300",
+// ─── Schedule (localStorage) ─────────────────────────────────────────────────
+
+export type ScheduleTag = "Focus" | "Break" | "Client" | "Custom";
+
+export interface ScheduleBlock {
+  id: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+  startTime: string;
+  endTime: string;
+  tag?: ScheduleTag;
+}
+
+const SCHEDULE_KEY = "studio-os-brief-schedule";
+const TAG_DOT: Record<ScheduleTag, string> = {
+  Focus:  "bg-accent",
+  Break:  "bg-emerald-400",
+  Client: "bg-orange-400",
+  Custom: "bg-purple-400",
 };
 
-type EventType = "Client Call" | "Focus Time" | "Review" | "Break";
+function getTodayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
-const SCHEDULE: { time: string; title: string; type: EventType }[] = [
-  { time: "9:00",  title: "Deep work block",                type: "Focus Time"  },
-  { time: "12:00", title: "Lunch & walk",                   type: "Break"       },
-  { time: "14:00", title: "Acme Rebrand — client review",   type: "Client Call" },
-  { time: "15:30", title: "Design review with team",        type: "Review"      },
-  { time: "17:00", title: "Wrap & tomorrow prep",           type: "Focus Time"  },
-];
+function loadScheduleBlocks(date: string): ScheduleBlock[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(SCHEDULE_KEY) ?? "[]") as ScheduleBlock[];
+    return raw.filter((b) => b.date === date).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  } catch { return []; }
+}
 
-const EVENT_DOT: Record<EventType, string> = {
-  "Client Call": "bg-orange-400",
-  "Focus Time":  "bg-accent",
-  Review:        "bg-purple-400",
-  Break:         "bg-emerald-400",
-};
+function saveScheduleBlocks(all: ScheduleBlock[]): void {
+  try { localStorage.setItem(SCHEDULE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+}
 
-const INSPIRATION_IMAGES = [
-  "https://picsum.photos/seed/brief-1/320/200",
-  "https://picsum.photos/seed/brief-2/320/200",
-  "https://picsum.photos/seed/brief-3/320/200",
-  "https://picsum.photos/seed/brief-4/320/200",
-  "https://picsum.photos/seed/brief-5/320/200",
-];
-
-const STATS = [
-  { value: "5",   label: "day streak",  icon: Flame    },
-  { value: "12",  label: "references",  icon: ImageIcon },
-  { value: "3.2h",label: "focus",       icon: Clock    },
-  { value: "2",   label: "reviews",     icon: Check    },
-];
-
-const PENDING_ITEMS = [
-  {
-    icon: MessageSquare,
-    text: "3 unresolved Figma comments on Acme Rebrand",
-    project: "Acme Rebrand",
-    time: "2h ago",
-  },
-  {
-    icon: FileText,
-    text: "Font license for Playfair Display expires in 7 days",
-    project: "Type Library",
-    time: "Due soon",
-  },
-  {
-    icon: Calendar,
-    text: "Client review deck due Friday",
-    project: "Acme Rebrand",
-    time: "Feb 21",
-  },
-];
+const STAT_LABELS = [
+  { key: "dayStreak", label: "day streak", icon: Flame },
+  { key: "references", label: "references", icon: ImageIcon },
+  { key: "focus", label: "focus", icon: Clock },
+  { key: "reviews", label: "reviews", icon: Check },
+] as const;
 
 export function BriefPage() {
   const [greeting, setGreeting] = React.useState("Good morning");
   const [dateStr, setDateStr] = React.useState("");
   const [todayIdeaReminders, setTodayIdeaReminders] = React.useState<Idea[]>([]);
+  const [projects, setProjects] = React.useState<StoredProject[]>([]);
+  const [scheduleBlocks, setScheduleBlocks] = React.useState<ScheduleBlock[]>([]);
+  const [recentRefs, setRecentRefs] = React.useState<{ id: string; image_url: string }[]>([]);
+  const [stats, setStats] = React.useState({ dayStreak: 0, references: 0, focus: "0h", reviews: 0 });
+  const [scheduleAddOpen, setScheduleAddOpen] = React.useState(false);
+  const todayDate = getTodayDate();
 
   React.useEffect(() => {
     setGreeting(getGreeting());
     setDateStr(getDateString());
   }, []);
 
+  React.useEffect(() => {
+    setProjects(getStoredProjects());
+  }, []);
+
+  React.useEffect(() => {
+    setScheduleBlocks(loadScheduleBlocks(todayDate));
+    const onStorage = () => setScheduleBlocks(loadScheduleBlocks(todayDate));
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [todayDate]);
+
+  React.useEffect(() => {
+    async function fetchRefs() {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("references")
+          .select("id, image_url")
+          .order("created_at", { ascending: false })
+          .limit(5);
+        setRecentRefs(data ?? []);
+      } catch { /* ignore */ }
+    }
+    fetchRefs();
+  }, []);
+
   const handleTodayReminders = React.useCallback((ideas: Idea[]) => {
     setTodayIdeaReminders(ideas);
   }, []);
+
+  function addScheduleBlock(block: Omit<ScheduleBlock, "id" | "date">) {
+    let raw: ScheduleBlock[] = [];
+    try {
+      raw = JSON.parse(localStorage.getItem(SCHEDULE_KEY) ?? "[]") as ScheduleBlock[];
+    } catch { /* ignore */ }
+    const otherDates = raw.filter((b) => b.date !== todayDate);
+    const todayBlocks = raw.filter((b) => b.date === todayDate);
+    const newBlock: ScheduleBlock = { ...block, id: nanoid(), date: todayDate };
+    const updated = [...otherDates, ...todayBlocks, newBlock].sort((a, b) =>
+      a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date)
+    );
+    saveScheduleBlocks(updated);
+    setScheduleBlocks(updated.filter((b) => b.date === todayDate));
+    setScheduleAddOpen(false);
+  }
+
+  function removeScheduleBlock(id: string) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SCHEDULE_KEY) ?? "[]") as ScheduleBlock[];
+      saveScheduleBlocks(raw.filter((b) => b.id !== id));
+      setScheduleBlocks(loadScheduleBlocks(todayDate));
+    } catch { /* ignore */ }
+  }
+
+  const activeProject = projects[0] ?? null;
 
   return (
     <section className="space-y-12 pb-8">
@@ -443,10 +478,9 @@ export function BriefPage() {
       {/* Header */}
       <header className="space-y-3">
         <p className="text-[11px] text-text-tertiary font-mono tracking-wide">{dateStr}</p>
-        <h1 className="text-[42px] font-semibold leading-tight text-text-primary tracking-tight">
+        <h1 className="text-[42px] font-medium leading-tight text-text-primary tracking-tight">
           {greeting}, {USER_NAME}.
         </h1>
-        <p className="text-sm text-text-secondary leading-relaxed">{FOCUS_SUMMARY}</p>
       </header>
 
       {/* Section 0 — Ideas */}
@@ -455,122 +489,131 @@ export function BriefPage() {
       {/* Section 1 — Today's Focus */}
       <div className="space-y-3">
         <SectionLabel>Today&apos;s Focus</SectionLabel>
-        <div className="flex items-center justify-between gap-4 border border-[#1a1a1a] bg-card-bg p-5 transition-[border-color] duration-200 ease-out hover:border-[#252525]">
-          <div className="flex min-w-0 flex-1 items-center gap-4">
-            <div className="relative h-16 w-24 flex-none overflow-hidden border border-border-subtle bg-bg-tertiary">
-              <Image
-                src={ACTIVE_PROJECT.leadImage}
-                alt={ACTIVE_PROJECT.name}
-                width={96}
-                height={64}
-                className="h-full w-full object-cover"
-                unoptimized
+        {activeProject ? (
+          <div className="flex items-center justify-between gap-4 border border-[#1a1a1a] bg-card-bg p-5 transition-[border-color] duration-200 ease-out hover:border-[#252525]">
+            <div className="flex min-w-0 flex-1 items-center gap-4">
+              <div
+                className="h-16 w-24 flex-none rounded border border-border-subtle bg-bg-tertiary"
+                style={{ backgroundColor: activeProject.color }}
               />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="text-sm font-medium text-text-primary">
-                {ACTIVE_PROJECT.name}
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.15em]",
-                    PHASE_STYLES[ACTIVE_PROJECT.phase]
-                  )}
-                >
-                  {ACTIVE_PROJECT.phase}
-                </span>
-                <span className="text-[11px] text-text-tertiary font-mono">
-                  {ACTIVE_PROJECT.progress}%
-                </span>
-              </div>
-              <div className="h-px w-24 bg-border-subtle">
-                <div
-                  className="h-full bg-accent"
-                  style={{ width: `${ACTIVE_PROJECT.progress}%` }}
-                />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="text-sm font-medium text-text-primary">{activeProject.name}</div>
+                <span className="text-[11px] text-text-tertiary font-mono">Open to add phase & progress</span>
               </div>
             </div>
+            <Link
+              href={`/projects/${activeProject.id}`}
+              className="shrink-0 text-sm font-medium text-accent transition-opacity duration-150 hover:opacity-70 font-mono"
+            >
+              Open →
+            </Link>
           </div>
-          <Link
-            href="/projects"
-            className="shrink-0 text-sm font-medium text-accent transition-opacity duration-150 hover:opacity-70 font-mono"
-          >
-            Open →
-          </Link>
-        </div>
+        ) : (
+          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+            No projects in progress. Create one from Home or Projects.
+          </p>
+        )}
       </div>
 
-      {/* Section 2 — Schedule */}
+      {/* Section 2 — Schedule (editable) */}
       <div className="space-y-3">
-        <SectionLabel>Schedule</SectionLabel>
-        <div className="border border-[#1a1a1a] bg-card-bg overflow-hidden">
-          {SCHEDULE.map((event, index) => (
-            <div
-              key={`${event.time}-${event.title}`}
-              className={cn(
-                "group flex items-center gap-4 py-3 pl-4 pr-4 transition-colors duration-150 hover:bg-sidebar-hover",
-                index < SCHEDULE.length - 1 && "border-b border-[#151515]"
-              )}
-            >
-              <div className="w-10 shrink-0 text-[11px] text-text-tertiary font-mono">
-                {event.time}
-              </div>
-              <div
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full shrink-0",
-                  EVENT_DOT[event.type]
-                )}
-              />
-              <div className="min-w-0 flex-1 text-sm text-text-secondary">
-                {event.title}
-              </div>
-              <span className="shrink-0 text-[10px] text-text-tertiary font-mono uppercase tracking-wider">
-                {event.type}
-              </span>
-            </div>
-          ))}
+        <div className="flex items-center justify-between">
+          <SectionLabel>Schedule</SectionLabel>
+          <button
+            type="button"
+            onClick={() => setScheduleAddOpen(true)}
+            className="text-[11px] font-mono text-text-muted hover:text-text-secondary uppercase tracking-wider transition-colors"
+          >
+            + Add
+          </button>
         </div>
+        {scheduleBlocks.length === 0 ? (
+          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+            No events today.{" "}
+            <button
+              type="button"
+              onClick={() => setScheduleAddOpen(true)}
+              className="text-accent hover:underline"
+            >
+              + Add time block
+            </button>
+          </p>
+        ) : (
+          <div className="border border-[#1a1a1a] bg-card-bg overflow-hidden">
+            {scheduleBlocks.map((block, index) => (
+              <div
+                key={block.id}
+                className={cn(
+                  "group flex items-center gap-4 py-3 pl-4 pr-4 transition-colors duration-150 hover:bg-sidebar-hover",
+                  index < scheduleBlocks.length - 1 && "border-b border-[#151515]"
+                )}
+              >
+                <div className="w-10 shrink-0 text-[11px] text-text-tertiary font-mono">{block.startTime}</div>
+                <div
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    block.tag ? TAG_DOT[block.tag] : "bg-border-subtle"
+                  )}
+                />
+                <div className="min-w-0 flex-1 text-sm text-text-secondary">{block.title}</div>
+                <span className="shrink-0 text-[10px] text-text-tertiary font-mono">
+                  {block.startTime}–{block.endTime}
+                  {block.tag ? ` · ${block.tag}` : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeScheduleBlock(block.id)}
+                  className="shrink-0 text-text-muted hover:text-red-400 text-[10px] font-mono opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {scheduleAddOpen && (
+          <ScheduleBlockForm
+            onSave={addScheduleBlock}
+            onCancel={() => setScheduleAddOpen(false)}
+          />
+        )}
       </div>
 
       {/* Section 3 — Inspiration Pulse */}
       <div className="space-y-3">
         <SectionLabel>Inspiration Pulse</SectionLabel>
-        <p className="text-[11px] text-text-tertiary font-mono">
-          Recent references · {ACTIVE_PROJECT.name}
-        </p>
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-          {INSPIRATION_IMAGES.map((src, i) => (
-            <Link
-              key={src}
-              href="/vision"
-              className="relative h-24 w-32 shrink-0 overflow-hidden bg-card-bg"
-            >
-              <Image
-                src={src}
-                alt={`Reference ${i + 1}`}
-                width={128}
-                height={96}
-                className="h-full w-full object-cover"
-                unoptimized
-              />
-            </Link>
-          ))}
-        </div>
+        {recentRefs.length === 0 ? (
+          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+            No references yet. Save from Vision to see them here.
+          </p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+            {recentRefs.map((r) => (
+              <Link
+                key={r.id}
+                href="/vision"
+                className="relative h-24 w-32 shrink-0 overflow-hidden bg-card-bg border border-[#1a1a1a]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.image_url} alt="" className="h-full w-full object-cover" />
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Section 4 — Creative Pulse */}
+      {/* Section 4 — Creative Pulse (real stats, 0 for new users) */}
       <div className="space-y-3">
         <SectionLabel>Creative Pulse</SectionLabel>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {STATS.map(({ value, label, icon: Icon }) => (
+          {STAT_LABELS.map(({ key, label, icon: Icon }) => (
             <div
-              key={label}
+              key={key}
               className="flex flex-col gap-1.5 border border-[#1a1a1a] bg-card-bg p-5"
             >
               <Icon className="h-3.5 w-3.5 text-text-tertiary" />
               <div className="text-2xl font-medium text-text-primary font-mono">
-                {value}
+                {key === "focus" ? stats.focus : key === "references" ? stats.references : key === "reviews" ? stats.reviews : stats.dayStreak}
               </div>
               <div className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{label}</div>
             </div>
@@ -578,48 +621,112 @@ export function BriefPage() {
         </div>
       </div>
 
-      {/* Section 5 — Needs Attention */}
+      {/* Section 5 — Needs Attention (only real: today idea reminders) */}
       <div className="space-y-3">
         <SectionLabel>Needs Attention</SectionLabel>
-        <ul className="space-y-2">
-          {/* Today-reminder ideas surface here */}
-          {todayIdeaReminders.map((idea) => (
-            <li
-              key={`idea-${idea.id}`}
-              className="flex items-start gap-3 border border-l-2 border-[#1a1a1a] border-l-accent bg-card-bg px-4 py-3"
-            >
-              <span className="mt-0.5 shrink-0 text-sm">💡</span>
-              <div className="min-w-0 flex-1">
-                <span className="block text-sm text-text-secondary">&ldquo;{idea.text}&rdquo;</span>
-                <span className="font-mono text-[11px] text-text-placeholder">
-                  Idea from {relativeTime(idea.createdAt)} · Reminder: today
-                </span>
-              </div>
-            </li>
-          ))}
-
-          {PENDING_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
+        {todayIdeaReminders.length === 0 ? (
+          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+            No items needing attention. Ideas with &ldquo;Today&rdquo; reminders will show here.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {todayIdeaReminders.map((idea) => (
               <li
-                key={item.text}
-                className="flex items-center gap-3 border border-[#1a1a1a] bg-card-bg px-4 py-3 transition-[border-color] duration-150 hover:border-[#252525]"
+                key={`idea-${idea.id}`}
+                className="flex items-start gap-3 border border-l-2 border-[#1a1a1a] border-l-accent bg-card-bg px-4 py-3"
               >
-                <Icon className="h-4 w-4 shrink-0 text-text-tertiary" />
-                <span className="min-w-0 flex-1 text-sm text-text-secondary">
-                  {item.text}
-                </span>
-                <span className="shrink-0 border border-card-border bg-bg-primary px-1.5 py-0.5 text-[10px] font-mono text-text-tertiary">
-                  {item.project}
-                </span>
-                <span className="shrink-0 text-[10px] text-text-tertiary font-mono">
-                  {item.time}
-                </span>
+                <span className="mt-0.5 shrink-0 text-sm">💡</span>
+                <div className="min-w-0 flex-1">
+                  <span className="block text-sm text-text-secondary">&ldquo;{idea.text}&rdquo;</span>
+                  <span className="font-mono text-[11px] text-text-placeholder">
+                    Idea from {relativeTime(idea.createdAt)} · Reminder: today
+                  </span>
+                </div>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
+  );
+}
+
+// ─── Schedule block add form ───────────────────────────────────────────────────
+
+function ScheduleBlockForm({
+  onSave,
+  onCancel,
+}: {
+  onSave: (block: Omit<ScheduleBlock, "id" | "date">) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = React.useState("");
+  const [startTime, setStartTime] = React.useState("09:00");
+  const [endTime, setEndTime] = React.useState("10:00");
+  const [tag, setTag] = React.useState<ScheduleTag | "">("");
+
+  return (
+    <div className="border border-[#1a1a1a] bg-card-bg p-4 space-y-3">
+      <input
+        type="text"
+        placeholder="Title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="w-full border border-[#1a1a1a] bg-bg-secondary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-[#252525]"
+      />
+      <div className="flex gap-3 flex-wrap">
+        <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
+          Start
+          <input
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="border border-[#1a1a1a] bg-bg-secondary px-2 py-1 text-text-primary"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
+          End
+          <input
+            type="time"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            className="border border-[#1a1a1a] bg-bg-secondary px-2 py-1 text-text-primary"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
+          Tag
+          <select
+            value={tag}
+            onChange={(e) => setTag((e.target.value || "") as ScheduleTag | "")}
+            className="border border-[#1a1a1a] bg-bg-secondary px-2 py-1 text-text-primary"
+          >
+            <option value="">—</option>
+            <option value="Focus">Focus</option>
+            <option value="Break">Break</option>
+            <option value="Client">Client</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1.5 text-[11px] font-mono text-text-muted hover:text-text-secondary"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (title.trim()) onSave({ title: title.trim(), startTime, endTime, tag: tag || undefined });
+          }}
+          disabled={!title.trim()}
+          className="px-3 py-1.5 text-[11px] font-mono bg-button-primary-bg text-button-primary-text disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Add block
+        </button>
+      </div>
+    </div>
   );
 }

@@ -3,98 +3,83 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { AiSparkIcon, PlusIcon } from "@/components/ui/icon";
 import { DotSeparator } from "@/components/ui/dot-separator";
+import { SectionLabel } from "@/components/ui/section-label";
 import {
   getStoredProjects,
   useNewProjectModal,
   type StoredProject,
 } from "@/components/new-project-modal";
-import { PROJECTS as STATIC_PROJECTS } from "@/app/(dashboard)/projects/projects-data";
-import { createClient } from "@/lib/supabase/client";
+import {
+  PROJECTS as STATIC_PROJECTS,
+  type Phase,
+} from "@/app/(dashboard)/projects/projects-data";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type RecentRef = {
-  id: string;
-  imageUrl: string;
-  source?: string;
-  board?: string;
-};
-
-type Suggestion = {
-  project: StoredProject | null;
-  label: string;
-  action: string;
-  href: string;
-  isNew?: boolean;
-};
-
-type Capture = {
+type ProjectTask = {
   id: string;
   text: string;
+  projectId: string;
   createdAt: string;
+  completed: boolean;
 };
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+type HomeProject = StoredProject & {
+  phase: Phase;
+  leadImage: string;
+};
 
-const USER_NAME = "Nick";
-const CAPTURES_KEY = "studio-os:captures";
+type ProjectDropdownOption =
+  | { kind: "project"; project: HomeProject }
+  | { kind: "create"; name: string };
 
-const QUOTES = [
-  "Build taste. Everything else follows.",
-  "Constraints are creative fuel.",
-  "Ship taste, not features.",
-  "The best interface is the one you don't notice.",
-  "Design is decisions.",
-  "Less, but better.",
-  "Your moodboard is your manifesto.",
-  "Curate ruthlessly. Create fearlessly.",
-  "Every pixel is a choice.",
-  "The work is the proof.",
-  "Taste compounds.",
-  "Good design is obvious. Great design is transparent.",
-  "Start with what you'd steal.",
-  "Your references reveal your ambition.",
-  "Simplicity is the ultimate sophistication.",
-  "Don't collect. Curate.",
-  "The best creative tool is the one that disappears.",
-  "Design systems are belief systems.",
-  "Ship it. Then ship it better.",
-  "Your taste is your edge.",
+type InspirationImage = {
+  id: string;
+  imageUrl: string;
+  thumbnailUrl?: string;
+  title?: string;
+  width?: number;
+  height?: number;
+  colors?: string[];
+};
+
+const TASKS_STORAGE_KEY = "studio-os-tasks";
+const ASCII_CHARS = [
+  "■",
+  "□",
+  "▪",
+  "▫",
+  "●",
+  "○",
+  "◆",
+  "◇",
+  "△",
+  "▽",
+  "▲",
+  "▼",
+  "◁",
+  "▷",
+  "◀",
+  "▶",
+  "+",
+  "×",
+  "÷",
+  "=",
+  "~",
+  "·",
+  ":",
+  ";",
+  "/",
+  "\\",
+  "|",
+  "-",
+  "_",
+  "#",
+  "*",
+  ".",
 ];
-
-const TAB_KEYWORDS: { keywords: string[]; tab: string; path: string }[] = [
-  {
-    keywords: ["color", "palette", "hue", "swatch", "brand color"],
-    tab: "Color Palette",
-    path: "?tab=palette",
-  },
-  {
-    keywords: ["font", "type", "typeface", "typography", "serif", "sans"],
-    tab: "Type",
-    path: "?tab=type",
-  },
-  {
-    keywords: ["moodboard", "reference", "image", "vision", "mood", "board", "inspire", "inspo"],
-    tab: "Vision",
-    path: "/vision",
-  },
-  {
-    keywords: ["task", "todo", "kanban", "checklist"],
-    tab: "Tasks",
-    path: "?tab=tasks",
-  },
-  {
-    keywords: ["focus", "flow", "deep work", "session", "concentrate"],
-    tab: "Flow",
-    path: "/flow",
-  },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const CELL_SIZE = 18;
+const FONT_SIZE = 9;
+const REVEAL_RADIUS = 200;
 
 function getTimeOfDay(): string {
   const h = new Date().getHours();
@@ -103,202 +88,129 @@ function getTimeOfDay(): string {
   return "evening";
 }
 
-function getDateString(): string {
-  return new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return "yesterday";
-  return `${days}d ago`;
-}
-
-function matchQuery(query: string, projects: StoredProject[]): Suggestion | null {
-  const q = query.toLowerCase().trim();
-  if (q.length < 2) return null;
-
-  const nameMatch = projects.find(
-    (p) =>
-      p.name.toLowerCase().includes(q) ||
-      q.includes(p.name.toLowerCase().split(" ")[0])
-  );
-
-  if (nameMatch) {
-    for (const { keywords, tab, path } of TAB_KEYWORDS) {
-      if (keywords.some((kw) => q.includes(kw))) {
-        const href = path.startsWith("/") ? path : `/projects/${nameMatch.id}${path}`;
-        return { project: nameMatch, label: nameMatch.name, action: `→ ${tab}`, href };
-      }
-    }
-    return { project: nameMatch, label: nameMatch.name, action: "→ Open", href: `/projects/${nameMatch.id}` };
-  }
-
-  const recentProject = projects[0];
-  for (const { keywords, tab, path } of TAB_KEYWORDS) {
-    if (keywords.some((kw) => q.includes(kw)) && recentProject) {
-      const href = path.startsWith("/") ? path : `/projects/${recentProject.id}${path}`;
-      return { project: recentProject, label: recentProject.name, action: `→ ${tab}`, href };
-    }
-  }
-
-  return { project: null, label: `"${query}"`, action: "Create new project", href: "", isNew: true };
-}
-
-function toStoredProject(p: (typeof STATIC_PROJECTS)[0]): StoredProject {
+function toStoredProject(p: (typeof STATIC_PROJECTS)[0]): HomeProject {
   return {
     id: p.id,
     name: p.name,
     brief: p.client,
     color: p.palette[1] ?? "#0070F3",
-    createdAt: new Date(Date.now() - p.daysActive * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(
+      Date.now() - p.daysActive * 24 * 60 * 60 * 1000
+    ).toISOString(),
+    phase: p.phase,
+    leadImage: p.leadImage,
   };
 }
 
-function saveCapture(text: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    const existing: Capture[] = JSON.parse(localStorage.getItem(CAPTURES_KEY) ?? "[]");
-    localStorage.setItem(
-      CAPTURES_KEY,
-      JSON.stringify([{ id: Date.now().toString(), text, createdAt: new Date().toISOString() }, ...existing])
-    );
-  } catch { /* ignore */ }
+function normalizeStoredProject(project: StoredProject): HomeProject {
+  const staticMatch = STATIC_PROJECTS.find((p) => p.id === project.id);
+  return {
+    ...project,
+    phase: staticMatch?.phase ?? "Discovery",
+    leadImage:
+      staticMatch?.leadImage ??
+      `https://picsum.photos/seed/${project.id}/400/300`,
+  };
 }
 
-function openCommandPalette() {
-  window.dispatchEvent(new KeyboardEvent("keydown", { metaKey: true, key: "k", bubbles: true }));
+function scoreProjectMatch(projectName: string, query: string): number {
+  const name = projectName.toLowerCase();
+  const q = query.toLowerCase();
+  if (name === q) return 100;
+  if (name.startsWith(q)) return 80;
+  if (name.includes(q)) return 60;
+  let qi = 0;
+  for (let i = 0; i < name.length && qi < q.length; i += 1) {
+    if (name[i] === q[qi]) qi += 1;
+  }
+  return qi === q.length ? 40 : 0;
 }
 
-// ─── Section label ────────────────────────────────────────────────────────────
+const phaseColors: Record<string, { bg: string; text: string; border: string }> = {
+  Discovery:   { bg: "bg-blue-500/10",    text: "text-blue-500",    border: "border-blue-500/20" },
+  Concept:     { bg: "bg-violet-500/10",  text: "text-violet-500",  border: "border-violet-500/20" },
+  Refine:      { bg: "bg-purple-500/10",  text: "text-purple-500",  border: "border-purple-500/20" },
+  Deliver:     { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
+  Research:    { bg: "bg-violet-500/10",  text: "text-violet-500",  border: "border-violet-500/20" },
+  Design:      { bg: "bg-purple-500/10",  text: "text-purple-500",  border: "border-purple-500/20" },
+  Development: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
+  Testing:     { bg: "bg-amber-500/10",   text: "text-amber-500",   border: "border-amber-500/20" },
+  Launch:      { bg: "bg-rose-500/10",    text: "text-rose-500",    border: "border-rose-500/20" },
+};
 
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[8px] text-section-dot leading-none">■</span>
-      <span className="text-[11px] text-section-label uppercase tracking-[0.15em] font-medium">
-        {children}
-      </span>
-    </div>
-  );
+function getPhaseBadgeClass(phase: Phase): string {
+  const colors = phaseColors[phase] ?? {
+    bg: "bg-[var(--bg-tertiary)]",
+    text: "text-[var(--text-secondary)]",
+    border: "border-[var(--border-primary)]",
+  };
+  return `${colors.bg} ${colors.text} ${colors.border}`;
 }
 
-// ─── Project card ─────────────────────────────────────────────────────────────
+function saveTask(task: ProjectTask) {
+  const stored = localStorage.getItem(TASKS_STORAGE_KEY);
+  const allTasks: ProjectTask[] = stored ? JSON.parse(stored) : [];
+  localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify([...allTasks, task]));
+}
 
-function ProjectCard({ project, onClick }: { project: StoredProject; onClick: () => void }) {
+function ProjectSearchRow({
+  option,
+  active,
+  onMouseDown,
+}: {
+  option: ProjectDropdownOption;
+  active: boolean;
+  onMouseDown: () => void;
+}) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-col justify-between shrink-0 w-[156px] h-[112px]",
-        "bg-card-bg border border-[#1a1a1a] p-4 text-left cursor-pointer",
-        "hover:border-[#252525] transition-colors duration-150 ease-out"
-      )}
+      onMouseDown={onMouseDown}
+      className={`flex w-full items-center gap-3 border-b border-[var(--border-primary)] py-2 text-left last:border-b-0 transition-colors duration-100 ${
+        active
+          ? "bg-[var(--bg-tertiary)] border-l-2 border-l-[var(--accent)] pl-[10px] pr-3"
+          : "bg-[var(--bg-secondary)] border-l-2 border-l-transparent pl-[10px] pr-3 hover:bg-[var(--bg-tertiary)]"
+      }`}
     >
-      <div className="flex items-start gap-2">
-        <span
-          className="mt-[3px] w-[7px] h-[7px] rounded-full shrink-0"
-          style={{ backgroundColor: project.color }}
-        />
-        <span className="text-sm font-medium text-text-primary leading-tight line-clamp-2">
-          {project.name}
+      {option.kind === "project" ? (
+        <>
+          <span
+            className="h-2 w-2 shrink-0"
+            style={{ backgroundColor: option.project.color }}
+          />
+          <span className="truncate text-sm text-[var(--text-primary)]">
+            {option.project.name}
+          </span>
+        </>
+      ) : (
+        <span className="truncate text-sm text-[var(--text-secondary)]">
+          Create new project: {option.name}
         </span>
-      </div>
-      <span className="text-[10px] text-text-muted font-mono">{timeAgo(project.createdAt)}</span>
-    </button>
-  );
-}
-
-function NewProjectCard({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        "flex flex-col items-center justify-center gap-2 shrink-0 w-[156px] h-[112px]",
-        "bg-transparent border border-dashed border-card-border",
-        "hover:border-border-hover transition-colors duration-150 ease-out cursor-pointer"
       )}
-    >
-      <PlusIcon className="w-3.5 h-3.5 text-text-muted" />
-      <span className="text-[10px] text-text-muted uppercase tracking-wider">New</span>
     </button>
   );
 }
-
-// ─── Reference thumbnail ──────────────────────────────────────────────────────
-
-function RefThumbnail({ item, onClick }: { item: RecentRef; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "relative w-[72px] h-[72px] shrink-0 overflow-hidden",
-        "bg-card-bg",
-        "hover:scale-[1.03] transition-all duration-150 ease-out"
-      )}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={item.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-    </button>
-  );
-}
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
-
-function Toast({ message, onDone }: { message: string; onDone: () => void }) {
-  React.useEffect(() => {
-    const t = setTimeout(onDone, 2400);
-    return () => clearTimeout(t);
-  }, [onDone]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 4 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 border border-border-secondary bg-card-bg text-xs text-text-tertiary whitespace-nowrap font-mono"
-    >
-      <span className="text-[8px] text-text-muted">■</span>
-      {message}
-    </motion.div>
-  );
-}
-
-// ─── ASCII canvas constants ────────────────────────────────────────────────────
-
-const ASCII_CHARS = [
-  "■", "□", "▪", "▫", "●", "○", "◆", "◇",
-  "△", "▽", "▲", "▼", "◁", "▷", "◀", "▶",
-  "+", "×", "÷", "=", "~", "·", ":", ";",
-  "/", "\\", "|", "-", "_", "#", "*", ".",
-  "0", "1", "{", "}", "[", "]", "<", ">",
-] as const;
-
-const CELL_SIZE = 18;
-const FONT_SIZE = 9;
-const REVEAL_RADIUS = 200;
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function HomeClient() {
   const router = useRouter();
   const { openModal: openNewProject } = useNewProjectModal();
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
-  // ── ASCII cursor reveal ─────────────────────────────────────────────────────
+  const [projects, setProjects] = React.useState<HomeProject[]>([]);
+  const [timeOfDay, setTimeOfDay] = React.useState(getTimeOfDay());
+  const [selectedProject, setSelectedProject] = React.useState<HomeProject | null>(
+    null
+  );
+  const [inputValue, setInputValue] = React.useState("");
+  const [isFocused, setIsFocused] = React.useState(false);
+  const [activeOptionIndex, setActiveOptionIndex] = React.useState(0);
+  const [taskConfirmation, setTaskConfirmation] = React.useState<string | null>(
+    null
+  );
+  const [inspiration, setInspiration] = React.useState<InspirationImage[]>([]);
+  const [inspirationLoading, setInspirationLoading] = React.useState(true);
+  const [inspirationError, setInspirationError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     if (!window.matchMedia("(hover: hover)").matches) return;
 
@@ -312,8 +224,8 @@ export function HomeClient() {
     let grid: number[][] = [];
 
     function buildGrid() {
-      cols = Math.ceil(canvas!.width / CELL_SIZE);
-      rows = Math.ceil(canvas!.height / CELL_SIZE);
+      cols = Math.ceil(canvas.width / CELL_SIZE);
+      rows = Math.ceil(canvas.height / CELL_SIZE);
       grid = Array.from({ length: rows }, () =>
         Array.from({ length: cols }, () =>
           Math.floor(Math.random() * ASCII_CHARS.length)
@@ -322,10 +234,11 @@ export function HomeClient() {
     }
 
     function resize() {
-      canvas!.width = window.innerWidth;
-      canvas!.height = window.innerHeight;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       buildGrid();
     }
+
     resize();
     window.addEventListener("resize", resize);
 
@@ -333,12 +246,7 @@ export function HomeClient() {
     let mouseY = -1000;
     let prevX = -1001;
     let prevY = -1001;
-    let raf: number;
-
-    function getAsciiColor(): string {
-      const style = getComputedStyle(document.documentElement);
-      return style.getPropertyValue("--ascii-color").trim() || "rgba(0, 112, 243, 0.06)";
-    }
+    let raf = 0;
 
     function draw() {
       raf = requestAnimationFrame(draw);
@@ -346,30 +254,41 @@ export function HomeClient() {
       prevX = mouseX;
       prevY = mouseY;
 
-      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
-      ctx!.font = `${FONT_SIZE}px "Geist Mono", monospace`;
-      ctx!.textAlign = "center";
-      ctx!.textBaseline = "middle";
+      const theme = getComputedStyle(document.documentElement);
+      const asciiColor =
+        theme.getPropertyValue("--text-tertiary").trim() ||
+        "rgba(120,120,120,1)";
 
-      const baseColor = getAsciiColor();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${FONT_SIZE}px "Geist Mono", monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = asciiColor;
 
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
           const x = col * CELL_SIZE + CELL_SIZE / 2;
           const y = row * CELL_SIZE + CELL_SIZE / 2;
           const dist = Math.sqrt((x - mouseX) ** 2 + (y - mouseY) ** 2);
           if (dist < REVEAL_RADIUS) {
             const t = 1 - dist / REVEAL_RADIUS;
-            // Parse base color and modulate its opacity
-            ctx!.fillStyle = baseColor.replace(/[\d.]+\)$/, `${t * t})`);
-            ctx!.fillText(ASCII_CHARS[grid[row][col]], x, y);
+            ctx.globalAlpha = t * t * 0.22;
+            ctx.fillText(ASCII_CHARS[grid[row][col]], x, y);
           }
         }
       }
+      ctx.globalAlpha = 1;
     }
 
-    function onMouseMove(e: MouseEvent) { mouseX = e.clientX; mouseY = e.clientY; }
-    function onMouseLeave() { mouseX = -1000; mouseY = -1000; }
+    function onMouseMove(e: MouseEvent) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    }
+
+    function onMouseLeave() {
+      mouseX = -1000;
+      mouseY = -1000;
+    }
 
     window.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseleave", onMouseLeave);
@@ -383,86 +302,174 @@ export function HomeClient() {
     };
   }, []);
 
-  const [timeOfDay, setTimeOfDay] = React.useState(getTimeOfDay);
-  const [dateStr, setDateStr] = React.useState(getDateString);
-  const [query, setQuery] = React.useState("");
-  const [isFocused, setIsFocused] = React.useState(false);
-  const [suggestion, setSuggestion] = React.useState<Suggestion | null>(null);
-  const [projects, setProjects] = React.useState<StoredProject[]>([]);
-  const [recentRefs, setRecentRefs] = React.useState<RecentRef[]>([]);
-  const [toast, setToast] = React.useState<string | null>(null);
-  const [quote] = React.useState(
-    () => QUOTES[Math.floor(Math.random() * QUOTES.length)]
-  );
-
-  // ── Load projects ──────────────────────────────────────────────────────────
   React.useEffect(() => {
     function load() {
       const stored = getStoredProjects();
-      setProjects(stored.length > 0 ? stored : STATIC_PROJECTS.map(toStoredProject));
+      if (stored.length > 0) {
+        setProjects(stored.map(normalizeStoredProject));
+        return;
+      }
+      setProjects(STATIC_PROJECTS.map(toStoredProject));
     }
     load();
     window.addEventListener("storage", load);
     return () => window.removeEventListener("storage", load);
   }, []);
 
-  // ── Fetch recent refs (silent) ─────────────────────────────────────────────
   React.useEffect(() => {
-    async function fetchRefs() {
+    const interval = setInterval(() => setTimeOfDay(getTimeOfDay()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  React.useEffect(() => {
+    async function fetchInspiration() {
+      setInspirationLoading(true);
+      setInspirationError(null);
       try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("references")
-          .select("id, image_url, source, board_id")
-          .order("created_at", { ascending: false })
-          .limit(8);
-        if (data && data.length > 0) {
-          setRecentRefs(data.map((r) => ({ id: r.id, imageUrl: r.image_url, source: r.source, board: r.board_id })));
+        const queryRes = await fetch("/api/lummi?query=minimal+branding&limit=12");
+        if (!queryRes.ok) {
+          throw new Error(`Lummi query request failed (${queryRes.status})`);
         }
-      } catch { /* Supabase not configured */ }
+
+        const queryData = await queryRes.json();
+        const queriedImages = Array.isArray(queryData?.images)
+          ? queryData.images
+          : [];
+
+        if (queriedImages.length > 0) {
+          setInspiration(queriedImages);
+          return;
+        }
+
+        const fallbackRes = await fetch("/api/lummi?limit=12");
+        if (!fallbackRes.ok) {
+          throw new Error(`Lummi fallback request failed (${fallbackRes.status})`);
+        }
+        const fallbackData = await fallbackRes.json();
+        const fallbackImages = Array.isArray(fallbackData?.images)
+          ? fallbackData.images
+          : [];
+        setInspiration(fallbackImages);
+      } catch (error) {
+        console.error("[home] Failed to fetch daily inspiration:", error);
+        setInspirationError("Could not load inspiration");
+      } finally {
+        setInspirationLoading(false);
+      }
     }
-    fetchRefs();
+
+    fetchInspiration();
   }, []);
 
-  // ── Update greeting every minute ───────────────────────────────────────────
+  const projectOptions = React.useMemo<ProjectDropdownOption[]>(() => {
+    if (selectedProject || inputValue.trim().length < 1) return [];
+    const q = inputValue.trim();
+    const matches = projects
+      .map((project) => ({
+        project,
+        score: scoreProjectMatch(project.name, q),
+      }))
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((item) => ({ kind: "project", project: item.project }) as const);
+
+    if (matches.length === 0) {
+      return [{ kind: "create", name: q }];
+    }
+    return matches;
+  }, [inputValue, projects, selectedProject]);
+
   React.useEffect(() => {
-    const iv = setInterval(() => { setTimeOfDay(getTimeOfDay()); setDateStr(getDateString()); }, 60_000);
-    return () => clearInterval(iv);
-  }, []);
+    setActiveOptionIndex(0);
+  }, [projectOptions.length]);
 
-  // ── Debounced AI match ─────────────────────────────────────────────────────
   React.useEffect(() => {
-    if (!query.trim()) { setSuggestion(null); return; }
-    const t = setTimeout(() => setSuggestion(matchQuery(query, projects)), 500);
-    return () => clearTimeout(t);
-  }, [query, projects]);
+    if (!taskConfirmation) return;
+    const timeout = window.setTimeout(() => {
+      setTaskConfirmation(null);
+      setSelectedProject(null);
+      setInputValue("");
+    }, 1500);
+    return () => window.clearTimeout(timeout);
+  }, [taskConfirmation]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  const showDropdown =
+    !selectedProject && isFocused && inputValue.trim().length > 0;
 
-  function commit() {
-    if (suggestion) {
-      if (suggestion.isNew) { openNewProject(); }
-      else { router.push(suggestion.href); }
-      setQuery("");
-      setSuggestion(null);
-    } else if (query.trim()) {
-      saveCapture(query.trim());
-      setToast("Saved to Quick Captures");
-      setQuery("");
+  function selectOption(option: ProjectDropdownOption) {
+    if (option.kind === "create") {
+      openNewProject();
+      return;
+    }
+    setSelectedProject(option.project);
+    setInputValue("");
+  }
+
+  function submitTask() {
+    if (!selectedProject) return;
+    const text = inputValue.trim();
+    if (!text) return;
+    saveTask({
+      id: crypto.randomUUID(),
+      text,
+      projectId: selectedProject.id,
+      createdAt: new Date().toISOString(),
+      completed: false,
+    });
+    setTaskConfirmation(`Added to ${selectedProject.name}`);
+  }
+
+  function resetToProjectSearch() {
+    setSelectedProject(null);
+    setInputValue("");
+    setTaskConfirmation(null);
+  }
+
+  function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (selectedProject) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitTask();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        resetToProjectSearch();
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (projectOptions.length === 0) return;
+      setActiveOptionIndex((prev) => (prev + 1) % projectOptions.length);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (projectOptions.length === 0) return;
+      setActiveOptionIndex(
+        (prev) => (prev - 1 + projectOptions.length) % projectOptions.length
+      );
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (projectOptions.length > 0) {
+        selectOption(projectOptions[activeOptionIndex]);
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setInputValue("");
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") return;
-    if (e.key === "Enter") { e.preventDefault(); commit(); return; }
-    if (e.key === "Escape") { setSuggestion(null); setQuery(""); }
-  }
-
-  const visibleProjects = projects.slice(0, 5);
+  const recentProjects = projects.slice(0, 4);
 
   return (
     <div
-      className="relative flex flex-col items-center justify-start pt-[14vh] min-h-screen px-10 pb-16"
+      className="relative min-h-screen px-8 pb-20 pt-[13vh]"
       style={{
         backgroundImage:
           "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
@@ -471,206 +478,183 @@ export function HomeClient() {
     >
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 pointer-events-none z-0"
+        className="pointer-events-none fixed inset-0 z-0"
         aria-hidden
       />
 
-      <div className="relative z-10 w-full max-w-[580px]">
-
-        {/* ── Studio OS label ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <span className="text-[8px] text-section-dot">■</span>
-          <span className="text-[10px] text-section-label uppercase tracking-[0.25em] font-mono">
-            Studio OS
-          </span>
-        </div>
-
-        {/* ── Greeting ────────────────────────────────────────────────────── */}
-        <div className="text-center mb-9">
-          <h1 className="text-[48px] font-semibold text-text-primary tracking-tight leading-tight">
-            Good {timeOfDay}, {USER_NAME}
-          </h1>
-          <p className="text-[13px] text-text-tertiary mt-1.5 font-mono">{dateStr}</p>
-        </div>
-
-        {/* ── Chat input box ───────────────────────────────────────────────── */}
-        <div className="w-full mx-auto mb-3">
-          <div
-            className={cn(
-              "border overflow-hidden bg-bg-input",
-              "transition-[border-color] duration-150",
-              isFocused
-                ? "border-solid border-border-hover"
-                : "border-dashed border-border-subtle"
-            )}
-          >
-            {/* Input row */}
-            <div className="px-4 pt-[14px] pb-3 flex items-center gap-3">
-              <AiSparkIcon className="w-[15px] h-[15px] text-text-muted shrink-0" bare />
-              <input
-                type="text"
-                placeholder="What are you building today?"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-placeholder outline-none"
-              />
-            </div>
-
-            {/* Bottom toolbar */}
-            <div className="flex items-center justify-between px-3 pt-1 pb-3 border-t border-border-subtle">
-              <div className="flex items-center gap-0.5">
-                {/* + new project */}
-                <button
-                  type="button"
-                  onClick={() => openNewProject()}
-                  title="New project"
-                  className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-text-tertiary hover:bg-bg-tertiary transition-colors duration-150"
-                >
-                  <PlusIcon className="w-3.5 h-3.5" />
-                </button>
-                {/* ⌘K */}
-                <button
-                  type="button"
-                  onClick={openCommandPalette}
-                  title="Search (⌘K)"
-                  className="h-7 px-2 flex items-center text-text-muted hover:text-text-tertiary hover:bg-bg-tertiary transition-colors duration-150"
-                >
-                  <span className="text-[10px] font-mono tracking-tight">⌘K</span>
-                </button>
-              </div>
-
-              {/* Submit */}
-              <button
-                type="button"
-                onClick={commit}
-                disabled={!query.trim()}
-                title="Submit (↵)"
-                className={cn(
-                  "w-7 h-7 flex items-center justify-center text-xs font-medium",
-                  "transition-[background-color,opacity] duration-150",
-                  query.trim()
-                    ? "bg-button-primary-bg text-button-primary-text"
-                    : "bg-bg-tertiary text-text-muted cursor-not-allowed"
-                )}
-              >
-                ↑
-              </button>
-            </div>
+      <div className="relative z-10 mx-auto w-full max-w-[980px]">
+        <section className="mb-14">
+          <div className="mb-8 text-center text-3xl sm:text-4xl font-semibold text-[var(--text-primary)]">
+            Good {timeOfDay}, Nick
           </div>
-        </div>
-
-        {/* ── Suggestion chip ──────────────────────────────────────────────── */}
-        <AnimatePresence>
-          {suggestion && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 2 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="mb-4"
-            >
-              <div className="border border-[#1a1a1a] px-4 py-3 flex items-center justify-between gap-4 bg-card-bg">
-                <div className="flex items-center gap-3 min-w-0">
-                  {suggestion.project && (
-                    <span
-                      className="w-[6px] h-[6px] rounded-full shrink-0"
-                      style={{ backgroundColor: suggestion.project.color }}
-                    />
-                  )}
-                  <span className="text-sm text-text-secondary truncate">{suggestion.label}</span>
-                  <span className="text-sm text-text-muted shrink-0 font-mono">{suggestion.action}</span>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
+          <SectionLabel>Command Bar</SectionLabel>
+          <div className="relative mt-3">
+            <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-none transition-all duration-200 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
+              <div className="flex items-center gap-2 px-3 py-2">
+                {selectedProject ? (
                   <button
                     type="button"
-                    onClick={commit}
-                    className="text-[11px] bg-button-primary-bg text-button-primary-text px-3 py-1 font-medium hover:opacity-90 transition-opacity duration-150"
+                    onClick={resetToProjectSearch}
+                    className="inline-flex items-center gap-1 border border-[var(--border-primary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded-none"
                   >
-                    {suggestion.isNew ? "Create" : "Open"}
+                    <span aria-hidden>×</span>
+                    <span>{selectedProject.name}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setSuggestion(null)}
-                    className="text-[11px] text-text-muted hover:text-text-secondary transition-colors duration-150 font-mono"
-                  >
-                    skip
-                  </button>
-                </div>
+                ) : null}
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(event) => setInputValue(event.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => {
+                    window.setTimeout(() => setIsFocused(false), 100);
+                  }}
+                  placeholder={
+                    selectedProject
+                      ? `Add a task to ${selectedProject.name}...`
+                      : "What are you working on today?"
+                  }
+                  className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none"
+                />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
 
-        {/* ── Dot separator ────────────────────────────────────────────────── */}
+            {showDropdown ? (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-none">
+                {projectOptions.map((option, index) => (
+                  <ProjectSearchRow
+                    key={
+                      option.kind === "project"
+                        ? option.project.id
+                        : `create-${option.name}`
+                    }
+                    option={option}
+                    active={index === activeOptionIndex}
+                    onMouseDown={() => selectOption(option)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+          {taskConfirmation ? (
+            <p className="mt-2 text-[11px] font-mono text-[var(--text-secondary)]">
+              ✓ {taskConfirmation}
+            </p>
+          ) : null}
+        </section>
+
         <DotSeparator />
 
-        {/* ── Recent Projects ──────────────────────────────────────────────── */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <Label>Recent Projects</Label>
+        <section className="my-14">
+          <div className="mb-5 flex items-center justify-between">
+            <SectionLabel>Recent Projects</SectionLabel>
             <Link
               href="/projects"
-              className="text-[10px] text-text-muted hover:text-text-tertiary transition-colors duration-150 font-mono uppercase tracking-wider"
+              className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-150 ease-out hover:text-[var(--text-primary)]"
             >
-              All →
+              View all
             </Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1">
-            {visibleProjects.map((p) => (
-              <ProjectCard
-                key={p.id}
-                project={p}
-                onClick={() => router.push(`/projects/${p.id}`)}
-              />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {recentProjects.map((project) => (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() => router.push(`/projects/${project.id}`)}
+                className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-all duration-200 ease-out hover:border-[var(--text-tertiary)] hover:shadow-[var(--shadow-md)] hover:-translate-y-[1px] rounded-none"
+              >
+                <div className="relative h-36 w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={project.leadImage}
+                    alt={project.name}
+                    onLoad={(e) => {
+                      e.currentTarget.classList.add("opacity-100");
+                      e.currentTarget.parentElement?.classList.remove("animate-pulse");
+                    }}
+                    className="h-full w-full object-cover opacity-0 transition-all duration-500 ease-out group-hover:scale-[1.02]"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="space-y-2 px-3 py-3">
+                  <div className="text-sm font-medium text-[var(--text-primary)]">
+                    {project.name}
+                  </div>
+                  <span
+                    className={`inline-flex border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] rounded-none ${getPhaseBadgeClass(
+                      project.phase
+                    )}`}
+                  >
+                    {project.phase}
+                  </span>
+                </div>
+              </button>
             ))}
-            <NewProjectCard onOpen={openNewProject} />
           </div>
         </section>
 
-        {/* ── Dot separator ────────────────────────────────────────────────── */}
         <DotSeparator />
 
-        {/* ── Recently Saved ───────────────────────────────────────────────── */}
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <Label>Recently Saved</Label>
-            <Link
-              href="/vision"
-              className="text-[10px] text-text-muted hover:text-text-tertiary transition-colors duration-150 font-mono uppercase tracking-wider"
-            >
-              Vision →
-            </Link>
+        <section className="mt-14">
+          <SectionLabel>Daily Inspiration</SectionLabel>
+          <div className="mt-4">
+            {inspirationLoading ? (
+              <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+                {Array.from({ length: 12 }).map((_, index) => (
+                  <div
+                    key={`skeleton-${index}`}
+                    className="mb-4 h-48 w-full border border-[var(--border-primary)] bg-[var(--bg-tertiary)] rounded-none"
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {!inspirationLoading && inspirationError ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                {inspirationError}
+              </p>
+            ) : null}
+
+            {!inspirationLoading && !inspirationError ? (
+              <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+                {inspiration.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="group relative mb-4 overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-tertiary)] animate-pulse rounded-none"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.thumbnailUrl || item.imageUrl}
+                      alt={item.title ?? ""}
+                      onLoad={(e) => {
+                        e.currentTarget.classList.add("opacity-100");
+                        e.currentTarget.parentElement?.classList.remove("animate-pulse");
+                      }}
+                      className="h-auto w-full object-cover opacity-0 transition-opacity duration-500 ease-out"
+                      style={{ transitionDelay: `${index * 60}ms` }}
+                      loading="lazy"
+                    />
+                    <div className="pointer-events-none absolute inset-0 flex items-end bg-black/0 p-3 opacity-0 transition-[opacity,background-color] duration-200 ease-out group-hover:bg-black/20 group-hover:opacity-100">
+                      <div className="w-full">
+                        <p className="truncate text-xs text-[var(--text-primary)]">
+                          {item.title || "Lummi reference"}
+                        </p>
+                        <button
+                          type="button"
+                          className="pointer-events-auto mt-2 border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-primary)] rounded-none"
+                        >
+                          Save to project
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
-          {recentRefs.length === 0 ? (
-            <p className="text-[11px] text-text-muted font-mono py-1">
-              · · · save your first reference from Vision or Pinterest · · ·
-            </p>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-              {recentRefs.map((r) => (
-                <RefThumbnail key={r.id} item={r} onClick={() => router.push("/vision")} />
-              ))}
-            </div>
-          )}
         </section>
-
-        {/* ── Quote ────────────────────────────────────────────────────────── */}
-        <DotSeparator />
-        <p className="font-mono text-sm italic text-quote text-center pb-4">
-          &ldquo;{quote}&rdquo;
-        </p>
-
       </div>
-
-      {/* ── Toast ─────────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {toast && <Toast key="toast" message={toast} onDone={() => setToast(null)} />}
-      </AnimatePresence>
     </div>
   );
 }

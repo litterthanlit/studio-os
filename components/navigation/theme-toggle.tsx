@@ -12,6 +12,15 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
 
+  // Keep DOM in sync with next-themes (guards against anything reverting data-theme)
+  React.useEffect(() => {
+    if (!mounted || typeof document === "undefined" || !resolvedTheme) return;
+    const current = document.documentElement.getAttribute("data-theme");
+    if (current !== resolvedTheme) {
+      document.documentElement.setAttribute("data-theme", resolvedTheme);
+    }
+  }, [mounted, resolvedTheme]);
+
   if (!mounted) {
     return (
       <div className="flex items-center gap-3 h-9 px-3 w-full text-text-tertiary">
@@ -23,10 +32,19 @@ export function ThemeToggle() {
 
   const isDark = resolvedTheme === "dark";
 
+  const handleToggle = () => {
+    const next = isDark ? "light" : "dark";
+    setTheme(next);
+    // Apply theme to DOM immediately so UI updates before next-themes' effect runs
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", next);
+    }
+  };
+
   return (
     <button
       type="button"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={handleToggle}
       className="flex items-center gap-3 h-9 px-3 w-full text-text-tertiary hover:text-text-primary hover:bg-sidebar-hover transition-colors duration-150"
     >
       {isDark ? (

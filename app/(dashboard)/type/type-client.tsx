@@ -1,246 +1,309 @@
 "use client";
 
 import * as React from "react";
-import {
-  Inter,
-  Space_Grotesk,
-  Playfair_Display,
-  IBM_Plex_Mono,
-  Sora,
-  Fraunces,
-  JetBrains_Mono,
-  Cabin,
-} from "next/font/google";
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
+import type { UnifiedFont, FontCategory, FontSource } from "@/lib/fonts/types";
+import { fontshareFonts } from "@/lib/fonts/fontshare-catalog";
+import {
+  ensureFontLoaded,
+  getFontCssFamily,
+} from "@/lib/fonts/load-font";
 
-const interFont = Inter({ subsets: ["latin"], weight: ["400", "700"] });
-const spaceGroteskFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-const playfairFont = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-const plexMonoFont = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-const soraFont = Sora({ subsets: ["latin"], weight: ["400", "700"] });
-const frauncesFont = Fraunces({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-const jetbrainsMonoFont = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-const cabinetGroteskFont = Cabin({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-type Classification = "Sans Serif" | "Serif" | "Mono" | "Display";
-
-type FontEntry = {
-  id: string;
-  name: string;
-  classification: Classification;
-  foundry: string;
-  usageCount: number;
-  rating: number;
-  fontClassName: string;
-  weights: string[];
-};
-
-const FONTS: FontEntry[] = [
-  {
-    id: "inter",
-    name: "Inter",
-    classification: "Sans Serif",
-    foundry: "Google Fonts",
-    usageCount: 4,
-    rating: 5,
-    fontClassName: interFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "space-grotesk",
-    name: "Space Grotesk",
-    classification: "Sans Serif",
-    foundry: "Google Fonts",
-    usageCount: 2,
-    rating: 4,
-    fontClassName: spaceGroteskFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "playfair-display",
-    name: "Playfair Display",
-    classification: "Serif",
-    foundry: "Google Fonts",
-    usageCount: 3,
-    rating: 5,
-    fontClassName: playfairFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "ibm-plex-mono",
-    name: "IBM Plex Mono",
-    classification: "Mono",
-    foundry: "Google Fonts",
-    usageCount: 1,
-    rating: 4,
-    fontClassName: plexMonoFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "sora",
-    name: "Sora",
-    classification: "Sans Serif",
-    foundry: "Google Fonts",
-    usageCount: 2,
-    rating: 4,
-    fontClassName: soraFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "fraunces",
-    name: "Fraunces",
-    classification: "Serif",
-    foundry: "Google Fonts",
-    usageCount: 1,
-    rating: 3,
-    fontClassName: frauncesFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "jetbrains-mono",
-    name: "JetBrains Mono",
-    classification: "Mono",
-    foundry: "Google Fonts",
-    usageCount: 2,
-    rating: 5,
-    fontClassName: jetbrainsMonoFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
-  {
-    id: "cabinet-grotesk",
-    name: "Cabinet Grotesk",
-    classification: "Display",
-    foundry: "Approx. via Cabin (Google Fonts)",
-    usageCount: 1,
-    rating: 4,
-    fontClassName: cabinetGroteskFont.className,
-    weights: ["400", "500", "600", "700"],
-  },
+const CATEGORY_TABS: (FontCategory | "all")[] = [
+  "all",
+  "sans-serif",
+  "serif",
+  "monospace",
+  "display",
+  "handwriting",
 ];
 
-const CLASS_TABS: (Classification | "All")[] = [
-  "All",
-  "Sans Serif",
-  "Serif",
-  "Mono",
-  "Display",
-];
+const SOURCE_TABS: (FontSource | "all")[] = ["all", "google", "fontshare"];
 
-const SIZE_SCALE = [12, 14, 16, 18, 24, 32, 48, 72];
+const SORT_OPTIONS = ["popularity", "name-asc", "name-desc"] as const;
+const SIZE_SCALE = [12, 14, 16, 20, 24, 32, 48, 72];
 
-const PAIRINGS: Record<
-  string,
-  { bodyId: string; note: string }[]
-> = {
-  Inter: [
-    {
-      bodyId: "sora",
-      note: "High contrast between headings and body with complementary x-heights.",
-    },
-    {
-      bodyId: "ibm-plex-mono",
-      note: "Technical body copy under clean product headings.",
-    },
-    {
-      bodyId: "jetbrains-mono",
-      note: "Strong editorial feel for decks and interface specs.",
-    },
-  ],
-  "Playfair Display": [
-    {
-      bodyId: "inter",
-      note: "Classic editorial pairing for product stories.",
-    },
-    {
-      bodyId: "sora",
-      note: "Softened grotesk body under high-contrast serifs.",
-    },
-    {
-      bodyId: "space-grotesk",
-      note: "More characterful body copy for narrative-heavy work.",
-    },
-  ],
-  "Space Grotesk": [
-    {
-      bodyId: "inter",
-      note: "Neutral body tone balancing expressive headings.",
-    },
-    {
-      bodyId: "sora",
-      note: "Future-facing pairing for product marketing.",
-    },
-    {
-      bodyId: "jetbrains-mono",
-      note: "Functional, system-like body for docs and specs.",
-    },
-  ],
-};
+const PREVIEW_SAMPLE = "The quick brown fox jumps over the lazy dog.";
+const SPECIMEN_ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const SPECIMEN_abc = "abcdefghijklmnopqrstuvwxyz";
+const SPECIMEN_NUMS = "0123456789 !@#$%^&*()";
 
-function getFontById(id: string): FontEntry | undefined {
-  return FONTS.find((font) => font.id === id);
+const INITIAL_VISIBLE = 24;
+const LOAD_MORE_COUNT = 24;
+
+function FontCard({
+  font,
+  onSelect,
+}: {
+  font: UnifiedFont;
+  onSelect: () => void;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) setIsVisible(true);
+      },
+      { rootMargin: "100px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => {
+    if (!isVisible) return;
+    ensureFontLoaded(font);
+  }, [isVisible, font]);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelect();
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        "flex flex-col border border-[#1a1a1a] bg-card-bg p-5 text-left cursor-pointer",
+        "transition-[border-color] duration-200 ease-out hover:border-[#252525]"
+      )}
+    >
+      <div
+        className="mb-3 text-2xl text-text-primary leading-snug"
+        style={{ fontFamily: getFontCssFamily(font) }}
+      >
+        {PREVIEW_SAMPLE}
+      </div>
+      <div className="text-sm font-medium text-text-primary">{font.family}</div>
+      <div className="text-[11px] font-mono text-text-tertiary mt-0.5">
+        {font.source === "fontshare" ? "Fontshare" : "Google"} ·{" "}
+        {font.category} · {font.variants.length} weight
+        {font.variants.length !== 1 ? "s" : ""}
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <span className="text-[11px] text-text-tertiary">Add to Project ▾</span>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="text-text-tertiary hover:text-text-secondary transition-colors"
+          aria-label="Bookmark"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FontDetailPanel({
+  font,
+  onClose,
+}: {
+  font: UnifiedFont;
+  onClose: () => void;
+}) {
+  const [previewText, setPreviewText] = React.useState("Type anything here...");
+  const [previewSize, setPreviewSize] = React.useState(24);
+
+  React.useEffect(() => {
+    ensureFontLoaded(font);
+  }, [font]);
+
+  const fontStyle = { fontFamily: getFontCssFamily(font) };
+
+  return (
+    <>
+      <motion.div
+        className="fixed inset-0 z-40 bg-black/40"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        onClick={onClose}
+      />
+      <motion.aside
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-[#1a1a1a] bg-bg-secondary p-6"
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+      >
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-text-primary" style={fontStyle}>
+              {font.family}
+            </h2>
+            <div className="text-[11px] font-mono text-text-tertiary mt-0.5">
+              {font.source === "fontshare" ? "Fontshare" : "Google"} · {font.category}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-text-tertiary hover:text-text-primary text-xl leading-none"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <SectionLabel className="mb-3">Specimen</SectionLabel>
+            <div
+              className="border border-[#1a1a1a] bg-card-bg p-4 space-y-2"
+              style={fontStyle}
+            >
+              <div className="text-lg">{SPECIMEN_ABC}</div>
+              <div className="text-sm text-text-tertiary">{SPECIMEN_abc}</div>
+              <div className="text-sm text-text-tertiary">{SPECIMEN_NUMS}</div>
+            </div>
+          </div>
+
+          <div>
+            <SectionLabel className="mb-3">Weights</SectionLabel>
+            <div className="space-y-2">
+              {font.variants.map((v) => (
+                <div key={v} className="text-sm text-text-secondary" style={fontStyle}>
+                  <span className="text-text-tertiary font-mono text-[11px]">{v}</span> — {PREVIEW_SAMPLE}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <SectionLabel className="mb-3">Preview</SectionLabel>
+            <input
+              type="text"
+              value={previewText}
+              onChange={(e) => setPreviewText(e.target.value)}
+              placeholder="Type anything here..."
+              className="w-full border border-[#1a1a1a] bg-card-bg px-3 py-2 text-text-primary placeholder:text-text-tertiary outline-none focus:border-[#252525] mb-4"
+              style={{ ...fontStyle, fontSize: previewSize }}
+            />
+            <div className="flex flex-wrap gap-2">
+              {SIZE_SCALE.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setPreviewSize(size)}
+                  className={cn(
+                    "px-2 py-1 text-[11px] font-mono border transition-colors",
+                    previewSize === size
+                      ? "border-text-primary text-text-primary bg-[#1a1a1a]"
+                      : "border-[#1a1a1a] text-text-tertiary hover:text-text-secondary"
+                  )}
+                >
+                  {size}px
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-[#1a1a1a]">
+            <button
+              type="button"
+              className="border border-border-subtle px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-text-primary hover:border-border-hover transition-colors"
+            >
+              Add to Project ▾
+            </button>
+          </div>
+        </div>
+      </motion.aside>
+    </>
+  );
 }
 
 export function TypeLibraryPage() {
   const [query, setQuery] = React.useState("");
-  const [activeClass, setActiveClass] =
-    React.useState<(typeof CLASS_TABS)[number]>("All");
-  const [selectedFontId, setSelectedFontId] = React.useState<string | null>(
-    null
-  );
-  const [notesByFont, setNotesByFont] = React.useState<Record<string, string>>(
-    {}
-  );
+  const [activeCategory, setActiveCategory] = React.useState<(typeof CATEGORY_TABS)[number]>("all");
+  const [activeSource, setActiveSource] = React.useState<(typeof SOURCE_TABS)[number]>("all");
+  const [sort, setSort] = React.useState<(typeof SORT_OPTIONS)[number]>("popularity");
+  const [selectedFont, setSelectedFont] = React.useState<UnifiedFont | null>(null);
+  const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE);
+  const [googleFonts, setGoogleFonts] = React.useState<UnifiedFont[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
-  const [selectedHeading, setSelectedHeading] =
-    React.useState<string>("Inter");
+  React.useEffect(() => {
+    fetch("/api/fonts/google?sort=popularity")
+      .then((r) => r.json())
+      .then((data) => {
+        setGoogleFonts(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setGoogleFonts([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const allFonts = React.useMemo(() => {
+    const withPopularity = fontshareFonts.map((f) => ({ ...f, popularity: 0 }));
+    googleFonts.forEach((f) => {
+      if (!withPopularity.some((x) => x.family === f.family && x.source === f.source)) {
+        withPopularity.push({ ...f, popularity: f.popularity ?? 9999 });
+      }
+    });
+    if (sort === "popularity") {
+      withPopularity.sort((a, b) => (a.popularity ?? 9999) - (b.popularity ?? 9999));
+    } else if (sort === "name-asc") {
+      withPopularity.sort((a, b) => a.family.localeCompare(b.family));
+    } else if (sort === "name-desc") {
+      withPopularity.sort((a, b) => b.family.localeCompare(a.family));
+    }
+    return withPopularity;
+  }, [googleFonts, sort]);
 
   const filteredFonts = React.useMemo(() => {
-    return FONTS.filter((font) => {
-      if (activeClass !== "All" && font.classification !== activeClass) {
-        return false;
+    return allFonts.filter((font) => {
+      if (activeCategory !== "all" && font.category !== activeCategory) return false;
+      if (activeSource !== "all" && font.source !== activeSource) return false;
+      if (query.trim()) {
+        const q = query.toLowerCase();
+        if (!font.family.toLowerCase().includes(q)) return false;
       }
-      if (!query.trim()) return true;
-      const q = query.toLowerCase();
-      return (
-        font.name.toLowerCase().includes(q) ||
-        font.foundry.toLowerCase().includes(q) ||
-        font.classification.toLowerCase().includes(q)
-      );
+      return true;
     });
-  }, [activeClass, query]);
+  }, [allFonts, activeCategory, activeSource, query]);
 
-  const selectedFont = selectedFontId
-    ? FONTS.find((font) => font.id === selectedFontId) ?? null
-    : null;
+  const visibleFonts = filteredFonts.slice(0, visibleCount);
+  const hasMore = visibleFonts.length < filteredFonts.length;
 
-  function handleOpenDetail(id: string) {
-    setSelectedFontId(id);
-  }
+  React.useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + LOAD_MORE_COUNT, filteredFonts.length));
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleFonts.length, filteredFonts.length]);
 
-  function handleCloseDetail() {
-    setSelectedFontId(null);
-  }
+  React.useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [activeCategory, activeSource, query, sort]);
+
+  const categoryLabel = (c: string) =>
+    c === "all" ? "All" : c.charAt(0).toUpperCase() + c.slice(1).replace(/-/g, " ");
+  const sourceLabel = (s: string) =>
+    s === "all" ? "All Sources" : s === "fontshare" ? "Fontshare" : "Google";
 
   return (
     <section className="space-y-6">
@@ -252,320 +315,103 @@ export function TypeLibraryPage() {
             Type Library
           </h2>
           <p className="text-sm text-text-secondary">
-            Define the typographic spine of your studio — systems, scales, and
-            pairings that stay consistent across products and decks.
+            Browse 1500+ fonts from Google Fonts and Fontshare — search, filter, and add to your
+            project.
           </p>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search fonts... try 'mono', 'display', or 'editorial'"
-            className="h-12 text-sm"
+            placeholder="Search fonts..."
+            className="h-12 flex-1 max-w-sm"
           />
+          <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
+            <span className="font-mono uppercase tracking-wider">Sort</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as (typeof SORT_OPTIONS)[number])}
+              className="border border-[#1a1a1a] bg-card-bg px-2 py-1.5 text-text-primary outline-none focus:border-[#252525]"
+            >
+              <option value="popularity">Popularity</option>
+              <option value="name-asc">Name A–Z</option>
+              <option value="name-desc">Name Z–A</option>
+            </select>
+          </div>
+        </div>
 
-          {/* Underline tab indicator */}
-          <div className="flex items-center gap-0 overflow-x-auto pb-0 border-b border-border-subtle">
-            {CLASS_TABS.map((tab) => {
-              const active = activeClass === tab;
+        <div className="flex flex-wrap items-center gap-0 border-b border-border-subtle">
+          <div className="flex">
+            {CATEGORY_TABS.map((tab) => {
+              const active = activeCategory === tab;
               return (
                 <button
                   key={tab}
                   type="button"
-                  onClick={() => setActiveClass(tab)}
+                  onClick={() => setActiveCategory(tab)}
                   className={cn(
                     "px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
-                    "transition-colors duration-200 whitespace-nowrap",
-                    "border-b-2 -mb-px",
+                    "border-b-2 -mb-px transition-colors whitespace-nowrap",
                     active
                       ? "border-text-primary text-text-primary"
                       : "border-transparent text-text-tertiary hover:text-text-secondary"
                   )}
                 >
-                  {tab}
+                  {categoryLabel(tab)}
+                </button>
+              );
+            })}
+          </div>
+          <span className="mx-2 text-text-tertiary">│</span>
+          <div className="flex">
+            {SOURCE_TABS.map((tab) => {
+              const active = activeSource === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveSource(tab)}
+                  className={cn(
+                    "px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
+                    "border-b-2 -mb-px transition-colors whitespace-nowrap",
+                    active
+                      ? "border-text-primary text-text-primary"
+                      : "border-transparent text-text-tertiary hover:text-text-secondary"
+                  )}
+                >
+                  {sourceLabel(tab)}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {filteredFonts.map((font) => (
-            <button
-              key={font.id}
-              type="button"
-              onClick={() => handleOpenDetail(font.id)}
-              className={cn(
-                "flex flex-col border border-[#1a1a1a] bg-card-bg text-left",
-                "overflow-hidden transition-[border-color] duration-200 ease-out hover:border-[#252525]"
-              )}
-            >
-              <div className={cn("border-b border-[#151515] p-5", font.fontClassName)}>
-                <div className="mb-2 text-4xl leading-none text-text-primary">Aa</div>
-                <div className="text-sm font-bold text-text-primary">
-                  {font.name}
-                </div>
-                <div className="text-[11px] text-text-tertiary font-mono">{font.foundry}</div>
-              </div>
-
-              <div className={cn("border-b border-[#151515] p-5 text-sm", font.fontClassName)}>
-                <p className="text-text-secondary">
-                  The quick brown fox jumps over the lazy dog.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 p-5">
-                <span className="border border-card-border bg-black px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
-                  {font.classification}
-                </span>
-                <span className="text-[11px] text-text-tertiary font-mono">
-                  {font.usageCount} project{font.usageCount === 1 ? "" : "s"}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-8 space-y-3 border-t border-[#151515] pt-6">
-          <SectionLabel>Font Pairings</SectionLabel>
-
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-text-secondary">
-              Curate heading/body pairs that feel like your studio.
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
-                Heading font
-              </span>
-              <select
-                value={selectedHeading}
-                onChange={(e) => setSelectedHeading(e.target.value)}
-                className="h-8 border border-card-border bg-card-bg px-2 text-xs uppercase tracking-[0.15em] text-white outline-none transition-[border-color] duration-200 ease-out focus:border-border-hover"
-              >
-                {["Inter", "Playfair Display", "Space Grotesk"].map(
-                  (name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+        {loading ? (
+          <div className="py-16 text-center text-text-tertiary text-sm">Loading fonts…</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleFonts.map((font) => (
+              <FontCard
+                key={`${font.source}-${font.family}`}
+                font={font}
+                onSelect={() => setSelectedFont(font)}
+              />
+            ))}
           </div>
+        )}
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {(PAIRINGS[selectedHeading] ?? []).map((pair) => {
-              const headingFont = FONTS.find(
-                (font) => font.name === selectedHeading
-              );
-              const bodyFont = getFontById(pair.bodyId);
-              if (!headingFont || !bodyFont) return null;
-
-              return (
-                <div
-                  key={`${selectedHeading}-${pair.bodyId}`}
-                  className="flex flex-col border border-[#1a1a1a] bg-card-bg p-4 transition-colors duration-200 hover:border-[#252525]"
-                >
-                  <div className="mb-2 space-y-1">
-                    <div
-                      className={cn(
-                        "text-xs font-medium uppercase tracking-[0.15em] text-gray-400"
-                      )}
-                    >
-                      Heading / Body
-                    </div>
-                    <div
-                      className={cn(
-                        "text-sm text-white",
-                        headingFont.fontClassName
-                      )}
-                    >
-                      {headingFont.name}
-                    </div>
-                    <div
-                      className={cn(
-                        "text-xs text-gray-400",
-                        bodyFont.fontClassName
-                      )}
-                    >
-                      {bodyFont.name}
-                    </div>
-                  </div>
-                  <div className="mb-2 space-y-1">
-                    <div
-                      className={cn(
-                        "text-xs text-gray-500",
-                        headingFont.fontClassName
-                      )}
-                    >
-                      Product launch headline setting the tone.
-                    </div>
-                    <div
-                      className={cn(
-                        "text-xs text-gray-400",
-                        bodyFont.fontClassName
-                      )}
-                    >
-                      Supporting body copy carrying the story without
-                      overpowering the hero.
-                    </div>
-                  </div>
-                  <div className="mt-auto text-[11px] text-gray-400">
-                    {pair.note}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {hasMore && <div ref={loadMoreRef} className="h-8" />}
       </div>
 
       <AnimatePresence>
         {selectedFont && (
-          <>
-            <motion.div
-              className="fixed inset-0 z-40 bg-black/40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              onClick={handleCloseDetail}
-            />
-            <motion.aside
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-hidden border-l border-[#1a1a1a] bg-bg-secondary p-4"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <div className="space-y-1">
-                  <SectionLabel>Specimen</SectionLabel>
-                  <div
-                    className={cn(
-                      "text-lg font-bold text-text-primary",
-                      selectedFont.fontClassName
-                    )}
-                  >
-                    {selectedFont.name}
-                  </div>
-                  <div className="text-[11px] text-gray-400">
-                    {selectedFont.foundry}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCloseDetail}
-                  className="text-xs uppercase tracking-[0.15em] text-text-tertiary transition-colors duration-200 hover:text-text-primary"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div
-                className={cn(
-                  "mb-4 border border-[#1a1a1a] bg-card-bg p-3",
-                  selectedFont.fontClassName
-                )}
-              >
-                <div className="mb-2 text-4xl leading-none">Aa</div>
-                <div className="text-xs text-gray-400">
-                  ABCDEFGHIJKLMNOPQRSTUVWXYZ
-                  <br />
-                  abcdefghijklmnopqrstuvwxyz
-                </div>
-              </div>
-
-              <div className="mb-4 space-y-2">
-                <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
-                  Weights
-                </div>
-                <div className="space-y-1">
-                  {selectedFont.weights.map((weight) => (
-                    <div
-                      key={weight}
-                      className={cn(
-                        "text-sm text-gray-400",
-                        selectedFont.fontClassName
-                      )}
-                      style={{ fontWeight: Number(weight) }}
-                    >
-                      {selectedFont.name} {weight}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-4 space-y-2">
-                <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
-                  Size Scale
-                </div>
-                <div className="space-y-1">
-                  {SIZE_SCALE.map((size) => (
-                    <div
-                      key={size}
-                      className={cn(
-                        "text-gray-400",
-                        selectedFont.fontClassName
-                      )}
-                      style={{ fontSize: `${size}px` }}
-                    >
-                      {size}px — Studio OS type system in motion.
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-4 space-y-2">
-                <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
-                  Sample Paragraph
-                </div>
-                <p
-                  className={cn(
-                    "text-sm text-gray-400",
-                    selectedFont.fontClassName
-                  )}
-                >
-                  Designers don&apos;t need more inspiration; they need a spine.
-                  This type system gives every artifact — from decks to product
-                  UI — a consistent, quiet confidence.
-                </p>
-              </div>
-
-              <div className="mb-4 space-y-2">
-                <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
-                  Notes
-                </div>
-                <textarea
-                  value={notesByFont[selectedFont.id] ?? ""}
-                  onChange={(e) =>
-                    setNotesByFont((prev) => ({
-                      ...prev,
-                      [selectedFont.id]: e.target.value,
-                    }))
-                  }
-                  placeholder="Where does this font belong in the studio? Document decisions, constraints, and examples."
-                  className="h-20 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-white outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
-                />
-              </div>
-
-              <div className="mt-auto flex items-center justify-between gap-3 border-t border-[#151515] pt-3 text-xs">
-                <div className="text-[11px] text-text-muted font-mono">
-                  Tag this face with use cases once you know where it wins.
-                </div>
-                <button
-                  type="button"
-                  className="border border-border-subtle bg-black px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-white transition-[border-color] duration-200 ease-out hover:border-border-subtle"
-                >
-                  Add to Project
-                </button>
-              </div>
-            </motion.aside>
-          </>
+          <FontDetailPanel
+            font={selectedFont}
+            onClose={() => setSelectedFont(null)}
+          />
         )}
       </AnimatePresence>
     </section>
   );
 }
-

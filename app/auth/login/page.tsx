@@ -103,7 +103,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-text-primary">
+                <h1 className="text-[22px] font-medium tracking-[-0.02em] text-text-primary">
                   Check your inbox
                 </h1>
                 <p className="text-[13px] text-text-tertiary">
@@ -132,7 +132,7 @@ export default function LoginPage() {
               className="space-y-10"
             >
               <div className="space-y-2">
-                <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.02em] text-text-primary">
+                <h1 className="text-[26px] font-medium leading-tight tracking-[-0.02em] text-text-primary">
                   Sign in to<br />Studio OS
                 </h1>
                 <p className="text-[13px] text-text-tertiary">

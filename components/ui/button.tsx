@@ -13,13 +13,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       "inline-flex items-center justify-center h-10 px-4 text-sm font-medium " +
       "border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent " +
       "disabled:cursor-not-allowed disabled:opacity-50 " +
-      "transition-[background-color,border-color,color] duration-200 ease-out";
+      "transition-all duration-200 ease-out";
 
     const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
       default:
-        "bg-button-primary-bg text-button-primary-text border-button-primary-bg hover:opacity-90",
+        "bg-button-primary-bg text-button-primary-text border-button-primary-bg hover:opacity-90 hover:shadow-[var(--shadow-sm)]",
       secondary:
-        "bg-transparent text-text-primary border-border-primary hover:border-border-hover",
+        "bg-transparent text-text-primary border-border-primary hover:border-border-hover hover:shadow-[var(--shadow-xs)]",
       ghost:
         "bg-transparent text-text-tertiary border-transparent hover:text-text-primary",
       danger:

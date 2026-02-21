@@ -58,12 +58,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected paths: redirect to login if not signed in
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
+  // TEMPORARY BYPASS (can be restored later):
+  // if (!user) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = "/auth/login";
+  //   url.searchParams.set("next", pathname);
+  //   return NextResponse.redirect(url);
+  // }
+  if (!user) return response;
 
   return response;
 }

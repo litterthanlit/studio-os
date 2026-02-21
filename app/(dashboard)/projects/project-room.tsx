@@ -3,53 +3,44 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ColorPicker } from "@/components/color-picker";
+import { DotSeparator } from "@/components/ui/dot-separator";
 import type { Project } from "./projects-data";
 
 export type { Phase, Project } from "./projects-data";
 export { PROJECTS, PHASE_STYLES } from "./projects-data";
 
-// ─── Tab components ──────────────────────────────────────────────────────────
+// ─── Project room sections ───────────────────────────────────────────────────
 
-type TabId = "overview" | "board" | "type" | "palette" | "tasks";
-
-export function ProjectRoomTabs({ project }: { project: Project }) {
-  const [activeTab, setActiveTab] = React.useState<TabId>("overview");
-
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "board", label: "Board" },
-    { id: "type", label: "Type" },
-    { id: "palette", label: "Palette" },
-    { id: "tasks", label: "Tasks" },
-  ];
-
+export function ProjectRoomSections({ project }: { project: Project }) {
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2 border-b border-card-border pb-2">
-        {tabs.map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "px-3 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
-                "border-b-2 -mb-px border-transparent transition-colors duration-200",
-                active ? "border-text-primary text-text-primary" : "text-text-tertiary hover:text-text-secondary"
-              )}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+    <div className="space-y-8 pb-16">
+      <section id="board">
+        <BoardTab project={project} />
+      </section>
 
-      {activeTab === "overview" && <OverviewTab project={project} />}
-      {activeTab === "board" && <BoardTab project={project} />}
-      {activeTab === "type" && <TypeTab />}
-      {activeTab === "palette" && <PaletteTab project={project} />}
-      {activeTab === "tasks" && <TasksTab />}
+      <DotSeparator />
+
+      <section id="type">
+        <TypeTab />
+      </section>
+
+      <DotSeparator />
+
+      <section id="palette">
+        <PaletteTab project={project} />
+      </section>
+
+      <DotSeparator />
+
+      <section id="tasks">
+        <TasksTab projectId={project.id} />
+      </section>
+
+      <DotSeparator />
+
+      <section id="overview">
+        <OverviewTab project={project} />
+      </section>
     </div>
   );
 }
@@ -102,20 +93,60 @@ function OverviewTab({ project }: { project: Project }) {
   );
 }
 
+type StoredReference = { imageUrl: string; title: string; tags: string[] };
+
+function useProjectReferences(projectId: string): StoredReference[] {
+  const [refs, setRefs] = React.useState<StoredReference[]>([]);
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`studio-os:references:${projectId}`);
+      if (raw) setRefs(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, [projectId]);
+  return refs;
+}
+
 function BoardTab({ project }: { project: Project }) {
+  const refs = useProjectReferences(project.id);
+
   return (
     <div className="space-y-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
         Connected Moodboard
       </div>
-      <p className="text-xs text-gray-400">
-        This will mirror a filtered view of Vision scoped to this project&apos;s
-        references. For now, treat this as a conceptual placeholder.
-      </p>
-      <div className="border border-[#1a1a1a] bg-bg-secondary p-4 text-xs text-gray-500">
-        {project.references} references connected · future state: live Vision
-        subset with same masonry grid UX.
-      </div>
+
+      {refs.length > 0 ? (
+        <div className="columns-2 gap-2 lg:columns-3">
+          {refs.map((ref, i) => (
+            <div
+              key={`${ref.imageUrl}-${i}`}
+              className="group relative mb-2 overflow-hidden border border-card-border bg-card-bg"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ref.imageUrl}
+                alt={ref.title}
+                className="h-auto w-full object-cover"
+                loading="lazy"
+              />
+              <div className="pointer-events-none absolute inset-0 flex items-end bg-black/0 p-2 opacity-0 transition-[opacity,background-color] duration-200 group-hover:bg-black/40 group-hover:opacity-100">
+                <span className="truncate text-[10px] text-white">{ref.title}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-gray-400">
+            This will mirror a filtered view of Vision scoped to this project&apos;s
+            references. For now, treat this as a conceptual placeholder.
+          </p>
+          <div className="border border-[#1a1a1a] bg-bg-secondary p-4 text-xs text-gray-500">
+            {project.references} references connected · future state: live Vision
+            subset with same masonry grid UX.
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -306,31 +337,74 @@ function PaletteTab({ project }: { project: Project }) {
   );
 }
 
-function TasksTab() {
-  const [tasks, setTasks] = React.useState<
-    { id: string; text: string; done: boolean }[]
-  >([
-    { id: "t-1", text: "Define success criteria with client", done: false },
-    { id: "t-2", text: "First Vision pass for this room", done: false },
-    { id: "t-3", text: "Lock heading/body pairing", done: false },
-  ]);
+const TASKS_LS_KEY = "studio-os-tasks";
+
+type PersistedTask = {
+  id: string;
+  text: string;
+  projectId: string;
+  createdAt: string;
+  completed: boolean;
+};
+
+function readAllTasks(): PersistedTask[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(TASKS_LS_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeAllTasks(tasks: PersistedTask[]) {
+  localStorage.setItem(TASKS_LS_KEY, JSON.stringify(tasks));
+}
+
+function TasksTab({ projectId }: { projectId: string }) {
+  const [tasks, setTasks] = React.useState<PersistedTask[]>([]);
   const [draft, setDraft] = React.useState("");
 
+  // Load tasks for this project from localStorage on mount
+  React.useEffect(() => {
+    const all = readAllTasks();
+    const projectTasks = all.filter((t) => t.projectId === projectId);
+    // Seed default tasks if none exist for this project
+    if (projectTasks.length === 0) {
+      const defaults: PersistedTask[] = [
+        { id: `t-${projectId}-1`, text: "Define success criteria with client", projectId, createdAt: new Date().toISOString(), completed: false },
+        { id: `t-${projectId}-2`, text: "First Vision pass for this room",      projectId, createdAt: new Date().toISOString(), completed: false },
+        { id: `t-${projectId}-3`, text: "Lock heading/body pairing",             projectId, createdAt: new Date().toISOString(), completed: false },
+      ];
+      const updated = [...defaults, ...all];
+      writeAllTasks(updated);
+      setTasks(defaults);
+    } else {
+      setTasks(projectTasks);
+    }
+  }, [projectId]);
+
   function toggleTask(id: string) {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task
-      )
+    const all = readAllTasks();
+    const updated = all.map((t) =>
+      t.id === id ? { ...t, completed: !t.completed } : t
     );
+    writeAllTasks(updated);
+    setTasks(updated.filter((t) => t.projectId === projectId));
   }
 
   function addTask() {
     const text = draft.trim();
     if (!text) return;
-    setTasks((prev) => [
-      ...prev,
-      { id: `t-${Date.now()}`, text, done: false },
-    ]);
+    const newTask: PersistedTask = {
+      id: `t-${Date.now()}`,
+      text,
+      projectId,
+      createdAt: new Date().toISOString(),
+      completed: false,
+    };
+    const all = readAllTasks();
+    writeAllTasks([...all, newTask]);
+    setTasks((prev) => [...prev, newTask]);
     setDraft("");
   }
 
@@ -344,15 +418,15 @@ function TasksTab() {
         {tasks.map((task) => (
           <label
             key={task.id}
-            className="flex items-center gap-2 text-xs text-text-primary"
+            className="flex items-center gap-2 text-xs text-text-primary cursor-pointer"
           >
             <input
               type="checkbox"
-              checked={task.done}
+              checked={task.completed}
               onChange={() => toggleTask(task.id)}
               className="h-3 w-3 border border-gray-500 bg-transparent"
             />
-            <span className={cn(task.done && "line-through text-gray-400")}>
+            <span className={cn(task.completed && "line-through text-gray-400")}>
               {task.text}
             </span>
           </label>

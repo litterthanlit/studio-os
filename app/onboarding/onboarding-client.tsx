@@ -135,8 +135,12 @@ function StepWelcome({
       setSent(true);
       // Proceed to next step after a brief delay
       setTimeout(() => onNext(true), 1600);
-    } catch {
-      setError("Couldn't send link. Check your email or skip for now.");
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err
+        ? String((err as { message: unknown }).message)
+        : "Unknown error";
+      console.error("[auth] signInWithOtp failed:", err);
+      setError(`Couldn't send link. ${msg}`);
       setSending(false);
     }
   }
@@ -1080,10 +1084,19 @@ export function OnboardingClient() {
         color: projectColor,
         createdAt: new Date().toISOString(),
       };
-      if (!storedProjects.find((p: { id: string }) => p.id === projectId)) {
+        if (!storedProjects.find((p: { id: string }) => p.id === projectId)) {
         localStorage.setItem(
           "studio-os:projects",
           JSON.stringify([project, ...storedProjects])
+        );
+        window.dispatchEvent(new Event("projects-updated"));
+      }
+
+      // Save template references so the project room can display them
+      if (tpl && tpl.references.length > 0) {
+        localStorage.setItem(
+          `studio-os:references:${projectId}`,
+          JSON.stringify(tpl.references)
         );
       }
 

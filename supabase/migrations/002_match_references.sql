@@ -34,7 +34,7 @@ as $$
     r.style,
     r.content_type,
     1 - (r.embedding <=> query_embedding) as similarity
-  from   references r
+  from   "references" r
   where  r.user_id   = auth.uid()
     and  r.embedding is not null
     and  1 - (r.embedding <=> query_embedding) > match_threshold

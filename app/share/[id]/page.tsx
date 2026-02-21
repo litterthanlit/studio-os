@@ -109,7 +109,7 @@ export default async function SharePage({
         <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-text-tertiary">
           Moodboard
         </p>
-        <h1 className="mb-3 text-4xl font-semibold tracking-tight text-[#111111] md:text-5xl">
+        <h1 className="mb-3 text-4xl font-medium tracking-tight text-[#111111] md:text-5xl">
           {share.project_name}
         </h1>
         <p className="text-sm text-text-secondary">

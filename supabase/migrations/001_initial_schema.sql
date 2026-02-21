@@ -35,7 +35,7 @@ create table boards (
   created_at  timestamptz not null default now()
 );
 
-create table references (
+create table "references" (
   id              uuid        primary key default uuid_generate_v4(),
   user_id         uuid        not null references profiles(id) on delete cascade,
   project_id      uuid        references projects(id) on delete set null,
@@ -60,7 +60,7 @@ create table references (
 alter table profiles   enable row level security;
 alter table projects   enable row level security;
 alter table boards     enable row level security;
-alter table references enable row level security;
+alter table "references" enable row level security;
 
 -- profiles
 create policy "profiles: owner select" on profiles
@@ -99,16 +99,16 @@ create policy "boards: owner delete" on boards
   for delete using (auth.uid() = user_id);
 
 -- references
-create policy "references: owner select" on references
+create policy "references: owner select" on "references"
   for select using (auth.uid() = user_id);
 
-create policy "references: owner insert" on references
+create policy "references: owner insert" on "references"
   for insert with check (auth.uid() = user_id);
 
-create policy "references: owner update" on references
+create policy "references: owner update" on "references"
   for update using (auth.uid() = user_id);
 
-create policy "references: owner delete" on references
+create policy "references: owner delete" on "references"
   for delete using (auth.uid() = user_id);
 
 -- ─── Functions & Triggers ─────────────────────────────────────────────────────
@@ -147,5 +147,5 @@ create trigger projects_updated_at
   for each row execute function update_updated_at();
 
 create trigger references_updated_at
-  before update on references
+  before update on "references"
   for each row execute function update_updated_at();

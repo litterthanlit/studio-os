@@ -6,8 +6,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PHASE_STYLES } from "../projects-data";
 import type { Project } from "../projects-data";
-import { ProjectRoomTabs } from "../project-room";
+import { ProjectRoomSections } from "../project-room";
 import { getStoredProjects } from "@/components/new-project-modal";
+
+function getStoredReferenceCount(projectId: string): number {
+  try {
+    const raw = localStorage.getItem(`studio-os:references:${projectId}`);
+    if (!raw) return 0;
+    const refs = JSON.parse(raw);
+    return Array.isArray(refs) ? refs.length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 function storedToProject(sp: {
   id: string;
@@ -25,7 +36,7 @@ function storedToProject(sp: {
     leadImage: `https://picsum.photos/seed/${sp.id}/400/300`,
     palette: [sp.color, "#111111", "#222222", "#333333", "#999999"],
     lastActivity: "Just created",
-    references: 0,
+    references: getStoredReferenceCount(sp.id),
     fontsSelected: 0,
     daysActive: 0,
   };
@@ -98,7 +109,7 @@ export function ProjectRoomPageClient({
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold text-white">
+              <h1 className="text-lg font-medium text-white">
                 {project.name}
               </h1>
               <span
@@ -112,9 +123,9 @@ export function ProjectRoomPageClient({
 
           {/* Progress bar */}
           <div className="space-y-1">
-            <div className="h-0.5 w-full bg-[#333333]">
+            <div className="h-1 w-full bg-[#333333]">
               <div
-                className="h-full bg-accent"
+                className="h-1 bg-accent transition-all duration-500 ease-out relative overflow-hidden"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
@@ -144,8 +155,8 @@ export function ProjectRoomPageClient({
         </span>
       </div>
 
-      {/* Tabs */}
-      <ProjectRoomTabs project={project} />
+      {/* Project sections */}
+      <ProjectRoomSections project={project} />
     </section>
   );
 }

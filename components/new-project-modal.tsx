@@ -228,6 +228,7 @@ function NewProjectModalInner({
     // 1. Write to localStorage cache immediately (enables instant navigation
     //    to the project room before Supabase responds)
     saveProject(project);
+    window.dispatchEvent(new Event("projects-updated"));
 
     // Close and navigate right away — don't wait for the network
     onClose();

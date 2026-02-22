@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNewProjectModal, getStoredProjects } from "@/components/new-project-modal";
 import { PROJECTS as STATIC_PROJECTS, type Phase } from "@/app/(dashboard)/projects/projects-data";
 import type { SearchResult } from "@/app/api/search/route";
+import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 type ItemCategory = "recent" | "projects" | "sections" | "actions" | "references";
 
@@ -555,7 +556,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  transition={springs.snappy}
                   className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
                   onClick={() => setOpen(false)}
                 />
@@ -564,7 +565,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  transition={springs.snappy}
                   className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[15vh]"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -572,7 +573,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    transition={springs.snappy}
                     className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] shadow-[var(--shadow-lg)] rounded-none"
                   >
                     <div className="flex items-center gap-2 border-b border-[var(--border-primary)] px-3">
@@ -601,49 +602,60 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                       ) : null}
                     </div>
 
-                    <div ref={listRef} className="max-h-[62vh] overflow-y-auto py-2">
+                    <motion.div
+                      ref={listRef}
+                      initial="hidden"
+                      animate="visible"
+                      variants={staggerContainer}
+                      className="max-h-[62vh] overflow-y-auto py-2"
+                    >
                       {groups.map((group) => {
                         const Icon = CATEGORY_ICONS[group.category];
                         return (
-                          <div key={group.category} className="mb-3 last:mb-0 border-t border-[var(--border-subtle)] mt-2 pt-2 first:border-t-0 first:mt-0 first:pt-0">
+                          <motion.div key={group.category} variants={staggerItem} className="mb-3 last:mb-0 border-t border-[var(--border-subtle)] mt-2 pt-2 first:border-t-0 first:mt-0 first:pt-0">
                             <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
                               {CATEGORY_LABELS[group.category]}
                             </div>
-                            {group.items.map((item) => {
-                              const isSelected = selectedKey === item.id;
-                              return (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  data-item-id={item.id}
-                                  onClick={() => runItem(item)}
-                                  onMouseEnter={() => setSelectedKey(item.id)}
-                                  className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 ease-out ${
-                                    isSelected
-                                      ? "bg-[var(--bg-tertiary)] shadow-[var(--shadow-xs)]"
-                                      : "hover:bg-[var(--bg-tertiary)]"
-                                  }`}
-                                >
-                                  <Icon className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate text-sm font-medium text-[var(--text-primary)]">
-                                      {item.title}
-                                    </div>
-                                    {item.subtitle ? (
-                                      <div className="truncate text-[11px] text-[var(--text-tertiary)]">
-                                        {item.subtitle}
+                            <motion.div variants={staggerContainer}>
+                              {group.items.map((item) => {
+                                const isSelected = selectedKey === item.id;
+                                return (
+                                  <motion.button
+                                    key={item.id}
+                                    type="button"
+                                    data-item-id={item.id}
+                                    variants={staggerItem}
+                                    onClick={() => runItem(item)}
+                                    onMouseEnter={() => setSelectedKey(item.id)}
+                                    whileHover={{ x: 2, transition: springs.smooth }}
+                                    whileTap={{ scale: 0.98 }}
+                                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 ease-out ${
+                                      isSelected
+                                        ? "bg-[var(--bg-tertiary)] shadow-[var(--shadow-xs)]"
+                                        : "hover:bg-[var(--bg-tertiary)]"
+                                    }`}
+                                  >
+                                    <Icon className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+                                        {item.title}
                                       </div>
-                                    ) : null}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
+                                      {item.subtitle ? (
+                                        <div className="truncate text-[11px] text-[var(--text-tertiary)]">
+                                          {item.subtitle}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </motion.button>
+                                );
+                              })}
+                            </motion.div>
+                          </motion.div>
                         );
                       })}
 
                       {query.trim().length >= 2 ? (
-                        <div className="mb-3 last:mb-0">
+                        <motion.div variants={staggerItem} className="mb-3 last:mb-0">
                           <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
                             References
                           </div>
@@ -657,24 +669,26 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                               No reference matches
                             </div>
                           ) : null}
-                          {semanticResults.map((result) => {
-                            const itemId = `reference-${result.id}`;
-                            const cmdItem = referenceItems.find((r) => r.id === itemId);
-                            if (!cmdItem) return null;
-                            return (
-                              <div key={itemId} data-item-id={itemId}>
-                                <SemanticResultRow
-                                  result={result}
-                                  isSelected={selectedKey === itemId}
-                                  onClick={() => runItem(cmdItem)}
-                                  onMouseEnter={() => setSelectedKey(itemId)}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
+                          <motion.div variants={staggerContainer}>
+                            {semanticResults.map((result) => {
+                              const itemId = `reference-${result.id}`;
+                              const cmdItem = referenceItems.find((r) => r.id === itemId);
+                              if (!cmdItem) return null;
+                              return (
+                                <motion.div key={itemId} data-item-id={itemId} variants={staggerItem}>
+                                  <SemanticResultRow
+                                    result={result}
+                                    isSelected={selectedKey === itemId}
+                                    onClick={() => runItem(cmdItem)}
+                                    onMouseEnter={() => setSelectedKey(itemId)}
+                                  />
+                                </motion.div>
+                              );
+                            })}
+                          </motion.div>
+                        </motion.div>
                       ) : null}
-                    </div>
+                    </motion.div>
 
                     <div className="flex items-center justify-between border-t border-[var(--border-primary)] px-3 py-2">
                       <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">

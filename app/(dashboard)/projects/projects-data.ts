@@ -1,5 +1,11 @@
 export type Phase = "Discovery" | "Concept" | "Refine" | "Deliver";
 
+export type ProjectFont = {
+  family: string;
+  source: "google" | "fontshare";
+  category: "sans-serif" | "serif" | "display" | "handwriting" | "monospace";
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -12,6 +18,8 @@ export type Project = {
   references: number;
   fontsSelected: number;
   daysActive: number;
+  headingFont?: ProjectFont;
+  bodyFont?: ProjectFont;
 };
 
 export const PROJECTS: Project[] = [

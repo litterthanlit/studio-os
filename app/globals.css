@@ -22,55 +22,55 @@
 }
 
 html[data-theme="light"] {
-  --bg-primary: #FAFAF8;
-  --bg-secondary: #FFFFFF;
-  --bg-tertiary: #F5F5F0;
-  --bg-input: #F0F0EB;
+  --bg-primary: #111111;
+  --bg-secondary: #1A1A1A;
+  --bg-tertiary: #141414;
+  --bg-input: #1A1A1A;
 
-  --text-primary: #1A1A1A;
-  --text-secondary: #6B6B6B;
-  --text-tertiary: #999999;
-  --text-muted: #BBBBBB;
-  --text-placeholder: #AAAAAA;
+  --text-primary: #F0F0F0;
+  --text-secondary: #888888;
+  --text-tertiary: #666666;
+  --text-muted: #555555;
+  --text-placeholder: #555555;
 
-  --border-primary: #E5E5E0;
-  --border-secondary: #D5D5D0;
-  --border-subtle: #ECECEC;
-  --border-hover: #CCCCCC;
+  --border-primary: #2A2A2A;
+  --border-secondary: #333333;
+  --border-subtle: #1F1F1F;
+  --border-hover: #444444;
 
   --accent: #0070F3;
-  --accent-hover: #005BBB;
-  --accent-subtle: rgba(0, 112, 243, 0.08);
+  --accent-hover: #3390FF;
+  --accent-subtle: rgba(0, 112, 243, 0.1);
 
-  --sidebar-bg: #F5F5F0;
-  --sidebar-border: #E8E8E3;
-  --sidebar-hover: #ECECEC;
-  --sidebar-active: #E5E5E0;
+  --sidebar-bg: #0A0A0A;
+  --sidebar-border: #1A1A1A;
+  --sidebar-hover: #1A1A1A;
+  --sidebar-active: #242424;
 
-  --card-bg: #FFFFFF;
-  --card-border: #E5E5E0;
+  --card-bg: #1A1A1A;
+  --card-border: #2A2A2A;
 
-  --section-label: #888888;
-  --section-dot: #AAAAAA;
+  --section-label: #666666;
+  --section-dot: #555555;
 
-  --ascii-color: rgba(0, 112, 243, 0.05);
+  --ascii-color: rgba(0, 112, 243, 0.075);
 
-  --button-primary-bg: #1A1A1A;
-  --button-primary-text: #FAFAF8;
+  --button-primary-bg: #F0F0F0;
+  --button-primary-text: #111111;
   --button-secondary-bg: transparent;
-  --button-secondary-text: #1A1A1A;
-  --button-secondary-border: #D5D5D0;
+  --button-secondary-text: #F0F0F0;
+  --button-secondary-border: #444444;
 
-  --quote-color: #CCCCCC;
-  --dot-separator: #DDDDDD;
+  --quote-color: #555555;
+  --dot-separator: #2A2A2A;
 
-  --dot-grid-color: rgba(0, 0, 0, 0.04);
+  --dot-grid-color: rgba(255, 255, 255, 0.02);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(0, 112, 243, 0.15);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(0, 112, 243, 0.25);
 }
 
 html[data-theme="dark"] {
@@ -201,7 +201,9 @@ html {
 }
 
 body {
-  background: var(--bg-primary);
+  background: #000000;
+  background-color: #000000;
+  background-image: none;
   color: var(--text-primary);
   font-weight: 400;
   letter-spacing: normal;

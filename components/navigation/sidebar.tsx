@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   SearchIcon,
@@ -15,7 +16,8 @@ import {
   type StoredProject,
 } from "@/components/new-project-modal";
 import { useNewProjectModal } from "@/components/new-project-modal";
-import { ThemeToggle } from "@/components/navigation/theme-toggle";
+import { ThemeToggleAscii } from "@/components/navigation/theme-toggle-ascii";
+import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,27 +37,41 @@ function ProjectDot({
   active: boolean;
 }) {
   return (
-    <Link
-      href={`/projects/${project.id}`}
-      className={cn(
-        "flex items-center gap-3 h-9 cursor-pointer",
-        "transition-colors duration-150 ease-out",
-        "border-l-2 pl-[10px] pr-3",
-        active
-          ? "bg-sidebar-active text-text-primary border-l-[var(--accent)]"
-          : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover border-l-transparent"
-      )}
+    <motion.div
+      whileHover={{ x: 2, transition: springs.smooth }}
+      whileTap={{ scale: 0.98 }}
     >
-      <span
-        className="w-2 h-2 shrink-0"
-        style={{ backgroundColor: project.color }}
-      />
-      <span className="text-sm truncate">{project.name}</span>
-    </Link>
+      <Link
+        href={`/projects/${project.id}`}
+        className={cn(
+          "flex items-center gap-3 h-9 cursor-pointer",
+          "transition-colors duration-150 ease-out",
+          "border-l-2 pl-[10px] pr-3",
+          active
+            ? "bg-sidebar-active text-text-primary border-l-[var(--accent)]"
+            : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover border-l-transparent"
+        )}
+      >
+        <span
+          className="w-2 h-2 shrink-0"
+          style={{ backgroundColor: project.color }}
+        />
+        <span className="text-sm truncate">{project.name}</span>
+      </Link>
+    </motion.div>
   );
 }
 
 // ─── Sidebar inner content ────────────────────────────────────────────────────
+
+const sidebarSlideIn = {
+  hidden: { x: -20, opacity: 0 },
+  visible: {
+    x: 0,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 300, damping: 30, mass: 0.9 },
+  },
+};
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
@@ -76,27 +92,36 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   }, []);
 
   return (
-    <div className="flex flex-col h-full px-3 py-4">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={sidebarSlideIn}
+      className="flex flex-col h-full px-3 py-4"
+    >
       {/* ── Section 1: Logo ── */}
       <div className="flex items-center gap-2.5 px-3 mb-4 h-10">
-        <Link
-          href="/home"
-          className="flex items-center gap-2.5 text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
-        >
-          <div className="w-4 h-4 bg-text-primary shrink-0" />
-          <span className="text-sm font-medium">Studio OS</span>
-        </Link>
+        <motion.div whileHover={{ scale: 1.02, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
+          <Link
+            href="/home"
+            className="flex items-center gap-2.5 text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
+          >
+            <div className="w-4 h-4 bg-text-primary shrink-0" />
+            <span className="text-sm font-medium">Studio OS</span>
+          </Link>
+        </motion.div>
 
         {/* Close button — mobile only */}
         {onClose && (
-          <button
+          <motion.button
             type="button"
             onClick={onClose}
+            whileHover={{ scale: 1.1, transition: springs.smooth }}
+            whileTap={{ scale: 0.95 }}
             aria-label="Close sidebar"
             className="ml-auto text-text-muted hover:text-text-secondary transition-colors duration-150"
           >
             <CloseIcon className="w-4 h-4" />
-          </button>
+          </motion.button>
         )}
       </div>
 
@@ -116,7 +141,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           </button>
         </div>
 
-        <div
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
           className={cn(
             "flex flex-col gap-0.5",
             projects.length > 7 && "overflow-y-auto max-h-[260px]"
@@ -126,14 +154,15 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             <p className="px-3 text-[11px] text-text-muted py-1">No projects yet</p>
           ) : (
             projects.map((p) => (
-              <ProjectDot
-                key={p.id}
-                project={p}
-                active={pathname === `/projects/${p.id}`}
-              />
+              <motion.div key={p.id} variants={staggerItem}>
+                <ProjectDot
+                  project={p}
+                  active={pathname === `/projects/${p.id}`}
+                />
+              </motion.div>
             ))
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Section 4: Bottom ── */}
@@ -141,9 +170,11 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <div className="border-t border-[var(--border-primary)] mb-2" />
 
         {/* Search / ⌘K */}
-        <button
+        <motion.button
           type="button"
           onClick={openCommandPalette}
+          whileHover={{ x: 2, transition: springs.smooth }}
+          whileTap={{ scale: 0.98 }}
           className={cn(
             "flex items-center gap-3 w-full h-9 px-3 cursor-pointer",
             "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover",
@@ -155,25 +186,27 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary rounded-none">
             ⌘K
           </span>
-        </button>
+        </motion.button>
 
         {/* Theme toggle */}
-        <ThemeToggle />
+        <ThemeToggleAscii />
 
         {/* Settings */}
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-3 h-9 px-3 cursor-pointer",
-            "transition-colors duration-150 ease-out",
-            pathname === "/settings"
-              ? "bg-sidebar-active text-text-primary"
-              : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
-          )}
-        >
-          <SettingsIcon className="w-[18px] h-[18px] shrink-0" />
-          <span className="text-sm">Settings</span>
-        </Link>
+        <motion.div whileHover={{ x: 2, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
+          <Link
+            href="/settings"
+            className={cn(
+              "flex items-center gap-3 h-9 px-3 cursor-pointer",
+              "transition-colors duration-150 ease-out",
+              pathname === "/settings"
+                ? "bg-sidebar-active text-text-primary"
+                : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
+            )}
+          >
+            <SettingsIcon className="w-[18px] h-[18px] shrink-0" />
+            <span className="text-sm">Settings</span>
+          </Link>
+        </motion.div>
 
         <div className="border-t border-[var(--border-primary)] my-2" />
 
@@ -192,7 +225,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           <span className="text-sm text-text-tertiary">Nick</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

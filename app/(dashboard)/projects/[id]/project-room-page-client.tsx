@@ -71,6 +71,27 @@ export function ProjectRoomPageClient({
     }
   }, [checked, project, router]);
 
+  React.useEffect(() => {
+    if (!project) return;
+    const syncReferenceCount = () => {
+      setProject((prev) => {
+        if (!prev) return prev;
+        const nextCount = getStoredReferenceCount(prev.id);
+        if (prev.references === nextCount) return prev;
+        return {
+          ...prev,
+          references: nextCount,
+        };
+      });
+    };
+
+    syncReferenceCount();
+    window.addEventListener("project-references-updated", syncReferenceCount);
+    return () => {
+      window.removeEventListener("project-references-updated", syncReferenceCount);
+    };
+  }, [project?.id]);
+
   if (!project) {
     return (
       <div className="flex h-48 items-center justify-center text-[11px] text-gray-500">
@@ -109,7 +130,7 @@ export function ProjectRoomPageClient({
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-medium text-white">
+              <h1 className="text-lg font-medium text-[rgba(43,43,43,1)]">
                 {project.name}
               </h1>
               <span

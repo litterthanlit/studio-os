@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { DotSeparator } from "@/components/ui/dot-separator";
 import { SectionLabel } from "@/components/ui/section-label";
 import {
@@ -14,6 +16,8 @@ import {
   PROJECTS as STATIC_PROJECTS,
   type Phase,
 } from "@/app/(dashboard)/projects/projects-data";
+import { slideUp, staggerContainer, staggerItem, springs } from "@/lib/animations";
+import { useCuratedInspiration } from "@/hooks/use-curated-inspiration";
 
 type ProjectTask = {
   id: string;
@@ -32,15 +36,6 @@ type ProjectDropdownOption =
   | { kind: "project"; project: HomeProject }
   | { kind: "create"; name: string };
 
-type InspirationImage = {
-  id: string;
-  imageUrl: string;
-  thumbnailUrl?: string;
-  title?: string;
-  width?: number;
-  height?: number;
-  colors?: string[];
-};
 
 const TASKS_STORAGE_KEY = "studio-os-tasks";
 const ASCII_CHARS = [
@@ -207,9 +202,6 @@ export function HomeClient() {
   const [taskConfirmation, setTaskConfirmation] = React.useState<string | null>(
     null
   );
-  const [inspiration, setInspiration] = React.useState<InspirationImage[]>([]);
-  const [inspirationLoading, setInspirationLoading] = React.useState(true);
-  const [inspirationError, setInspirationError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!window.matchMedia("(hover: hover)").matches) return;
@@ -222,8 +214,10 @@ export function HomeClient() {
     let cols = 0;
     let rows = 0;
     let grid: number[][] = [];
+    let intensityGrid: number[][] = [];
 
     function buildGrid() {
+      if (!canvas) return;
       cols = Math.ceil(canvas.width / CELL_SIZE);
       rows = Math.ceil(canvas.height / CELL_SIZE);
       grid = Array.from({ length: rows }, () =>
@@ -231,9 +225,13 @@ export function HomeClient() {
           Math.floor(Math.random() * ASCII_CHARS.length)
         )
       );
+      intensityGrid = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => 0)
+      );
     }
 
     function resize() {
+      if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       buildGrid();
@@ -244,15 +242,16 @@ export function HomeClient() {
 
     let mouseX = -1000;
     let mouseY = -1000;
-    let prevX = -1001;
-    let prevY = -1001;
+    let lastTime = performance.now();
     let raf = 0;
 
-    function draw() {
+    const DECAY_RATE = 0.04;
+
+    function draw(currentTime: number) {
+      if (!canvas || !ctx) return;
       raf = requestAnimationFrame(draw);
-      if (mouseX === prevX && mouseY === prevY) return;
-      prevX = mouseX;
-      prevY = mouseY;
+      const deltaTime = (currentTime - lastTime) / 16.67;
+      lastTime = currentTime;
 
       const theme = getComputedStyle(document.documentElement);
       const asciiColor =
@@ -263,16 +262,33 @@ export function HomeClient() {
       ctx.font = `${FONT_SIZE}px "Geist Mono", monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = asciiColor;
 
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < cols; col += 1) {
           const x = col * CELL_SIZE + CELL_SIZE / 2;
           const y = row * CELL_SIZE + CELL_SIZE / 2;
           const dist = Math.sqrt((x - mouseX) ** 2 + (y - mouseY) ** 2);
+
+          let targetIntensity = 0;
           if (dist < REVEAL_RADIUS) {
             const t = 1 - dist / REVEAL_RADIUS;
-            ctx.globalAlpha = t * t * 0.22;
+            targetIntensity = t * t * 0.22;
+          }
+
+          const currentIntensity = intensityGrid[row][col];
+          if (targetIntensity > currentIntensity) {
+            intensityGrid[row][col] = targetIntensity;
+          } else {
+            intensityGrid[row][col] = Math.max(
+              0,
+              currentIntensity - DECAY_RATE * deltaTime
+            );
+          }
+
+          const intensity = intensityGrid[row][col];
+          if (intensity > 0.01) {
+            ctx.globalAlpha = intensity;
+            ctx.fillStyle = asciiColor;
             ctx.fillText(ASCII_CHARS[grid[row][col]], x, y);
           }
         }
@@ -321,45 +337,16 @@ export function HomeClient() {
     return () => clearInterval(interval);
   }, []);
 
-  React.useEffect(() => {
-    async function fetchInspiration() {
-      setInspirationLoading(true);
-      setInspirationError(null);
-      try {
-        const queryRes = await fetch("/api/lummi?query=minimal+branding&limit=12");
-        if (!queryRes.ok) {
-          throw new Error(`Lummi query request failed (${queryRes.status})`);
-        }
-
-        const queryData = await queryRes.json();
-        const queriedImages = Array.isArray(queryData?.images)
-          ? queryData.images
-          : [];
-
-        if (queriedImages.length > 0) {
-          setInspiration(queriedImages);
-          return;
-        }
-
-        const fallbackRes = await fetch("/api/lummi?limit=12");
-        if (!fallbackRes.ok) {
-          throw new Error(`Lummi fallback request failed (${fallbackRes.status})`);
-        }
-        const fallbackData = await fallbackRes.json();
-        const fallbackImages = Array.isArray(fallbackData?.images)
-          ? fallbackData.images
-          : [];
-        setInspiration(fallbackImages);
-      } catch (error) {
-        console.error("[home] Failed to fetch daily inspiration:", error);
-        setInspirationError("Could not load inspiration");
-      } finally {
-        setInspirationLoading(false);
-      }
-    }
-
-    fetchInspiration();
-  }, []);
+  // Curated inspiration with GPT-4 Vision scoring
+  const {
+    images: inspiration,
+    likedImageIds,
+    loading: inspirationLoading,
+    error: inspirationError,
+    collection: activeCollection,
+    toggleLike,
+    isLiked,
+  } = useCuratedInspiration({ limit: 9, minScore: 75 });
 
   const projectOptions = React.useMemo<ProjectDropdownOption[]>(() => {
     if (selectedProject || inputValue.trim().length < 1) return [];
@@ -484,9 +471,14 @@ export function HomeClient() {
 
       <div className="relative z-10 mx-auto w-full max-w-[980px]">
         <section className="mb-14">
-          <div className="mb-8 text-center text-3xl sm:text-4xl font-semibold text-[var(--text-primary)]">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={slideUp}
+            className="mb-8 text-center text-3xl sm:text-4xl font-medium text-[var(--text-primary)]"
+          >
             Good {timeOfDay}, Nick
-          </div>
+          </motion.div>
           <SectionLabel>Command Bar</SectionLabel>
           <div className="relative mt-3">
             <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-none transition-all duration-200 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
@@ -547,7 +539,12 @@ export function HomeClient() {
         <DotSeparator />
 
         <section className="my-14">
-          <div className="mb-5 flex items-center justify-between">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={slideUp}
+            className="mb-5 flex items-center justify-between"
+          >
             <SectionLabel>Recent Projects</SectionLabel>
             <Link
               href="/projects"
@@ -555,14 +552,21 @@ export function HomeClient() {
             >
               View all
             </Link>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          </motion.div>
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          >
             {recentProjects.map((project) => (
-              <button
+              <motion.button
                 key={project.id}
                 type="button"
                 onClick={() => router.push(`/projects/${project.id}`)}
-                className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-all duration-200 ease-out hover:border-[var(--text-tertiary)] hover:shadow-[var(--shadow-md)] hover:-translate-y-[1px] rounded-none"
+                variants={staggerItem}
+                whileHover={{ y: -4, transition: springs.default }}
+                className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-colors duration-200 ease-out hover:border-[var(--text-tertiary)] hover:shadow-[var(--shadow-md)] rounded-none"
               >
                 <div className="relative h-36 w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -589,69 +593,90 @@ export function HomeClient() {
                     {project.phase}
                   </span>
                 </div>
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
         </section>
 
         <DotSeparator />
 
         <section className="mt-14">
-          <SectionLabel>Daily Inspiration</SectionLabel>
+          <div className="flex items-center justify-between">
+            <SectionLabel>Daily Inspiration</SectionLabel>
+            {activeCollection && (
+              <span className="text-xs font-mono uppercase tracking-wider text-text-tertiary">
+                {activeCollection}
+              </span>
+            )}
+          </div>
           <div className="mt-4">
             {inspirationLoading ? (
-              <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
-                {Array.from({ length: 12 }).map((_, index) => (
-                  <div
-                    key={`skeleton-${index}`}
-                    className="mb-4 h-48 w-full border border-[var(--border-primary)] bg-[var(--bg-tertiary)] rounded-none"
-                  />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="aspect-[3/4] bg-bg-tertiary animate-pulse" />
                 ))}
               </div>
-            ) : null}
-
-            {!inspirationLoading && inspirationError ? (
-              <p className="text-sm text-[var(--text-secondary)]">
-                {inspirationError}
-              </p>
-            ) : null}
-
-            {!inspirationLoading && !inspirationError ? (
-              <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+            ) : inspirationError ? (
+              <p className="text-sm text-red-500">Error: {inspirationError}</p>
+            ) : inspiration.length === 0 ? (
+              <p className="text-sm text-text-secondary">No images found.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {inspiration.map((item, index) => (
-                  <div
+                  <motion.div
                     key={item.id}
-                    className="group relative mb-4 overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-tertiary)] animate-pulse rounded-none"
+                    className="relative aspect-[3/4] overflow-hidden bg-bg-tertiary group cursor-pointer"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.thumbnailUrl || item.imageUrl}
-                      alt={item.title ?? ""}
-                      onLoad={(e) => {
-                        e.currentTarget.classList.add("opacity-100");
-                        e.currentTarget.parentElement?.classList.remove("animate-pulse");
-                      }}
-                      className="h-auto w-full object-cover opacity-0 transition-opacity duration-500 ease-out"
-                      style={{ transitionDelay: `${index * 60}ms` }}
+                      alt={item.title || ''}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
-                    <div className="pointer-events-none absolute inset-0 flex items-end bg-black/0 p-3 opacity-0 transition-[opacity,background-color] duration-200 ease-out group-hover:bg-black/20 group-hover:opacity-100">
-                      <div className="w-full">
-                        <p className="truncate text-xs text-[var(--text-primary)]">
-                          {item.title || "Lummi reference"}
-                        </p>
-                        <button
-                          type="button"
-                          className="pointer-events-auto mt-2 border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-2 py-1 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-primary)] rounded-none"
+                    {/* Hover overlay with like button */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+                      {/* Score badge */}
+                      {item.scores && (
+                        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-mono text-white">
+                          {item.scores.overall}
+                        </div>
+                      )}
+                      {/* Like button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleLike(item.id);
+                        }}
+                        className="absolute top-2 left-2 p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/50 transition-colors"
+                      >
+                        <svg
+                          className={`w-4 h-4 ${isLiked(item.id) ? 'text-red-500 fill-red-500' : 'text-white'}`}
+                          viewBox="0 0 24 24"
+                          fill={isLiked(item.id) ? 'currentColor' : 'none'}
+                          stroke="currentColor"
+                          strokeWidth="2"
                         >
-                          Save to project
-                        </button>
-                      </div>
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                      </button>
+                      {/* Tags */}
+                      {item.tags && item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-auto">
+                          {item.tags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-white/20 text-white rounded">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
         </section>
       </div>

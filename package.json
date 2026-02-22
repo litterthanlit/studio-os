@@ -15,7 +15,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.34.2",
+    "framer-motion": "^12.34.3",
     "geist": "^1.7.0",
     "lucide-react": "^0.574.0",
     "nanoid": "^5.1.6",

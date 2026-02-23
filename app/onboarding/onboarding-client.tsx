@@ -295,7 +295,7 @@ function StepArchetype({
               type="button"
               onClick={() => onChoose(opt.id)}
               className={cn(
-                "w-full p-5 text-left transition-all duration-150",
+                "w-full p-5 text-left transition-[border-color,background-color] duration-150",
                 "border cursor-pointer",
                 isSelected
                   ? "border-solid border-[#0070F3] bg-[#0070F3]/5"
@@ -759,7 +759,7 @@ function StepConnect({
           disabled={importing}
           className={cn(
             "group relative flex w-full items-center gap-4 rounded-xl border p-4 text-left",
-            "transition-all duration-200 ease-out",
+            "transition-[border-color,background-color] duration-200 ease-out",
             pinterestConnected
               ? "border-emerald-800/40 bg-emerald-950/20"
               : "border-card-border bg-card-bg hover:border-border-hover"
@@ -900,7 +900,7 @@ function StepReady({
       >
         <div className="flex h-6 overflow-hidden rounded-lg">
           {palette.map((c, i) => (
-            <div key={i} className="flex-1 transition-all duration-200" style={{ backgroundColor: c }} />
+            <div key={i} className="flex-1 transition-colors duration-200" style={{ backgroundColor: c }} />
           ))}
         </div>
       </motion.div>
@@ -960,7 +960,7 @@ function StepReady({
           onClick={onEnter}
           className={cn(
             "w-full rounded-lg bg-accent px-8 py-3 text-sm font-medium text-white",
-            "transition-all duration-200 ease-out hover:opacity-90",
+            "transition-[opacity,transform] duration-200 ease-out hover:opacity-90",
             "hover:shadow-[0_0_32px_rgba(0,112,243,0.18)]"
           )}
         >

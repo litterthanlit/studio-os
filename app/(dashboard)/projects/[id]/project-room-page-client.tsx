@@ -103,20 +103,20 @@ export function ProjectRoomPageClient({
   return (
     <section className="space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[10px] text-gray-500">
+      <div className="flex items-center gap-2 text-[10px] text-gray-500 transition-colors duration-300">
         <Link
           href="/projects"
-          className="transition-colors duration-200 ease-out hover:text-white"
+          className="transition-colors duration-300 ease-out hover:text-white"
         >
           Projects
         </Link>
-        <span>/</span>
-        <span className="text-gray-400">{project.name}</span>
+        <span className="transition-colors duration-300">/</span>
+        <span className="text-gray-400 transition-colors duration-300">{project.name}</span>
       </div>
 
       {/* Room header */}
       <div className="flex gap-4">
-        <div className="relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg">
+        <div className="relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg transition-colors duration-300">
           <Image
             src={project.leadImage}
             alt={project.name}
@@ -130,46 +130,46 @@ export function ProjectRoomPageClient({
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+              <h1 className="text-2xl font-semibold text-[var(--text-primary)] transition-colors duration-300">
                 {project.name}
               </h1>
               <span
-                className={`px-1.5 py-0.5 text-[10px] font-sans font-semibold uppercase ${PHASE_STYLES[project.phase]}`}
+                className={`px-1.5 py-0.5 text-[10px] font-sans font-semibold uppercase transition-colors duration-300 ${PHASE_STYLES[project.phase]}`}
               >
                 {project.phase}
               </span>
             </div>
-            <div className="text-[12px] text-gray-400">{project.client}</div>
+            <div className="text-[12px] text-gray-400 transition-colors duration-300">{project.client}</div>
           </div>
 
           {/* Progress bar */}
           <div className="space-y-1">
-            <div className="h-1 w-full bg-[#333333]">
+            <div className="h-1 w-full bg-[#333333] transition-colors duration-300">
               <div
-                className="h-1 bg-accent transition-all duration-500 ease-out relative overflow-hidden"
+                className="h-1 bg-accent transition-[width] duration-500 ease-out relative overflow-hidden"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-gray-500">
-              <span>{project.progress}% complete</span>
-              <span>Last activity · {project.lastActivity}</span>
+            <div className="flex items-center justify-between text-[11px] text-gray-500 transition-colors duration-300">
+              <span className="transition-colors duration-300">{project.progress}% complete</span>
+              <span className="transition-colors duration-300">Last activity · {project.lastActivity}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-4 border-b border-card-border pb-4 text-[11px] text-gray-500">
-        <span>{project.references} references</span>
-        <span>·</span>
-        <span>{project.fontsSelected} fonts selected</span>
-        <span>·</span>
-        <span>{project.daysActive} days active</span>
+      <div className="flex items-center gap-4 border-b border-card-border pb-4 text-[11px] text-gray-500 transition-colors duration-300">
+        <span className="transition-colors duration-300">{project.references} references</span>
+        <span className="transition-colors duration-300">·</span>
+        <span className="transition-colors duration-300">{project.fontsSelected} fonts selected</span>
+        <span className="transition-colors duration-300">·</span>
+        <span className="transition-colors duration-300">{project.daysActive} days active</span>
         <span className="ml-auto flex items-center gap-1">
           {project.palette.slice(0, 5).map((color, i) => (
             <span
               key={`${color}-${i}`}
-              className="h-3 w-3 border border-white/10"
+              className="h-3 w-3 border border-white/10 transition-colors duration-300"
               style={{ backgroundColor: color }}
             />
           ))}

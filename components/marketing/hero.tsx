@@ -235,7 +235,7 @@ export function Hero() {
           >
             <motion.a
               href="#waitlist"
-              className="group flex h-12 items-center gap-2 bg-button-primary-bg px-6 text-sm font-medium text-button-primary-text transition-all hover:opacity-90"
+              className="group flex h-12 items-center gap-2 bg-button-primary-bg px-6 text-sm font-medium text-button-primary-text transition-[opacity,transform] hover:opacity-90"
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={springs.snappy}
@@ -245,7 +245,7 @@ export function Hero() {
             </motion.a>
 
             <motion.button
-              className="group flex h-12 items-center gap-2 border border-border-primary bg-transparent px-6 text-sm font-medium text-text-primary transition-all hover:border-border-hover hover:bg-bg-secondary"
+              className="group flex h-12 items-center gap-2 border border-border-primary bg-transparent px-6 text-sm font-medium text-text-primary transition-[border-color,background-color] hover:border-border-hover hover:bg-bg-secondary"
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={springs.snappy}

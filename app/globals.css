@@ -209,6 +209,23 @@ body {
   letter-spacing: normal;
 }
 
+/* Force smooth color transitions on all theme elements */
+[data-theme] *,
+[data-theme] *::before,
+[data-theme] *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* BUT exclude motion elements */
+[data-motion],
+[data-motion] *,
+.framer-motion,
+.framer-motion * {
+  transition: none !important;
+}
+
 ::selection {
   background-color: rgba(0, 112, 243, 0.25);
 }

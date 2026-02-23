@@ -163,13 +163,13 @@ function SimilarityBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <div className="relative h-1 w-12 bg-[var(--bg-tertiary)]">
+      <div className="relative h-1 w-12 bg-[var(--bg-tertiary)] transition-colors duration-300">
         <div
-          className="absolute inset-y-0 left-0 bg-[var(--accent)] transition-all"
+          className="absolute inset-y-0 left-0 bg-[var(--accent)] transition-[width,opacity] duration-300"
           style={{ width: `${pct}%`, opacity: Math.max(0.35, pct / 100) }}
         />
       </div>
-      <span className="text-[10px] tabular-nums text-[var(--text-tertiary)]">
+      <span className="text-[10px] tabular-nums text-[var(--text-tertiary)] transition-colors duration-300">
         {pct}%
       </span>
     </div>
@@ -200,22 +200,22 @@ function SemanticResultRow({
         isSelected ? "bg-[var(--bg-tertiary)]" : "hover:bg-[var(--bg-tertiary)]"
       }`}
     >
-      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-tertiary)] rounded-none">
+      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-tertiary)] rounded-none transition-colors duration-300">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <ImageIcon className="h-3 w-3 text-[var(--text-tertiary)]" bare />
+            <ImageIcon className="h-3 w-3 text-[var(--text-tertiary)] transition-colors duration-300" bare />
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+        <div className="truncate text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
           {label}
         </div>
         {sub ? (
-          <div className="truncate text-[11px] text-[var(--text-tertiary)]">{sub}</div>
+          <div className="truncate text-[11px] text-[var(--text-tertiary)] transition-colors duration-300">{sub}</div>
         ) : null}
       </div>
       <SimilarityBar value={result.similarity} />
@@ -574,11 +574,11 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     transition={springs.snappy}
-                    className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] shadow-[var(--shadow-lg)] rounded-none"
+                    className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] shadow-[var(--shadow-lg)] rounded-none transition-colors duration-300"
                   >
-                    <div className="flex items-center gap-2 border-b border-[var(--border-primary)] px-3">
+                    <div className="flex items-center gap-2 border-b border-[var(--border-primary)] px-3 transition-colors duration-300">
                       <SearchIcon
-                        className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]"
+                        className="h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-colors duration-300"
                         bare
                       />
                       <input
@@ -587,7 +587,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search projects, sections, actions, references"
-                        className="h-12 w-full bg-transparent px-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none"
+                        className="h-12 w-full bg-transparent px-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none transition-colors duration-300"
                       />
                       {semanticLoading ? (
                         <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
@@ -613,7 +613,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                         const Icon = CATEGORY_ICONS[group.category];
                         return (
                           <motion.div key={group.category} variants={staggerItem} className="mb-3 last:mb-0 border-t border-[var(--border-subtle)] mt-2 pt-2 first:border-t-0 first:mt-0 first:pt-0">
-                            <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                            <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-300">
                               {CATEGORY_LABELS[group.category]}
                             </div>
                             <motion.div variants={staggerContainer}>
@@ -637,11 +637,11 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                                   >
                                     <Icon className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
                                     <div className="min-w-0 flex-1">
-                                      <div className="truncate text-sm font-medium text-[var(--text-primary)]">
+                                      <div className="truncate text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
                                         {item.title}
                                       </div>
                                       {item.subtitle ? (
-                                        <div className="truncate text-[11px] text-[var(--text-tertiary)]">
+                                        <div className="truncate text-[11px] text-[var(--text-tertiary)] transition-colors duration-300">
                                           {item.subtitle}
                                         </div>
                                       ) : null}
@@ -656,16 +656,16 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
 
                       {query.trim().length >= 2 ? (
                         <motion.div variants={staggerItem} className="mb-3 last:mb-0">
-                          <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                          <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-300">
                             References
                           </div>
                           {semanticLoading && semanticResults.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">
+                            <div className="px-3 py-2 text-xs text-[var(--text-tertiary)] transition-colors duration-300">
                               Searching references…
                             </div>
                           ) : null}
                           {!semanticLoading && semanticResults.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-[var(--text-tertiary)]">
+                            <div className="px-3 py-2 text-xs text-[var(--text-tertiary)] transition-colors duration-300">
                               No reference matches
                             </div>
                           ) : null}
@@ -690,29 +690,29 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                       ) : null}
                     </motion.div>
 
-                    <div className="flex items-center justify-between border-t border-[var(--border-primary)] px-3 py-2">
-                      <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
+                    <div className="flex items-center justify-between border-t border-[var(--border-primary)] px-3 py-2 transition-colors duration-300">
+                      <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)] transition-colors duration-300">
                         <span className="flex items-center gap-1">
-                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none">
+                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none transition-colors duration-300">
                             ↑↓
                           </kbd>
                           Navigate
                         </span>
                         <span className="flex items-center gap-1">
-                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none">
+                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none transition-colors duration-300">
                             ↵
                           </kbd>
                           Select
                         </span>
                         <span className="flex items-center gap-1">
-                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none">
+                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none transition-colors duration-300">
                             esc
                           </kbd>
                           Close
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
-                        <AiSparkIcon className="h-2.5 w-2.5 text-[var(--accent)]" bare />
+                      <div className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)] transition-colors duration-300">
+                        <AiSparkIcon className="h-2.5 w-2.5 text-[var(--accent)] transition-colors duration-300" bare />
                         <span>AI semantic search</span>
                       </div>
                     </div>

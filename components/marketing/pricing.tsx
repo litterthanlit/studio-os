@@ -108,7 +108,7 @@ function PricingCard({
       {/* CTA */}
       <motion.a
         href={plan.name === "Enterprise" ? "mailto:hello@studio-os.app" : "#waitlist"}
-        className={`relative flex h-12 w-full items-center justify-center text-sm font-medium transition-all ${
+        className={`relative flex h-12 w-full items-center justify-center text-sm font-medium transition-[background-color,color,transform] ${
           plan.popular
             ? "bg-button-primary-bg text-button-primary-text hover:opacity-90"
             : "border border-border-primary bg-transparent text-text-primary hover:border-border-hover hover:bg-bg-tertiary"

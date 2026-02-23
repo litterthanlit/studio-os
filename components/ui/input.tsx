@@ -15,7 +15,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           "flex h-10 w-full border border-border-secondary bg-bg-input px-3 py-1.5",
           "text-sm text-text-primary placeholder:text-text-placeholder",
           "focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] focus:outline-none",
-          "transition-all duration-200 ease-out",
+          "transition-[border-color,background-color,color,box-shadow] duration-300 ease-out",
           className
         )}
         {...props}

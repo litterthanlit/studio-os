@@ -56,7 +56,7 @@ function ProjectDot({
           className="w-2 h-2 shrink-0"
           style={{ backgroundColor: project.color }}
         />
-        <span className="text-sm truncate">{project.name}</span>
+        <span className="text-sm truncate transition-colors duration-300">{project.name}</span>
       </Link>
     </motion.div>
   );
@@ -106,7 +106,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             className="flex items-center gap-2.5 text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
           >
             <div className="w-4 h-4 bg-text-primary shrink-0" />
-            <span className="text-sm font-medium">Studio OS</span>
+            <span className="text-sm font-medium transition-colors duration-300">Studio OS</span>
           </Link>
         </motion.div>
 
@@ -128,7 +128,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       {/* ── Section 2: Projects ── */}
       <div>
         <div className="flex items-center px-3 mb-1">
-          <span className="text-[11px] font-mono text-section-label uppercase tracking-[0.12em] font-medium flex-1">
+          <span className="text-[11px] font-mono text-section-label uppercase tracking-[0.12em] font-medium flex-1 transition-colors duration-300">
             Projects
           </span>
           <button
@@ -151,7 +151,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           )}
         >
           {projects.length === 0 ? (
-            <p className="px-3 text-[11px] text-text-muted py-1">No projects yet</p>
+            <p className="px-3 text-[11px] text-text-muted py-1 transition-colors duration-300">No projects yet</p>
           ) : (
             projects.map((p) => (
               <motion.div key={p.id} variants={staggerItem}>

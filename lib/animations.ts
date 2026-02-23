@@ -25,10 +25,10 @@ export const staggerContainer = {
 };
 
 export const staggerItem = {
-  initial: { opacity: 0, y: 10 },
+  initial: { opacity: 0, transform: "translateY(10px)" },
   animate: { 
     opacity: 1, 
-    y: 0,
+    transform: "translateY(0px)",
     transition: { type: "spring", stiffness: 300, damping: 30 }
   },
 };

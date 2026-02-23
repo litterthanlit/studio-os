@@ -369,7 +369,7 @@ export function ImportReferenceModal({
                 type="button"
                 onClick={() => uploadInputRef.current?.click()}
                 disabled={isBusy}
-                className="w-full border border-dashed border-border-primary bg-bg-secondary px-4 py-10 text-sm text-text-secondary transition-colors hover:border-white/30 disabled:opacity-50"
+                className="w-full border border-dashed border-border-primary bg-bg-secondary px-4 py-10 text-sm text-text-secondary transition-colors duration-300 hover:border-white/30 disabled:opacity-50"
               >
                 Click to choose files (jpg, png, gif, webp)
               </button>
@@ -377,13 +377,13 @@ export function ImportReferenceModal({
                 <div className="space-y-2">
                   {uploadItems.map((item) => (
                     <div key={item.name} className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-text-secondary">
+                      <div className="flex items-center justify-between text-[11px] text-text-secondary transition-colors duration-300">
                         <span className="truncate">{item.name}</span>
                         <span>{item.progress}%</span>
                       </div>
-                      <div className="h-1 bg-sidebar-active">
+                      <div className="h-1 bg-sidebar-active transition-colors duration-300">
                         <div
-                          className="h-full bg-accent transition-all duration-200"
+                          className="h-full bg-accent transition-[width] duration-200"
                           style={{ width: `${item.progress}%` }}
                         />
                       </div>
@@ -454,7 +454,7 @@ export function ImportReferenceModal({
                 disabled={isBusy}
               />
               {urlPreview && (
-                <div className="border border-card-border bg-bg-secondary p-2">
+                <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={urlPreview}
@@ -475,7 +475,7 @@ export function ImportReferenceModal({
           )}
 
           {error && (
-            <p className="border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            <p className="border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300 transition-colors duration-300">
               {error}
             </p>
           )}

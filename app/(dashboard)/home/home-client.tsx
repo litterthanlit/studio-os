@@ -138,7 +138,7 @@ function getPhaseBadgeClass(phase: Phase): string {
     bg: "bg-[var(--bg-tertiary)]",
     text: "text-[var(--text-secondary)]",
   };
-  return `${colors.bg} ${colors.text}`;
+  return `${colors.bg} ${colors.text} transition-colors duration-300`;
 }
 
 function saveTask(task: ProjectTask) {
@@ -160,7 +160,7 @@ function ProjectSearchRow({
     <button
       type="button"
       onMouseDown={onMouseDown}
-      className={`flex w-full items-center gap-3 border-b border-[var(--border-primary)] py-2 text-left last:border-b-0 transition-colors duration-100 ${
+      className={`flex w-full items-center gap-3 border-b border-[var(--border-primary)] py-2 text-left last:border-b-0 transition-colors duration-300 ${
         active
           ? "bg-[var(--bg-tertiary)] border-l-2 border-l-[var(--accent)] pl-[10px] pr-3"
           : "bg-[var(--bg-secondary)] border-l-2 border-l-transparent pl-[10px] pr-3 hover:bg-[var(--bg-tertiary)]"
@@ -172,12 +172,12 @@ function ProjectSearchRow({
             className="h-2 w-2 shrink-0"
             style={{ backgroundColor: option.project.color }}
           />
-          <span className="truncate text-sm text-[var(--text-primary)]">
+          <span className="truncate text-sm text-[var(--text-primary)] transition-colors duration-300">
             {option.project.name}
           </span>
         </>
       ) : (
-        <span className="truncate text-sm text-[var(--text-secondary)]">
+        <span className="truncate text-sm text-[var(--text-secondary)] transition-colors duration-300">
           Create new project: {option.name}
         </span>
       )}
@@ -474,18 +474,18 @@ export function HomeClient() {
             initial="hidden"
             animate="visible"
             variants={slideUp}
-            className="mb-8 text-center text-3xl sm:text-4xl font-medium text-[var(--text-primary)]"
+            className="mb-8 text-center text-3xl sm:text-4xl font-medium text-[var(--text-primary)] transition-colors duration-300"
           >
             Good {timeOfDay}, Nick
           </motion.div>
           <div className="relative mt-6">
-            <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-none transition-all duration-200 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
+            <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-none transition-[border-color,background-color,box-shadow] duration-300 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
               <div className="flex items-center gap-2 px-3 py-2">
                 {selectedProject ? (
                   <button
                     type="button"
                     onClick={resetToProjectSearch}
-                    className="inline-flex items-center gap-1 border border-[var(--border-primary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded-none"
+                    className="inline-flex items-center gap-1 border border-[var(--border-primary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded-none transition-colors duration-300"
                   >
                     <span aria-hidden>×</span>
                     <span>{selectedProject.name}</span>
@@ -505,13 +505,13 @@ export function HomeClient() {
                       ? `Add a task to ${selectedProject.name}...`
                       : "What are you working on today?"
                   }
-                  className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none font-mono tracking-tight"
+                  className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none font-mono tracking-tight transition-colors duration-300"
                 />
               </div>
             </div>
 
             {showDropdown ? (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-none">
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-none transition-colors duration-300">
                 {projectOptions.map((option, index) => (
                   <ProjectSearchRow
                     key={
@@ -544,7 +544,7 @@ export function HomeClient() {
             <SectionLabel>Recent Projects</SectionLabel>
             <Link
               href="/projects"
-              className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-150 ease-out hover:text-[var(--text-primary)]"
+              className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-300 ease-out hover:text-[var(--text-primary)]"
             >
               View all
             </Link>
@@ -561,10 +561,11 @@ export function HomeClient() {
                 type="button"
                 onClick={() => router.push(`/projects/${project.id}`)}
                 variants={staggerItem}
-                whileHover={{ y: -4, transition: springs.default }}
-                className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-colors duration-200 ease-out hover:border-[var(--text-tertiary)] hover:shadow-[var(--shadow-md)] rounded-none"
+                whileHover={{ transform: 'translateY(-4px)', transition: springs.default }}
+                style={{ willChange: 'transform' }}
+                className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-colors duration-300 ease-out hover:border-[var(--text-tertiary)] hover:shadow-[var(--shadow-md)] rounded-none"
               >
-                <div className="relative h-36 w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse">
+                <div className="relative h-36 w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse transition-colors duration-300">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={project.leadImage}
@@ -573,16 +574,16 @@ export function HomeClient() {
                       e.currentTarget.classList.add("opacity-100");
                       e.currentTarget.parentElement?.classList.remove("animate-pulse");
                     }}
-                    className="h-full w-full object-cover opacity-0 transition-all duration-500 ease-out group-hover:scale-[1.02]"
+                    className="h-full w-full object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:scale-[1.02]"
                     loading="lazy"
                   />
                 </div>
                 <div className="space-y-2 px-3 py-3">
-                  <div className="text-sm font-medium text-[var(--text-primary)]">
+                  <div className="text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
                     {project.name}
                   </div>
                   <span
-                    className={`inline-flex px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase ${getPhaseBadgeClass(
+                    className={`inline-flex px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase transition-colors duration-300 ${getPhaseBadgeClass(
                       project.phase
                     )}`}
                   >
@@ -602,13 +603,13 @@ export function HomeClient() {
             {inspirationLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="aspect-[3/4] bg-bg-tertiary animate-pulse" />
+                  <div key={i} className="aspect-[3/4] bg-bg-tertiary animate-pulse transition-colors duration-300" />
                 ))}
               </div>
             ) : inspirationError ? (
-              <p className="text-sm text-red-500">Error: {inspirationError}</p>
+              <p className="text-sm text-red-500 transition-colors duration-300">Error: {inspirationError}</p>
             ) : inspiration.length === 0 ? (
-              <p className="text-sm text-text-secondary">No images found.</p>
+              <p className="text-sm text-text-secondary transition-colors duration-300">No images found.</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {inspiration.map((item, index) => (

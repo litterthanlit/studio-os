@@ -25,25 +25,17 @@ export function ProjectRoomSections({ project }: { project: Project }) {
         <BoardTab project={project} />
       </section>
 
-      <DotSeparator />
-
       <section id="type">
         <TypeTab project={project} />
       </section>
-
-      <DotSeparator />
 
       <section id="palette">
         <PaletteTab project={project} />
       </section>
 
-      <DotSeparator />
-
       <section id="tasks">
         <TasksTab projectId={project.id} />
       </section>
-
-      <DotSeparator />
 
       <section id="overview">
         <OverviewTab project={project} />
@@ -60,38 +52,38 @@ function OverviewTab({ project }: { project: Project }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
+        <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
           Brief
         </div>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="h-24 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-text-primary outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
+          className="h-24 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent"
         />
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-xs">
-        <div className="border border-card-border bg-bg-secondary p-2">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400">
+        <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             References
           </div>
-          <div className="mt-1 text-sm font-bold text-text-primary">
+          <div className="mt-1 text-sm font-bold text-text-primary transition-colors duration-300">
             {project.references}
           </div>
         </div>
-        <div className="border border-card-border bg-bg-secondary p-2">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400">
+        <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             Fonts
           </div>
-          <div className="mt-1 text-sm font-bold text-text-primary">
+          <div className="mt-1 text-sm font-bold text-text-primary transition-colors duration-300">
             {project.fontsSelected}
           </div>
         </div>
-        <div className="border border-card-border bg-bg-secondary p-2">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400">
+        <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             Days Active
           </div>
-          <div className="mt-1 text-sm font-bold text-text-primary">
+          <div className="mt-1 text-sm font-bold text-text-primary transition-colors duration-300">
             {project.daysActive}
           </div>
         </div>
@@ -286,7 +278,7 @@ function BoardTab({ project }: { project: Project }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
+        <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
           Connected Moodboard
         </div>
         {references.length > 0 && (
@@ -294,7 +286,7 @@ function BoardTab({ project }: { project: Project }) {
             type="button"
             onClick={() => openImport("upload")}
             aria-label="Quick add references"
-            className="border border-card-border bg-bg-secondary px-2 py-1 text-xs text-text-secondary transition-colors hover:border-white/30 hover:text-white"
+            className="border border-card-border bg-bg-secondary px-2 py-1 text-xs text-text-secondary transition-colors duration-300 hover:border-white/30 hover:text-white"
           >
             +
           </button>
@@ -302,20 +294,20 @@ function BoardTab({ project }: { project: Project }) {
       </div>
 
       {notice && (
-        <p className="text-xs text-gray-500">{notice}</p>
+        <p className="text-xs text-gray-500 transition-colors duration-300">{notice}</p>
       )}
 
       {uploadProgress && (
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px] text-gray-500">
+          <div className="flex items-center justify-between text-[11px] text-gray-500 transition-colors duration-300">
             <span>Processing uploads</span>
             <span>
               {uploadProgress.done}/{uploadProgress.total}
             </span>
           </div>
-          <div className="h-1 bg-sidebar-active">
+          <div className="h-1 bg-sidebar-active transition-colors duration-300">
             <div
-              className="h-full bg-accent transition-all duration-200"
+              className="h-full bg-accent transition-[width] duration-200"
               style={{
                 width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%`,
               }}
@@ -339,7 +331,7 @@ function BoardTab({ project }: { project: Project }) {
 
       <div
         className={cn(
-          "relative border bg-bg-secondary p-3 transition-colors",
+          "relative border bg-bg-secondary p-3 transition-colors duration-300",
           isDragActive
             ? "border-accent"
             : references.length === 0
@@ -357,27 +349,27 @@ function BoardTab({ project }: { project: Project }) {
         onPaste={handlePaste}
       >
         {isDragActive && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border border-accent bg-accent/10 text-xs uppercase tracking-[0.12em] text-accent">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border border-accent bg-accent/10 text-xs uppercase tracking-[0.12em] text-accent transition-colors duration-300">
             Drop images to import
           </div>
         )}
 
         {references.length === 0 ? (
           <div className="space-y-4 py-10 text-center">
-            <p className="text-sm text-text-secondary">
+            <p className="text-sm text-text-secondary transition-colors duration-300">
               Drop images, paste URL, or click to import
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors hover:border-white/30 hover:text-white"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
               >
                 Upload files
               </button>
               <button
                 type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -388,7 +380,7 @@ function BoardTab({ project }: { project: Project }) {
               </button>
               <button
                 type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -399,7 +391,7 @@ function BoardTab({ project }: { project: Project }) {
               </button>
               <button
                 type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -409,7 +401,7 @@ function BoardTab({ project }: { project: Project }) {
                 Paste image URL
               </button>
             </div>
-            <p className="text-[11px] text-text-placeholder">
+            <p className="text-[11px] text-text-placeholder transition-colors duration-300">
               Drop images or import from Are.na/Pinterest
             </p>
           </div>
@@ -418,7 +410,7 @@ function BoardTab({ project }: { project: Project }) {
             {references.map((ref) => (
               <article
                 key={ref.id}
-                className="group relative border border-card-border bg-card-bg"
+                className="group relative border border-card-border bg-card-bg transition-colors duration-300"
               >
                 <button
                   type="button"
@@ -434,7 +426,7 @@ function BoardTab({ project }: { project: Project }) {
                   />
                 </button>
 
-                <div className="pointer-events-none absolute left-2 top-2 border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-white">
+                <div className="pointer-events-none absolute left-2 top-2 border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-white transition-colors duration-300">
                   {ref.source}
                 </div>
 
@@ -448,7 +440,7 @@ function BoardTab({ project }: { project: Project }) {
                 </button>
 
                 <div className="space-y-1 p-2">
-                  <p className="truncate text-[11px] text-text-secondary">
+                  <p className="truncate text-[11px] text-text-secondary transition-colors duration-300">
                     {ref.title || "Untitled"}
                   </p>
                   {ref.sourceUrl && (
@@ -478,14 +470,14 @@ function BoardTab({ project }: { project: Project }) {
       />
 
       <Dialog open={Boolean(activeLightboxRef)} onOpenChange={(open) => !open && setActiveLightboxRef(null)}>
-        <DialogContent className="max-w-[900px]">
+        <DialogContent className="max-w-[900px] transition-colors duration-300">
           <div className="space-y-3">
-            <DialogTitle className="text-sm uppercase tracking-[0.12em] text-text-tertiary">
+            <DialogTitle className="text-sm uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300">
               Reference preview
             </DialogTitle>
             {activeLightboxRef && (
               <>
-                <div className="border border-card-border bg-bg-secondary p-2">
+                <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={activeLightboxRef.imageUrl}
@@ -493,8 +485,8 @@ function BoardTab({ project }: { project: Project }) {
                     className="max-h-[72vh] w-full object-contain"
                   />
                 </div>
-                <div className="flex items-center justify-between text-xs text-text-secondary">
-                  <span className="truncate pr-4">
+                <div className="flex items-center justify-between text-xs text-text-secondary transition-colors duration-300">
+                  <span className="truncate pr-4 transition-colors duration-300">
                     {activeLightboxRef.title || "Untitled"} · {activeLightboxRef.source}
                   </span>
                   <div className="flex items-center gap-2">
@@ -503,7 +495,7 @@ function BoardTab({ project }: { project: Project }) {
                         href={activeLightboxRef.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors hover:text-white"
+                        className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white"
                       >
                         Open source
                       </a>
@@ -511,7 +503,7 @@ function BoardTab({ project }: { project: Project }) {
                     <button
                       type="button"
                       onClick={() => setActiveLightboxRef(null)}
-                      className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors hover:text-white"
+                      className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white"
                     >
                       Close
                     </button>
@@ -551,23 +543,23 @@ function TypeTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
+      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
         Typography Spine
       </div>
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-400 transition-colors duration-300">
         Lock the heading/body pairing that defines this project. This will sync
         with the Type Library.
       </p>
-      <div className="border border-card-border bg-bg-secondary p-3">
-        <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-          <span>Heading: {headingFont?.family || "Not selected"}</span>
-          <span>Body: {bodyFont?.family || "Not selected"}</span>
+      <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
+        <div className="mb-2 flex items-center justify-between text-xs text-gray-500 transition-colors duration-300">
+          <span className="transition-colors duration-300">Heading: {headingFont?.family || "Not selected"}</span>
+          <span className="transition-colors duration-300">Body: {bodyFont?.family || "Not selected"}</span>
         </div>
-        <div className="space-y-1 text-sm text-text-primary">
-          <div className="text-lg font-bold" style={headingStyle}>
+        <div className="space-y-1 text-sm text-text-primary transition-colors duration-300">
+          <div className="text-lg font-bold transition-colors duration-300" style={headingStyle}>
             Studio OS project spine
           </div>
-          <div className="text-xs" style={bodyStyle}>
+          <div className="text-xs transition-colors duration-300" style={bodyStyle}>
             The quick brown fox jumps over the lazy dog.
           </div>
         </div>
@@ -575,7 +567,7 @@ function TypeTab({ project }: { project: Project }) {
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
+            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
           >
             Change Font
           </button>
@@ -632,12 +624,12 @@ function PaletteTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
+      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
         Color System
       </div>
 
       {swatches.length === 0 && (
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-600 transition-colors duration-300">
           No colors yet. Add one below.
         </p>
       )}
@@ -647,7 +639,7 @@ function PaletteTab({ project }: { project: Project }) {
         {swatches.map((swatch) => (
           <div
             key={swatch.id}
-            className="group flex items-center gap-3 border border-transparent px-2 py-1.5 transition-[border-color,background] duration-150 hover:border-card-border hover:bg-sidebar-hover"
+            className="group flex items-center gap-3 border border-transparent px-2 py-1.5 transition-[border-color,background] duration-300 hover:border-card-border hover:bg-sidebar-hover"
           >
             {/* Color picker trigger */}
             <ColorPicker
@@ -656,7 +648,7 @@ function PaletteTab({ project }: { project: Project }) {
             />
 
             {/* Hex display */}
-            <span className="w-[68px] flex-shrink-0 font-mono text-[11px] text-gray-500">
+            <span className="w-[68px] flex-shrink-0 font-mono text-[11px] text-gray-500 transition-colors duration-300">
               {swatch.color.toUpperCase()}
             </span>
 
@@ -673,16 +665,16 @@ function PaletteTab({ project }: { project: Project }) {
                 }}
                 placeholder="Name this swatch…"
                 autoFocus
-                className="flex-1 bg-transparent text-xs text-text-primary outline-none placeholder:text-gray-700"
+                className="flex-1 bg-transparent text-xs text-text-primary outline-none placeholder:text-gray-700 transition-colors duration-300"
               />
             ) : (
               <button
                 type="button"
                 onClick={() => setEditingId(swatch.id)}
-                className="flex-1 text-left text-xs text-gray-600 transition-colors duration-150 hover:text-gray-300"
+                className="flex-1 text-left text-xs text-gray-600 transition-colors duration-300 hover:text-gray-300"
               >
                 {swatch.name || (
-                  <span className="italic text-gray-700">Untitled</span>
+                  <span className="italic text-gray-700 transition-colors duration-300">Untitled</span>
                 )}
               </button>
             )}
@@ -692,7 +684,7 @@ function PaletteTab({ project }: { project: Project }) {
               type="button"
               onClick={() => removeSwatch(swatch.id)}
               aria-label="Remove swatch"
-              className="ml-auto flex-shrink-0 p-1 text-text-placeholder opacity-0 transition-[opacity,color] duration-150 group-hover:opacity-100 hover:text-red-400"
+              className="ml-auto flex-shrink-0 p-1 text-text-placeholder opacity-0 transition-[opacity,color] duration-300 group-hover:opacity-100 hover:text-red-400"
             >
               <svg
                 width="11"
@@ -730,13 +722,13 @@ function PaletteTab({ project }: { project: Project }) {
         <button
           type="button"
           onClick={addSwatch}
-          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
+          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
         >
           + Add Color
         </button>
         <button
           type="button"
-          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
+          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
         >
           Extract from Reference
         </button>
@@ -818,7 +810,7 @@ function TasksTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400">
+      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
         Tasks
       </div>
 
@@ -826,15 +818,15 @@ function TasksTab({ projectId }: { projectId: string }) {
         {tasks.map((task) => (
           <label
             key={task.id}
-            className="flex items-center gap-2 text-xs text-text-primary cursor-pointer"
+            className="flex items-center gap-2 text-xs text-text-primary cursor-pointer transition-colors duration-300"
           >
             <input
               type="checkbox"
               checked={task.completed}
               onChange={() => toggleTask(task.id)}
-              className="h-3 w-3 border border-gray-500 bg-transparent"
+              className="h-3 w-3 border border-gray-500 bg-transparent transition-colors duration-300"
             />
-            <span className={cn(task.completed && "line-through text-gray-400")}>
+            <span className={cn(task.completed && "line-through text-gray-400 transition-colors duration-300")}>
               {task.text}
             </span>
           </label>
@@ -847,7 +839,7 @@ function TasksTab({ projectId }: { projectId: string }) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Add task..."
-          className="flex-1 border border-card-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none transition-[border-color] duration-200 ease-out focus:border-accent"
+          className="flex-1 border border-card-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -858,7 +850,7 @@ function TasksTab({ projectId }: { projectId: string }) {
         <button
           type="button"
           onClick={addTask}
-          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color] duration-200 ease-out hover:border-white/20 hover:text-text-primary"
+          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
         >
           Add
         </button>

@@ -142,7 +142,7 @@ function StepBoards({
               type="button"
               onClick={() => onToggle(board.id)}
               className={cn(
-                "group relative flex flex-col overflow-hidden border text-left transition-all duration-200",
+                "group relative flex flex-col overflow-hidden border text-left transition-[border-color,background-color] duration-200",
                 isSelected
                   ? "border-[#E60023]/50 bg-[#E60023]/[0.06]"
                   : "border-card-border bg-bg-secondary hover:border-border-hover"
@@ -244,7 +244,7 @@ function StepDestination({
               type="button"
               onClick={() => onSelect(board)}
               className={cn(
-                "border px-3 py-3 text-left transition-all duration-200",
+                "border px-3 py-3 text-left transition-[border-color,background-color,color] duration-200",
                 isActive
                   ? "border-white/30 bg-white/[0.08] text-white"
                   : "border-card-border bg-bg-secondary text-gray-400 hover:border-border-hover hover:text-white"
@@ -516,7 +516,7 @@ export function PinterestImportDialog({ open, onOpenChange, activeBoard, onImpor
                 <div
                   key={s}
                   className={cn(
-                    "h-1 rounded-full transition-all duration-300",
+                    "h-1 rounded-full transition-[width,background-color] duration-300",
                     s === step ? "w-4 bg-[#E60023]" : "w-1.5 bg-[#2a2a2a]"
                   )}
                 />

@@ -1138,7 +1138,7 @@ export function VisionPage() {
                           title={saved ? "Saved" : "Add to board"}
                           className={cn(
                             "pointer-events-auto absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center border text-sm font-bold",
-                            "opacity-0 transition-all duration-200 group-hover:opacity-100",
+                            "opacity-0 transition-opacity duration-200 group-hover:opacity-100",
                             saved
                               ? "border-green-500/60 bg-green-950/90 text-green-400 cursor-default"
                               : "border-white/30 bg-black/80 text-white hover:border-white hover:bg-black"

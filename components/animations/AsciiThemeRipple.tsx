@@ -16,14 +16,10 @@ export function AsciiThemeRipple({ isDark, onToggle, className = "" }: AsciiThem
     if (isAnimating) return;
     setIsAnimating(true);
     
-    // Switch theme at 350ms — snappy!
+    // Snappy theme switch at 350ms
     setTimeout(() => onToggle(), 350);
     setTimeout(() => setIsAnimating(false), 750);
   }, [isAnimating, onToggle]);
-
-  // When animating, we show the INVERSE of current theme
-  // because we're transitioning TO the opposite theme
-  const showAsLight = isDark; // Currently dark, transitioning to light
 
   return (
     <div className={`relative ${className}`}>
@@ -40,20 +36,11 @@ export function AsciiThemeRipple({ isDark, onToggle, className = "" }: AsciiThem
       <AnimatePresence>
         {isAnimating && (
           <>
-            {/* Full screen background - inverts during transition */}
-            <motion.div
-              className="fixed inset-0 pointer-events-none z-[9996]"
-              style={{ backgroundColor: showAsLight ? "white" : "black" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0, 1, 1, 0] }}
-              transition={{ duration: 0.75, times: [0, 0.2, 0.8, 1] }}
-            />
-
-            {/* 8 wave rows — performant! */}
+            {/* 8 wave rows - snappy! */}
             {Array.from({ length: 8 }).map((_, i) => (
               <motion.div
                 key={i}
-                className="fixed left-0 right-0 pointer-events-none z-[9998] font-mono text-xs overflow-hidden"
+                className="fixed left-0 right-0 pointer-events-none z-40 font-mono text-xs overflow-hidden"
                 style={{ top: `${i * 12.5}%`, height: "12.5%" }}
                 initial={{ x: "-100%", opacity: 0 }}
                 animate={{ x: "0%", opacity: [0, 1, 0] }}
@@ -64,9 +51,9 @@ export function AsciiThemeRipple({ isDark, onToggle, className = "" }: AsciiThem
                   ease: "easeOut",
                 }}
               >
-                <div className="flex justify-around items-center h-full opacity-60">
+                <div className="flex justify-around items-center h-full opacity-40">
                   {"01▪◾01▪◾01▪◾01▪◾".split("").map((char, j) => (
-                    <span key={j} style={{ color: showAsLight ? "black" : "white" }}>
+                    <span key={j} className={isDark ? "text-white" : "text-black"}>
                       {char}
                     </span>
                   ))}
@@ -74,10 +61,10 @@ export function AsciiThemeRipple({ isDark, onToggle, className = "" }: AsciiThem
               </motion.div>
             ))}
             
-            {/* Quick flash overlay */}
+            {/* Quick flash */}
             <motion.div
-              className="fixed inset-0 pointer-events-none z-[9997]"
-              style={{ backgroundColor: showAsLight ? "rgba(255,200,100,0.1)" : "rgba(100,150,255,0.1)" }}
+              className="fixed inset-0 pointer-events-none z-30"
+              style={{ backgroundColor: isDark ? "rgba(255,200,100,0.05)" : "rgba(100,150,255,0.05)" }}
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 1, 0] }}
               transition={{ duration: 0.3 }}

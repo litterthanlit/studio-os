@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { DotSeparator } from "@/components/ui/dot-separator";
+import { AsciiSeparator } from "@/components/ui/ascii-separator";
 import { SectionLabel } from "@/components/ui/section-label";
 import {
   getStoredProjects,
@@ -121,25 +121,24 @@ function scoreProjectMatch(projectName: string, query: string): number {
   return qi === q.length ? 40 : 0;
 }
 
-const phaseColors: Record<string, { bg: string; text: string; border: string }> = {
-  Discovery:   { bg: "bg-blue-500/10",    text: "text-blue-500",    border: "border-blue-500/20" },
-  Concept:     { bg: "bg-violet-500/10",  text: "text-violet-500",  border: "border-violet-500/20" },
-  Refine:      { bg: "bg-purple-500/10",  text: "text-purple-500",  border: "border-purple-500/20" },
-  Deliver:     { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
-  Research:    { bg: "bg-violet-500/10",  text: "text-violet-500",  border: "border-violet-500/20" },
-  Design:      { bg: "bg-purple-500/10",  text: "text-purple-500",  border: "border-purple-500/20" },
-  Development: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
-  Testing:     { bg: "bg-amber-500/10",   text: "text-amber-500",   border: "border-amber-500/20" },
-  Launch:      { bg: "bg-rose-500/10",    text: "text-rose-500",    border: "border-rose-500/20" },
+const phaseColors: Record<string, { bg: string; text: string }> = {
+  Discovery:   { bg: "bg-amber-500/20",   text: "text-amber-600" },
+  Concept:     { bg: "bg-violet-500/20",  text: "text-violet-600" },
+  Refine:      { bg: "bg-sky-500/20",     text: "text-sky-600" },
+  Deliver:     { bg: "bg-emerald-500/20", text: "text-emerald-600" },
+  Research:    { bg: "bg-violet-500/20",  text: "text-violet-600" },
+  Design:      { bg: "bg-purple-500/20",  text: "text-purple-600" },
+  Development: { bg: "bg-emerald-500/20", text: "text-emerald-600" },
+  Testing:     { bg: "bg-amber-500/20",   text: "text-amber-600" },
+  Launch:      { bg: "bg-rose-500/20",    text: "text-rose-600" },
 };
 
 function getPhaseBadgeClass(phase: Phase): string {
   const colors = phaseColors[phase] ?? {
     bg: "bg-[var(--bg-tertiary)]",
     text: "text-[var(--text-secondary)]",
-    border: "border-[var(--border-primary)]",
   };
-  return `${colors.bg} ${colors.text} ${colors.border}`;
+  return `${colors.bg} ${colors.text}`;
 }
 
 function saveTask(task: ProjectTask) {
@@ -479,8 +478,7 @@ export function HomeClient() {
           >
             Good {timeOfDay}, Nick
           </motion.div>
-          <SectionLabel>Command Bar</SectionLabel>
-          <div className="relative mt-3">
+          <div className="relative mt-6">
             <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-none transition-all duration-200 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
               <div className="flex items-center gap-2 px-3 py-2">
                 {selectedProject ? (
@@ -507,7 +505,7 @@ export function HomeClient() {
                       ? `Add a task to ${selectedProject.name}...`
                       : "What are you working on today?"
                   }
-                  className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none"
+                  className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none font-mono tracking-tight"
                 />
               </div>
             </div>
@@ -535,8 +533,6 @@ export function HomeClient() {
             </p>
           ) : null}
         </section>
-
-        <DotSeparator />
 
         <section className="my-14">
           <motion.div
@@ -586,7 +582,7 @@ export function HomeClient() {
                     {project.name}
                   </div>
                   <span
-                    className={`inline-flex border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] rounded-none ${getPhaseBadgeClass(
+                    className={`inline-flex px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase ${getPhaseBadgeClass(
                       project.phase
                     )}`}
                   >
@@ -598,16 +594,9 @@ export function HomeClient() {
           </motion.div>
         </section>
 
-        <DotSeparator />
-
         <section className="mt-14">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <SectionLabel>Daily Inspiration</SectionLabel>
-            {activeCollection && (
-              <span className="text-xs font-mono uppercase tracking-wider text-text-tertiary">
-                {activeCollection}
-              </span>
-            )}
           </div>
           <div className="mt-4">
             {inspirationLoading ? (

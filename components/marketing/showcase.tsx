@@ -84,22 +84,19 @@ export function Showcase() {
             ref={ref}
           >
           <h2 className="mb-6 text-3xl font-light tracking-tight text-text-primary sm:text-4xl">
-            Only exceptional
-            <br />
-            imagery makes the cut
+            Daily Inspiration
           </h2>
           <p className="mb-8 text-lg font-extralight text-text-secondary">
-            Our AI evaluates every image on composition, color theory, and
-            emotional resonance. Only the best scores 80+ and reaches your
-            feed.
+            AI-curated imagery from Pinterest, Are.na, and Lummi. Fresh references every day.
           </p>
 
-            {/* Score breakdown */}
+            {/* Features */}
             <div className="space-y-4">
               {[
-                { label: "Composition", score: 92, desc: "Balance & structure" },
-                { label: "Color", score: 88, desc: "Palette & harmony" },
-                { label: "Mood", score: 85, desc: "Emotional impact" },
+                { label: "75+ score", desc: "Only exceptional imagery" },
+                { label: "7-day rotation", desc: "Fresh daily curation" },
+                { label: "Learns taste", desc: "Improves with your feedback" },
+                { label: "Multi-source", desc: "Pinterest, Are.na, Lummi" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-4">
                   <div className="flex-1">
@@ -107,20 +104,11 @@ export function Showcase() {
                       <span className="font-light text-text-primary">
                         {item.label}
                       </span>
-                      <span className="font-extralight text-text-secondary">{item.score}</span>
                     </div>
-                    <div className="h-1 bg-border-subtle">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={isInView ? { width: `${item.score}%` } : {}}
-                        transition={{ ...springs.smooth, delay: 0.3 }}
-                        className="h-full bg-accent"
-                      />
-                    </div>
+                    <p className="text-xs font-extralight text-text-muted">
+                      {item.desc}
+                    </p>
                   </div>
-                  <span className="hidden w-32 text-xs font-extralight text-text-muted sm:block">
-                    {item.desc}
-                  </span>
                 </div>
               ))}
             </div>

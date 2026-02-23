@@ -60,17 +60,14 @@ export function CTA() {
                 variants={staggerItem}
                 className="mb-4 text-3xl font-light tracking-tight text-text-primary sm:text-4xl"
               >
-                Ready to transform
-                <br />
-                your workflow?
+                Early access for design purists.
               </motion.h2>
 
               <motion.p
                 variants={staggerItem}
                 className="mb-8 text-lg font-extralight text-text-secondary"
               >
-                Join 2,000+ designers on the waitlist. Early access rolling out
-                soon.
+                Join designers from Linear, Vercel, Stripe, and Apple.
               </motion.p>
 
               <motion.form
@@ -93,7 +90,7 @@ export function CTA() {
                   whileTap={{ scale: 0.97 }}
                   transition={springs.snappy}
                 >
-                  Get early access
+                  Join waitlist
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </motion.button>
               </motion.form>

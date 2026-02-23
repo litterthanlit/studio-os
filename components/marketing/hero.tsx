@@ -193,7 +193,10 @@ export function Hero() {
               className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-light"
               style={{
                 backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                border: '0.5px solid rgba(255, 255, 255, 0.36)',
+                borderWidth: '0.5px',
+                borderStyle: 'solid',
+                borderColor: 'rgba(255, 255, 255, 0.45)',
+                borderImage: 'none',
                 color: 'rgba(255, 255, 255, 0.55)',
               }}
             >
@@ -261,7 +264,7 @@ export function Hero() {
           </motion.p>
         </motion.div>
 
-        {/* Product Screenshot / Mockup */}
+        {/* Product Screenshot / Mockup - Styled like actual Studio OS */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -278,55 +281,157 @@ export function Hero() {
                 <div className="h-3 w-3 bg-border-hover" />
               </div>
               <div className="ml-4 flex-1">
-                <div className="mx-auto max-w-md border border-border-subtle bg-bg-primary px-3 py-1 text-center text-xs text-text-muted">
+                <div className="mx-auto max-w-md border border-border-subtle bg-bg-primary px-3 py-1 text-center text-xs font-mono text-text-muted">
                   studio-os.app/home
                 </div>
               </div>
             </div>
 
-            {/* App mockup content */}
-            <div className="flex h-[400px] sm:h-[500px]">
-              {/* Sidebar */}
-              <div className="hidden w-64 border-r border-border-subtle bg-bg-tertiary p-4 sm:block">
-                <div className="mb-4 h-8 w-24 bg-border-subtle" />
-                <div className="space-y-2">
-                  {[75, 60, 85, 70, 65].map((width, i) => (
+            {/* App mockup content - Studio OS Dashboard */}
+            <div className="bg-bg-primary p-6 sm:p-8">
+              {/* Greeting */}
+              <div className="mb-8 text-center">
+                <div className="text-2xl sm:text-3xl font-light text-[var(--text-primary)]">
+                  Good morning, Nick
+                </div>
+              </div>
+
+              {/* Command Bar Section */}
+              <div className="mb-8">
+                <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                  Command Bar
+                </div>
+                <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+                  <div className="flex items-center gap-2 px-3 py-2.5">
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="What are you working on today?"
+                      className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="my-6 flex items-center gap-4">
+                <div className="h-px flex-1 bg-[var(--border-primary)]" />
+                <div className="h-1 w-1 bg-[var(--border-hover)]" />
+                <div className="h-px flex-1 bg-[var(--border-primary)]" />
+              </div>
+
+              {/* Recent Projects Section */}
+              <div className="mb-8">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                    Recent Projects
+                  </span>
+                  <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+                    View all
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { name: "Acme Rebrand", phase: "Discovery", color: "#3B82F6" },
+                    { name: "Lumina App", phase: "Design", color: "#8B5CF6" },
+                    { name: "Nexus Platform", phase: "Refine", color: "#A855F7" },
+                    { name: "Pulse Design", phase: "Concept", color: "#6366F1" },
+                  ].map((project, i) => (
                     <div
                       key={i}
-                      className="h-8 bg-border-subtle/50"
-                      style={{ width: `${width}%` }}
-                    />
+                      className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-colors hover:border-[var(--text-tertiary)]"
+                    >
+                      <div className="relative h-24 w-full overflow-hidden bg-[var(--bg-tertiary)]">
+                        <div 
+                          className="h-full w-full opacity-60"
+                          style={{ 
+                            background: `linear-gradient(135deg, ${project.color}20 0%, ${project.color}40 100%)` 
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1.5 p-2.5">
+                        <div className="text-xs font-medium text-[var(--text-primary)]">
+                          {project.name}
+                        </div>
+                        <span
+                          className="inline-flex border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em]"
+                          style={{ 
+                            borderColor: `${project.color}40`,
+                            color: project.color,
+                            backgroundColor: `${project.color}10`
+                          }}
+                        >
+                          {project.phase}
+                        </span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* Main content */}
-              <div className="flex-1 bg-bg-primary p-6">
-                {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
-                  <div className="h-8 w-48 bg-border-subtle" />
-                  <div className="h-10 w-32 border border-border-subtle bg-bg-secondary" />
-                </div>
+              {/* Divider */}
+              <div className="my-6 flex items-center gap-4">
+                <div className="h-px flex-1 bg-[var(--border-primary)]" />
+                <div className="h-1 w-1 bg-[var(--border-hover)]" />
+                <div className="h-px flex-1 bg-[var(--border-primary)]" />
+              </div>
 
-                {/* Content grid */}
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                  {[...Array(6)].map((_, i) => (
+              {/* Daily Inspiration Section */}
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                    Daily Inspiration
+                  </span>
+                  <span className="text-xs font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                    Abstract
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {[
+                    { score: 97, color: "#F59E0B" },
+                    { score: 94, color: "#3B82F6" },
+                    { score: 92, color: "#10B981" },
+                    { score: 89, color: "#F43F5E" },
+                    { score: 91, color: "#8B5CF6" },
+                    { score: 88, color: "#06B6D4" },
+                  ].map((item, i) => (
                     <div
                       key={i}
-                      className="aspect-square border border-border-subtle bg-bg-tertiary"
-                    />
+                      className="relative aspect-[3/4] overflow-hidden bg-[var(--bg-tertiary)]"
+                    >
+                      <div 
+                        className="h-full w-full opacity-50"
+                        style={{ 
+                          background: `linear-gradient(135deg, ${item.color}30 0%, ${item.color}50 100%)` 
+                        }}
+                      />
+                      {/* Score badge */}
+                      <div className="absolute right-1.5 top-1.5 flex items-center gap-1 bg-black/60 px-1.5 py-0.5 text-[9px] font-mono text-white">
+                        <span className="h-1 w-1 bg-accent" />
+                        {item.score}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Glow effect */}
+          {/* Outer glow around dashboard */}
           <div
-            className="pointer-events-none absolute -inset-4 -z-10 opacity-50 blur-3xl"
+            className="pointer-events-none absolute -inset-8 -z-10 opacity-[0.15] blur-3xl"
             style={{
               background:
-                "radial-gradient(ellipse at center, var(--accent-subtle) 0%, transparent 70%)",
+                "radial-gradient(ellipse at center, var(--accent) 0%, transparent 60%)",
+            }}
+          />
+
+          {/* Inner subtle glow */}
+          <div
+            className="pointer-events-none absolute -inset-2 -z-10 opacity-[0.08] blur-2xl"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, var(--accent) 0%, transparent 50%)",
             }}
           />
         </motion.div>

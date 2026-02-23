@@ -227,21 +227,21 @@ const features = [
     icon: LayeredSquaresIcon,
     title: "Built for purpose",
     description:
-      "Studio OS is shaped by the practices and principles of world-class design teams. Every feature serves a clear intent.",
+      "Studio OS is shaped by the practices and principles of world-class design teams.",
   },
   {
     fig: "0.3",
     icon: CubesClusterIcon,
-    title: "Powered by AI agents",
+    title: "Powered by AI",
     description:
-      "Designed for workflows shared by humans and agents. From drafting specs to curating inspiration, AI works alongside you.",
+      "Designed for workflows shared by humans and agents.",
   },
   {
     fig: "0.4",
     icon: FileStackIcon,
     title: "Designed for speed",
     description:
-      "Reduces noise and restores momentum to help teams ship with high velocity and focus. No clutter, no friction.",
+      "Reduces noise and restores momentum.",
   },
 ];
 

@@ -2,12 +2,12 @@
 
 import { ArrowRight } from "lucide-react";
 
-// Sub-features for the numbered grid
+// Sub-features for the numbered grid - Feature Showcase 1
 const subFeatures = [
   { num: "3.1", label: "Projects" },
   { num: "3.2", label: "Tasks" },
-  { num: "3.3", label: "Studio MCP" },
-  { num: "3.4", label: "Export specs" },
+  { num: "3.3", label: "Export" },
+  { num: "3.4", label: "Integrations" },
 ];
 
 export function FeatureShowcase() {
@@ -19,19 +19,18 @@ export function FeatureShowcase() {
           <h2 className="text-3xl font-medium leading-tight text-white sm:text-4xl">
             Move work forward
             <br />
-            across teams and agents
+            across inspiration and execution
           </h2>
           <div className="lg:pt-2">
           <p className="mb-6 font-extralight text-neutral-500">
-            Build and deploy AI agents that work alongside your team. Work on
-            complex tasks together or delegate entire workflows end-to-end.
+            Build and deploy design systems that work alongside your creative process.
           </p>
             <a
-              href="#agents"
+              href="#how-it-works"
               className="inline-flex items-center gap-2 font-mono text-sm text-neutral-400 transition-colors hover:text-white"
             >
               <span>3.0</span>
-              <span>Agents</span>
+              <span>Workflow</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </a>
           </div>

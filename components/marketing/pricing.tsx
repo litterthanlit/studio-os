@@ -10,13 +10,12 @@ const plans = [
     name: "Free",
     description: "For personal projects",
     price: "$0",
-    period: "/month",
+    period: "",
     features: [
+      "Daily inspiration",
       "3 projects",
-      "100 references per project",
-      "Basic AI curation",
+      "Basic reference management",
       "Export .md files",
-      "Community support",
     ],
     cta: "Get started",
     popular: false,
@@ -24,19 +23,32 @@ const plans = [
   {
     name: "Pro",
     description: "For professional designers",
-    price: "$12",
+    price: "$9",
     period: "/month",
     features: [
       "Unlimited projects",
-      "Unlimited references",
-      "Advanced AI curation (80+ score)",
-      "Priority API access",
-      "Custom export templates",
-      "Team collaboration",
+      "AI curation (75+ score)",
       "Priority support",
+      "Advanced export options",
+      "Team collaboration",
     ],
     cta: "Join waitlist",
     popular: true,
+  },
+  {
+    name: "Enterprise",
+    description: "For design teams",
+    price: "Custom",
+    period: "",
+    features: [
+      "Everything in Pro",
+      "Teams & integrations",
+      "Dedicated support",
+      "SLA & security",
+      "Custom workflows",
+    ],
+    cta: "Contact us",
+    popular: false,
   },
 ];
 
@@ -95,7 +107,7 @@ function PricingCard({
 
       {/* CTA */}
       <motion.a
-        href="#waitlist"
+        href={plan.name === "Enterprise" ? "mailto:hello@studio-os.app" : "#waitlist"}
         className={`relative flex h-12 w-full items-center justify-center text-sm font-medium transition-all ${
           plan.popular
             ? "bg-button-primary-bg text-button-primary-text hover:opacity-90"
@@ -139,25 +151,12 @@ export function Pricing() {
           variants={staggerContainer}
           initial="initial"
           animate={isInView ? "animate" : "initial"}
-          className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2"
+          className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3"
         >
           {plans.map((plan, index) => (
             <PricingCard key={plan.name} plan={plan} index={index} />
           ))}
         </motion.div>
-
-        {/* Enterprise note */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ ...springs.smooth, delay: 0.3 }}
-          className="mt-8 text-center text-sm font-extralight text-text-muted"
-        >
-          Need enterprise features?{" "}
-          <a href="mailto:hello@studio-os.app" className="font-light text-accent hover:underline">
-            Contact us
-          </a>
-        </motion.p>
       </div>
     </section>
   );

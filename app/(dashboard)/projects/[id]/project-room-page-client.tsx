@@ -130,11 +130,11 @@ export function ProjectRoomPageClient({
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-medium text-[rgba(43,43,43,1)]">
+              <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
                 {project.name}
               </h1>
               <span
-                className={`px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.15em] ${PHASE_STYLES[project.phase]}`}
+                className={`px-1.5 py-0.5 text-[10px] font-sans font-semibold uppercase ${PHASE_STYLES[project.phase]}`}
               >
                 {project.phase}
               </span>

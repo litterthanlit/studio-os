@@ -1,16 +1,16 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { motion, useInView, AnimatePresence } from "framer-motion";
+import { useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 const plans = [
   {
     name: "Free",
-    description: "For personal projects",
-    price: "$0",
-    period: "",
+    priceMonthly: 0,
+    priceYearly: 0,
+    period: "Free for everyone",
     features: [
       "Daily inspiration",
       "3 projects",
@@ -22,103 +22,161 @@ const plans = [
   },
   {
     name: "Pro",
-    description: "For professional designers",
-    price: "$9",
-    period: "/month",
+    priceMonthly: 12,
+    priceYearly: 10,
+    period: "per user/month",
     features: [
       "Unlimited projects",
       "AI curation (75+ score)",
+      "Team collaboration",
       "Priority support",
       "Advanced export options",
-      "Team collaboration",
+      "AI-powered insights",
     ],
-    cta: "Join waitlist",
+    cta: "Get started",
     popular: true,
-  },
-  {
-    name: "Enterprise",
-    description: "For design teams",
-    price: "Custom",
-    period: "",
-    features: [
-      "Everything in Pro",
-      "Teams & integrations",
-      "Dedicated support",
-      "SLA & security",
-      "Custom workflows",
-    ],
-    cta: "Contact us",
-    popular: false,
   },
 ];
 
+function Toggle({
+  yearly,
+  onChange,
+}: {
+  yearly: boolean;
+  onChange: (yearly: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-4">
+      <span
+        className={`text-sm transition-colors ${
+          !yearly ? "text-text-primary" : "text-text-secondary"
+        }`}
+      >
+        Monthly
+      </span>
+      <button
+        onClick={() => onChange(!yearly)}
+        className="relative h-6 w-11 rounded-full bg-[#4777DE] transition-colors"
+      >
+        <motion.div
+          className="absolute top-1 h-4 w-4 rounded-full bg-white"
+          animate={{ left: yearly ? "calc(100% - 1.25rem)" : "0.25rem" }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      </button>
+      <span
+        className={`text-sm transition-colors ${
+          yearly ? "text-text-primary" : "text-text-secondary"
+        }`}
+      >
+        Yearly
+      </span>
+    </div>
+  );
+}
+
 function PricingCard({
   plan,
-  index,
+  yearly,
 }: {
   plan: (typeof plans)[0];
-  index: number;
+  yearly: boolean;
 }) {
+  const price = yearly ? plan.priceYearly : plan.priceMonthly;
+  const isEnterprise = price === null;
+
   return (
     <motion.div
       variants={staggerItem}
-      whileHover={{ y: -4, transition: springs.smooth }}
-      className={`group relative flex flex-col overflow-hidden border border-neutral-800 p-6 sm:p-8 ${
-        plan.popular ? "bg-accent-subtle/30" : "bg-neutral-900"
+      className={`group relative flex flex-col overflow-hidden rounded-xl border ${
+        plan.popular
+          ? "border-[#4777DE]/50 bg-[#0F1115] scale-105 z-10 shadow-2xl shadow-[#4777DE]/10"
+          : "border-neutral-800 bg-[#0A0A0A]"
       }`}
     >
-      {/* Gradient overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-black/[0.02]" />
-
-      {/* Popular badge */}
+      {/* Popular indicator dot */}
       {plan.popular && (
-        <div className="absolute -top-3 left-6 z-10">
-          <span className="border border-accent bg-accent px-3 py-1 text-xs font-light text-white">
-            Recommended
-          </span>
+        <div className="absolute top-4 right-4">
+          <div className="h-2 w-2 rounded-full bg-[#4777DE]" />
         </div>
       )}
 
       {/* Header */}
-      <div className="relative mb-6">
-        <h3 className="mb-1 text-lg font-light text-text-primary">
+      <div className="p-6 pb-4">
+        <h3 className="mb-1 text-lg font-semibold text-text-primary">
           {plan.name}
         </h3>
-        <p className="text-sm font-extralight text-text-secondary">{plan.description}</p>
+        
+        {/* Price */}
+        <div className="mt-4 flex items-baseline">
+          {isEnterprise ? (
+            <span className="text-2xl font-semibold text-text-primary">
+              Contact us
+            </span>
+          ) : (
+            <>
+              <span className="text-3xl font-semibold text-text-primary">
+                US${price}
+              </span>
+              <span className="ml-1 text-sm text-text-secondary">
+                {plan.period}
+              </span>
+            </>
+          )}
+        </div>
+        
+        {/* Billed yearly toggle indicator */}
+        {!isEnterprise && plan.priceMonthly !== 0 && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${yearly ? 'bg-[#4777DE]' : 'bg-neutral-600'}`} />
+            <span className={`text-xs ${yearly ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+              Billed yearly
+            </span>
+          </div>
+        )}
+        
+        {plan.priceMonthly === 0 && (
+          <div className="mt-3">
+            <span className="text-xs text-text-tertiary">Free for everyone</span>
+          </div>
+        )}
       </div>
 
-      {/* Price */}
-      <div className="relative mb-6 flex items-baseline">
-        <span className="text-4xl font-light tracking-tight text-text-primary">
-          {plan.price}
-        </span>
-        <span className="ml-1 font-extralight text-text-secondary">{plan.period}</span>
-      </div>
+      {/* Divider */}
+      <div className="h-px bg-neutral-800 mx-6" />
 
       {/* Features */}
-      <ul className="relative mb-8 flex-1 space-y-3">
-        {plan.features.map((feature) => (
-          <li key={feature} className="flex items-start gap-3">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            <span className="text-sm font-extralight text-text-secondary">{feature}</span>
+      <ul className="flex-1 space-y-3 p-6 pt-5">
+        {plan.features.map((feature, i) => (
+          <li key={i} className="flex items-start gap-3">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#4777DE]" strokeWidth={2} />
+            <span className="text-sm text-text-secondary">{feature}</span>
           </li>
         ))}
       </ul>
 
       {/* CTA */}
-      <motion.a
-        href={plan.name === "Enterprise" ? "mailto:hello@studio-os.app" : "#waitlist"}
-        className={`relative flex h-12 w-full items-center justify-center text-sm font-medium transition-[background-color,color,transform] ${
-          plan.popular
-            ? "bg-button-primary-bg text-button-primary-text hover:opacity-90"
-            : "border border-border-primary bg-transparent text-text-primary hover:border-border-hover hover:bg-bg-tertiary"
-        }`}
-        whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.97 }}
-        transition={springs.snappy}
-      >
-        {plan.cta}
-      </motion.a>
+      <div className="p-6 pt-0">
+        <motion.a
+          href={plan.name === "Enterprise" ? "mailto:hello@studio-os.app" : "#waitlist"}
+          className={`flex h-11 w-full items-center justify-center rounded-lg text-sm font-medium transition-all ${
+            plan.popular
+              ? "bg-white text-black hover:bg-neutral-100"
+              : "bg-neutral-800 text-text-primary hover:bg-neutral-700"
+          }`}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          transition={springs.snappy}
+        >
+          {plan.cta}
+        </motion.a>
+        
+        {plan.popular && (
+          <p className="mt-3 text-center text-xs text-text-tertiary">
+            or <a href="mailto:hello@studio-os.app" className="text-[#4777DE] hover:underline">contact sales</a>
+          </p>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -126,35 +184,41 @@ function PricingCard({
 export function Pricing() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [yearly, setYearly] = useState(true);
 
   return (
     <section id="pricing" className="relative bg-black py-32">
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={springs.smooth}
           ref={ref}
-          className="mb-16 text-center"
+          className="mb-12 text-center"
         >
-          <h2 className="mb-4 text-3xl font-light tracking-tight text-text-primary sm:text-4xl">
-            Simple, transparent pricing
+          <h2 className="mb-4 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl">
+            Pricing
           </h2>
-          <p className="mx-auto max-w-xl font-extralight text-text-secondary">
-            Start free, upgrade when you need more power.
+          <p className="mx-auto max-w-xl text-text-secondary">
+            Use Studio OS for free with your whole team. Upgrade to enable unlimited projects, enhanced AI features, and additional capabilities.
           </p>
         </motion.div>
 
-        {/* Pricing grid */}
+        {/* Toggle */}
+        <div className="mb-12">
+          <Toggle yearly={yearly} onChange={setYearly} />
+        </div>
+
+        {/* Pricing grid - Centered 2 cards */}
         <motion.div
           variants={staggerContainer}
           initial="initial"
           animate={isInView ? "animate" : "initial"}
-          className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-3"
+          className="flex justify-center gap-4 items-start"
         >
-          {plans.map((plan, index) => (
-            <PricingCard key={plan.name} plan={plan} index={index} />
+          {plans.map((plan) => (
+            <PricingCard key={plan.name} plan={plan} yearly={yearly} />
           ))}
         </motion.div>
       </div>

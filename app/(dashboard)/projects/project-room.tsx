@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { ColorPicker } from "@/components/color-picker";
+import { ColorPickerPanel } from "@/components/color-picker";
 import { DotSeparator } from "@/components/ui/dot-separator";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -20,24 +21,24 @@ export { PROJECTS, PHASE_STYLES } from "./projects-data";
 
 export function ProjectRoomSections({ project }: { project: Project }) {
   return (
-    <div className="space-y-8 pb-16">
-      <section id="board">
+    <div className="pb-16">
+      <section id="board" className="py-8 border-b border-card-border">
         <BoardTab project={project} />
       </section>
 
-      <section id="type">
+      <section id="type" className="py-8 border-b border-card-border">
         <TypeTab project={project} />
       </section>
 
-      <section id="palette">
+      <section id="palette" className="py-8 border-b border-card-border">
         <PaletteTab project={project} />
       </section>
 
-      <section id="tasks">
+      <section id="tasks" className="py-8 border-b border-card-border">
         <TasksTab projectId={project.id} />
       </section>
 
-      <section id="overview">
+      <section id="overview" className="py-8">
         <OverviewTab project={project} />
       </section>
     </div>
@@ -63,27 +64,44 @@ function OverviewTab({ project }: { project: Project }) {
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-xs">
-        <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+        {/* References Card */}
+        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             References
           </div>
-          <div className="mt-1 text-sm font-bold text-text-primary transition-colors duration-300">
-            {project.references}
-          </div>
+          {project.references > 0 ? (
+            <div className="mt-2 text-sm font-bold text-text-primary transition-colors duration-300">
+              {project.references}
+            </div>
+          ) : (
+            <div className="mt-2 text-[10px] text-gray-500 transition-colors duration-300">
+              Add your first
+            </div>
+          )}
         </div>
-        <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+
+        {/* Fonts Card */}
+        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             Fonts
           </div>
-          <div className="mt-1 text-sm font-bold text-text-primary transition-colors duration-300">
-            {project.fontsSelected}
-          </div>
+          {project.fontsSelected > 0 ? (
+            <div className="mt-2 text-sm font-bold text-text-primary transition-colors duration-300">
+              {project.fontsSelected}
+            </div>
+          ) : (
+            <div className="mt-2 text-[10px] text-gray-500 transition-colors duration-300">
+              Choose fonts
+            </div>
+          )}
         </div>
-        <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+
+        {/* Days Active Card */}
+        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             Days Active
           </div>
-          <div className="mt-1 text-sm font-bold text-text-primary transition-colors duration-300">
+          <div className="mt-2 text-sm font-bold text-text-primary transition-colors duration-300">
             {project.daysActive}
           </div>
         </div>
@@ -279,7 +297,7 @@ function BoardTab({ project }: { project: Project }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-          Connected Moodboard
+          References
         </div>
         {references.length > 0 && (
           <button
@@ -355,55 +373,49 @@ function BoardTab({ project }: { project: Project }) {
         )}
 
         {references.length === 0 ? (
-          <div className="space-y-4 py-10 text-center">
-            <p className="text-sm text-text-secondary transition-colors duration-300">
-              Drop images, paste URL, or click to import
-            </p>
+          <div className="py-6 px-4 text-center">
             <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
               >
-                Upload files
+                Upload
               </button>
               <button
                 type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openImport("arena");
                 }}
               >
-                From Are.na
+                Are.na
               </button>
               <button
                 type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openImport("pinterest");
                 }}
               >
-                From Pinterest
+                Pinterest
               </button>
               <button
                 type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300"
+                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openImport("url");
                 }}
               >
-                Paste image URL
+                URL
               </button>
             </div>
-            <p className="text-[11px] text-text-placeholder transition-colors duration-300">
-              Drop images or import from Are.na/Pinterest
-            </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
@@ -544,30 +556,31 @@ function TypeTab({ project }: { project: Project }) {
   return (
     <div className="space-y-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-        Typography Spine
+        Typography
       </div>
-      <p className="text-xs text-gray-400 transition-colors duration-300">
-        Lock the heading/body pairing that defines this project. This will sync
-        with the Type Library.
-      </p>
       <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
-        <div className="mb-2 flex items-center justify-between text-xs text-gray-500 transition-colors duration-300">
-          <span className="transition-colors duration-300">Heading: {headingFont?.family || "Not selected"}</span>
-          <span className="transition-colors duration-300">Body: {bodyFont?.family || "Not selected"}</span>
-        </div>
-        <div className="space-y-1 text-sm text-text-primary transition-colors duration-300">
-          <div className="text-lg font-bold transition-colors duration-300" style={headingStyle}>
-            Studio OS project spine
+        <div className="flex items-start gap-6">
+          {/* Left: Preview text */}
+          <div className="flex-1 space-y-1 text-sm text-text-primary transition-colors duration-300">
+            <div className="text-lg font-bold transition-colors duration-300" style={headingStyle}>
+              Studio OS project spine
+            </div>
+            <div className="text-xs transition-colors duration-300" style={bodyStyle}>
+              The quick brown fox jumps over the lazy dog.
+            </div>
           </div>
-          <div className="text-xs transition-colors duration-300" style={bodyStyle}>
-            The quick brown fox jumps over the lazy dog.
+          {/* Right: Labels */}
+          <div className="flex flex-col items-end gap-0.5 text-[11px] font-light text-gray-500 transition-colors duration-300 text-right">
+            <span className="transition-colors duration-300">Heading: {headingFont?.family || "Not selected"}</span>
+            <span className="transition-colors duration-300">Body: {bodyFont?.family || "Not selected"}</span>
           </div>
         </div>
-        <div className="mt-3 flex justify-end">
+        {/* Button on the left */}
+        <div className="mt-4 flex justify-start">
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
+            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.07em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
           >
             Change Font
           </button>
@@ -589,37 +602,169 @@ function TypeTab({ project }: { project: Project }) {
 
 type Swatch = { id: string; color: string; name: string };
 
+// Auto-name colors based on hex value
+function getColorName(hex: string): string {
+  const normalized = hex.toLowerCase().replace('#', '');
+  
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  
+  // Grays (where R, G, B are very similar)
+  const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b));
+  
+  if (maxDiff < 20) {
+    const avg = Math.round((r + g + b) / 3);
+    if (avg < 30) return "Black";
+    if (avg < 80) return "Near Black";
+    if (avg < 140) return "Dark Gray";
+    if (avg < 200) return "Medium Gray";
+    if (avg < 240) return "Light Gray";
+    return "White";
+  }
+  
+  // Convert to HSL for better color naming
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+  
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  const delta = max - min;
+  
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  
+  if (delta !== 0) {
+    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    
+    switch (max) {
+      case rNorm:
+        h = ((gNorm - bNorm) / delta + (gNorm < bNorm ? 6 : 0)) / 6;
+        break;
+      case gNorm:
+        h = ((bNorm - rNorm) / delta + 2) / 6;
+        break;
+      case bNorm:
+        h = ((rNorm - gNorm) / delta + 4) / 6;
+        break;
+    }
+  }
+  
+  const hue = h * 360;
+  const saturation = s;
+  const lightness = l;
+  
+  // Determine lightness modifier
+  let modifier = "";
+  if (lightness > 0.85) modifier = "Light ";
+  else if (lightness > 0.65) modifier = "";
+  else if (lightness > 0.45) modifier = "Medium ";
+  else if (lightness > 0.25) modifier = "Dark ";
+  else modifier = "Deep ";
+  
+  // Very low saturation - treat as grayish
+  if (saturation < 0.1) {
+    return modifier.trim() + " Gray";
+  }
+  
+  // Determine base color from hue
+  let baseColor = "";
+  
+  if (hue >= 355 || hue < 10) {
+    baseColor = "Red";
+  } else if (hue >= 10 && hue < 20) {
+    baseColor = "Red-Orange";
+  } else if (hue >= 20 && hue < 38) {
+    baseColor = "Orange";
+  } else if (hue >= 38 && hue < 50) {
+    baseColor = "Amber";
+  } else if (hue >= 50 && hue < 60) {
+    baseColor = "Gold";
+  } else if (hue >= 60 && hue < 75) {
+    baseColor = "Yellow";
+  } else if (hue >= 75 && hue < 90) {
+    baseColor = "Lime";
+  } else if (hue >= 90 && hue < 140) {
+    baseColor = "Green";
+  } else if (hue >= 140 && hue < 165) {
+    baseColor = "Emerald";
+  } else if (hue >= 165 && hue < 185) {
+    baseColor = "Teal";
+  } else if (hue >= 185 && hue < 200) {
+    baseColor = "Cyan";
+  } else if (hue >= 200 && hue < 220) {
+    baseColor = "Sky";
+  } else if (hue >= 220 && hue < 240) {
+    baseColor = "Blue";
+  } else if (hue >= 240 && hue < 260) {
+    baseColor = "Indigo";
+  } else if (hue >= 260 && hue < 280) {
+    baseColor = "Violet";
+  } else if (hue >= 280 && hue < 300) {
+    baseColor = "Purple";
+  } else if (hue >= 300 && hue < 315) {
+    baseColor = "Magenta";
+  } else if (hue >= 315 && hue < 330) {
+    baseColor = "Pink";
+  } else if (hue >= 330 && hue < 345) {
+    baseColor = "Rose";
+  } else {
+    baseColor = "Red";
+  }
+  
+  return (modifier + baseColor).trim();
+}
+
 function PaletteTab({ project }: { project: Project }) {
   const [swatches, setSwatches] = React.useState<Swatch[]>(() =>
     project.palette.map((color, i) => ({
       id: `swatch-${i}`,
       color,
-      name: "",
+      name: getColorName(color),
     }))
   );
-  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [openPickerId, setOpenPickerId] = React.useState<string | null>(null);
+  const [pickerPosition, setPickerPosition] = React.useState({ top: 0, left: 0 });
 
   function addSwatch() {
     const id = `swatch-${Date.now()}`;
     setSwatches((prev) => [...prev, { id, color: "#0070F3", name: "" }]);
-    setEditingId(id);
   }
 
   function updateColor(id: string, color: string) {
     setSwatches((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, color } : s))
-    );
-  }
-
-  function updateName(id: string, name: string) {
-    setSwatches((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, name } : s))
+      prev.map((s) =>
+        s.id === id ? { ...s, color, name: getColorName(color) } : s
+      )
     );
   }
 
   function removeSwatch(id: string) {
     setSwatches((prev) => prev.filter((s) => s.id !== id));
-    if (editingId === id) setEditingId(null);
+    if (openPickerId === id) setOpenPickerId(null);
+  }
+
+  function openPicker(swatchId: string, triggerEl: HTMLElement) {
+    const rect = triggerEl.getBoundingClientRect();
+    const PANEL_H = 360;
+    const PANEL_W = 248;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const top = spaceBelow >= PANEL_H ? rect.bottom + 8 : rect.top - PANEL_H - 8;
+    const left = Math.min(rect.left, window.innerWidth - PANEL_W - 8);
+    setPickerPosition({ top, left });
+    setOpenPickerId(swatchId);
+  }
+
+  // Helper to determine if a color is light or dark
+  function isLightColor(hex: string): boolean {
+    const normalized = hex.toLowerCase().replace("#", "");
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 128;
   }
 
   return (
@@ -628,111 +773,114 @@ function PaletteTab({ project }: { project: Project }) {
         Color System
       </div>
 
-      {swatches.length === 0 && (
-        <p className="text-xs text-gray-600 transition-colors duration-300">
-          No colors yet. Add one below.
-        </p>
-      )}
-
-      {/* Swatch list */}
-      <div className="space-y-1.5">
-        {swatches.map((swatch) => (
-          <div
-            key={swatch.id}
-            className="group flex items-center gap-3 border border-transparent px-2 py-1.5 transition-[border-color,background] duration-300 hover:border-card-border hover:bg-sidebar-hover"
-          >
-            {/* Color picker trigger */}
-            <ColorPicker
-              value={swatch.color}
-              onChange={(c) => updateColor(swatch.id, c)}
-            />
-
-            {/* Hex display */}
-            <span className="w-[68px] flex-shrink-0 font-mono text-[11px] text-gray-500 transition-colors duration-300">
-              {swatch.color.toUpperCase()}
-            </span>
-
-            {/* Name input */}
-            {editingId === swatch.id ? (
-              <input
-                type="text"
-                value={swatch.name}
-                onChange={(e) => updateName(swatch.id, e.target.value)}
-                onBlur={() => setEditingId(null)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "Escape")
-                    setEditingId(null);
-                }}
-                placeholder="Name this swatch…"
-                autoFocus
-                className="flex-1 bg-transparent text-xs text-text-primary outline-none placeholder:text-gray-700 transition-colors duration-300"
+      {/* 4-column grid of square swatches */}
+      <div className="grid grid-cols-4 gap-3">
+        {swatches.map((swatch) => {
+          const isLight = isLightColor(swatch.color);
+          return (
+            <motion.div
+              key={swatch.id}
+              whileHover={{ transform: "translateY(-4px)" }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="group relative aspect-square overflow-hidden cursor-pointer"
+              onClick={(e) => openPicker(swatch.id, e.currentTarget as HTMLElement)}
+            >
+              {/* Background color */}
+              <div
+                className="absolute inset-0"
+                style={{ backgroundColor: swatch.color }}
               />
-            ) : (
+
+              {/* Hex code in center */}
+              <span
+                className={cn(
+                  "absolute inset-0 flex items-center justify-center font-mono text-[11px] transition-colors duration-300",
+                  isLight ? "text-black/70" : "text-white/70"
+                )}
+              >
+                {swatch.color.toUpperCase()}
+              </span>
+
+              {/* Color name at bottom */}
+              <span
+                className={cn(
+                  "absolute bottom-2 left-2 right-2 text-[10px] truncate transition-colors duration-300",
+                  isLight ? "text-black/50" : "text-white/50"
+                )}
+              >
+                {swatch.name}
+              </span>
+
+              {/* Remove button */}
               <button
                 type="button"
-                onClick={() => setEditingId(swatch.id)}
-                className="flex-1 text-left text-xs text-gray-600 transition-colors duration-300 hover:text-gray-300"
-              >
-                {swatch.name || (
-                  <span className="italic text-gray-700 transition-colors duration-300">Untitled</span>
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSwatch(swatch.id);
+                }}
+                className={cn(
+                  "absolute top-1 right-1 p-1 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10",
+                  isLight ? "text-black/50 hover:text-black" : "text-white/50 hover:text-white"
                 )}
-              </button>
-            )}
-
-            {/* Remove */}
-            <button
-              type="button"
-              onClick={() => removeSwatch(swatch.id)}
-              aria-label="Remove swatch"
-              className="ml-auto flex-shrink-0 p-1 text-text-placeholder opacity-0 transition-[opacity,color] duration-300 group-hover:opacity-100 hover:text-red-400"
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
               >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-        ))}
-      </div>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </motion.div>
+          );
+        })}
 
-      {/* Preview strip */}
-      {swatches.length > 0 && (
-        <div className="flex h-8 overflow-hidden">
-          {swatches.map((s) => (
-            <div
-              key={s.id}
-              className="flex-1"
-              style={{ backgroundColor: s.color }}
-              title={s.name || s.color}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-1">
-        <button
+        {/* Add Color button */}
+        <motion.button
           type="button"
           onClick={addSwatch}
-          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
+          whileHover={{ transform: "translateY(-4px)" }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          className="group aspect-square border border-dashed border-card-border bg-transparent flex flex-col items-center justify-center gap-1 transition-[border-color,background-color] duration-300 hover:border-white/30 hover:bg-sidebar-hover"
         >
-          + Add Color
-        </button>
-        <button
-          type="button"
-          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
-        >
-          Extract from Reference
-        </button>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            className="text-gray-500 transition-colors duration-300 group-hover:text-gray-300"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="text-[9px] uppercase tracking-[0.1em] text-gray-500 transition-colors duration-300 group-hover:text-gray-300">
+            Add
+          </span>
+        </motion.button>
       </div>
+
+      {/* Portal-mounted color picker panel */}
+      {openPickerId && typeof document !== "undefined" && (
+        <>
+          {React.createElement(
+            ColorPickerPanel,
+            {
+              value: swatches.find((s) => s.id === openPickerId)?.color ?? "#0070F3",
+              position: pickerPosition,
+              onChange: (c: string) => updateColor(openPickerId, c),
+              onClose: () => setOpenPickerId(null),
+            }
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -814,11 +962,13 @@ function TasksTab({ projectId }: { projectId: string }) {
         Tasks
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-0.5">
         {tasks.map((task) => (
-          <label
+          <motion.label
             key={task.id}
-            className="flex items-center gap-2 text-xs text-text-primary cursor-pointer transition-colors duration-300"
+            whileHover={{ x: 3 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary cursor-pointer transition-colors duration-300 hover:bg-neutral-800/50 rounded"
           >
             <input
               type="checkbox"
@@ -829,31 +979,46 @@ function TasksTab({ projectId }: { projectId: string }) {
             <span className={cn(task.completed && "line-through text-gray-400 transition-colors duration-300")}>
               {task.text}
             </span>
-          </label>
+          </motion.label>
         ))}
       </div>
 
       <div className="flex items-center gap-2 pt-2">
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add task..."
-          className="flex-1 border border-card-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addTask();
-            }
-          }}
-        />
-        <button
-          type="button"
-          onClick={addTask}
-          className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
-        >
-          Add
-        </button>
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add task..."
+            className="w-full border border-card-border bg-transparent px-2 py-1.5 pr-8 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addTask();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={addTask}
+            disabled={!draft.trim()}
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 transition-colors duration-300 hover:text-text-primary disabled:opacity-30 disabled:hover:text-gray-500"
+            aria-label="Add task"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -143,16 +143,19 @@ export function ProjectRoomPageClient({
           </div>
 
           {/* Progress bar */}
-          <div className="space-y-1">
-            <div className="h-1 w-full bg-[#333333] transition-colors duration-300">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-gray-500 transition-colors duration-300">
+              <span className="transition-colors duration-300">Progress</span>
+              <span className="transition-colors duration-300">{project.progress}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-[var(--bg-tertiary)] transition-colors duration-300 overflow-hidden">
               <div
-                className="h-1 bg-accent transition-[width] duration-500 ease-out relative overflow-hidden"
+                className="h-full bg-accent transition-[width] duration-500 ease-out"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-gray-500 transition-colors duration-300">
-              <span className="transition-colors duration-300">{project.progress}% complete</span>
-              <span className="transition-colors duration-300">Last activity · {project.lastActivity}</span>
+            <div className="text-[11px] text-gray-500 transition-colors duration-300">
+              Last activity · {project.lastActivity}
             </div>
           </div>
         </div>

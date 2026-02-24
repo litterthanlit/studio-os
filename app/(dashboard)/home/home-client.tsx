@@ -122,7 +122,7 @@ function scoreProjectMatch(projectName: string, query: string): number {
 }
 
 const phaseColors: Record<string, { bg: string; text: string }> = {
-  Discovery:   { bg: "bg-amber-500/20",   text: "text-amber-600" },
+  Discovery:   { bg: "bg-[#FF4400]/15",   text: "text-[#FF4400]" },
   Concept:     { bg: "bg-violet-500/20",  text: "text-violet-600" },
   Refine:      { bg: "bg-sky-500/20",     text: "text-sky-600" },
   Deliver:     { bg: "bg-emerald-500/20", text: "text-emerald-600" },
@@ -470,6 +470,7 @@ export function HomeClient() {
 
       <div className="relative z-10 mx-auto w-full max-w-[980px]">
         <section className="mb-14">
+          {/* Greeting - Pushed higher */}
           <motion.div
             initial="hidden"
             animate="visible"
@@ -478,14 +479,17 @@ export function HomeClient() {
           >
             Good {timeOfDay}, Nick
           </motion.div>
-          <div className="relative mt-6">
-            <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] rounded-none transition-[border-color,background-color,box-shadow] duration-300 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
-              <div className="flex items-center gap-2 px-3 py-2">
+
+          {/* Control Center Box - Command Bar + Quick Actions */}
+          <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5">
+            {/* Command Bar */}
+            <div className="relative">
+              <div className="flex items-center gap-3 border border-[var(--border-secondary)] bg-[var(--bg-primary)] px-4 py-3 transition-[border-color,background-color,box-shadow] duration-300 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
                 {selectedProject ? (
                   <button
                     type="button"
                     onClick={resetToProjectSearch}
-                    className="inline-flex items-center gap-1 border border-[var(--border-primary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded-none transition-colors duration-300"
+                    className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded-none transition-colors duration-300 hover:border-[var(--border-tertiary)]"
                   >
                     <span aria-hidden>×</span>
                     <span>{selectedProject.name}</span>
@@ -505,36 +509,89 @@ export function HomeClient() {
                       ? `Add a task to ${selectedProject.name}...`
                       : "What are you working on today?"
                   }
-                  className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none font-mono tracking-tight transition-colors duration-300"
+                  className="flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none font-mono tracking-tight transition-colors duration-300"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedProject) {
+                      submitTask();
+                    } else if (projectOptions.length > 0) {
+                      selectOption(projectOptions[activeOptionIndex]);
+                    }
+                  }}
+                  className="flex items-center justify-center text-neutral-500 hover:text-[#FF4400] transition-colors duration-300"
+                  aria-label="Submit"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+                    <path d="M5 12h14M14 7l5 5-5 5" />
+                  </svg>
+                </button>
               </div>
+
+              {showDropdown ? (
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-none transition-colors duration-300">
+                  {projectOptions.map((option, index) => (
+                    <ProjectSearchRow
+                      key={
+                        option.kind === "project"
+                          ? option.project.id
+                          : `create-${option.name}`
+                      }
+                      option={option}
+                      active={index === activeOptionIndex}
+                      onMouseDown={() => selectOption(option)}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
 
-            {showDropdown ? (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-none transition-colors duration-300">
-                {projectOptions.map((option, index) => (
-                  <ProjectSearchRow
-                    key={
-                      option.kind === "project"
-                        ? option.project.id
-                        : `create-${option.name}`
-                    }
-                    option={option}
-                    active={index === activeOptionIndex}
-                    onMouseDown={() => selectOption(option)}
-                  />
-                ))}
-              </div>
+            {/* Quick Actions */}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={openNewProject}
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                <span className="text-[10px]">+</span> New Project
+              </button>
+              <Link
+                href="/projects"
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                Browse All
+              </Link>
+              <button
+                type="button"
+                onClick={() => router.push('/inspiration')}
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                Daily Inspiration
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/projects?upload=true')}
+                className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                <span className="text-[10px]">+</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
+                  <rect x="3" y="3" width="18" height="18" rx="1" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+              </button>
+            </div>
+
+            {taskConfirmation ? (
+              <p className="mt-3 text-[11px] font-mono text-[var(--text-secondary)]">
+                ✓ {taskConfirmation}
+              </p>
             ) : null}
           </div>
-          {taskConfirmation ? (
-            <p className="mt-2 text-[11px] font-mono text-[var(--text-secondary)]">
-              ✓ {taskConfirmation}
-            </p>
-          ) : null}
         </section>
 
-        <section className="my-14">
+        <section className="py-12">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -553,7 +610,7 @@ export function HomeClient() {
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            className={`grid gap-4 ${recentProjects.length <= 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'}`}
           >
             {recentProjects.map((project) => (
               <motion.button
@@ -595,9 +652,21 @@ export function HomeClient() {
           </motion.div>
         </section>
 
-        <section className="mt-14">
-          <div className="flex items-center">
+        {/* Separator */}
+        <div className="border-t border-[var(--border-primary)] transition-colors duration-300" />
+
+        <section className="py-12">
+          <div className="flex items-center justify-between">
             <SectionLabel>Daily Inspiration</SectionLabel>
+            {inspiration.length === 0 && !inspirationLoading && (
+              <button
+                type="button"
+                onClick={() => router.push('/settings')}
+                className="text-[10px] font-mono uppercase tracking-[0.1em] text-[var(--accent)] hover:text-[var(--text-primary)] transition-colors duration-300"
+              >
+                Enable →
+              </button>
+            )}
           </div>
           <div className="mt-4">
             {inspirationLoading ? (
@@ -609,7 +678,13 @@ export function HomeClient() {
             ) : inspirationError ? (
               <p className="text-sm text-red-500 transition-colors duration-300">Error: {inspirationError}</p>
             ) : inspiration.length === 0 ? (
-              <p className="text-sm text-text-secondary transition-colors duration-300">No images found.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="aspect-[3/4] bg-[var(--bg-tertiary)] border border-dashed border-[var(--border-primary)] flex items-center justify-center transition-colors duration-300">
+                    <span className="text-[var(--text-tertiary)] text-xs">—</span>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {inspiration.map((item, index) => (

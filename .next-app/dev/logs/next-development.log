@@ -1,0 +1,31 @@
+[00:00:00.838] Server  LOG     
+[00:00:00.838] Server  LOG       We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+[00:00:00.838] Server  LOG       The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+[00:00:00.838] Server  LOG       	- include was updated to add '.next-app/types/**/*.ts'
+[00:00:00.838] Server  LOG       	- include was updated to add '.next-app/dev/types/**/*.ts'
+[00:00:00.838] Server  LOG     
+[00:00:00.840] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.840] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.841] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.841] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.841] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.841] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.842] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.844] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.844] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.844] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.845] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.845] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.951] Server  LOG     ✓ Ready in 752ms
+[00:00:00.954] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.954] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.954] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.955] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.955] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.955] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.955] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.957] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.957] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.959] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch
+[00:00:00.959] Server  ERROR   Watchpack Error (watcher): Error: EMFILE: too many open files, watch

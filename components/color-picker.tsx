@@ -182,7 +182,7 @@ export function ColorPicker({
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
-function ColorPickerPanel({
+export function ColorPickerPanel({
   value,
   position,
   onChange,

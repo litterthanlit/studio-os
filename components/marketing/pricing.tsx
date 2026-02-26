@@ -12,28 +12,30 @@ const plans = [
     priceYearly: 0,
     period: "Free for everyone",
     features: [
-      "Daily inspiration",
-      "3 projects",
-      "Basic reference management",
-      "Export .md files",
+      "5 projects",
+      "Unlimited reference saves",
+      "Board, Type, Palette, Tasks, Brief",
+      "⌘K command palette",
+      "Daily inspiration (curated feed)",
+      "Light & dark mode",
     ],
-    cta: "Get started",
+    cta: "Get started free",
     popular: false,
   },
   {
     name: "Pro",
-    priceMonthly: 12,
-    priceYearly: 10,
-    period: "per user/month",
+    priceMonthly: 9,
+    priceYearly: 7,
+    period: "per month",
     features: [
       "Unlimited projects",
-      "AI curation (75+ score)",
-      "Team collaboration",
-      "Priority support",
-      "Advanced export options",
-      "AI-powered insights",
+      "AI auto-tagging on every reference",
+      "GPT-4 scored inspiration feed",
+      "Export design-system.md",
+      "Are.na + Pinterest import",
+      "Browser extension (coming soon)",
     ],
-    cta: "Get started",
+    cta: "Start free trial",
     popular: true,
   },
 ];
@@ -49,14 +51,14 @@ function Toggle({
     <div className="flex items-center justify-center gap-4">
       <span
         className={`text-sm transition-colors ${
-          !yearly ? "text-text-primary" : "text-text-secondary"
+          !yearly ? "text-white" : "text-neutral-400"
         }`}
       >
         Monthly
       </span>
       <button
         onClick={() => onChange(!yearly)}
-        className="relative h-6 w-11 rounded-full bg-[#4777DE] transition-colors"
+        className="relative h-6 w-11 rounded-full bg-[#2430AD] transition-colors"
       >
         <motion.div
           className="absolute top-1 h-4 w-4 rounded-full bg-white"
@@ -66,7 +68,7 @@ function Toggle({
       </button>
       <span
         className={`text-sm transition-colors ${
-          yearly ? "text-text-primary" : "text-text-secondary"
+          yearly ? "text-white" : "text-neutral-400"
         }`}
       >
         Yearly
@@ -88,37 +90,37 @@ function PricingCard({
   return (
     <motion.div
       variants={staggerItem}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border ${
+      className={`group relative flex flex-col overflow-hidden border rounded-xl ${
         plan.popular
-          ? "border-[#4777DE]/50 bg-[#0F1115] scale-105 z-10 shadow-2xl shadow-[#4777DE]/10"
-          : "border-neutral-800 bg-[#0A0A0A]"
+          ? "border-[#2430AD]/50 bg-[#161820] scale-105 z-10 shadow-2xl shadow-[#2430AD]/10"
+          : "border-neutral-800 bg-[#141414]"
       }`}
     >
       {/* Popular indicator dot */}
       {plan.popular && (
         <div className="absolute top-4 right-4">
-          <div className="h-2 w-2 rounded-full bg-[#4777DE]" />
+          <div className="h-2 w-2 rounded-full bg-[#2430AD]" />
         </div>
       )}
 
       {/* Header */}
       <div className="p-6 pb-4">
-        <h3 className="mb-1 text-lg font-semibold text-text-primary">
+        <h3 className="mb-1 text-lg font-semibold text-white">
           {plan.name}
         </h3>
         
         {/* Price */}
         <div className="mt-4 flex items-baseline">
           {isEnterprise ? (
-            <span className="text-2xl font-semibold text-text-primary">
+            <span className="text-2xl font-semibold text-white">
               Contact us
             </span>
           ) : (
             <>
-              <span className="text-3xl font-semibold text-text-primary">
+              <span className="text-3xl font-semibold text-white">
                 US${price}
               </span>
-              <span className="ml-1 text-sm text-text-secondary">
+              <span className="ml-1 text-sm text-neutral-400">
                 {plan.period}
               </span>
             </>
@@ -128,8 +130,8 @@ function PricingCard({
         {/* Billed yearly toggle indicator */}
         {!isEnterprise && plan.priceMonthly !== 0 && (
           <div className="mt-3 flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${yearly ? 'bg-[#4777DE]' : 'bg-neutral-600'}`} />
-            <span className={`text-xs ${yearly ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+            <div className={`h-2 w-2 rounded-full ${yearly ? 'bg-[#2430AD]' : 'bg-neutral-600'}`} />
+            <span className={`text-xs ${yearly ? 'text-neutral-400' : 'text-neutral-500'}`}>
               Billed yearly
             </span>
           </div>
@@ -137,7 +139,7 @@ function PricingCard({
         
         {plan.priceMonthly === 0 && (
           <div className="mt-3">
-            <span className="text-xs text-text-tertiary">Free for everyone</span>
+            <span className="text-xs text-neutral-500">Free for everyone</span>
           </div>
         )}
       </div>
@@ -149,8 +151,8 @@ function PricingCard({
       <ul className="flex-1 space-y-3 p-6 pt-5">
         {plan.features.map((feature, i) => (
           <li key={i} className="flex items-start gap-3">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#4777DE]" strokeWidth={2} />
-            <span className="text-sm text-text-secondary">{feature}</span>
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#2430AD]" strokeWidth={2} />
+            <span className="text-sm text-neutral-300">{feature}</span>
           </li>
         ))}
       </ul>
@@ -162,7 +164,7 @@ function PricingCard({
           className={`flex h-11 w-full items-center justify-center rounded-lg text-sm font-medium transition-all ${
             plan.popular
               ? "bg-white text-black hover:bg-neutral-100"
-              : "bg-neutral-800 text-text-primary hover:bg-neutral-700"
+              : "bg-neutral-800 text-white hover:bg-neutral-700"
           }`}
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.97 }}
@@ -172,8 +174,8 @@ function PricingCard({
         </motion.a>
         
         {plan.popular && (
-          <p className="mt-3 text-center text-xs text-text-tertiary">
-            or <a href="mailto:hello@studio-os.app" className="text-[#4777DE] hover:underline">contact sales</a>
+          <p className="mt-3 text-center text-xs text-neutral-500">
+            or <a href="mailto:hello@studio-os.app" className="text-[#2430AD] hover:underline">contact sales</a>
           </p>
         )}
       </div>
@@ -187,7 +189,7 @@ export function Pricing() {
   const [yearly, setYearly] = useState(true);
 
   return (
-    <section id="pricing" className="relative bg-black py-32">
+    <section id="pricing" className="relative bg-[#111111] py-32">
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
         <motion.div
@@ -197,11 +199,11 @@ export function Pricing() {
           ref={ref}
           className="mb-12 text-center"
         >
-          <h2 className="mb-4 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl">
+          <h2 className="mb-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
             Pricing
           </h2>
-          <p className="mx-auto max-w-xl text-text-secondary">
-            Use Studio OS for free with your whole team. Upgrade to enable unlimited projects, enhanced AI features, and additional capabilities.
+          <p className="mx-auto max-w-xl text-neutral-400">
+            Free is genuinely useful. Pro pays for itself the first time you hand off a project.
           </p>
         </motion.div>
 

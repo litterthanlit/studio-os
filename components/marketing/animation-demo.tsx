@@ -25,7 +25,7 @@ export function AnimationDemo() {
   const [clickCount, setClickCount] = useState(0);
 
   return (
-    <section className="relative bg-black py-32">
+    <section className="relative bg-[#111111] py-32">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
           {/* Left: Interactive Demo */}
@@ -36,13 +36,13 @@ export function AnimationDemo() {
             ref={ref}
             className="order-2 lg:order-1"
           >
-            <div className="relative border border-border-primary bg-bg-secondary p-8 sm:p-12">
+            <div className="relative border border-neutral-800 bg-neutral-900 p-8 sm:p-12">
               {/* Grid background */}
               <div
                 className="pointer-events-none absolute inset-0 opacity-[0.03]"
                 style={{
                   backgroundImage:
-                    "radial-gradient(circle, var(--text-primary) 1px, transparent 1px)",
+                    "radial-gradient(circle, #ffffff 1px, transparent 1px)",
                   backgroundSize: "24px 24px",
                 }}
               />
@@ -52,7 +52,7 @@ export function AnimationDemo() {
                 <motion.button
                   key={clickCount}
                   onClick={() => setClickCount((c) => c + 1)}
-                  className="group flex h-16 w-48 items-center justify-center border border-border-primary bg-bg-primary text-sm font-medium text-text-primary shadow-lg"
+                  className="group flex h-16 w-48 items-center justify-center border border-neutral-800 bg-[#111111] text-sm font-medium text-white shadow-lg"
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   whileHover={{ y: -4 }}
@@ -74,16 +74,16 @@ export function AnimationDemo() {
                 {/* Physics indicators */}
                 <div className="flex gap-8 text-center">
                   <div>
-                    <div className="text-2xl font-medium text-text-primary">
+                    <div className="text-2xl font-medium text-white">
                       {springConfigs[activeSpring].stiffness}
                     </div>
-                    <div className="text-xs text-text-muted">Stiffness</div>
+                    <div className="text-xs text-neutral-500">Stiffness</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-medium text-text-primary">
+                    <div className="text-2xl font-medium text-white">
                       {springConfigs[activeSpring].damping}
                     </div>
-                    <div className="text-xs text-text-muted">Damping</div>
+                    <div className="text-xs text-neutral-500">Damping</div>
                   </div>
                 </div>
               </div>
@@ -98,7 +98,7 @@ export function AnimationDemo() {
                   className={`px-4 py-2 text-sm font-medium transition-colors ${
                     activeSpring === type
                       ? "bg-button-primary-bg text-button-primary-text"
-                      : "border border-border-primary bg-transparent text-text-secondary hover:text-text-primary"
+                      : "border border-neutral-800 bg-transparent text-neutral-400 hover:text-white"
                   }`}
                   whileTap={{ scale: 0.97 }}
                   transition={springs.snappy}
@@ -119,12 +119,12 @@ export function AnimationDemo() {
             <span className="mb-4 inline-block text-xs font-medium uppercase tracking-wider text-accent">
               Motion
             </span>
-            <h2 className="mb-6 text-3xl font-medium tracking-tight text-text-primary sm:text-4xl">
+            <h2 className="mb-6 text-3xl font-medium tracking-tight text-white sm:text-4xl">
               Spring physics,
               <br />
               not cubic-bezier
             </h2>
-            <p className="mb-8 text-lg text-text-secondary">
+            <p className="mb-8 text-lg text-neutral-400">
               Every interaction feels natural. We use real spring physics for
               motion that responds like the physical world.
             </p>
@@ -136,17 +136,17 @@ export function AnimationDemo() {
                   onClick={() => setActiveSpring(type)}
                   className={`cursor-pointer border p-4 transition-colors ${
                     activeSpring === type
-                      ? "border-accent bg-accent-subtle"
-                      : "border-border-primary bg-bg-secondary hover:border-border-hover"
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-neutral-800 bg-neutral-900 hover:border-neutral-600"
                   }`}
                   whileHover={{ x: 4 }}
                   transition={springs.smooth}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-text-primary">
+                    <span className="font-medium text-white">
                       {type.charAt(0).toUpperCase() + type.slice(1)}
                     </span>
-                    <span className="text-sm text-text-secondary">
+                    <span className="text-sm text-neutral-400">
                       {springDescriptions[type]}
                     </span>
                   </div>

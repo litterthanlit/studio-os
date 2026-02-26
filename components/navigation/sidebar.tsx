@@ -16,6 +16,7 @@ import {
   type StoredProject,
 } from "@/components/new-project-modal";
 import { useNewProjectModal } from "@/components/new-project-modal";
+import { PROJECTS as STATIC_PROJECTS } from "@/app/(dashboard)/projects/projects-data";
 import { ThemeToggleAscii } from "@/components/navigation/theme-toggle-ascii";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
@@ -80,7 +81,23 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
   React.useEffect(() => {
     function refresh() {
-      setProjects(getStoredProjects());
+      const stored = getStoredProjects();
+      if (stored.length > 0) {
+        setProjects(stored);
+      } else {
+        // Fall back to static demo projects (same source as home screen)
+        setProjects(
+          STATIC_PROJECTS.map((p) => ({
+            id: p.id,
+            name: p.name,
+            brief: p.client,
+            color: p.palette[1] ?? "#2430AD",
+            createdAt: new Date(
+              Date.now() - p.daysActive * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }))
+        );
+      }
     }
     refresh();
     window.addEventListener("storage", refresh);
@@ -105,7 +122,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             href="/home"
             className="flex items-center gap-2.5 text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
           >
-            <div className="w-4 h-4 bg-text-primary shrink-0" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Studio OS" className="w-5 h-5 shrink-0 rounded-[4px]" />
             <span className="text-sm font-medium transition-colors duration-300">Studio OS</span>
           </Link>
         </motion.div>
@@ -128,7 +146,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       {/* ── Section 2: Projects ── */}
       <div>
         <div className="flex items-center px-3 mb-1">
-          <span className="text-[11px] font-mono text-section-label uppercase tracking-[0.12em] font-medium flex-1 transition-colors duration-300">
+          <span className="text-[11px] font-sans text-section-label uppercase tracking-[0.1em] font-medium flex-1 transition-colors duration-300">
             Projects
           </span>
           <button
@@ -183,7 +201,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         >
           <SearchIcon className="w-[18px] h-[18px] shrink-0" bare />
           <span className="text-sm flex-1 text-left">Search</span>
-          <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary rounded-none">
+          <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary rounded-sm">
             ⌘K
           </span>
         </motion.button>
@@ -211,10 +229,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <div className="border-t border-[var(--border-primary)] my-2" />
 
         {/* User row */}
-        <div className="flex items-center gap-3 px-3 py-2">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
           <div
             className={cn(
-              "w-7 h-7 shrink-0",
+              "w-7 h-7 shrink-0 rounded-lg",
               "bg-bg-tertiary border border-border-primary",
               "flex items-center justify-center",
               "text-[11px] font-medium text-text-tertiary"

@@ -17,37 +17,37 @@ const features = [
     icon: Sparkles,
     title: "Daily Inspiration",
     description:
-      "AI-curated imagery from Pinterest, Are.na, and Lummi. Fresh references every day.",
+      "A fresh board of curated imagery scored against your taste profile. New visuals every morning, zero manual curation.",
   },
   {
     icon: Download,
-    title: "Import References",
+    title: "Collect Everywhere",
     description:
-      "Pull in your Pinterest boards, Are.na channels, and Lummi collections in one click.",
+      "Save references from Pinterest boards, Are.na channels, and Lummi in one click. Everything lands in the right project.",
   },
   {
     icon: FileText,
-    title: "Export .md",
+    title: "Export to AI",
     description:
-      "Generate AI-readable design specs. Structured markdown for LLM context windows.",
+      "Generate a design-system.md your AI tools can actually read — palette, type scale, and brief, all structured and ready.",
   },
   {
     icon: Command,
     title: "Command Bar",
     description:
-      "Keyboard-first navigation. ⌘K to jump anywhere. Built for speed.",
+      "⌘K for everything. Jump to any project, section, or reference without lifting your hands from the keyboard.",
   },
   {
     icon: Palette,
-    title: "Color & Type",
+    title: "Palette & Type System",
     description:
-      "Design system tools with real-time preview. Build palettes and type scales fast.",
+      "Build your color palette and type scale inside the project. Watch them update live as your visual direction sharpens.",
   },
   {
     icon: Wind,
-    title: "Spring Animations",
+    title: "Brief & Context",
     description:
-      "Natural motion physics throughout. No cubic-bezier, just springs.",
+      "Write your design brief once. Studio OS structures it for AI assistants, client reviews, and engineer handoffs.",
   },
 ];
 
@@ -59,7 +59,7 @@ function FeatureCard({
   const Icon = feature.icon;
 
   return (
-    <div className="group border border-neutral-800 bg-black p-6 transition-colors hover:bg-neutral-950">
+    <div className="group border border-neutral-800 bg-[#111111] p-6 transition-colors hover:bg-[#141414]">
       {/* Icon */}
       <div className="mb-6 flex h-10 w-10 items-center justify-center text-neutral-600 transition-colors group-hover:text-neutral-500">
         <Icon className="h-6 w-6" strokeWidth={1.5} />
@@ -81,7 +81,7 @@ export function Features() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="features" className="relative bg-black py-32">
+    <section id="features" className="relative bg-[#111111] py-32">
       <div className="mx-auto max-w-7xl px-6">
         {/* Section header */}
         <motion.div
@@ -94,12 +94,11 @@ export function Features() {
           <span className="mb-4 inline-block text-xs font-medium uppercase tracking-wider text-accent">
             Features
           </span>
-          <h2 className="mb-4 text-3xl font-medium tracking-tight text-text-primary sm:text-4xl">
-            Everything you need
+          <h2 className="mb-4 text-3xl font-medium tracking-tight text-white sm:text-4xl">
+            One workspace, start to ship
           </h2>
-          <p className="mx-auto max-w-xl text-text-secondary">
-            A complete toolkit for design research, organization, and
-            documentation.
+          <p className="mx-auto max-w-xl text-neutral-400">
+            Reference, palette, type, and brief — all connected, all live.
           </p>
         </motion.div>
 

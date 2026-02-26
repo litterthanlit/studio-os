@@ -17,12 +17,12 @@ export const metadata = {
 
 export default function MarketingPage() {
   return (
-    <div className="relative min-h-screen bg-black">
+    <div className="relative min-h-screen bg-[#111111]">
       <div className="relative z-10">
         <MarketingNav />
         <main>
           <Hero />
-          <FeaturesGrid />
+<FeaturesGrid />
           <FeatureShowcase />
           <Showcase />
           <HowItWorks />

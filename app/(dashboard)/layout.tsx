@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             backgroundSize: "28px 28px",
           }}
         >
-          <div className="mx-auto max-w-[960px] px-8 py-8">
+          <div className="mx-auto max-w-7xl px-8 py-8">
             {children}
           </div>
         </main>

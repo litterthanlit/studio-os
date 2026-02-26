@@ -196,11 +196,13 @@ function SemanticResultRow({
       type="button"
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-[background-color] duration-150 ease-out ${
-        isSelected ? "bg-[var(--bg-tertiary)]" : "hover:bg-[var(--bg-tertiary)]"
+      className={`flex w-full items-center gap-3 py-2 pl-[10px] pr-3 text-left transition-colors duration-100 ease-out border-l-2 ${
+        isSelected
+          ? "bg-[var(--bg-secondary)] border-l-[var(--accent)]"
+          : "border-l-transparent hover:bg-[var(--bg-tertiary)]"
       }`}
     >
-      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-tertiary)] rounded-none transition-colors duration-300">
+      <div className="relative h-10 w-8 shrink-0 overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-tertiary)] rounded-lg transition-colors duration-300">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" className="h-full w-full object-cover" />
@@ -536,10 +538,10 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Search (⌘K)"
-          className="flex items-center justify-start gap-2 border border-[var(--border-primary)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-[var(--text-tertiary)] transition-[border-color,color] duration-200 ease-out hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-none"
+          className="flex items-center justify-start gap-2 border border-[var(--border-primary)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-[var(--text-tertiary)] transition-[border-color,color] duration-200 ease-out hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-lg"
         >
           <SearchIcon className="h-3.5 w-3.5 shrink-0" bare />
-          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-tertiary)] rounded-none">
+          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--text-tertiary)] rounded-sm">
             ⌘K
           </kbd>
         </button>
@@ -574,7 +576,8 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     transition={springs.snappy}
-                    className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] shadow-[var(--shadow-lg)] rounded-none transition-colors duration-300"
+                    className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] rounded-2xl transition-colors duration-300"
+                    style={{ boxShadow: "0 32px 80px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04)" }}
                   >
                     <div className="flex items-center gap-2 border-b border-[var(--border-primary)] px-3 transition-colors duration-300">
                       <SearchIcon
@@ -587,7 +590,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Search projects, sections, actions, references"
-                        className="h-12 w-full bg-transparent px-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none transition-colors duration-300"
+                        className="h-12 w-full bg-transparent px-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-lg transition-colors duration-300"
                       />
                       {semanticLoading ? (
                         <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
@@ -613,7 +616,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                         const Icon = CATEGORY_ICONS[group.category];
                         return (
                           <motion.div key={group.category} variants={staggerItem} className="mb-3 last:mb-0 border-t border-[var(--border-subtle)] mt-2 pt-2 first:border-t-0 first:mt-0 first:pt-0">
-                            <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-300">
+                            <div className="px-3 pt-1 pb-0.5 text-[11px] font-sans uppercase tracking-[0.1em] font-medium text-[var(--text-tertiary)] transition-colors duration-300">
                               {CATEGORY_LABELS[group.category]}
                             </div>
                             <motion.div variants={staggerContainer}>
@@ -627,15 +630,14 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                                     variants={staggerItem}
                                     onClick={() => runItem(item)}
                                     onMouseEnter={() => setSelectedKey(item.id)}
-                                    whileHover={{ x: 2, transition: springs.smooth }}
                                     whileTap={{ scale: 0.98 }}
-                                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-100 ease-out ${
+                                    className={`flex w-full items-center gap-3 py-2 pl-[10px] pr-3 text-left transition-colors duration-100 ease-out border-l-2 ${
                                       isSelected
-                                        ? "bg-[var(--bg-tertiary)] shadow-[var(--shadow-xs)]"
-                                        : "hover:bg-[var(--bg-tertiary)]"
+                                        ? "bg-[var(--bg-secondary)] border-l-[var(--accent)]"
+                                        : "border-l-transparent hover:bg-[var(--bg-tertiary)]"
                                     }`}
                                   >
-                                    <Icon className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" />
+                                    <Icon className={`h-4 w-4 shrink-0 transition-colors duration-100 ${isSelected ? "text-[var(--accent)]" : "text-[var(--text-tertiary)]"}`} />
                                     <div className="min-w-0 flex-1">
                                       <div className="truncate text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
                                         {item.title}
@@ -656,7 +658,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
 
                       {query.trim().length >= 2 ? (
                         <motion.div variants={staggerItem} className="mb-3 last:mb-0">
-                          <div className="px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-300">
+                          <div className="px-3 pt-1 pb-0.5 text-[11px] font-sans uppercase tracking-[0.1em] font-medium text-[var(--text-tertiary)] transition-colors duration-300">
                             References
                           </div>
                           {semanticLoading && semanticResults.length === 0 ? (
@@ -693,19 +695,19 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                     <div className="flex items-center justify-between border-t border-[var(--border-primary)] px-3 py-2 transition-colors duration-300">
                       <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)] transition-colors duration-300">
                         <span className="flex items-center gap-1">
-                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none transition-colors duration-300">
+                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-sm transition-colors duration-300">
                             ↑↓
                           </kbd>
                           Navigate
                         </span>
                         <span className="flex items-center gap-1">
-                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none transition-colors duration-300">
+                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-sm transition-colors duration-300">
                             ↵
                           </kbd>
                           Select
                         </span>
                         <span className="flex items-center gap-1">
-                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-none transition-colors duration-300">
+                          <kbd className="border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[9px] rounded-sm transition-colors duration-300">
                             esc
                           </kbd>
                           Close

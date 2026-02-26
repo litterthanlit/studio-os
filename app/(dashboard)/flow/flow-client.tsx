@@ -291,7 +291,7 @@ export function FlowPage() {
                 className="absolute inset-y-0 left-0 bg-accent"
                 animate={{ width: `${glowProgress * 100}%` }}
                 transition={{ duration: 1, ease: "linear" }}
-                style={{ boxShadow: `0 0 8px 1px rgba(0, 112, 243, ${0.3 + glowProgress * 0.5})` }}
+                style={{ boxShadow: `0 0 8px 1px rgba(36, 48, 173, ${0.3 + glowProgress * 0.5})` }}
               />
             </div>
 
@@ -328,14 +328,14 @@ export function FlowPage() {
                     cy="48"
                     r="44"
                     fill="none"
-                    stroke="#0070F3"
+                    stroke="#2430AD"
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 44}`}
                     strokeDashoffset={`${2 * Math.PI * 44 * (1 - Math.min(elapsed / 5400, 1))}`}
                     style={{
                       transition: "stroke-dashoffset 1s linear",
-                      filter: "drop-shadow(0 0 4px rgba(0,112,243,0.6))",
+                      filter: "drop-shadow(0 0 4px rgba(36, 48, 173,0.6))",
                     }}
                   />
                 </svg>
@@ -349,7 +349,7 @@ export function FlowPage() {
 
               {/* Active status */}
               <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                <div className="h-1.5 w-1.5 rounded-full bg-accent" style={{ boxShadow: "0 0 6px rgba(0,112,243,0.8)" }} />
+                <div className="h-1.5 w-1.5 rounded-full bg-accent" style={{ boxShadow: "0 0 6px rgba(36, 48, 173,0.8)" }} />
                 <span>Active — all syncs queued</span>
               </div>
 

@@ -86,7 +86,7 @@ function ProgressPills({ step }: { step: number }) {
           style={{ height: 3 }}
           animate={{
             width: i === step - 1 ? 20 : 5,
-            backgroundColor: i < step ? "#0070F3" : i === step - 1 ? "#0070F3" : "#1e1e1e",
+            backgroundColor: i < step ? "#2430AD" : i === step - 1 ? "#2430AD" : "#1e1e1e",
           }}
           transition={{ duration: 0.35, ease: SPRING }}
         />
@@ -298,7 +298,7 @@ function StepArchetype({
                 "w-full p-5 text-left transition-[border-color,background-color] duration-150",
                 "border cursor-pointer",
                 isSelected
-                  ? "border-solid border-[#0070F3] bg-[#0070F3]/5"
+                  ? "border-solid border-[#2430AD] bg-[#2430AD]/5"
                   : "border-[#1a1a1a] bg-card-bg hover:border-[#252525]"
               )}
             >
@@ -423,7 +423,7 @@ function TemplateCard({
         "group relative flex flex-col overflow-hidden rounded-xl border text-left",
         "transition-[border-color,box-shadow] duration-200 ease-out",
         selected
-          ? "border-accent shadow-[0_0_0_1px_rgba(0,112,243,0.3)] shadow-accent/10"
+          ? "border-accent shadow-[0_0_0_1px_rgba(36, 48, 173,0.3)] shadow-accent/10"
           : "border-card-border hover:border-border-hover"
       )}
     >
@@ -856,7 +856,7 @@ function StepReady({
   onEnter: () => void;
   onDemo: () => void;
 }) {
-  const palette = template?.palette ?? ["#0070f3", "#7928ca", "#ff0080", "#f5a623", "#50e3c2", "#ffffff"];
+  const palette = template?.palette ?? ["#2430AD", "#7928ca", "#ff0080", "#f5a623", "#50e3c2", "#ffffff"];
 
   return (
     <div className="space-y-10 py-4 text-center">
@@ -961,7 +961,7 @@ function StepReady({
           className={cn(
             "w-full rounded-lg bg-accent px-8 py-3 text-sm font-medium text-white",
             "transition-[opacity,transform] duration-200 ease-out hover:opacity-90",
-            "hover:shadow-[0_0_32px_rgba(0,112,243,0.18)]"
+            "hover:shadow-[0_0_32px_rgba(36, 48, 173,0.18)]"
           )}
         >
           Start Creating →
@@ -1070,7 +1070,7 @@ export function OnboardingClient() {
     // Build project object
     const projectId = tpl ? slugify(tpl.name) : "my-studio";
     const projectName = tpl ? tpl.name : "My Studio";
-    const projectColor = tpl ? tpl.palette[0] : "#0070F3";
+    const projectColor = tpl ? tpl.palette[0] : "#2430AD";
 
     // 1. localStorage — immediate
     try {
@@ -1188,7 +1188,7 @@ export function OnboardingClient() {
               style={{
                 width: 700,
                 height: 500,
-                background: "radial-gradient(ellipse, rgba(0,112,243,0.065) 0%, transparent 68%)",
+                background: "radial-gradient(ellipse, rgba(36, 48, 173,0.065) 0%, transparent 68%)",
               }}
               animate={{ scale: [0.95, 1.06, 0.95], opacity: [0.5, 1, 0.5] }}
               transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}

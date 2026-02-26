@@ -116,7 +116,7 @@ export function ProjectRoomPageClient({
 
       {/* Room header */}
       <div className="flex gap-4">
-        <div className="relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg transition-colors duration-300">
+        <div className="relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg transition-colors duration-300 rounded-xl">
           <Image
             src={project.leadImage}
             alt={project.name}

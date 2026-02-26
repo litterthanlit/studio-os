@@ -5,13 +5,26 @@
 
 /* Search bar ring pulse — 2 iterations then stops */
 @keyframes search-ring-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(0, 112, 243, 0.35); }
-  60% { box-shadow: 0 0 0 5px rgba(0, 112, 243, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 112, 243, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(36, 48, 173, 0.35); }
+  60% { box-shadow: 0 0 0 5px rgba(36, 48, 173, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(36, 48, 173, 0); }
 }
 
 .search-pulse {
   animation: search-ring-pulse 0.85s ease-out 2;
+}
+
+/* Marquee scroll */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
 }
 
 /* ─── Theme Tokens ──────────────────────────────────────────────────────────── */
@@ -19,6 +32,65 @@
 :root {
   --font-geist-sans: "Geist", system-ui, sans-serif;
   --font-geist-mono: "Geist Mono", SFMono-Regular, monospace;
+
+  /* Global Radius Scale - Sharp like Linear/Cursor */
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
+
+  /* Default light theme (fallback when data-theme is not set) */
+  --bg-primary: #FAFAF8;
+  --bg-secondary: #F5F5F5;
+  --bg-tertiary: #EEEEEE;
+  --bg-input: #FFFFFF;
+
+  --text-primary: #111111;
+  --text-secondary: #444444;
+  --text-tertiary: #666666;
+  --text-muted: #888888;
+  --text-placeholder: #999999;
+
+  --border-primary: #E0E0E0;
+  --border-secondary: #D0D0D0;
+  --border-subtle: #F0F0F0;
+  --border-hover: #CCCCCC;
+
+  --accent: #2430AD;
+  --accent-hover: #1C27A0;
+  --accent-subtle: rgba(36, 48, 173, 0.1);
+
+  --sidebar-bg: #FAFAFA;
+  --sidebar-border: #E5E5E5;
+  --sidebar-hover: #F0F0F0;
+  --sidebar-active: #E8E8E8;
+
+  --card-bg: #FFFFFF;
+  --card-border: #E0E0E0;
+
+  --section-label: #666666;
+  --section-dot: #888888;
+
+  --ascii-color: rgba(36, 48, 173, 0.05);
+
+  --button-primary-bg: #111111;
+  --button-primary-text: #FFFFFF;
+  --button-secondary-bg: transparent;
+  --button-secondary-text: #111111;
+  --button-secondary-border: #CCCCCC;
+
+  --quote-color: #666666;
+  --dot-separator: #E0E0E0;
+
+  --dot-grid-color: rgba(0, 0, 0, 0.03);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(36, 48, 173, 0.2);
 }
 
 html[data-theme="light"] {
@@ -38,9 +110,9 @@ html[data-theme="light"] {
   --border-subtle: #F0F0F0;
   --border-hover: #CCCCCC;
 
-  --accent: #0070F3;
-  --accent-hover: #0060DF;
-  --accent-subtle: rgba(0, 112, 243, 0.1);
+  --accent: #2430AD;
+  --accent-hover: #1C27A0;
+  --accent-subtle: rgba(36, 48, 173, 0.1);
 
   --sidebar-bg: #FAFAFA;
   --sidebar-border: #E5E5E5;
@@ -53,7 +125,7 @@ html[data-theme="light"] {
   --section-label: #666666;
   --section-dot: #888888;
 
-  --ascii-color: rgba(0, 112, 243, 0.05);
+  --ascii-color: rgba(36, 48, 173, 0.05);
 
   --button-primary-bg: #111111;
   --button-primary-text: #FFFFFF;
@@ -70,42 +142,42 @@ html[data-theme="light"] {
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(0, 112, 243, 0.2);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(36, 48, 173, 0.2);
 }
 
 html[data-theme="dark"] {
-  --bg-primary: #111111;
-  --bg-secondary: #1A1A1A;
-  --bg-tertiary: #141414;
-  --bg-input: #1A1A1A;
+  --bg-primary: #181818;
+  --bg-secondary: #202020;
+  --bg-tertiary: #1C1C1C;
+  --bg-input: #202020;
 
-  --text-primary: #F0F0F0;
-  --text-secondary: #888888;
-  --text-tertiary: #666666;
-  --text-muted: #555555;
-  --text-placeholder: #555555;
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAAAAA;
+  --text-tertiary: #888888;
+  --text-muted: #666666;
+  --text-placeholder: #666666;
 
-  --border-primary: #2A2A2A;
-  --border-secondary: #333333;
-  --border-subtle: #1F1F1F;
-  --border-hover: #444444;
+  --border-primary: #303030;
+  --border-secondary: #3A3A3A;
+  --border-subtle: #262626;
+  --border-hover: #4A4A4A;
 
-  --accent: #0070F3;
-  --accent-hover: #3390FF;
-  --accent-subtle: rgba(0, 112, 243, 0.1);
+  --accent: #2430AD;
+  --accent-hover: #3040C4;
+  --accent-subtle: rgba(36, 48, 173, 0.12);
 
-  --sidebar-bg: #0A0A0A;
-  --sidebar-border: #1A1A1A;
-  --sidebar-hover: #1A1A1A;
-  --sidebar-active: #242424;
+  --sidebar-bg: #111111;
+  --sidebar-border: #222222;
+  --sidebar-hover: #222222;
+  --sidebar-active: #2C2C2C;
 
-  --card-bg: #1A1A1A;
-  --card-border: #2A2A2A;
+  --card-bg: #202020;
+  --card-border: #303030;
 
   --section-label: #666666;
   --section-dot: #555555;
 
-  --ascii-color: rgba(0, 112, 243, 0.075);
+  --ascii-color: rgba(36, 48, 173, 0.08);
 
   --button-primary-bg: #F0F0F0;
   --button-primary-text: #111111;
@@ -114,15 +186,15 @@ html[data-theme="dark"] {
   --button-secondary-border: #444444;
 
   --quote-color: #555555;
-  --dot-separator: #2A2A2A;
+  --dot-separator: #303030;
 
-  --dot-grid-color: rgba(255, 255, 255, 0.02);
+  --dot-grid-color: rgba(255, 255, 255, 0.025);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(0, 112, 243, 0.25);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(36, 48, 173, 0.3);
 }
 
 /* ─── Tailwind v4 Color Tokens ──────────────────────────────────────────────── */
@@ -131,10 +203,11 @@ html[data-theme="dark"] {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
 
   /* Theme-aware semantic colors */
   --color-bg-primary:    var(--bg-primary);
@@ -213,7 +286,7 @@ body {
 /* Elements snap instantly since they change behind the curtain */
 
 ::selection {
-  background-color: rgba(0, 112, 243, 0.25);
+  background-color: rgba(36, 48, 173, 0.25);
 }
 
 @layer base {

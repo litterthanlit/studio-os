@@ -77,7 +77,7 @@ export const PICKER_PRESETS = [
   "#F5A623",
   "#FFDD00",
   "#50E3C2",
-  "#0070F3",
+  "#2430AD",
   "#7928CA",
   "#FF0080",
   "#79FFE1",

@@ -1,153 +1,392 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { springs } from "@/lib/animations";
 
-// Sub-features for the numbered grid - Feature Showcase 1
-const subFeatures = [
-  { num: "3.1", label: "Projects" },
-  { num: "3.2", label: "Tasks" },
-  { num: "3.3", label: "Export" },
-  { num: "3.4", label: "Integrations" },
+// ─── Feature tab data ────────────────────────────────────────────────────────
+const FEATURES = [
+  {
+    id: "collect",
+    label: "Collect",
+    fig: "4.1",
+    headline: "Every reference,\none place.",
+    body: "Drag in images from anywhere — Pinterest boards, Are.na channels, Lummi, or your local files. Studio OS organizes and scores them automatically so the best stuff surfaces first.",
+    tags: ["Pinterest", "Are.na", "Lummi", "Local files"],
+    visual: <CollectVisual />,
+  },
+  {
+    id: "build",
+    label: "Build",
+    fig: "4.2",
+    headline: "Your system,\nalive.",
+    body: "Define your palette, type scale, and spacing rules once. Studio OS keeps them synced across every project and exports a structured design-system.md your AI tools can actually read.",
+    tags: ["Color tokens", "Type scale", "Spacing", "Export"],
+    visual: <BuildVisual />,
+  },
+  {
+    id: "brief",
+    label: "Brief",
+    fig: "4.3",
+    headline: "Brief written\nin seconds.",
+    body: "Point Studio OS at your reference collection and get a detailed creative brief — tone, direction, audience, visual language — ready to share with clients or feed to any AI model.",
+    tags: ["AI brief", "Export PDF", "Client ready", "Markdown"],
+    visual: <BriefVisual />,
+  },
 ];
 
-export function FeatureShowcase() {
+// ─── Inline visual mockups ────────────────────────────────────────────────────
+
+function CollectVisual() {
+  const images = [
+    { color: "#F59E0B", label: "Brand film" },
+    { color: "#2430AD", label: "Editorial" },
+    { color: "#10B981", label: "Product" },
+    { color: "#F43F5E", label: "Identity" },
+    { color: "#8B5CF6", label: "Spatial" },
+    { color: "#06B6D4", label: "Motion" },
+  ];
   return (
-    <section className="bg-black py-24">
-      <div className="mx-auto max-w-7xl px-6">
-        {/* Header row */}
-        <div className="mb-16 grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <h2 className="text-3xl font-medium leading-tight text-white sm:text-4xl">
-            Move work forward
-            <br />
-            across inspiration and execution
-          </h2>
-          <div className="lg:pt-2">
-          <p className="mb-6 font-extralight text-neutral-500">
-            Build and deploy design systems that work alongside your creative process.
-          </p>
-            <a
-              href="#how-it-works"
-              className="inline-flex items-center gap-2 font-mono text-sm text-neutral-400 transition-colors hover:text-white"
-            >
-              <span>3.0</span>
-              <span>Workflow</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </a>
+    <div className="h-full w-full p-6">
+      {/* Toolbar */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-neutral-600">FIG 4.1</span>
+          <div className="h-2 w-px bg-white/[0.08]" />
+          <span className="text-[11px] text-neutral-500">Acme Rebrand / References</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-5 items-center gap-1 rounded border border-white/[0.06] bg-white/[0.03] px-2">
+            <div className="h-1 w-1 rounded-full bg-[#2430AD]" />
+            <span className="font-mono text-[9px] text-neutral-600">sort: score</span>
           </div>
         </div>
+      </div>
+      {/* Image masonry */}
+      <div className="grid grid-cols-3 gap-1.5">
+        {images.map((img, i) => (
+          <div
+            key={i}
+            className="group relative overflow-hidden rounded-lg"
+            style={{ aspectRatio: i % 3 === 0 ? "1/1.2" : "1/1" }}
+          >
+            <div
+              className="h-full w-full"
+              style={{
+                background: `linear-gradient(135deg, ${img.color}25, ${img.color}50)`,
+                backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)",
+                backgroundSize: "8px 8px",
+              }}
+            />
+            <div className="absolute bottom-0 left-0 right-0 translate-y-full bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 transition-transform duration-200 group-hover:translate-y-0">
+              <span className="text-[9px] text-white/80">{img.label}</span>
+            </div>
+            {/* Score badge */}
+            <div className="absolute right-1 top-1 rounded bg-black/50 px-1 py-0.5 font-mono text-[8px] text-white/70">
+              {94 - i * 2}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Stats row */}
+      <div className="mt-3 flex items-center gap-4 border-t border-white/[0.05] pt-3">
+        {[
+          { label: "Images", value: "247" },
+          { label: "Sources", value: "4" },
+          { label: "Tagged", value: "191" },
+        ].map((s) => (
+          <div key={s.label}>
+            <div className="text-[10px] font-medium text-white">{s.value}</div>
+            <div className="text-[9px] text-neutral-600">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-        {/* UI Mockup */}
-        <div className="mb-12 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950">
-          <div className="flex min-h-[400px] flex-col lg:flex-row">
-            {/* Left panel - Terminal/Code interface */}
-            <div className="flex-1 border-b border-neutral-800 p-6 lg:border-b-0 lg:border-r">
-              {/* Agent header */}
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-800">
-                  <span className="text-xs">◎</span>
-                </div>
-                <span className="text-sm text-neutral-400">Studio</span>
-              </div>
-
-              {/* Terminal content */}
-              <div className="font-mono text-sm">
-                <p className="mb-2 text-neutral-500">
-                  On it! I&apos;ve received your request.
-                </p>
-                <p className="mb-4 text-neutral-500">
-                  Kicked off a task in{" "}
-                  <span className="text-neutral-400">studio-os/project-acme</span>{" "}
-                  environment.
-                </p>
-                <p className="mb-2 text-neutral-500">
-                  Searching for design assets...
-                </p>
-                <p className="mb-4 text-neutral-600">
-                  studio-os/project-acme $ find . -name &quot;*.svg&quot; -o -name
-                  &quot;*.png&quot;
-                </p>
-                <p className="mb-4 text-neutral-600">
-                  ASSETS.md
-                </p>
-                <p className="mb-2 text-neutral-500">
-                  Locating brand guidelines...
-                </p>
-                <p className="flex items-center gap-2 text-neutral-400">
-                  <span className="inline-block h-3 w-3 animate-pulse bg-neutral-600" />
-                  Thinking...
-                </p>
+function BuildVisual() {
+  const palette = [
+    { name: "Brand Blue", hex: "#2430AD", role: "Primary" },
+    { name: "Midnight", hex: "#111111", role: "Background" },
+    { name: "Smoke", hex: "#E5E5E5", role: "Surface" },
+    { name: "Accent", hex: "#F59E0B", role: "Highlight" },
+  ];
+  const typeScale = [
+    { label: "Display", size: "56px", weight: "590", sample: "Aa" },
+    { label: "Heading", size: "32px", weight: "590", sample: "Aa" },
+    { label: "Body", size: "15px", weight: "400", sample: "Aa" },
+  ];
+  return (
+    <div className="h-full w-full p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-neutral-600">FIG 4.2</span>
+          <div className="h-2 w-px bg-white/[0.08]" />
+          <span className="text-[11px] text-neutral-500">Design System</span>
+        </div>
+        <span className="rounded border border-[#2430AD]/30 bg-[#2430AD]/10 px-1.5 py-0.5 font-mono text-[9px] text-[#818cf8]">Live</span>
+      </div>
+      {/* Palette */}
+      <div className="mb-4">
+        <div className="mb-2 font-mono text-[9px] uppercase tracking-widest text-neutral-700">Color tokens</div>
+        <div className="flex gap-1.5">
+          {palette.map((color) => (
+            <div key={color.name} className="group flex flex-1 flex-col gap-1">
+              <div
+                className="h-10 rounded-md border border-white/[0.06]"
+                style={{ backgroundColor: color.hex }}
+              />
+              <div className="font-mono text-[8px] text-neutral-700 group-hover:text-neutral-400 transition-colors">
+                {color.hex}
               </div>
             </div>
+          ))}
+        </div>
+      </div>
+      {/* Type scale */}
+      <div className="mb-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+        <div className="border-b border-white/[0.05] px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-neutral-700">
+          Type scale
+        </div>
+        {typeScale.map((t, i) => (
+          <div
+            key={t.label}
+            className={`flex items-center gap-3 px-3 py-2 ${i < typeScale.length - 1 ? "border-b border-white/[0.04]" : ""}`}
+          >
+            <div
+              className="w-12 shrink-0 text-white"
+              style={{ fontSize: `clamp(14px, ${parseInt(t.size) * 0.45}px, 28px)`, fontWeight: t.weight }}
+            >
+              {t.sample}
+            </div>
+            <div className="flex flex-1 items-center justify-between">
+              <span className="text-[10px] text-neutral-500">{t.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[9px] text-neutral-700">{t.size}</span>
+                <span className="font-mono text-[9px] text-neutral-700">{t.weight}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Export button */}
+      <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+        <span className="font-mono text-[10px] text-neutral-600">design-system.md</span>
+        <div className="flex items-center gap-1 rounded bg-[#2430AD]/20 px-2 py-0.5">
+          <svg viewBox="0 0 10 10" fill="none" className="h-2 w-2 text-[#818cf8]">
+            <path d="M5 1v6M2 5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="font-mono text-[9px] text-[#818cf8]">Export</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-            {/* Right panel - Assignment sidebar */}
-            <div className="w-full lg:w-80">
-              {/* Search input */}
-              <div className="border-b border-neutral-800 p-4">
-                <div className="text-sm text-neutral-600">Assign to...</div>
+function BriefVisual() {
+  return (
+    <div className="h-full w-full p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-neutral-600">FIG 4.3</span>
+          <div className="h-2 w-px bg-white/[0.08]" />
+          <span className="text-[11px] text-neutral-500">Creative Brief</span>
+        </div>
+        <div className="flex h-5 items-center gap-1 rounded border border-[#2430AD]/30 bg-[#2430AD]/10 px-1.5">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2430AD] opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2430AD]" />
+          </span>
+          <span className="font-mono text-[9px] text-[#818cf8]">Generating</span>
+        </div>
+      </div>
+      {/* Brief document */}
+      <div className="rounded-lg border border-white/[0.06] bg-[#141414] p-4 space-y-3">
+        {[
+          { label: "PROJECT", value: "Acme Rebrand — Q1 2025" },
+          { label: "TONE", value: "Premium, minimal, confident" },
+          { label: "AUDIENCE", value: "Enterprise SaaS buyers, design-literate" },
+          { label: "DIRECTION", value: "Less is more. Deep navy and white space. Let the product speak." },
+          { label: "PALETTE", value: "Navy · Off-white · Stone · Single amber accent" },
+          { label: "TYPE", value: "Inter Variable · Berkeley Mono" },
+        ].map((row, i) => (
+          <div key={i} className={`pb-3 ${i < 5 ? "border-b border-white/[0.04]" : ""}`}>
+            <div className="mb-0.5 font-mono text-[8px] uppercase tracking-widest text-neutral-700">{row.label}</div>
+            <div className="text-[11px] leading-relaxed text-neutral-400">{row.value}</div>
+          </div>
+        ))}
+      </div>
+      {/* Action bar */}
+      <div className="mt-3 flex items-center gap-2">
+        <div className="flex h-6 flex-1 items-center gap-1.5 rounded border border-white/[0.06] bg-white/[0.02] px-2">
+          <svg viewBox="0 0 10 10" fill="none" className="h-2 w-2 text-neutral-700">
+            <path d="M1 5h8M5 1l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="font-mono text-[9px] text-neutral-700">Share with client</span>
+        </div>
+        <div className="flex h-6 items-center gap-1 rounded bg-[#2430AD]/20 px-2">
+          <span className="font-mono text-[9px] text-[#818cf8]">Copy MD</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main section ────────────────────────────────────────────────────────────
+
+export function FeatureShowcase() {
+  const [activeTab, setActiveTab] = React.useState(0);
+  const active = FEATURES[activeTab];
+
+  return (
+    <section className="bg-[#111111] py-24">
+      <div className="mx-auto max-w-7xl px-6">
+
+        {/* Section header */}
+        <div className="mb-16 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-end">
+          <div>
+            <div className="mb-4 font-mono text-xs text-neutral-600">4.0 — Feature overview</div>
+            <h2
+              className="text-3xl font-medium text-white sm:text-4xl"
+              style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}
+            >
+              Everything your creative
+              <br />
+              <span className="text-neutral-500">process actually needs.</span>
+            </h2>
+          </div>
+          <p className="max-w-sm font-extralight leading-relaxed text-neutral-500 lg:text-right">
+            From first reference to final handoff — Studio OS connects the parts of your workflow that were never meant to live in separate tabs.
+          </p>
+        </div>
+
+        {/* Main bento */}
+        <div className="overflow-hidden rounded-xl border border-white/[0.07]">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px]">
+
+            {/* Left — description + tab switcher */}
+            <div className="flex flex-col justify-between border-b border-white/[0.07] p-8 lg:border-b-0 lg:border-r lg:p-12">
+
+              {/* Tab switcher */}
+              <div className="mb-10 flex items-center gap-1 self-start rounded-lg border border-white/[0.07] bg-white/[0.02] p-1">
+                {FEATURES.map((f, i) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setActiveTab(i)}
+                    className="relative rounded-md px-4 py-1.5 text-sm font-medium transition-colors"
+                    style={{
+                      color: activeTab === i ? "#fff" : "#555",
+                    }}
+                  >
+                    {activeTab === i && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 rounded-md"
+                        style={{ background: "rgba(255,255,255,0.07)" }}
+                        transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                      />
+                    )}
+                    <span className="relative">{f.label}</span>
+                  </button>
+                ))}
               </div>
 
-              {/* Agent list */}
-              <div className="p-2">
-                {[
-                  { name: "Studio", type: "Agent", active: true },
-                  { name: "Nick", type: "Designer" },
-                  { name: "Sarah", type: "PM" },
-                  { name: "GitHub Copilot", type: "Agent" },
-                  { name: "Cursor", type: "Agent" },
-                  { name: "Alex", type: "Dev" },
-                ].map((agent) => (
-                  <div
-                    key={agent.name}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                      agent.active
-                        ? "bg-neutral-900"
-                        : "hover:bg-neutral-900/50"
-                    }`}
+              {/* Copy block */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={active.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                  <div className="mb-3 font-mono text-xs text-neutral-600">{active.fig}</div>
+                  <h3
+                    className="mb-4 whitespace-pre-line text-2xl font-medium text-white sm:text-3xl"
+                    style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}
                   >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-800 text-xs">
-                      {agent.name[0]}
-                    </div>
-                    <span className="flex-1 text-sm text-neutral-300">
-                      {agent.name}
-                    </span>
-                    {agent.type === "Agent" && (
-                      <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-neutral-500">
-                        Agent
-                      </span>
-                    )}
-                    {agent.active && (
-                      <svg
-                        className="h-4 w-4 text-neutral-400"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
+                    {active.headline}
+                  </h3>
+                  <p className="mb-8 max-w-sm font-extralight leading-relaxed text-neutral-500">
+                    {active.body}
+                  </p>
+
+                  {/* Tag row */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {active.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded border border-white/[0.07] bg-white/[0.03] px-2 py-0.5 font-mono text-[11px] text-neutral-500"
                       >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
+                        {tag}
+                      </span>
+                    ))}
                   </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Step dots */}
+              <div className="mt-12 flex items-center gap-2">
+                {FEATURES.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveTab(i)}
+                    className="h-1 rounded-full transition-all duration-300"
+                    style={{
+                      width: activeTab === i ? 20 : 6,
+                      background: activeTab === i ? "#2430AD" : "rgba(255,255,255,0.12)",
+                    }}
+                  />
                 ))}
               </div>
             </div>
+
+            {/* Right — visual mockup */}
+            <div
+              className="relative overflow-hidden"
+              style={{ background: "#0D0D0D", minHeight: 460 }}
+            >
+              {/* Window chrome */}
+              <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-4 py-2.5" style={{ background: "#090909" }}>
+                <div className="h-2 w-2 rounded-full bg-[#FF5F56]" />
+                <div className="h-2 w-2 rounded-full bg-[#FEBC2E]" />
+                <div className="h-2 w-2 rounded-full bg-[#27C840]" />
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={active.id}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className="absolute inset-0 top-[33px]"
+                >
+                  {active.visual}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Subtle gradient at bottom */}
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#0D0D0D] to-transparent" />
+            </div>
           </div>
         </div>
 
-        {/* Numbered grid */}
-        <div className="grid grid-cols-2 gap-px bg-neutral-800 lg:grid-cols-4">
-          {subFeatures.map((feature) => (
-            <a
-              key={feature.num}
-              href={`#${feature.label.toLowerCase().replace(" ", "-")}`}
-              className="group bg-black p-6 transition-colors hover:bg-neutral-950"
+        {/* Bottom stat strip */}
+        <div className="mt-px grid grid-cols-3 overflow-hidden rounded-b-xl border border-t-0 border-white/[0.07]">
+          {[
+            { num: "4 sources", label: "natively connected" },
+            { num: "1 export", label: "works with any AI tool" },
+            { num: "∞ projects", label: "no workspace limit" },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className={`bg-[#111111] px-6 py-5 hover:bg-[#141414] transition-colors ${i < 2 ? "border-r border-white/[0.07]" : ""}`}
             >
-              <span className="mb-2 block font-mono text-xs text-neutral-600">
-                {feature.num}
-              </span>
-              <span className="text-sm text-neutral-400 transition-colors group-hover:text-white">
-                {feature.label}
-              </span>
-            </a>
+              <div className="text-sm font-medium text-white" style={{ letterSpacing: "-0.012em" }}>{stat.num}</div>
+              <div className="mt-0.5 font-mono text-xs text-neutral-600">{stat.label}</div>
+            </div>
           ))}
         </div>
       </div>

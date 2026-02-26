@@ -2,91 +2,224 @@
 
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 const steps = [
   {
     num: "01",
-    title: "Curate",
-    description: "Add your taste profile. Upload 20+ reference images.",
+    title: "Gather",
+    description:
+      "Drag in references from Pinterest, Are.na, Lummi, or your desktop. Studio OS scores and organizes them automatically — no folders, no manual tagging.",
+    visual: <GatherVisual />,
   },
   {
     num: "02",
-    title: "Collect",
-    description: "Import from anywhere. Pinterest, Are.na, Lummi.",
+    title: "Build",
+    description:
+      "Define your palette, type scale, and spacing inside the project. Every token stays synced and exports a structured file any AI model can ingest.",
+    visual: <BuildVisual />,
   },
   {
     num: "03",
-    title: "Create",
-    description: "Reference while you design. Export specs for AI.",
+    title: "Ship",
+    description:
+      "Generate a creative brief in seconds. Export a design-system.md for your AI tools, or hand off a polished spec to clients and engineers.",
+    visual: <ShipVisual />,
   },
 ];
 
-function StepCard({
-  step,
-}: {
-  step: (typeof steps)[0];
-}) {
+// ─── Step visuals ─────────────────────────────────────────────────────────────
+
+function GatherVisual() {
   return (
-    <motion.div
-      variants={staggerItem}
-      className="group relative flex flex-col"
-    >
-      {/* Step number */}
-      <span className="mb-4 font-mono text-xs text-neutral-600">
-        {step.num}
-      </span>
-
-      {/* Title */}
-      <h3 className="mb-3 text-lg font-light text-white">
-        {step.title}
-      </h3>
-
-      {/* Description */}
-      <p className="text-sm font-extralight leading-relaxed text-neutral-500">
-        {step.description}
-      </p>
-
-      {/* Connector line (hidden on last item and mobile) */}
-      <div className="absolute -right-3 top-0 hidden h-full w-px bg-neutral-800 lg:block" />
-    </motion.div>
+    <div className="flex flex-col gap-2 p-1">
+      {/* Import sources */}
+      {[
+        { label: "Pinterest", count: 84, color: "#F43F5E" },
+        { label: "Are.na",    count: 47, color: "#2430AD" },
+        { label: "Lummi",     count: 29, color: "#10B981" },
+      ].map((src) => (
+        <div
+          key={src.label}
+          className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+        >
+          <div className="h-1.5 w-1.5 rounded-full" style={{ background: src.color }} />
+          <span className="flex-1 text-[11px] text-neutral-400">{src.label}</span>
+          <span className="font-mono text-[10px] text-neutral-600">{src.count}</span>
+          <div className="flex h-4 items-center rounded bg-white/[0.04] px-1.5">
+            <span className="font-mono text-[8px] text-neutral-600">synced</span>
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center justify-center rounded-lg border border-dashed border-white/[0.08] py-2 text-[10px] text-neutral-700">
+        + Drop files here
+      </div>
+    </div>
   );
 }
 
+function BuildVisual() {
+  const colors = ["#2430AD", "#111111", "#E5E5E5", "#F59E0B"];
+  return (
+    <div className="flex flex-col gap-3 p-1">
+      {/* Palette row */}
+      <div>
+        <div className="mb-1.5 font-mono text-[8px] uppercase tracking-widest text-neutral-700">Color</div>
+        <div className="flex gap-1">
+          {colors.map((c, i) => (
+            <div key={i} className="relative flex-1">
+              <div className="h-8 rounded-md border border-white/[0.06]" style={{ backgroundColor: c }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Type preview */}
+      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+        <div className="mb-1 font-mono text-[8px] uppercase tracking-widest text-neutral-700">Typography</div>
+        <div className="text-[22px] font-semibold leading-none text-white" style={{ letterSpacing: "-0.02em" }}>Aa</div>
+        <div className="mt-0.5 font-mono text-[9px] text-neutral-600">Inter Variable · 590</div>
+      </div>
+      {/* Token count */}
+      <div className="flex items-center gap-2 rounded-lg border border-[#2430AD]/20 bg-[#2430AD]/5 px-3 py-2">
+        <div className="h-1.5 w-1.5 rounded-full bg-[#2430AD]" />
+        <span className="text-[10px] text-neutral-400">14 tokens defined</span>
+        <span className="ml-auto font-mono text-[9px] text-[#818cf8]">Export ↓</span>
+      </div>
+    </div>
+  );
+}
+
+function ShipVisual() {
+  return (
+    <div className="flex flex-col gap-2 p-1">
+      {/* Brief preview */}
+      <div className="rounded-lg border border-white/[0.06] bg-[#141414] p-3 space-y-2">
+        {[
+          { k: "Project", v: "Acme Rebrand" },
+          { k: "Tone", v: "Minimal, premium" },
+          { k: "Palette", v: "Navy + white" },
+        ].map((row) => (
+          <div key={row.k} className="flex items-baseline gap-2">
+            <span className="w-12 shrink-0 font-mono text-[8px] uppercase tracking-wider text-neutral-700">{row.k}</span>
+            <span className="text-[10px] text-neutral-400">{row.v}</span>
+          </div>
+        ))}
+      </div>
+      {/* Export actions */}
+      {[
+        { label: "design-system.md", tag: "AI-ready", color: "#2430AD" },
+        { label: "creative-brief.pdf", tag: "Client", color: "#10B981" },
+      ].map((item) => (
+        <div key={item.label} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+          <div className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
+          <span className="flex-1 font-mono text-[10px] text-neutral-500">{item.label}</span>
+          <span className="rounded border border-white/[0.06] px-1.5 py-0.5 font-mono text-[8px] text-neutral-600">{item.tag}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main section ─────────────────────────────────────────────────────────────
+
 export function HowItWorks() {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="how-it-works" className="relative bg-black py-32">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="how-it-works" className="relative bg-[#111111] py-24 overflow-hidden">
+      {/* Subtle top border accent */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-1/2 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+
+      <div className="mx-auto max-w-7xl px-6" ref={ref}>
+
         {/* Section header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={springs.smooth}
-          ref={ref}
-          className="mb-16 text-center"
+          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="mb-20"
         >
-          <h2 className="mb-4 text-3xl font-light tracking-tight text-text-primary sm:text-4xl">
-            How it works
+          <div className="mb-4 font-mono text-xs text-neutral-600">5.0 — How it works</div>
+          <h2
+            className="text-3xl font-medium text-white sm:text-4xl"
+            style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}
+          >
+            From first reference
+            <br />
+            <span className="text-neutral-500">to final spec.</span>
           </h2>
-          <p className="mx-auto max-w-xl font-extralight text-text-secondary">
-            Three steps to a unified design workflow.
-          </p>
         </motion.div>
 
-        {/* Steps grid */}
-        <motion.div
-          variants={staggerContainer}
-          initial="initial"
-          animate={isInView ? "animate" : "initial"}
-          className="grid gap-8 sm:grid-cols-3"
-        >
-          {steps.map((step) => (
-            <StepCard key={step.num} step={step} />
+        {/* Steps */}
+        <div className="relative grid grid-cols-1 gap-0 lg:grid-cols-3">
+          {/* Connecting line (desktop only) */}
+          <div className="pointer-events-none absolute left-0 right-0 top-[52px] hidden lg:block">
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={isInView ? { scaleX: 1 } : {}}
+              transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="mx-auto h-px origin-left bg-gradient-to-r from-white/[0.06] via-white/[0.06] to-transparent"
+              style={{ width: "66%" }}
+            />
+          </div>
+
+          {steps.map((step, i) => (
+            <motion.div
+              key={step.num}
+              initial={{ opacity: 0, y: 24 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{
+                duration: 0.5,
+                delay: 0.1 + i * 0.12,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              className={`relative flex flex-col gap-6 pb-12 lg:pb-0 ${
+                i < 2 ? "lg:border-r lg:border-white/[0.07] lg:pr-12" : ""
+              } ${i > 0 ? "lg:pl-12" : ""} ${
+                i < 2 ? "border-b border-white/[0.07] lg:border-b-0 pb-12" : ""
+              }`}
+            >
+              {/* Step number bubble */}
+              <div className="flex items-center gap-4">
+                <div
+                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.08]"
+                  style={{ background: "rgba(255,255,255,0.04)" }}
+                >
+                  {/* Connector dot indicator */}
+                  <div
+                    className="absolute -right-px top-1/2 hidden h-2 w-2 -translate-y-1/2 translate-x-1/2 rounded-full border border-[#111111] lg:block"
+                    style={{ background: i === 0 ? "#2430AD" : "#2a2a2a" }}
+                  />
+                  <span className="font-mono text-xs text-neutral-500">{step.num}</span>
+                </div>
+                <h3
+                  className="text-xl font-medium text-white"
+                  style={{ letterSpacing: "-0.012em" }}
+                >
+                  {step.title}
+                </h3>
+              </div>
+
+              {/* Description */}
+              <p className="font-extralight leading-relaxed text-neutral-500">
+                {step.description}
+              </p>
+
+              {/* Visual card */}
+              <div className="rounded-xl border border-white/[0.07] bg-[#0D0D0D] overflow-hidden">
+                {/* Mini title bar */}
+                <div className="flex items-center gap-1.5 border-b border-white/[0.05] px-3 py-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#FF5F56]/60" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#FEBC2E]/60" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#27C840]/60" />
+                </div>
+                <div className="p-3">
+                  {step.visual}
+                </div>
+              </div>
+            </motion.div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

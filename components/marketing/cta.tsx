@@ -20,7 +20,7 @@ export function CTA() {
   };
 
   return (
-    <section id="waitlist" className="relative bg-black py-32">
+    <section id="waitlist" className="relative bg-[#111111] py-32">
       {/* Background gradient */}
       <div
         className="absolute inset-0 opacity-40"
@@ -36,7 +36,7 @@ export function CTA() {
           initial="initial"
           animate={isInView ? "animate" : "initial"}
           ref={ref}
-          className="border border-border-primary bg-bg-secondary p-8 text-center sm:p-12"
+          className="border border-neutral-800 bg-neutral-900 p-8 text-center sm:p-12 rounded-xl"
         >
           {submitted ? (
             <motion.div
@@ -44,13 +44,13 @@ export function CTA() {
               animate={{ opacity: 1, scale: 1 }}
               transition={springs.smooth}
             >
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-accent bg-accent-subtle">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-blue-500 bg-blue-500/10 rounded-xl">
                 <Check className="h-6 w-6 text-accent" />
               </div>
-              <h3 className="mb-2 text-2xl font-medium text-text-primary">
+              <h3 className="mb-2 text-2xl font-medium text-white">
                 You&apos;re on the list
               </h3>
-              <p className="text-text-secondary">
+              <p className="text-neutral-400">
                 We&apos;ll be in touch soon with early access details.
               </p>
             </motion.div>
@@ -58,16 +58,16 @@ export function CTA() {
             <>
               <motion.h2
                 variants={staggerItem}
-                className="mb-4 text-3xl font-light tracking-tight text-text-primary sm:text-4xl"
+                className="mb-4 text-3xl font-light tracking-tight text-white sm:text-4xl"
               >
-                Early access for design purists.
+                The workspace serious designers actually use.
               </motion.h2>
 
               <motion.p
                 variants={staggerItem}
-                className="mb-8 text-lg font-extralight text-text-secondary"
+                className="mb-8 text-lg font-extralight text-neutral-400"
               >
-                Join designers from Linear, Vercel, Stripe, and Apple.
+                Built for the way visual designers actually work — not how PMs want you to.
               </motion.p>
 
               <motion.form
@@ -81,11 +81,11 @@ export function CTA() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
-                  className="flex-1 border border-border-secondary bg-bg-input px-4 py-3 text-sm text-text-primary placeholder:text-text-placeholder focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="flex-1 border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-accent rounded-lg"
                 />
                 <motion.button
                   type="submit"
-                  className="group flex h-12 items-center justify-center gap-2 bg-button-primary-bg px-6 text-sm font-medium text-button-primary-text transition-opacity hover:opacity-90"
+                  className="group flex h-12 items-center justify-center gap-2 bg-button-primary-bg px-6 text-sm font-medium text-button-primary-text transition-opacity hover:opacity-90 rounded-lg"
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.97 }}
                   transition={springs.snappy}
@@ -97,7 +97,7 @@ export function CTA() {
 
               <motion.p
                 variants={staggerItem}
-                className="mt-4 text-xs font-extralight text-text-muted"
+                className="mt-4 text-xs font-extralight text-neutral-500"
               >
                 No spam. Unsubscribe anytime.
               </motion.p>

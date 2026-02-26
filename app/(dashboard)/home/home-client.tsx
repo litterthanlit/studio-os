@@ -88,7 +88,7 @@ function toStoredProject(p: (typeof STATIC_PROJECTS)[0]): HomeProject {
     id: p.id,
     name: p.name,
     brief: p.client,
-    color: p.palette[1] ?? "#0070F3",
+    color: p.palette[1] ?? "#2430AD",
     createdAt: new Date(
       Date.now() - p.daysActive * 24 * 60 * 60 * 1000
     ).toISOString(),
@@ -201,6 +201,7 @@ export function HomeClient() {
   const [taskConfirmation, setTaskConfirmation] = React.useState<string | null>(
     null
   );
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (!window.matchMedia("(hover: hover)").matches) return;
@@ -370,12 +371,18 @@ export function HomeClient() {
     setActiveOptionIndex(0);
   }, [projectOptions.length]);
 
+  // Auto-focus input when project is selected (entering State 2)
+  React.useEffect(() => {
+    if (selectedProject) {
+      window.setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [selectedProject]);
+
+  // Clear confirmation after 1.5s, but keep project selected for more tasks
   React.useEffect(() => {
     if (!taskConfirmation) return;
     const timeout = window.setTimeout(() => {
       setTaskConfirmation(null);
-      setSelectedProject(null);
-      setInputValue("");
     }, 1500);
     return () => window.clearTimeout(timeout);
   }, [taskConfirmation]);
@@ -403,7 +410,9 @@ export function HomeClient() {
       createdAt: new Date().toISOString(),
       completed: false,
     });
+    setInputValue(""); // clear immediately so input is ready for another task
     setTaskConfirmation(`Added to ${selectedProject.name}`);
+    inputRef.current?.focus();
   }
 
   function resetToProjectSearch() {
@@ -451,11 +460,11 @@ export function HomeClient() {
     }
   }
 
-  const recentProjects = projects.slice(0, 4);
+  const recentProjects = projects.slice(0, 3);
 
   return (
     <div
-      className="relative min-h-screen px-8 pb-20 pt-[13vh]"
+      className="relative min-h-screen px-8 pb-20"
       style={{
         backgroundImage:
           "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
@@ -468,8 +477,8 @@ export function HomeClient() {
         aria-hidden
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-[980px]">
-        <section className="mb-14">
+      <div className="relative z-10 mx-auto w-full max-w-7xl">
+        <section className="pt-[20vh] pb-14">
           {/* Greeting - Pushed higher */}
           <motion.div
             initial="hidden"
@@ -481,21 +490,22 @@ export function HomeClient() {
           </motion.div>
 
           {/* Control Center Box - Command Bar + Quick Actions */}
-          <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5">
+          <div className="border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5 rounded-lg">
             {/* Command Bar */}
             <div className="relative">
-              <div className="flex items-center gap-3 border border-[var(--border-secondary)] bg-[var(--bg-primary)] px-4 py-3 transition-[border-color,background-color,box-shadow] duration-300 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)]">
+              <div className="flex items-center gap-3 border border-[var(--border-secondary)] bg-[var(--bg-primary)] px-4 py-3 transition-[border-color,background-color,box-shadow] duration-300 focus-within:shadow-[var(--shadow-glow)] focus-within:border-[var(--accent)] rounded-md">
                 {selectedProject ? (
                   <button
                     type="button"
                     onClick={resetToProjectSearch}
-                    className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded-none transition-colors duration-300 hover:border-[var(--border-tertiary)]"
+                    className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2 py-0.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--text-secondary)] rounded transition-colors duration-300 hover:border-[var(--border-tertiary)]"
                   >
                     <span aria-hidden>×</span>
                     <span>{selectedProject.name}</span>
                   </button>
                 ) : null}
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputValue}
                   onChange={(event) => setInputValue(event.target.value)}
@@ -509,7 +519,7 @@ export function HomeClient() {
                       ? `Add a task to ${selectedProject.name}...`
                       : "What are you working on today?"
                   }
-                  className="flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded-none font-mono tracking-tight transition-colors duration-300"
+                  className="flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] rounded font-mono tracking-tight transition-colors duration-300"
                 />
                 <button
                   type="button"
@@ -530,7 +540,7 @@ export function HomeClient() {
               </div>
 
               {showDropdown ? (
-                <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-none transition-colors duration-300">
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-[var(--shadow-lg)] rounded-lg transition-colors duration-300">
                   {projectOptions.map((option, index) => (
                     <ProjectSearchRow
                       key={
@@ -552,27 +562,27 @@ export function HomeClient() {
               <button
                 type="button"
                 onClick={openNewProject}
-                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 <span className="text-[10px]">+</span> New Project
               </button>
               <Link
                 href="/projects"
-                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 Browse All
               </Link>
               <button
                 type="button"
                 onClick={() => router.push('/inspiration')}
-                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 Daily Inspiration
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/projects?upload=true')}
-                className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-none transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-lg transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 <span className="text-[10px]">+</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
@@ -601,7 +611,7 @@ export function HomeClient() {
             <SectionLabel>Recent Projects</SectionLabel>
             <Link
               href="/projects"
-              className="text-[10px] font-mono uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors duration-300 ease-out hover:text-[var(--text-primary)]"
+              className="text-[11px] font-sans uppercase tracking-[0.1em] text-[var(--text-tertiary)] transition-colors duration-300 ease-out hover:text-[var(--text-primary)]"
             >
               View all
             </Link>
@@ -610,19 +620,20 @@ export function HomeClient() {
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
-            className={`grid gap-4 ${recentProjects.length <= 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto' : 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'}`}
+            className="grid grid-cols-2 gap-4 lg:grid-cols-3"
           >
-            {recentProjects.map((project) => (
+            {recentProjects.slice(0, 3).map((project) => (
               <motion.button
                 key={project.id}
                 type="button"
                 onClick={() => router.push(`/projects/${project.id}`)}
                 variants={staggerItem}
-                whileHover={{ transform: 'translateY(-4px)', transition: springs.default }}
+                whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.15)", transition: { type: "spring", stiffness: 400, damping: 25 } }}
                 style={{ willChange: 'transform' }}
-                className="group overflow-hidden border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-colors duration-300 ease-out hover:border-[var(--text-tertiary)] hover:shadow-[var(--shadow-md)] rounded-none"
+                className="group overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-[border-color] duration-200 hover:border-[var(--border-secondary)]"
               >
-                <div className="relative h-36 w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse transition-colors duration-300">
+                {/* Card — full image with overlay */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={project.leadImage}
@@ -631,21 +642,19 @@ export function HomeClient() {
                       e.currentTarget.classList.add("opacity-100");
                       e.currentTarget.parentElement?.classList.remove("animate-pulse");
                     }}
-                    className="h-full w-full object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:scale-[1.02]"
+                    className="h-full w-full object-cover opacity-0 transition-[opacity,transform] duration-500 ease-out group-hover:scale-[1.03]"
                     loading="lazy"
                   />
-                </div>
-                <div className="space-y-2 px-3 py-3">
-                  <div className="text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
-                    {project.name}
+
+                  {/* Bottom overlay — solid panel, 40% height, theme-aware */}
+                  <div className="absolute inset-x-0 bottom-0 h-[40%] flex flex-col justify-center gap-1.5 px-3 bg-[var(--card-bg)]">
+                    <span className="truncate w-full text-sm font-semibold text-[var(--text-primary)]">
+                      {project.name}
+                    </span>
+                    <span className={`self-start px-2 py-0.5 text-[10px] font-sans font-semibold uppercase tracking-[0.08em] rounded transition-colors duration-200 ${getPhaseBadgeClass(project.phase)}`}>
+                      {project.phase}
+                    </span>
                   </div>
-                  <span
-                    className={`inline-flex px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase transition-colors duration-300 ${getPhaseBadgeClass(
-                      project.phase
-                    )}`}
-                  >
-                    {project.phase}
-                  </span>
                 </div>
               </motion.button>
             ))}
@@ -662,7 +671,7 @@ export function HomeClient() {
               <button
                 type="button"
                 onClick={() => router.push('/settings')}
-                className="text-[10px] font-mono uppercase tracking-[0.1em] text-[var(--accent)] hover:text-[var(--text-primary)] transition-colors duration-300"
+                className="text-[11px] font-sans uppercase tracking-[0.1em] text-[var(--accent)] hover:text-[var(--text-primary)] transition-colors duration-300"
               >
                 Enable →
               </button>
@@ -705,7 +714,7 @@ export function HomeClient() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
                       {/* Score badge */}
                       {item.scores && (
-                        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-mono text-white">
+                        <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-sm text-[10px] font-mono text-white">
                           {item.scores.overall}
                         </div>
                       )}
@@ -731,7 +740,7 @@ export function HomeClient() {
                       {item.tags && item.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-auto">
                           {item.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-white/20 text-white rounded">
+                            <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-white/20 text-white rounded-sm">
                               {tag}
                             </span>
                           ))}

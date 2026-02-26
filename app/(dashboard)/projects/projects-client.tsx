@@ -54,10 +54,10 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
   return (
     <Link
       href={`/projects/${DEMO_PROJECT_ID}`}
-      className={cn(
-        "group relative flex w-full flex-col border border-[#1a1a1a] bg-card-bg text-left",
-        "transition-[border-color] duration-200 ease-out hover:border-accent/40"
-      )}
+          className={cn(
+            "group relative flex w-full flex-col border border-[#1a1a1a] bg-card-bg text-left rounded-xl",
+            "transition-[border-color] duration-200 ease-out hover:border-accent/40"
+          )}
     >
       {/* Demo badge */}
       <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 border border-accent/25 bg-accent/10 px-2 py-0.5">
@@ -172,7 +172,7 @@ export function ProjectsPage() {
             <button
               type="button"
               onClick={openModal}
-              className="flex items-center gap-1 border border-border-primary bg-card-bg px-2.5 py-1.5 text-[10px] font-medium text-text-tertiary font-mono transition-[border-color,color] duration-150 hover:border-border-hover hover:text-white"
+              className="flex items-center gap-1 border border-border-primary bg-card-bg px-2.5 py-1.5 text-[10px] font-medium text-text-tertiary font-mono transition-[border-color,color] duration-150 hover:border-border-hover hover:text-white rounded-lg"
             >
               <Plus className="h-3 w-3" />
               New Project
@@ -181,13 +181,13 @@ export function ProjectsPage() {
 
           {/* Empty state */}
           {allProjects.length === 0 && !showDemo && (
-            <div className="flex flex-col items-center gap-3 border border-dashed border-card-border bg-card-bg py-10 text-center">
+            <div className="flex flex-col items-center gap-3 border border-dashed border-card-border bg-card-bg py-10 text-center rounded-xl">
               <p className="text-sm text-text-tertiary">No projects yet.</p>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={openModal}
-                  className="border border-border-primary bg-bg-secondary px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30"
+                  className="border border-border-primary bg-bg-secondary px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30 rounded-lg"
                 >
                   + Create Project
                 </button>
@@ -225,7 +225,7 @@ export function ProjectsPage() {
                   key={project.id}
                   href={`/projects/${project.id}`}
                   className={cn(
-                    "flex w-full flex-col overflow-hidden border border-[#1a1a1a] bg-card-bg text-left",
+                    "flex w-full flex-col overflow-hidden border border-[#1a1a1a] bg-card-bg text-left rounded-xl",
                     "transition-[border-color] duration-200 ease-out hover:border-[#252525]"
                   )}
                 >

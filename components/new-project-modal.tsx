@@ -22,7 +22,7 @@ export type StoredProject = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const ACCENT_COLORS = [
-  "#0070F3",
+  "#2430AD",
   "#7928CA",
   "#FF0080",
   "#F5A623",
@@ -285,7 +285,7 @@ function NewProjectModalInner({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[480px] border border-card-border bg-card-bg shadow-2xl"
+          className="w-full max-w-[480px] border border-card-border bg-card-bg shadow-2xl rounded-2xl"
           role="dialog"
           aria-modal="true"
           aria-label="New Project"
@@ -318,7 +318,7 @@ function NewProjectModalInner({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Project name"
-                className="w-full border border-border-secondary bg-bg-input px-3 py-2.5 text-sm text-text-primary placeholder:text-text-placeholder outline-none transition-[border-color] duration-150 focus:border-border-hover"
+                className="w-full border border-border-secondary bg-bg-input px-3 py-2.5 text-sm text-text-primary placeholder:text-text-placeholder outline-none transition-[border-color] duration-150 focus:border-border-hover rounded-lg"
               />
             </div>
 
@@ -332,7 +332,7 @@ function NewProjectModalInner({
                 onChange={(e) => setBrief(e.target.value)}
                 placeholder="What's this project about? A few words is fine."
                 rows={3}
-                className="w-full resize-none border border-border-secondary bg-bg-input px-3 py-2.5 text-sm leading-relaxed text-text-primary placeholder:text-text-placeholder outline-none transition-[border-color] duration-150 focus:border-border-hover"
+                className="w-full resize-none border border-border-secondary bg-bg-input px-3 py-2.5 text-sm leading-relaxed text-text-primary placeholder:text-text-placeholder outline-none transition-[border-color] duration-150 focus:border-border-hover rounded-lg"
               />
             </div>
 
@@ -382,7 +382,7 @@ function NewProjectModalInner({
               onClick={handleCreate}
               disabled={!name.trim()}
               className={cn(
-                "px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150",
+                "px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150 rounded-lg",
                 name.trim()
                   ? "cursor-pointer bg-button-primary-bg text-button-primary-text hover:opacity-90"
                   : "cursor-not-allowed bg-bg-tertiary text-text-muted"

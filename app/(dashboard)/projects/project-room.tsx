@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ColorPickerPanel } from "@/components/color-picker";
 import { DotSeparator } from "@/components/ui/dot-separator";
@@ -59,13 +59,13 @@ function OverviewTab({ project }: { project: Project }) {
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="h-24 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent"
+          className="h-24 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent rounded-md"
         />
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-xs">
         {/* References Card */}
-        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
+        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             References
           </div>
@@ -81,7 +81,7 @@ function OverviewTab({ project }: { project: Project }) {
         </div>
 
         {/* Fonts Card */}
-        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
+        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             Fonts
           </div>
@@ -97,7 +97,7 @@ function OverviewTab({ project }: { project: Project }) {
         </div>
 
         {/* Days Active Card */}
-        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
+        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
           <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
             Days Active
           </div>
@@ -304,7 +304,7 @@ function BoardTab({ project }: { project: Project }) {
             type="button"
             onClick={() => openImport("upload")}
             aria-label="Quick add references"
-            className="border border-card-border bg-bg-secondary px-2 py-1 text-xs text-text-secondary transition-colors duration-300 hover:border-white/30 hover:text-white"
+            className="border border-card-border bg-bg-secondary px-2 py-1 text-xs text-text-secondary transition-colors duration-300 hover:border-white/30 hover:text-white rounded-lg"
           >
             +
           </button>
@@ -347,127 +347,209 @@ function BoardTab({ project }: { project: Project }) {
         }}
       />
 
+      {/* ── Drop zone wrapper ─────────────────────────────────────────── */}
       <div
-        className={cn(
-          "relative border bg-bg-secondary p-3 transition-colors duration-300",
-          isDragActive
-            ? "border-accent"
-            : references.length === 0
-            ? "border-dashed border-card-border"
-            : "border-card-border"
-        )}
         onDragOver={(event) => {
           event.preventDefault();
           if (!isDragActive) setIsDragActive(true);
         }}
         onDragLeave={(event) => {
-          if (event.currentTarget === event.target) setIsDragActive(false);
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+            setIsDragActive(false);
+          }
         }}
         onDrop={handleDrop}
         onPaste={handlePaste}
+        className="relative"
       >
-        {isDragActive && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border border-accent bg-accent/10 text-xs uppercase tracking-[0.12em] text-accent transition-colors duration-300">
-            Drop images to import
-          </div>
-        )}
-
         {references.length === 0 ? (
-          <div className="py-6 px-4 text-center">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
-              >
-                Upload
-              </button>
-              <button
-                type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openImport("arena");
-                }}
-              >
-                Are.na
-              </button>
-              <button
-                type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openImport("pinterest");
-                }}
-              >
-                Pinterest
-              </button>
-              <button
-                type="button"
-                className="border border-card-border bg-card-bg px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-text-tertiary transition-colors duration-300 hover:border-white/30 hover:text-white"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openImport("url");
-                }}
-              >
-                URL
-              </button>
+          /* ── Empty state: large Notion-style drop zone ── */
+          <motion.div
+            animate={isDragActive ? { scale: 1.01 } : { scale: 1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              "relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-8 py-16 text-center transition-colors duration-200",
+              isDragActive
+                ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                : "border-[var(--border-secondary)] bg-[var(--bg-secondary)] hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]"
+            )}
+          >
+            {/* Upload icon */}
+            <motion.div
+              animate={isDragActive ? { y: -6 } : { y: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 20 }}
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-xl border transition-colors duration-200",
+                isDragActive
+                  ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]"
+                  : "border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-tertiary)]"
+              )}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13V4M10 4L7 7M10 4L13 7" />
+                <path d="M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
+              </svg>
+            </motion.div>
+
+            {/* Text */}
+            <div className="space-y-1">
+              <p className={cn(
+                "text-sm font-medium transition-colors duration-200",
+                isDragActive ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
+              )}>
+                {isDragActive ? "Release to drop" : "Drop images here"}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)]">
+                PNG, JPG, WEBP, GIF · or click to browse
+              </p>
             </div>
-          </div>
+
+            {/* Divider */}
+            <div className="flex w-full max-w-[240px] items-center gap-3">
+              <div className="h-px flex-1 bg-[var(--border-primary)]" />
+              <span className="text-[10px] font-sans uppercase tracking-[0.1em] text-[var(--text-tertiary)]">or import from</span>
+              <div className="h-px flex-1 bg-[var(--border-primary)]" />
+            </div>
+
+            {/* Source buttons */}
+            <div
+              className="flex flex-wrap items-center justify-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {[
+                { label: "Are.na", mode: "arena" as const },
+                { label: "Pinterest", mode: "pinterest" as const },
+                { label: "URL", mode: "url" as const },
+              ].map(({ label, mode }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); openImport(mode); }}
+                  className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-1.5 text-[11px] font-sans uppercase tracking-[0.08em] text-[var(--text-secondary)] transition-colors duration-150 hover:border-[var(--accent)]/50 hover:text-[var(--text-primary)]"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
-            {references.map((ref) => (
-              <article
-                key={ref.id}
-                className="group relative border border-card-border bg-card-bg transition-colors duration-300"
+          /* ── Has content: grid + drag overlay ── */
+          <div className="relative">
+            {/* Drag overlay */}
+            <AnimatePresence>
+            {isDragActive && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[var(--accent)] bg-[var(--accent)]/8 backdrop-blur-[2px]"
               >
-                <button
-                  type="button"
-                  onClick={() => setActiveLightboxRef(ref)}
-                  className="block w-full"
+                <motion.div
+                  animate={{ y: [-4, 0, -4] }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/15 text-[var(--accent)]"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={ref.imageUrl}
-                    alt={ref.title ?? "Reference"}
-                    className="h-40 w-full object-cover"
-                    loading="lazy"
-                  />
-                </button>
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13V4M10 4L7 7M10 4L13 7" />
+                    <path d="M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
+                  </svg>
+                </motion.div>
+                <p className="text-xs font-sans font-medium uppercase tracking-[0.1em] text-[var(--accent)]">
+                  Release to add
+                </p>
+              </motion.div>
+            )}
+            </AnimatePresence>
 
-                <div className="pointer-events-none absolute left-2 top-2 border border-white/20 bg-black/80 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-white transition-colors duration-300">
-                  {ref.source}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => removeReference(ref.id)}
-                  aria-label="Delete reference"
-                  className="absolute right-2 top-2 border border-red-500/40 bg-black/80 px-1.5 py-0.5 text-[10px] text-red-300 opacity-0 transition-opacity group-hover:opacity-100"
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+              {references.map((ref) => (
+                <article
+                  key={ref.id}
+                  className="group relative overflow-hidden border border-card-border bg-card-bg transition-colors duration-300 rounded-xl"
                 >
-                  Delete
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveLightboxRef(ref)}
+                    className="block w-full"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={ref.imageUrl}
+                      alt={ref.title ?? "Reference"}
+                      className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      loading="lazy"
+                    />
+                  </button>
 
-                <div className="space-y-1 p-2">
-                  <p className="truncate text-[11px] text-text-secondary transition-colors duration-300">
-                    {ref.title || "Untitled"}
-                  </p>
-                  {ref.sourceUrl && (
-                    <a
-                      href={ref.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-accent transition-opacity hover:opacity-80"
-                    >
-                      Open source
-                    </a>
-                  )}
+                  <div className="pointer-events-none absolute left-2 top-2 rounded border border-white/20 bg-black/70 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-white backdrop-blur-sm">
+                    {ref.source}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeReference(ref.id)}
+                    aria-label="Delete reference"
+                    className="absolute right-2 top-2 rounded border border-red-500/40 bg-black/80 px-1.5 py-0.5 text-[10px] text-red-300 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+                  >
+                    ×
+                  </button>
+
+                  <div className="space-y-1 p-2">
+                    <p className="truncate text-[11px] text-[var(--text-secondary)] transition-colors duration-300">
+                      {ref.title || "Untitled"}
+                    </p>
+                    {ref.sourceUrl && (
+                      <a
+                        href={ref.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[var(--accent)] transition-opacity hover:opacity-80"
+                      >
+                        Open source
+                      </a>
+                    )}
+                  </div>
+                </article>
+              ))}
+
+              {/* ── Add more tile ── */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                className="group flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--border-secondary)] bg-[var(--bg-secondary)] transition-colors duration-200 hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-tertiary)] transition-colors duration-200 group-hover:border-[var(--accent)]/40 group-hover:text-[var(--accent)]">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M7 2v10M2 7h10" />
+                  </svg>
                 </div>
-              </article>
-            ))}
+                <span className="text-[10px] font-sans uppercase tracking-[0.1em] text-[var(--text-tertiary)] transition-colors duration-200 group-hover:text-[var(--text-secondary)]">
+                  Add more
+                </span>
+              </motion.div>
+            </div>
+
+            {/* Import from source buttons when board has content */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                { label: "Are.na", mode: "arena" as const },
+                { label: "Pinterest", mode: "pinterest" as const },
+                { label: "URL", mode: "url" as const },
+              ].map(({ label, mode }) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => openImport(mode)}
+                  className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-1.5 text-[11px] font-sans uppercase tracking-[0.08em] text-[var(--text-tertiary)] transition-colors duration-150 hover:border-[var(--accent)]/50 hover:text-[var(--text-primary)]"
+                >
+                  + {label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -489,7 +571,7 @@ function BoardTab({ project }: { project: Project }) {
             </DialogTitle>
             {activeLightboxRef && (
               <>
-                <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300">
+                <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300 rounded-xl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={activeLightboxRef.imageUrl}
@@ -507,7 +589,7 @@ function BoardTab({ project }: { project: Project }) {
                         href={activeLightboxRef.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white"
+                        className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white rounded-lg"
                       >
                         Open source
                       </a>
@@ -515,7 +597,7 @@ function BoardTab({ project }: { project: Project }) {
                     <button
                       type="button"
                       onClick={() => setActiveLightboxRef(null)}
-                      className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white"
+                      className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white rounded-lg"
                     >
                       Close
                     </button>
@@ -558,7 +640,7 @@ function TypeTab({ project }: { project: Project }) {
       <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
         Typography
       </div>
-      <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300">
+      <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
         <div className="flex items-start gap-6">
           {/* Left: Preview text */}
           <div className="flex-1 space-y-1 text-sm text-text-primary transition-colors duration-300">
@@ -580,7 +662,7 @@ function TypeTab({ project }: { project: Project }) {
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.07em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary"
+            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.07em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary rounded-md"
           >
             Change Font
           </button>
@@ -730,7 +812,7 @@ function PaletteTab({ project }: { project: Project }) {
 
   function addSwatch() {
     const id = `swatch-${Date.now()}`;
-    setSwatches((prev) => [...prev, { id, color: "#0070F3", name: "" }]);
+    setSwatches((prev) => [...prev, { id, color: "#2430AD", name: "" }]);
   }
 
   function updateColor(id: string, color: string) {
@@ -782,7 +864,7 @@ function PaletteTab({ project }: { project: Project }) {
               key={swatch.id}
               whileHover={{ transform: "translateY(-4px)" }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              className="group relative aspect-square overflow-hidden cursor-pointer"
+              className="group relative aspect-square overflow-hidden cursor-pointer rounded-md"
               onClick={(e) => openPicker(swatch.id, e.currentTarget as HTMLElement)}
             >
               {/* Background color */}
@@ -846,7 +928,7 @@ function PaletteTab({ project }: { project: Project }) {
           onClick={addSwatch}
           whileHover={{ transform: "translateY(-4px)" }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          className="group aspect-square border border-dashed border-card-border bg-transparent flex flex-col items-center justify-center gap-1 transition-[border-color,background-color] duration-300 hover:border-white/30 hover:bg-sidebar-hover"
+          className="group aspect-square border border-dashed border-card-border bg-transparent flex flex-col items-center justify-center gap-1 transition-[border-color,background-color] duration-300 hover:border-white/30 hover:bg-sidebar-hover rounded-md"
         >
           <svg
             width="16"
@@ -873,7 +955,7 @@ function PaletteTab({ project }: { project: Project }) {
           {React.createElement(
             ColorPickerPanel,
             {
-              value: swatches.find((s) => s.id === openPickerId)?.color ?? "#0070F3",
+              value: swatches.find((s) => s.id === openPickerId)?.color ?? "#2430AD",
               position: pickerPosition,
               onChange: (c: string) => updateColor(openPickerId, c),
               onClose: () => setOpenPickerId(null),
@@ -964,22 +1046,24 @@ function TasksTab({ projectId }: { projectId: string }) {
 
       <div className="space-y-0.5">
         {tasks.map((task) => (
-          <motion.label
+          <motion.div
             key={task.id}
             whileHover={{ x: 3 }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary cursor-pointer transition-colors duration-300 hover:bg-neutral-800/50 rounded"
+            onClick={() => toggleTask(task.id)}
+            className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary cursor-pointer transition-colors duration-300 hover:bg-neutral-800/50 rounded-md"
           >
             <input
               type="checkbox"
               checked={task.completed}
               onChange={() => toggleTask(task.id)}
+              onClick={(e) => e.stopPropagation()}
               className="h-3 w-3 border border-gray-500 bg-transparent transition-colors duration-300"
             />
             <span className={cn(task.completed && "line-through text-gray-400 transition-colors duration-300")}>
               {task.text}
             </span>
-          </motion.label>
+          </motion.div>
         ))}
       </div>
 
@@ -990,7 +1074,7 @@ function TasksTab({ projectId }: { projectId: string }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add task..."
-            className="w-full border border-card-border bg-transparent px-2 py-1.5 pr-8 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent"
+            className="w-full border border-card-border bg-transparent px-2 py-1.5 pr-8 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent rounded-md"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();

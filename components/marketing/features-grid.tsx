@@ -300,30 +300,30 @@ function Fig02Animated() {
 }
 
 // ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
-// Animates scaleX (CSS transform) instead of SVG width attribute.
-// Always renders at maxW, scales from left edge (transformOrigin = left center).
-// This is reliable in all Framer Motion versions because it uses CSS, not SVG attrs.
+// Each bar has a FIXED width and RIGHT-ALIGNED x. On hover, bars swap Y rows.
+// Values extracted from user's design frames via coordinate math on SVG transforms.
+// Bars are right-aligned: x = RIGHT_EDGE - width (right edge fixed at ~416).
+// On hover: bars 308 and 200 RISE, bars 163 and 340 DROP — creating a resort effect.
 function AnimatedBarH({
-  y, idleW, hoverW, hovered, delay,
+  x, width, idleY, hoverY, hovered, delay,
 }: {
-  y: number; idleW: number; hoverW: number; hovered: boolean; delay: number;
+  x: number; width: number; idleY: number; hoverY: number; hovered: boolean; delay: number;
 }) {
-  const maxW = Math.max(idleW, hoverW);
   return (
     <motion.rect
-      x={56}
-      y={y - 21}
-      width={maxW}
+      x={x}
+      y={0}
+      width={width}
       height={42}
       rx={21}
       ry={21}
       fill="url(#f3-bar)"
-      animate={{ scaleX: hovered ? hoverW / maxW : idleW / maxW }}
-      style={{ transformOrigin: `56px ${y}px` }}
+      initial={{ translateY: idleY - 21 }}
+      animate={{ translateY: hovered ? hoverY - 21 : idleY - 21 }}
       transition={{
         type: "spring",
-        stiffness: 600,
-        damping: 16,
+        stiffness: 480,
+        damping: 20,
         delay: hovered ? delay : delay * 0.4,
       }}
     />
@@ -334,15 +334,15 @@ function AnimatedBarH({
 function Fig03Animated() {
   const [hovered, setHovered] = React.useState(false);
 
-  // Bars are left-aligned (x=56). y = center. widths shuffle on hover.
-  // Idle order (top→bottom): short, wide, medium, narrow
-  // Hover order: wide, narrow, short, medium  ← visual "AI resorting"
-  // Values extracted from user's 7 design frames (frame 1 = idle, frame 7 = hover)
+  // RIGHT_EDGE = 416 in folder-local space. Bars are right-aligned.
+  // Frame 1 (idle) → Frame 7 (hover) Y centers extracted from SVG frames.
+  // Two pairs swap: (308↑,163↓) and (200↑,340↓)
+  const R = 416;
   const bars = [
-    { y: 158, idleW: 220, hoverW: 360, delay: 0    },
-    { y: 218, idleW: 360, hoverW: 220, delay: 0.04 },
-    { y: 277, idleW: 328, hoverW: 183, delay: 0.08 },
-    { y: 333, idleW: 183, hoverW: 328, delay: 0.12 },
+    { width: 308, x: R - 308, idleY: 213, hoverY: 146, delay: 0    },
+    { width: 163, x: R - 163, idleY: 157, hoverY: 208, delay: 0.05 },
+    { width: 200, x: R - 200, idleY: 333, hoverY: 271, delay: 0.10 },
+    { width: 340, x: R - 340, idleY: 272, hoverY: 332, delay: 0.15 },
   ];
 
   return (
@@ -405,7 +405,7 @@ function Fig03Animated() {
           {/* Bars — clipped to folder */}
           <g clipPath="url(#f3-folder-clip)">
             {bars.map((bar, i) => (
-              <AnimatedBarH key={i} {...bar} hovered={hovered} />
+              <AnimatedBarH key={bar.width} {...bar} hovered={hovered} />
             ))}
           </g>
         </g>

@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +9,14 @@ import { cn, safeRedirectPath } from "@/lib/utils";
 type State = "idle" | "loading" | "sent" | "error";
 
 export default function LoginPage() {
+  return (
+    <React.Suspense>
+      <LoginContent />
+    </React.Suspense>
+  );
+}
+
+function LoginContent() {
   const searchParams = useSearchParams();
   const [email, setEmail] = React.useState("");
   const [state, setState] = React.useState<State>("idle");

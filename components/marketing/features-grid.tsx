@@ -321,9 +321,9 @@ function AnimatedBarH({
       animate={{ translateY: hovered ? hoverY - 21 : idleY - 21 }}
       transition={{
         type: "spring",
-        stiffness: 480,
-        damping: 20,
-        delay: hovered ? delay : delay * 0.4,
+        stiffness: 260,
+        damping: 16,
+        delay: hovered ? delay : delay * 0.3,
       }}
     />
   );
@@ -336,11 +336,12 @@ function Fig03Animated() {
   // LEFT_EDGE = 76. All bars start at x=76, right edge varies by width.
   // Frame 1 (idle) → Frame 7 (hover) Y centers extracted from SVG frames.
   // Two pairs swap: (308↑,163↓) and (200↑,340↓)
+  // Shifted up by 40px from extracted frame coords to better center in folder body
   const bars = [
-    { width: 308, idleY: 213, hoverY: 146, delay: 0    },
-    { width: 163, idleY: 157, hoverY: 208, delay: 0.05 },
-    { width: 200, idleY: 333, hoverY: 271, delay: 0.10 },
-    { width: 340, idleY: 272, hoverY: 332, delay: 0.15 },
+    { width: 308, idleY: 173, hoverY: 106, delay: 0    },
+    { width: 163, idleY: 117, hoverY: 168, delay: 0.05 },
+    { width: 200, idleY: 293, hoverY: 231, delay: 0.10 },
+    { width: 340, idleY: 232, hoverY: 292, delay: 0.15 },
   ];
 
   return (

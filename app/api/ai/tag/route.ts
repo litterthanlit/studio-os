@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { tagReference } from "@/lib/ai/tagger";
 import { createClient } from "@/lib/supabase/server";

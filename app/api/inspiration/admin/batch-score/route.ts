@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/inspiration/admin/batch-score/route.ts
 // Admin endpoint to batch score images from Lummi
 

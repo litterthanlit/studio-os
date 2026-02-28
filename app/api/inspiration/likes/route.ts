@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/inspiration/likes/route.ts
 // Like/unlike functionality for inspiration images
 

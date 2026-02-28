@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 
 const PINTEREST_OAUTH = "https://www.pinterest.com/oauth/";

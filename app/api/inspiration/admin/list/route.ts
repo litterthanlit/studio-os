@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/inspiration/admin/list/route.ts
 // Admin endpoint to list scored images with filters
 

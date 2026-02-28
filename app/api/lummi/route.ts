@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import dns from "dns";
 import { NextResponse } from "next/server";
 

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { generateEmbedding, buildEmbeddingText } from "@/lib/ai/embeddings";
 import { createClient } from "@/lib/supabase/server";

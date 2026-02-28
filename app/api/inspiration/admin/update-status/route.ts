@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/api/inspiration/admin/update-status/route.ts
 // Admin endpoint to update image curation status
 

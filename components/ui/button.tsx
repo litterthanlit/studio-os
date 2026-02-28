@@ -13,7 +13,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "default", ...props }, ref) => {
     const base =
       "inline-flex items-center justify-center h-10 px-4 text-sm font-medium " +
-      "border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent " +
+      "border rounded-lg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent " +
       "disabled:cursor-not-allowed disabled:opacity-50";
 
     const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {

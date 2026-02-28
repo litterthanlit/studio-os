@@ -115,7 +115,7 @@ function TestimonialCard({
         delay: 0.1 + index * 0.1,
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border border-white/[0.07] bg-[#131313] transition-colors duration-300 hover:border-white/[0.12] hover:bg-[#161616] ${
+      className={`group relative flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white transition-colors duration-300 hover:border-neutral-300 hover:bg-neutral-50 ${
         t.featured ? "lg:col-span-2" : ""
       }`}
     >
@@ -136,7 +136,7 @@ function TestimonialCard({
 
         {/* Quote text */}
         <p
-          className={`flex-1 font-extralight leading-relaxed text-neutral-400 ${
+          className={`flex-1 font-extralight leading-relaxed text-neutral-500 ${
             t.featured ? "text-lg" : "text-sm"
           }`}
           style={{ letterSpacing: "-0.011em" }}
@@ -145,10 +145,10 @@ function TestimonialCard({
         </p>
 
         {/* Author */}
-        <div className="mt-6 flex items-center gap-3 border-t border-white/[0.06] pt-5">
+        <div className="mt-6 flex items-center gap-3 border-t border-neutral-100 pt-5">
           {/* Avatar */}
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-neutral-900"
             style={{
               background: `linear-gradient(135deg, ${t.accentColor}40, ${t.accentColor}20)`,
               border: `1px solid ${t.accentColor}30`,
@@ -158,7 +158,7 @@ function TestimonialCard({
             {t.avatar}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-white" style={{ letterSpacing: "-0.012em" }}>
+            <div className="truncate text-sm font-medium text-neutral-900" style={{ letterSpacing: "-0.012em" }}>
               {t.author}
             </div>
             <div className="font-mono text-xs text-neutral-600">
@@ -180,7 +180,7 @@ export function Testimonials() {
   const logosInView = useInView(logosRef, { once: true, margin: "-60px" });
 
   return (
-    <section className="relative bg-[#111111] py-24 overflow-hidden">
+    <section className="relative bg-[#FAFAFA] py-24 overflow-hidden">
       {/* Subtle accent glow */}
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-px w-3/4 -translate-x-1/2"
@@ -199,7 +199,7 @@ export function Testimonials() {
         >
           <div className="mb-4 font-mono text-xs text-neutral-600">6.0 — Testimonials</div>
           <h2
-            className="text-3xl font-medium text-white sm:text-4xl"
+            className="text-3xl font-medium text-neutral-900 sm:text-4xl"
             style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}
           >
             Designers who switched
@@ -216,7 +216,7 @@ export function Testimonials() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="mb-14"
         >
-          <div className="mb-5 font-mono text-[11px] text-neutral-700">
+          <div className="mb-5 font-mono text-[11px] text-neutral-400">
             Used by designers at
           </div>
           <div className="flex flex-wrap items-center gap-8">
@@ -226,7 +226,7 @@ export function Testimonials() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={logosInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: 0.15 + i * 0.07 }}
-                className="text-neutral-700 transition-colors duration-200 hover:text-neutral-400"
+                className="text-neutral-400 transition-colors duration-200 hover:text-neutral-600"
                 title={logo.name}
               >
                 {logo.svg}
@@ -236,7 +236,7 @@ export function Testimonials() {
         </motion.div>
 
         {/* Hairline divider */}
-        <div className="mb-10 h-px w-full bg-white/[0.06]" />
+        <div className="mb-10 h-px w-full bg-neutral-200" />
 
         {/* Testimonials grid — asymmetric */}
         {/* Row 1: featured (wide) + regular */}
@@ -258,8 +258,8 @@ export function Testimonials() {
           transition={{ duration: 0.5, delay: 0.6 }}
           className="mt-10 text-center"
         >
-          <p className="font-mono text-xs text-neutral-700">
-            Join 400+ designers already in early access
+          <p className="font-mono text-xs text-neutral-400">
+            Be first. Join the waitlist.
           </p>
         </motion.div>
       </div>

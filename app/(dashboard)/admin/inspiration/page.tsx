@@ -59,12 +59,14 @@ export default function AdminInspirationPage() {
       const res = await fetch("/api/inspiration/admin/batch-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: "sample", useLummi: false, limit: 6 }),
+        body: JSON.stringify({ source: "lummi", useLummi: false, limit: 6 }),
       });
       const data = await res.json();
       console.log("[batch-score] Response:", data);
       if (!res.ok) {
         alert(`Error ${res.status}: ${data.error || data.details || 'Unknown error'}`);
+      } else if (data.scored === 0 && data.errors?.length > 0) {
+        alert(`Scoring failed. Errors:\n${data.errors.slice(0, 3).join('\n')}`);
       } else if (data.scored === 0) {
         alert(`${data.message || "No images to score"}\nTotal available: ${data.total || 0}`);
       } else {

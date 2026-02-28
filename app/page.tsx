@@ -6,6 +6,7 @@ import { HowItWorks } from "@/components/marketing/how-it-works";
 import { Pricing } from "@/components/marketing/pricing";
 import { Testimonials } from "@/components/marketing/testimonials";
 import { CTA } from "@/components/marketing/cta";
+import { FAQ } from "@/components/marketing/faq";
 import { MarketingNav } from "@/components/marketing/navigation";
 import { MarketingFooter } from "@/components/marketing/footer";
 
@@ -17,18 +18,19 @@ export const metadata = {
 
 export default function MarketingPage() {
   return (
-    <div className="relative min-h-screen bg-[#111111]">
+    <div className="relative min-h-screen bg-white">
       <div className="relative z-10">
         <MarketingNav />
         <main>
           <Hero />
-<FeaturesGrid />
+          <FeaturesGrid />
+          <HowItWorks />
           <FeatureShowcase />
           <Showcase />
-          <HowItWorks />
           <Pricing />
           <Testimonials />
           <CTA />
+          <FAQ />
         </main>
         <MarketingFooter />
       </div>

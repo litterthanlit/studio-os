@@ -6,23 +6,23 @@ import { useRef } from "react";
 const steps = [
   {
     num: "01",
-    title: "Gather",
+    title: "Import",
     description:
-      "Drag in references from Pinterest, Are.na, Lummi, or your desktop. Studio OS scores and organizes them automatically — no folders, no manual tagging.",
+      "Pull references from Pinterest, Are.na, Lummi, or your desktop. Studio OS scores every image on composition, colour, and mood — and organises them without a single manual tag.",
     visual: <GatherVisual />,
   },
   {
     num: "02",
-    title: "Build",
+    title: "Systemise",
     description:
-      "Define your palette, type scale, and spacing inside the project. Every token stays synced and exports a structured file any AI model can ingest.",
+      "Define your palette, type scale, and spacing tokens inside the project. Everything stays in sync and exports a structured file any AI model or handoff tool can read.",
     visual: <BuildVisual />,
   },
   {
     num: "03",
-    title: "Ship",
+    title: "Export",
     description:
-      "Generate a creative brief in seconds. Export a design-system.md for your AI tools, or hand off a polished spec to clients and engineers.",
+      "Generate a creative brief in seconds. Ship a design-system.md to your AI tools, or hand off a polished spec to clients and engineers.",
     visual: <ShipVisual />,
   },
 ];
@@ -40,17 +40,17 @@ function GatherVisual() {
       ].map((src) => (
         <div
           key={src.label}
-          className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+          className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2"
         >
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: src.color }} />
           <span className="flex-1 text-[11px] text-neutral-400">{src.label}</span>
-          <span className="font-mono text-[10px] text-neutral-600">{src.count}</span>
-          <div className="flex h-4 items-center rounded bg-white/[0.04] px-1.5">
-            <span className="font-mono text-[8px] text-neutral-600">synced</span>
+          <span className="font-mono text-[10px] text-neutral-400">{src.count}</span>
+          <div className="flex h-4 items-center rounded bg-neutral-100 px-1.5">
+            <span className="font-mono text-[8px] text-neutral-400">synced</span>
           </div>
         </div>
       ))}
-      <div className="flex items-center justify-center rounded-lg border border-dashed border-white/[0.08] py-2 text-[10px] text-neutral-700">
+      <div className="flex items-center justify-center rounded-lg border border-dashed border-neutral-200 py-2 text-[10px] text-neutral-400">
         + Drop files here
       </div>
     </div>
@@ -63,20 +63,20 @@ function BuildVisual() {
     <div className="flex flex-col gap-3 p-1">
       {/* Palette row */}
       <div>
-        <div className="mb-1.5 font-mono text-[8px] uppercase tracking-widest text-neutral-700">Color</div>
+        <div className="mb-1.5 font-mono text-[8px] uppercase tracking-widest text-neutral-400">Color</div>
         <div className="flex gap-1">
           {colors.map((c, i) => (
             <div key={i} className="relative flex-1">
-              <div className="h-8 rounded-md border border-white/[0.06]" style={{ backgroundColor: c }} />
+              <div className="h-8 rounded-md border border-neutral-200" style={{ backgroundColor: c }} />
             </div>
           ))}
         </div>
       </div>
       {/* Type preview */}
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-        <div className="mb-1 font-mono text-[8px] uppercase tracking-widest text-neutral-700">Typography</div>
-        <div className="text-[22px] font-semibold leading-none text-white" style={{ letterSpacing: "-0.02em" }}>Aa</div>
-        <div className="mt-0.5 font-mono text-[9px] text-neutral-600">Inter Variable · 590</div>
+      <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+        <div className="mb-1 font-mono text-[8px] uppercase tracking-widest text-neutral-400">Typography</div>
+        <div className="text-[22px] font-semibold leading-none text-neutral-900" style={{ letterSpacing: "-0.02em" }}>Aa</div>
+        <div className="mt-0.5 font-mono text-[9px] text-neutral-400">Inter Variable · 590</div>
       </div>
       {/* Token count */}
       <div className="flex items-center gap-2 rounded-lg border border-[#2430AD]/20 bg-[#2430AD]/5 px-3 py-2">
@@ -92,14 +92,14 @@ function ShipVisual() {
   return (
     <div className="flex flex-col gap-2 p-1">
       {/* Brief preview */}
-      <div className="rounded-lg border border-white/[0.06] bg-[#141414] p-3 space-y-2">
+      <div className="rounded-lg border border-neutral-200 bg-neutral-100 p-3 space-y-2">
         {[
           { k: "Project", v: "Acme Rebrand" },
           { k: "Tone", v: "Minimal, premium" },
           { k: "Palette", v: "Navy + white" },
         ].map((row) => (
           <div key={row.k} className="flex items-baseline gap-2">
-            <span className="w-12 shrink-0 font-mono text-[8px] uppercase tracking-wider text-neutral-700">{row.k}</span>
+            <span className="w-12 shrink-0 font-mono text-[8px] uppercase tracking-wider text-neutral-400">{row.k}</span>
             <span className="text-[10px] text-neutral-400">{row.v}</span>
           </div>
         ))}
@@ -109,10 +109,10 @@ function ShipVisual() {
         { label: "design-system.md", tag: "AI-ready", color: "#2430AD" },
         { label: "creative-brief.pdf", tag: "Client", color: "#10B981" },
       ].map((item) => (
-        <div key={item.label} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+        <div key={item.label} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
           <div className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
           <span className="flex-1 font-mono text-[10px] text-neutral-500">{item.label}</span>
-          <span className="rounded border border-white/[0.06] px-1.5 py-0.5 font-mono text-[8px] text-neutral-600">{item.tag}</span>
+          <span className="rounded border border-neutral-200 px-1.5 py-0.5 font-mono text-[8px] text-neutral-400">{item.tag}</span>
         </div>
       ))}
     </div>
@@ -126,9 +126,9 @@ export function HowItWorks() {
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="how-it-works" className="relative bg-[#111111] py-24 overflow-hidden">
+    <section id="how-it-works" className="relative bg-white py-24 overflow-hidden">
       {/* Subtle top border accent */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-1/2 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-1/2 bg-gradient-to-r from-transparent via-black/[0.06] to-transparent" />
 
       <div className="mx-auto max-w-7xl px-6" ref={ref}>
 
@@ -139,9 +139,9 @@ export function HowItWorks() {
           transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="mb-20"
         >
-          <div className="mb-4 font-mono text-xs text-neutral-600">5.0 — How it works</div>
+          <div className="mb-4 font-mono text-xs text-neutral-400">5.0 — How it works</div>
           <h2
-            className="text-3xl font-medium text-white sm:text-4xl"
+            className="text-3xl font-medium text-neutral-900 sm:text-4xl"
             style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}
           >
             From first reference
@@ -174,26 +174,26 @@ export function HowItWorks() {
                 ease: [0.25, 0.46, 0.45, 0.94],
               }}
               className={`relative flex flex-col gap-6 pb-12 lg:pb-0 ${
-                i < 2 ? "lg:border-r lg:border-white/[0.07] lg:pr-12" : ""
+                i < 2 ? "lg:border-r lg:border-neutral-200 lg:pr-12" : ""
               } ${i > 0 ? "lg:pl-12" : ""} ${
-                i < 2 ? "border-b border-white/[0.07] lg:border-b-0 pb-12" : ""
+                i < 2 ? "border-b border-neutral-200 lg:border-b-0 pb-12" : ""
               }`}
             >
               {/* Step number bubble */}
               <div className="flex items-center gap-4">
                 <div
-                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.08]"
-                  style={{ background: "rgba(255,255,255,0.04)" }}
+                  className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200"
+                  style={{ background: "rgba(0,0,0,0.03)" }}
                 >
                   {/* Connector dot indicator */}
                   <div
-                    className="absolute -right-px top-1/2 hidden h-2 w-2 -translate-y-1/2 translate-x-1/2 rounded-full border border-[#111111] lg:block"
-                    style={{ background: i === 0 ? "#2430AD" : "#2a2a2a" }}
+                    className="absolute -right-px top-1/2 hidden h-2 w-2 -translate-y-1/2 translate-x-1/2 rounded-full border border-white lg:block"
+                    style={{ background: i === 0 ? "var(--accent)" : "#e5e7eb" }}
                   />
                   <span className="font-mono text-xs text-neutral-500">{step.num}</span>
                 </div>
                 <h3
-                  className="text-xl font-medium text-white"
+                  className="text-xl font-medium text-neutral-900"
                   style={{ letterSpacing: "-0.012em" }}
                 >
                   {step.title}
@@ -206,9 +206,9 @@ export function HowItWorks() {
               </p>
 
               {/* Visual card */}
-              <div className="rounded-xl border border-white/[0.07] bg-[#0D0D0D] overflow-hidden">
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
                 {/* Mini title bar */}
-                <div className="flex items-center gap-1.5 border-b border-white/[0.05] px-3 py-2">
+                <div className="flex items-center gap-1.5 border-b border-neutral-200 px-3 py-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#FF5F56]/60" />
                   <div className="h-1.5 w-1.5 rounded-full bg-[#FEBC2E]/60" />
                   <div className="h-1.5 w-1.5 rounded-full bg-[#27C840]/60" />

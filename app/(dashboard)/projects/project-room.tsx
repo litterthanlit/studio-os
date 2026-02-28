@@ -45,67 +45,22 @@ export function ProjectRoomSections({ project }: { project: Project }) {
   );
 }
 
-function OverviewTab({ project }: { project: Project }) {
+function OverviewTab({ project: _project }: { project: Project }) {
   const [notes, setNotes] = React.useState(
     "Capture the core constraints, success criteria, and non-negotiables here."
   );
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-          Brief
-        </div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="h-24 w-full border border-card-border bg-transparent px-2 py-1 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent rounded-md"
-        />
+    <div className="space-y-2">
+      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
+        Brief
       </div>
-
-      <div className="grid grid-cols-3 gap-3 text-xs">
-        {/* References Card */}
-        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-            References
-          </div>
-          {project.references > 0 ? (
-            <div className="mt-2 text-sm font-bold text-text-primary transition-colors duration-300">
-              {project.references}
-            </div>
-          ) : (
-            <div className="mt-2 text-[10px] text-gray-500 transition-colors duration-300">
-              Add your first
-            </div>
-          )}
-        </div>
-
-        {/* Fonts Card */}
-        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-            Fonts
-          </div>
-          {project.fontsSelected > 0 ? (
-            <div className="mt-2 text-sm font-bold text-text-primary transition-colors duration-300">
-              {project.fontsSelected}
-            </div>
-          ) : (
-            <div className="mt-2 text-[10px] text-gray-500 transition-colors duration-300">
-              Choose fonts
-            </div>
-          )}
-        </div>
-
-        {/* Days Active Card */}
-        <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
-          <div className="text-[9px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-            Days Active
-          </div>
-          <div className="mt-2 text-sm font-bold text-text-primary transition-colors duration-300">
-            {project.daysActive}
-          </div>
-        </div>
-      </div>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        className="h-32 w-full border border-card-border bg-transparent px-3 py-2 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent rounded-md resize-none leading-relaxed placeholder:text-gray-600"
+        placeholder="Capture the core constraints, success criteria, and non-negotiables here."
+      />
     </div>
   );
 }
@@ -850,103 +805,80 @@ function PaletteTab({ project }: { project: Project }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-        Color System
-      </div>
+    <div className="space-y-5">
+      {/* ── Color tokens ── */}
+      <div>
+        <div className="mb-2.5 font-mono text-[9px] uppercase tracking-widest text-[var(--text-tertiary)] transition-colors duration-300">
+          Color tokens
+        </div>
 
-      {/* 4-column grid of square swatches */}
-      <div className="grid grid-cols-4 gap-3">
-        {swatches.map((swatch) => {
-          const isLight = isLightColor(swatch.color);
-          return (
+        {/* Horizontal swatch row */}
+        <div className="flex gap-1.5">
+          {swatches.map((swatch) => (
             <motion.div
               key={swatch.id}
-              whileHover={{ transform: "translateY(-4px)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              className="group relative aspect-square overflow-hidden cursor-pointer rounded-md"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="group relative flex flex-1 cursor-pointer flex-col gap-1.5"
               onClick={(e) => openPicker(swatch.id, e.currentTarget as HTMLElement)}
             >
-              {/* Background color */}
+              {/* Swatch tile */}
               <div
-                className="absolute inset-0"
+                className="h-12 rounded-md border border-[var(--border-primary)] transition-[border-color,opacity] duration-150 group-hover:border-[var(--border-secondary)]"
                 style={{ backgroundColor: swatch.color }}
               />
-
-              {/* Hex code in center */}
-              <span
-                className={cn(
-                  "absolute inset-0 flex items-center justify-center font-mono text-[11px] transition-colors duration-300",
-                  isLight ? "text-black/70" : "text-white/70"
-                )}
-              >
+              {/* Hex label */}
+              <div className="font-mono text-[9px] leading-none text-[var(--text-tertiary)] transition-colors duration-150 group-hover:text-[var(--text-secondary)]">
                 {swatch.color.toUpperCase()}
-              </span>
-
-              {/* Color name at bottom */}
-              <span
-                className={cn(
-                  "absolute bottom-2 left-2 right-2 text-[10px] truncate transition-colors duration-300",
-                  isLight ? "text-black/50" : "text-white/50"
-                )}
-              >
-                {swatch.name}
-              </span>
-
-              {/* Remove button */}
+              </div>
+              {/* Name label */}
+              {swatch.name && (
+                <div className="truncate text-[9px] leading-none text-[var(--text-tertiary)] opacity-60">
+                  {swatch.name}
+                </div>
+              )}
+              {/* Remove overlay — appears on hover */}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeSwatch(swatch.id);
-                }}
-                className={cn(
-                  "absolute top-1 right-1 p-1 opacity-0 transition-all duration-300 group-hover:opacity-100 z-10",
-                  isLight ? "text-black/50 hover:text-black" : "text-white/50 hover:text-white"
-                )}
+                onClick={(e) => { e.stopPropagation(); removeSwatch(swatch.id); }}
+                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded bg-black/60 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100"
+                aria-label="Remove colour"
               >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
+                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </motion.div>
-          );
-        })}
+          ))}
 
-        {/* Add Color button */}
-        <motion.button
-          type="button"
-          onClick={addSwatch}
-          whileHover={{ transform: "translateY(-4px)" }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          className="group aspect-square border border-dashed border-card-border bg-transparent flex flex-col items-center justify-center gap-1 transition-[border-color,background-color] duration-300 hover:border-white/30 hover:bg-sidebar-hover rounded-md"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            className="text-gray-500 transition-colors duration-300 group-hover:text-gray-300"
+          {/* Add colour tile */}
+          <button
+            type="button"
+            onClick={addSwatch}
+            className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border-secondary)] transition-colors duration-150 hover:border-[var(--border-tertiary)] hover:bg-[var(--bg-tertiary)]"
+            style={{ minHeight: 48 }}
           >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[var(--text-tertiary)]">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Export row ── */}
+      <div className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-2 transition-colors duration-300">
+        <span className="font-mono text-[10px] text-[var(--text-tertiary)] transition-colors duration-300">
+          design-system.md
+        </span>
+        <button
+          type="button"
+          className="flex items-center gap-1 rounded bg-[var(--accent)]/15 px-2 py-0.5 transition-colors duration-150 hover:bg-[var(--accent)]/25"
+        >
+          <svg viewBox="0 0 10 10" fill="none" className="h-2 w-2 text-[var(--accent)]">
+            <path d="M5 1v6M2 5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="text-[9px] uppercase tracking-[0.1em] text-gray-500 transition-colors duration-300 group-hover:text-gray-300">
-            Add
-          </span>
-        </motion.button>
+          <span className="font-mono text-[9px] text-[var(--accent)]">Export</span>
+        </button>
       </div>
 
       {/* Portal-mounted color picker panel */}

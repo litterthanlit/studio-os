@@ -172,7 +172,7 @@ export function ProjectRoomPageClient({
           {project.palette.slice(0, 5).map((color, i) => (
             <span
               key={`${color}-${i}`}
-              className="h-3 w-3 border border-white/10 transition-colors duration-300"
+              className="h-3 w-3 rounded-full border border-white/10 transition-colors duration-300"
               style={{ backgroundColor: color }}
             />
           ))}

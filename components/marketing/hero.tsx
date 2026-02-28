@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Play } from "lucide-react";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 const ASCII_CHARS = [
@@ -22,9 +21,48 @@ const HEADLINES = [
   "Vision, system, brief.",
 ];
 
+// Painterly landscape gradient — romanticist landscape backdrop
+const PAINTING_BG = `
+  radial-gradient(ellipse 150% 50% at 50% 0%, rgba(200,215,235,0.92) 0%, transparent 50%),
+  radial-gradient(ellipse 48% 78% at 0% 78%, rgba(18,45,12,0.92) 0%, transparent 55%),
+  radial-gradient(ellipse 48% 78% at 100% 80%, rgba(22,50,15,0.88) 0%, transparent 55%),
+  radial-gradient(ellipse 65% 28% at 50% 56%, rgba(218,195,128,0.74) 0%, transparent 55%),
+  radial-gradient(ellipse 70% 30% at 50% 72%, rgba(115,148,75,0.62) 0%, transparent 55%),
+  radial-gradient(ellipse 150% 42% at 50% 100%, rgba(18,40,10,0.96) 0%, transparent 48%),
+  radial-gradient(ellipse 25% 18% at 50% 60%, rgba(175,205,228,0.40) 0%, transparent 50%),
+  linear-gradient(180deg, #AABDD0 0%, #C4AD78 25%, #7A9E56 52%, #3E6030 75%, #28421E 100%)
+`;
+
 export function Hero() {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [headlineIndex, setHeadlineIndex] = React.useState(0);
+
+  // Hero form state
+  const [heroEmail, setHeroEmail] = React.useState("");
+  const [heroState, setHeroState] = React.useState<"idle" | "loading" | "success" | "error">("idle");
+  const [heroErrorMsg, setHeroErrorMsg] = React.useState("");
+
+  async function handleHeroSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!heroEmail || heroState === "loading") return;
+    setHeroState("loading");
+    setHeroErrorMsg("");
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: heroEmail }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Something went wrong");
+      }
+      setHeroState("success");
+    } catch (err) {
+      setHeroErrorMsg(err instanceof Error ? err.message : "Something went wrong");
+      setHeroState("error");
+    }
+  }
 
   // Cycle headline every 2.8s
   React.useEffect(() => {
@@ -147,7 +185,7 @@ export function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#111111] pt-16">
+    <section className="relative min-h-screen overflow-hidden bg-white pt-16">
       {/* ── Grain texture overlay ── */}
       <div
         className="pointer-events-none absolute inset-0 z-[1] opacity-[0.055]"
@@ -171,9 +209,9 @@ export function Hero() {
           className="absolute -left-1/4 -top-1/4 h-[150%] w-[150%]"
           animate={{
             background: [
-              "radial-gradient(circle at 20% 30%, rgba(36, 48, 173,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(36, 48, 173,0.05) 0%, transparent 50%)",
+              "radial-gradient(circle at 20% 30%, rgba(36, 48, 173,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(36, 48, 173,0.05) 0%, transparent 50%)",
               "radial-gradient(circle at 30% 40%, rgba(36, 48, 173,0.06) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(36, 48, 173,0.07) 0%, transparent 50%)",
-              "radial-gradient(circle at 25% 35%, rgba(36, 48, 173,0.08) 0%, transparent 50%), radial-gradient(circle at 75% 65%, rgba(36, 48, 173,0.05) 0%, transparent 50%)",
+              "radial-gradient(circle at 25% 35%, rgba(36, 48, 173,0.06) 0%, transparent 50%), radial-gradient(circle at 75% 65%, rgba(36, 48, 173,0.05) 0%, transparent 50%)",
             ],
           }}
           transition={{ duration: 8, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
@@ -181,7 +219,7 @@ export function Hero() {
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
-            backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(circle, #000000 1px, transparent 1px)",
             backgroundSize: "32px 32px",
           }}
         />
@@ -203,11 +241,11 @@ export function Hero() {
             <span
               className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-light"
               style={{
-                backgroundColor: "rgba(0,0,0,0.1)",
+                backgroundColor: "rgba(0,0,0,0.05)",
                 borderWidth: "0.5px",
                 borderStyle: "solid",
-                borderColor: "rgba(255,255,255,0.45)",
-                color: "rgba(255,255,255,0.55)",
+                borderColor: "rgba(0,0,0,0.12)",
+                color: "rgba(0,0,0,0.5)",
               }}
             >
               {/* Pulsing live dot */}
@@ -221,14 +259,14 @@ export function Hero() {
                   style={{ backgroundColor: "#2430AD" }}
                 />
               </span>
-              Now in early access
+              Now building
             </span>
           </motion.div>
 
           {/* ── Rotating headline ── */}
           <motion.div variants={staggerItem} className="mb-6">
             <h1
-              className="text-4xl font-medium tracking-tight text-white sm:text-5xl md:text-6xl"
+              className="text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
               style={{ letterSpacing: "-0.03em" }}
             >
               <AnimatePresence mode="wait">
@@ -250,53 +288,108 @@ export function Hero() {
           {/* Subheadline */}
           <motion.p
             variants={staggerItem}
-            className="mb-10 max-w-xl text-base font-extralight text-neutral-400 sm:text-lg"
+            className="mb-10 max-w-xl text-base font-extralight text-neutral-500 sm:text-lg"
           >
             Studio OS connects your visual research, design system, and project
             context — so you can focus on the work, not the tooling.
           </motion.p>
 
-          {/* CTAs */}
-          <motion.div
-            variants={staggerItem}
-            className="flex flex-col items-center gap-4 sm:flex-row"
-          >
-            <motion.a
-              href="#waitlist"
-              className="group flex h-12 items-center gap-2 bg-white px-6 text-sm font-semibold text-black transition-[opacity,transform] hover:opacity-90 rounded-lg"
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              transition={springs.snappy}
-            >
-              Get early access
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </motion.a>
-            <motion.button
-              className="group flex h-12 items-center gap-2 border border-neutral-800 bg-transparent px-6 text-sm font-medium text-white transition-[border-color,background-color] hover:border-neutral-600 hover:bg-neutral-900 rounded-lg"
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              transition={springs.snappy}
-            >
-              <Play className="h-4 w-4" />
-              See it in action
-            </motion.button>
+          {/* ── Email CTA ── */}
+          <motion.div variants={staggerItem} className="flex w-full max-w-[540px] flex-col items-center gap-4">
+            <AnimatePresence mode="wait">
+              {heroState === "success" ? (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2 text-sm font-light text-neutral-700"
+                >
+                  <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4 text-[#2430AD]">
+                    <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  You&apos;re on the list — we&apos;ll be in touch.
+                </motion.div>
+              ) : (
+                <motion.form
+                  key="form"
+                  onSubmit={handleHeroSubmit}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="w-full"
+                >
+                  {/* Neumorphic pill — matches reference */}
+                  <div
+                    className="flex items-center rounded-full bg-white p-2 pl-7 transition-shadow duration-200 focus-within:shadow-[0_12px_48px_rgba(0,0,0,0.18),0_2px_10px_rgba(0,0,0,0.08)]"
+                    style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.13), 0 2px_8px rgba(0,0,0,0.07)" }}
+                  >
+                    <input
+                      type="email"
+                      value={heroEmail}
+                      onChange={(e) => setHeroEmail(e.target.value)}
+                      placeholder="Enter email"
+                      required
+                      disabled={heroState === "loading"}
+                      className="flex-1 bg-transparent text-base text-neutral-900 placeholder:text-neutral-400 outline-none disabled:opacity-50"
+                    />
+                    <motion.button
+                      type="submit"
+                      disabled={heroState === "loading"}
+                      whileHover={{ scale: 1.03, opacity: 0.92 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-medium text-white disabled:opacity-40 shrink-0"
+                      style={{ background: "linear-gradient(145deg, #3040C4 0%, #5C69F7 100%)" }}
+                      aria-label="Join waitlist"
+                    >
+                      {heroState === "loading" ? (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4">
+                          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </motion.button>
+                  </div>
+                  {heroState === "error" && (
+                    <p className="mt-2 text-center text-xs text-red-500">{heroErrorMsg}</p>
+                  )}
+                </motion.form>
+              )}
+            </AnimatePresence>
+            <p className="text-xs font-extralight text-neutral-400">
+              Free while we build · No credit card required
+            </p>
           </motion.div>
-
-          {/* Social Proof */}
-          <motion.p variants={staggerItem} className="mt-8 text-xs font-extralight text-neutral-500">
-            Free during early access · No credit card required
-          </motion.p>
         </motion.div>
 
-        {/* Product Mockup */}
+        {/* ── Product Mockup with painting backdrop ── */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...springs.smooth, delay: 0.4 }}
-          className="relative mt-16 w-full max-w-6xl"
+          className="relative mt-16 w-full max-w-6xl overflow-hidden rounded-2xl"
+          style={{
+            paddingTop: 72,
+            paddingLeft: 48,
+            paddingRight: 48,
+            background: PAINTING_BG,
+          }}
         >
+          {/* Grain texture for painterly feel */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+              backgroundSize: "200px 200px",
+              opacity: 0.14,
+              mixBlendMode: "multiply",
+            }}
+          />
+
           {/* Browser chrome */}
-          <div className="relative overflow-hidden rounded-xl border border-white/[0.08] shadow-2xl" style={{ background: "#0F0F0F" }}>
+          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-white/[0.12] shadow-[0_-8px_80px_rgba(0,0,0,0.35)]" style={{ background: "#0F0F0F" }}>
 
             {/* Title bar */}
             <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5" style={{ background: "#0A0A0A" }}>
@@ -321,12 +414,12 @@ export function Hero() {
                 {/* Logo row */}
                 <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2.5">
                   <div className="flex h-6 w-6 items-center justify-center rounded-[5px] bg-[#2430AD]">
-                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3 text-white">
+                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3 text-neutral-900">
                       <rect x="2" y="2" width="3.2" height="8" rx="1" fill="currentColor"/>
                       <rect x="6.8" y="2" width="3.2" height="8" rx="1" fill="currentColor"/>
                     </svg>
                   </div>
-                  <span className="text-[11px] font-semibold text-white">Studio OS</span>
+                  <span className="text-[11px] font-semibold text-neutral-900">Studio OS</span>
                 </div>
                 {/* Nav items */}
                 <div className="flex-1 px-1.5 py-2 space-y-0.5">
@@ -356,7 +449,7 @@ export function Hero() {
                     { name: "Lumina App", color: "#7C3AED" },
                     { name: "Nox Identity", color: "#059669" },
                   ].map((p) => (
-                    <div key={p.name} className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] text-neutral-600 hover:text-neutral-400">
+                    <div key={p.name} className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] text-neutral-600 hover:text-neutral-500">
                       <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.color }} />
                       <span className="truncate">{p.name}</span>
                     </div>
@@ -364,9 +457,9 @@ export function Hero() {
                 </div>
                 {/* User row */}
                 <div className="border-t border-white/[0.06] px-3 py-2 flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-full bg-gradient-to-br from-[#2430AD] to-purple-500 flex items-center justify-center text-[8px] font-bold text-white">N</div>
+                  <div className="h-5 w-5 rounded-full bg-gradient-to-br from-[#2430AD] to-purple-500 flex items-center justify-center text-[8px] font-bold text-neutral-900">N</div>
                   <div>
-                    <div className="text-[10px] font-medium text-neutral-400">Nick</div>
+                    <div className="text-[10px] font-medium text-neutral-500">Nick</div>
                     <div className="text-[9px] text-neutral-700">Free plan</div>
                   </div>
                 </div>
@@ -377,7 +470,7 @@ export function Hero() {
                 {/* Top bar */}
                 <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-2" style={{ background: "#111" }}>
                   <span className="text-[10px] text-neutral-600">home</span>
-                  <div className="flex items-center gap-1.5 rounded-md bg-[#2430AD] px-2.5 py-1 text-[10px] font-medium text-white">
+                  <div className="flex items-center gap-1.5 rounded-md bg-[#2430AD] px-2.5 py-1 text-[10px] font-medium text-neutral-900">
                     + New project
                   </div>
                 </div>
@@ -385,7 +478,7 @@ export function Hero() {
                 <div className="overflow-y-auto h-full px-5 py-5" style={{ scrollbarWidth: "none" }}>
                   {/* Greeting */}
                   <div className="mb-5 text-center">
-                    <div className="text-lg font-light text-white">Good morning, Nick</div>
+                    <div className="text-lg font-light text-neutral-900">Good morning, Nick</div>
                   </div>
 
                   {/* Command bar */}
@@ -433,12 +526,12 @@ export function Hero() {
                             <div className="h-full w-full" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "10px 10px" }} />
                           </div>
                           <div className="flex flex-col gap-1 px-2 py-1.5" style={{ background: "#181818" }}>
-                            <span className="text-[10px] font-medium text-white truncate">{p.name}</span>
+                            <span className="text-[10px] font-medium text-neutral-900 truncate">{p.name}</span>
                             <span className="self-start rounded px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wider" style={{ background: p.bg, color: p.text }}>{p.phase}</span>
                           </div>
                           {p.hover && (
                             <div className="absolute inset-0 flex items-end justify-between px-2 py-1.5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)" }}>
-                              <span className="text-[8px] text-white/60">Open →</span>
+                              <span className="text-[8px] text-neutral-900/60">Open →</span>
                             </div>
                           )}
                         </div>
@@ -469,7 +562,7 @@ export function Hero() {
                             className="h-full w-full"
                             style={{ background: `linear-gradient(135deg, ${item.color}30 0%, ${item.color}60 100%)` }}
                           />
-                          <div className="absolute right-1 top-1 rounded bg-black/50 px-1 py-0.5 font-mono text-[7px] text-white/80">
+                          <div className="absolute right-1 top-1 rounded bg-black/50 px-1 py-0.5 font-mono text-[7px] text-neutral-900/80">
                             {item.score}
                           </div>
                         </div>
@@ -480,10 +573,6 @@ export function Hero() {
               </div>
             </div>
           </div>
-
-          {/* Glow */}
-          <div className="pointer-events-none absolute -inset-8 -z-10 opacity-[0.18] blur-3xl" style={{ background: "radial-gradient(ellipse at center, var(--accent) 0%, transparent 60%)" }} />
-          <div className="pointer-events-none absolute -inset-2 -z-10 opacity-[0.08] blur-2xl" style={{ background: "radial-gradient(ellipse at center, var(--accent) 0%, transparent 50%)" }} />
         </motion.div>
       </div>
     </section>

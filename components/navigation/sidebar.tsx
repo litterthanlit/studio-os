@@ -54,7 +54,7 @@ function ProjectDot({
         )}
       >
         <span
-          className="w-2 h-2 shrink-0"
+          className="w-2 h-2 shrink-0 rounded-full"
           style={{ backgroundColor: project.color }}
         />
         <span className="text-sm truncate transition-colors duration-300">{project.name}</span>
@@ -120,11 +120,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <motion.div whileHover={{ scale: 1.02, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
           <Link
             href="/home"
-            className="flex items-center gap-2.5 text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
+            className="flex items-center text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Studio OS" className="w-5 h-5 shrink-0 rounded-[4px]" />
-            <span className="text-sm font-medium transition-colors duration-300">Studio OS</span>
+            <img src="/logo-icon.svg" alt="Studio OS" className="w-7 h-7 shrink-0" />
           </Link>
         </motion.div>
 
@@ -153,7 +152,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             type="button"
             onClick={() => openNewProject()}
             aria-label="New project"
-            className="text-text-muted hover:text-text-secondary transition-colors duration-150"
+            className="flex items-center justify-center w-6 h-6 rounded-md text-text-muted hover:text-text-secondary hover:bg-sidebar-hover transition-colors duration-150"
           >
             <PlusIcon className="w-3.5 h-3.5" />
           </button>

@@ -59,7 +59,7 @@ function FeatureCard({
   const Icon = feature.icon;
 
   return (
-    <div className="group border border-neutral-800 bg-[#111111] p-6 transition-colors hover:bg-[#141414]">
+    <div className="group border border-neutral-800 bg-[#1C1C1C] p-6 transition-colors hover:bg-[#242424]">
       {/* Icon */}
       <div className="mb-6 flex h-10 w-10 items-center justify-center text-neutral-600 transition-colors group-hover:text-neutral-500">
         <Icon className="h-6 w-6" strokeWidth={1.5} />
@@ -81,7 +81,7 @@ export function Features() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="features" className="relative bg-[#111111] py-32">
+    <section id="features" className="relative bg-[#1C1C1C] py-32">
       <div className="mx-auto max-w-7xl px-6">
         {/* Section header */}
         <motion.div

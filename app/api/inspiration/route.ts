@@ -2,16 +2,24 @@
 // API routes for curated inspiration images
 
 import { NextResponse } from "next/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { scoreImage } from "@/lib/ai/image-scorer";
 
+function createAdminSupabase() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
+
 // GET /api/inspiration - Fetch curated images for the user
 export async function GET(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = createAdminSupabase();
 
   // For demo: use a fallback user ID if not logged in
-  const userId = user?.id || '00000000-0000-0000-0000-000000000001';
+  const userId = '00000000-0000-0000-0000-000000000001';
 
   const { searchParams } = new URL(req.url);
   const limit = Math.min(Number(searchParams.get("limit") ?? "9"), 20);

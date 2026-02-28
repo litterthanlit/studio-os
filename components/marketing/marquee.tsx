@@ -20,7 +20,7 @@ export function Marquee() {
   const items = [...ITEMS, ...ITEMS];
 
   return (
-    <div className="relative overflow-hidden border-y border-white/[0.06] bg-[#111111] py-4">
+    <div className="relative overflow-hidden border-y border-white/[0.06] bg-[#1C1C1C] py-4">
       {/* Left fade */}
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-[#111111] to-transparent" />
       {/* Right fade */}

@@ -25,7 +25,7 @@ export function AnimationDemo() {
   const [clickCount, setClickCount] = useState(0);
 
   return (
-    <section className="relative bg-[#111111] py-32">
+    <section className="relative bg-[#1C1C1C] py-32">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
           {/* Left: Interactive Demo */}
@@ -52,7 +52,7 @@ export function AnimationDemo() {
                 <motion.button
                   key={clickCount}
                   onClick={() => setClickCount((c) => c + 1)}
-                  className="group flex h-16 w-48 items-center justify-center border border-neutral-800 bg-[#111111] text-sm font-medium text-white shadow-lg"
+                  className="group flex h-16 w-48 items-center justify-center border border-neutral-800 bg-[#1C1C1C] text-sm font-medium text-white shadow-lg"
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   whileHover={{ y: -4 }}

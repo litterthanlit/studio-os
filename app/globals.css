@@ -5,9 +5,9 @@
 
 /* Search bar ring pulse — 2 iterations then stops */
 @keyframes search-ring-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(36, 48, 173, 0.35); }
-  60% { box-shadow: 0 0 0 5px rgba(36, 48, 173, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(36, 48, 173, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb, 129, 140, 248), 0.35); }
+  60% { box-shadow: 0 0 0 5px rgba(var(--accent-rgb, 129, 140, 248), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb, 129, 140, 248), 0); }
 }
 
 .search-pulse {
@@ -61,6 +61,7 @@
   --accent: #2430AD;
   --accent-hover: #1C27A0;
   --accent-subtle: rgba(36, 48, 173, 0.1);
+  --accent-rgb: 36, 48, 173;
 
   --sidebar-bg: #FAFAFA;
   --sidebar-border: #E5E5E5;
@@ -113,6 +114,7 @@ html[data-theme="light"] {
   --accent: #2430AD;
   --accent-hover: #1C27A0;
   --accent-subtle: rgba(36, 48, 173, 0.1);
+  --accent-rgb: 36, 48, 173;
 
   --sidebar-bg: #FAFAFA;
   --sidebar-border: #E5E5E5;
@@ -146,10 +148,10 @@ html[data-theme="light"] {
 }
 
 html[data-theme="dark"] {
-  --bg-primary: #181818;
-  --bg-secondary: #202020;
-  --bg-tertiary: #1C1C1C;
-  --bg-input: #202020;
+  --bg-primary: #1C1C1C;
+  --bg-secondary: #242424;
+  --bg-tertiary: #202020;
+  --bg-input: #242424;
 
   --text-primary: #FFFFFF;
   --text-secondary: #AAAAAA;
@@ -157,27 +159,29 @@ html[data-theme="dark"] {
   --text-muted: #666666;
   --text-placeholder: #666666;
 
-  --border-primary: #303030;
-  --border-secondary: #3A3A3A;
-  --border-subtle: #262626;
-  --border-hover: #4A4A4A;
+  --border-primary: #333333;
+  --border-secondary: #3D3D3D;
+  --border-subtle: #2A2A2A;
+  --border-hover: #4D4D4D;
 
-  --accent: #2430AD;
-  --accent-hover: #3040C4;
-  --accent-subtle: rgba(36, 48, 173, 0.12);
+  /* Accessible indigo for dark bg — 5.7:1 contrast on #1C1C1C (WCAG AA ✓) */
+  --accent: #818CF8;
+  --accent-hover: #9EA6FA;
+  --accent-subtle: rgba(129, 140, 248, 0.12);
+  --accent-rgb: 129, 140, 248;
 
-  --sidebar-bg: #111111;
-  --sidebar-border: #222222;
-  --sidebar-hover: #222222;
-  --sidebar-active: #2C2C2C;
+  --sidebar-bg: #141414;
+  --sidebar-border: #252525;
+  --sidebar-hover: #242424;
+  --sidebar-active: #2E2E2E;
 
-  --card-bg: #202020;
-  --card-border: #303030;
+  --card-bg: #232323;
+  --card-border: #333333;
 
   --section-label: #666666;
   --section-dot: #555555;
 
-  --ascii-color: rgba(36, 48, 173, 0.08);
+  --ascii-color: rgba(129, 140, 248, 0.06);
 
   --button-primary-bg: #F0F0F0;
   --button-primary-text: #111111;
@@ -186,15 +190,15 @@ html[data-theme="dark"] {
   --button-secondary-border: #444444;
 
   --quote-color: #555555;
-  --dot-separator: #303030;
+  --dot-separator: #333333;
 
-  --dot-grid-color: rgba(255, 255, 255, 0.025);
+  --dot-grid-color: rgba(255, 255, 255, 0.03);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(36, 48, 173, 0.3);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(129, 140, 248, 0.25);
 }
 
 /* ─── Tailwind v4 Color Tokens ──────────────────────────────────────────────── */
@@ -286,7 +290,7 @@ body {
 /* Elements snap instantly since they change behind the curtain */
 
 ::selection {
-  background-color: rgba(36, 48, 173, 0.25);
+  background-color: rgba(var(--accent-rgb, 36, 48, 173), 0.25);
 }
 
 @layer base {

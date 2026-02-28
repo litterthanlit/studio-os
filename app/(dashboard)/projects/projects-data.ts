@@ -79,11 +79,11 @@ export const PROJECTS: Project[] = [
 
 export const PHASE_STYLES: Record<Phase, string> = {
   Discovery:
-    "bg-amber-500/20 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300 transition-colors duration-300",
+    "bg-amber-500/25 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 transition-colors duration-300",
   Concept:
-    "bg-purple-500/20 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300 transition-colors duration-300",
+    "bg-purple-500/25 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 transition-colors duration-300",
   Refine:
-    "bg-sky-500/20 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300 transition-colors duration-300",
+    "bg-sky-500/25 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300 transition-colors duration-300",
   Deliver:
-    "bg-emerald-500/20 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 transition-colors duration-300",
+    "bg-emerald-500/25 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 transition-colors duration-300",
 };

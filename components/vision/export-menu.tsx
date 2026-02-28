@@ -391,7 +391,7 @@ export function ExportMenu({
                 <span className="text-base leading-none">📦</span>
                 <span>Brand Package</span>
               </span>
-              <span className="rounded-full bg-[#0070F3]/10 px-2 py-0.5 text-[10px] font-medium text-[#0070F3]">
+              <span className="rounded-full bg-[#2430AD]/10 px-2 py-0.5 text-[10px] font-medium text-[#2430AD]">
                 PRO
               </span>
             </button>
@@ -409,7 +409,7 @@ export function ExportMenu({
               </p>
               <button
                 type="button"
-                className="w-full bg-[#0070F3] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                className="w-full bg-[#2430AD] px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90"
                 onClick={() => {
                   setStep("idle");
                   setOpen(false);

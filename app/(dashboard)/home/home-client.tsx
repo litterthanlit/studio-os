@@ -122,15 +122,15 @@ function scoreProjectMatch(projectName: string, query: string): number {
 }
 
 const phaseColors: Record<string, { bg: string; text: string }> = {
-  Discovery:   { bg: "bg-[#FF4400]/15",   text: "text-[#FF4400]" },
-  Concept:     { bg: "bg-violet-500/20",  text: "text-violet-600" },
-  Refine:      { bg: "bg-sky-500/20",     text: "text-sky-600" },
-  Deliver:     { bg: "bg-emerald-500/20", text: "text-emerald-600" },
-  Research:    { bg: "bg-violet-500/20",  text: "text-violet-600" },
-  Design:      { bg: "bg-purple-500/20",  text: "text-purple-600" },
-  Development: { bg: "bg-emerald-500/20", text: "text-emerald-600" },
-  Testing:     { bg: "bg-amber-500/20",   text: "text-amber-600" },
-  Launch:      { bg: "bg-rose-500/20",    text: "text-rose-600" },
+  Discovery:   { bg: "bg-[#FF4400]/15",   text: "text-[#CC3300]" },
+  Concept:     { bg: "bg-violet-500/25",  text: "text-violet-700" },
+  Refine:      { bg: "bg-sky-500/25",     text: "text-sky-700" },
+  Deliver:     { bg: "bg-emerald-500/25", text: "text-emerald-700" },
+  Research:    { bg: "bg-violet-500/25",  text: "text-violet-700" },
+  Design:      { bg: "bg-purple-500/25",  text: "text-purple-700" },
+  Development: { bg: "bg-emerald-500/25", text: "text-emerald-700" },
+  Testing:     { bg: "bg-amber-500/25",   text: "text-amber-700" },
+  Launch:      { bg: "bg-rose-500/25",    text: "text-rose-700" },
 };
 
 function getPhaseBadgeClass(phase: Phase): string {
@@ -169,7 +169,7 @@ function ProjectSearchRow({
       {option.kind === "project" ? (
         <>
           <span
-            className="h-2 w-2 shrink-0"
+            className="h-2 w-2 shrink-0 rounded-full"
             style={{ backgroundColor: option.project.color }}
           />
           <span className="truncate text-sm text-[var(--text-primary)] transition-colors duration-300">
@@ -336,6 +336,26 @@ export function HomeClient() {
     const interval = setInterval(() => setTimeOfDay(getTimeOfDay()), 60_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Global keyboard shortcuts: ⌘N → new project, ⌘I → inspiration, ⌘/ → focus command bar
+  React.useEffect(() => {
+    function handleGlobalKeyDown(e: KeyboardEvent) {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        openNewProject();
+      } else if (e.key === "i" || e.key === "I") {
+        e.preventDefault();
+        router.push("/inspiration");
+      } else if (e.key === "/") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [openNewProject, router]);
 
   // Curated inspiration with GPT-4 Vision scoring
   const {
@@ -557,32 +577,42 @@ export function HomeClient() {
               ) : null}
             </div>
 
-            {/* Quick Actions */}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            {/* Quick Actions — connected to the input above via a divider */}
+            <div className="mt-3 pt-3 border-t border-[var(--border-primary)] flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={openNewProject}
-                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                title="New Project (⌘N)"
+                className="group inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-200 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
-                <span className="text-[10px]">+</span> New Project
+                <span className="text-[10px]">+</span>
+                New Project
+                <kbd className="ml-0.5 inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-px font-mono text-[9px] leading-none text-[var(--text-tertiary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  ⌘N
+                </kbd>
               </button>
               <Link
                 href="/projects"
-                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-200 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 Browse All
               </Link>
               <button
                 type="button"
                 onClick={() => router.push('/inspiration')}
-                className="inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                title="Daily Inspiration (⌘I)"
+                className="group inline-flex items-center gap-1.5 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-200 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 Daily Inspiration
+                <kbd className="ml-0.5 inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-px font-mono text-[9px] leading-none text-[var(--text-tertiary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  ⌘I
+                </kbd>
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/projects?upload=true')}
-                className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded-lg transition-all duration-300 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                title="Upload image"
+                className="inline-flex items-center gap-1 border border-[var(--border-secondary)] px-2.5 py-1 text-[11px] tracking-tight text-[var(--text-secondary)] rounded transition-all duration-200 hover:border-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
               >
                 <span className="text-[10px]">+</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square">
@@ -591,6 +621,13 @@ export function HomeClient() {
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
               </button>
+              {/* Divider + command bar hint */}
+              <div className="ml-auto hidden items-center gap-1.5 sm:flex">
+                <span className="font-mono text-[9px] text-[var(--text-tertiary)]">Focus bar</span>
+                <kbd className="inline-flex items-center rounded border border-[var(--border-primary)] bg-[var(--bg-tertiary)] px-1 py-px font-mono text-[9px] leading-none text-[var(--text-tertiary)]">
+                  ⌘/
+                </kbd>
+              </div>
             </div>
 
             {taskConfirmation ? (
@@ -616,49 +653,81 @@ export function HomeClient() {
               View all
             </Link>
           </motion.div>
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={staggerContainer}
-            className="grid grid-cols-2 gap-4 lg:grid-cols-3"
-          >
-            {recentProjects.slice(0, 3).map((project) => (
-              <motion.button
-                key={project.id}
+          {recentProjects.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="rounded-xl border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-8 py-12 text-center transition-colors duration-300"
+            >
+              {/* Icon */}
+              <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-secondary)] bg-[var(--bg-tertiary)]">
+                <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5 text-[var(--text-tertiary)]">
+                  <path d="M3 5a2 2 0 012-2h3.586a1 1 0 01.707.293l1.414 1.414A1 1 0 0011.414 5H15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <p className="mb-1 text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
+                No projects yet
+              </p>
+              <p className="mb-6 mx-auto max-w-[260px] text-xs font-light leading-relaxed text-[var(--text-tertiary)] transition-colors duration-300">
+                Create your first project to start organising references, briefs, and deliverables in one place.
+              </p>
+              <button
                 type="button"
-                onClick={() => router.push(`/projects/${project.id}`)}
-                variants={staggerItem}
-                whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.15)", transition: { type: "spring", stiffness: 400, damping: 25 } }}
-                style={{ willChange: 'transform' }}
-                className="group overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-[border-color] duration-200 hover:border-[var(--border-secondary)]"
+                onClick={openNewProject}
+                className="inline-flex items-center gap-2 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-all duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)]"
               >
-                {/* Card — full image with overlay */}
-                <div className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={project.leadImage}
-                    alt={project.name}
-                    onLoad={(e) => {
-                      e.currentTarget.classList.add("opacity-100");
-                      e.currentTarget.parentElement?.classList.remove("animate-pulse");
-                    }}
-                    className="h-full w-full object-cover opacity-0 transition-[opacity,transform] duration-500 ease-out group-hover:scale-[1.03]"
-                    loading="lazy"
-                  />
+                <span>Create a project</span>
+                <kbd className="inline-flex items-center rounded border border-[var(--border-primary)] px-1 py-px font-mono text-[9px] leading-none text-[var(--text-tertiary)]">
+                  ⌘N
+                </kbd>
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={staggerContainer}
+              className="grid grid-cols-2 gap-4 lg:grid-cols-3"
+            >
+              {recentProjects.slice(0, 3).map((project) => (
+                <motion.button
+                  key={project.id}
+                  type="button"
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                  variants={staggerItem}
+                  whileHover={{ y: -4, boxShadow: "0 16px 40px rgba(0,0,0,0.15)", transition: { type: "spring", stiffness: 400, damping: 25 } }}
+                  style={{ willChange: 'transform' }}
+                  className="group overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-[var(--card-bg)] text-left transition-[border-color] duration-200 hover:border-[var(--border-secondary)]"
+                >
+                  {/* Card — full image with overlay */}
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--bg-tertiary)] animate-pulse">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={project.leadImage}
+                      alt={project.name}
+                      onLoad={(e) => {
+                        e.currentTarget.classList.remove("opacity-0");
+                        e.currentTarget.parentElement?.classList.remove("animate-pulse");
+                      }}
+                      className="h-full w-full object-cover opacity-0 transition-[opacity,transform] duration-500 ease-out group-hover:scale-[1.03]"
+                      loading="lazy"
+                    />
 
-                  {/* Bottom overlay — solid panel, 40% height, theme-aware */}
-                  <div className="absolute inset-x-0 bottom-0 h-[40%] flex flex-col justify-center gap-1.5 px-3 bg-[var(--card-bg)]">
-                    <span className="truncate w-full text-sm font-semibold text-[var(--text-primary)]">
-                      {project.name}
-                    </span>
-                    <span className={`self-start px-2 py-0.5 text-[10px] font-sans font-semibold uppercase tracking-[0.08em] rounded transition-colors duration-200 ${getPhaseBadgeClass(project.phase)}`}>
-                      {project.phase}
-                    </span>
+                    {/* Bottom overlay — solid panel, 40% height, theme-aware */}
+                    <div className="absolute inset-x-0 bottom-0 h-[40%] flex flex-col justify-center gap-1.5 px-3 bg-[var(--card-bg)]">
+                      <span className="truncate w-full text-sm font-semibold text-[var(--text-primary)]">
+                        {project.name}
+                      </span>
+                      <span className={`self-start px-2 py-0.5 text-[10px] font-sans font-semibold uppercase tracking-[0.08em] rounded transition-colors duration-200 ${getPhaseBadgeClass(project.phase)}`}>
+                        {project.phase}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </motion.button>
-            ))}
-          </motion.div>
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
         </section>
 
         {/* Separator */}
@@ -687,12 +756,29 @@ export function HomeClient() {
             ) : inspirationError ? (
               <p className="text-sm text-red-500 transition-colors duration-300">Error: {inspirationError}</p>
             ) : inspiration.length === 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="aspect-[3/4] bg-[var(--bg-tertiary)] border border-dashed border-[var(--border-primary)] flex items-center justify-center transition-colors duration-300">
-                    <span className="text-[var(--text-tertiary)] text-xs">—</span>
-                  </div>
-                ))}
+              <div className="rounded-xl border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-8 py-12 text-center transition-colors duration-300">
+                <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-secondary)] bg-[var(--bg-tertiary)]">
+                  <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5 text-[var(--text-tertiary)]">
+                    <rect x="2" y="2" width="7" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                    <rect x="11" y="2" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                    <rect x="11" y="9" width="7" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                    <rect x="2" y="13" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                  </svg>
+                </div>
+                <p className="mb-1 text-sm font-medium text-[var(--text-primary)] transition-colors duration-300">
+                  No inspiration yet
+                </p>
+                <p className="mb-5 max-w-xs mx-auto text-xs font-light leading-relaxed text-[var(--text-tertiary)] transition-colors duration-300">
+                  Connect a Pinterest board or Are.na channel and Studio OS will curate your daily feed — scoring every image on composition, color, and mood.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push('/settings')}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-all duration-300 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
+                  Connect a source
+                  <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

@@ -2,7 +2,7 @@
 // Admin endpoint to batch score images from Lummi
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import { scoreImage } from "@/lib/ai/image-scorer";
 
 // Sample images for testing (no API rate limits)
@@ -31,15 +31,17 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // POST /api/inspiration/admin/batch-score
 export async function POST(req: Request) {
-  const supabase = await createClient();
-
-  // Get user or use fallback for demo
-  const { data: { user } } = await supabase.auth.getUser();
-  console.log("[batch-score] User:", user?.email || "not logged in");
+  // Service role client — bypasses RLS for admin writes
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  console.log("[batch-score] Using service role client");
 
   try {
     const body = await req.json();
-    const { source = "sample", useLummi = false, limit = 6 } = body;
+    const { source = "lummi", useLummi = false, limit = 6 } = body;
 
     let images: Array<{ id: string; url: string; thumbnailUrl?: string; title?: string }> = [];
 
@@ -137,7 +139,8 @@ export async function POST(req: Request) {
         });
 
         if (error) {
-          results.push({ id: img.id, status: "error", error: error.message });
+          console.error(`[batch-score] DB insert error for ${img.id}:`, error.message, error.details, error.hint);
+          results.push({ id: img.id, status: "error", error: `DB: ${error.message}` });
         } else {
           results.push({ id: img.id, status: "success", overall: analysis.scores.overall });
         }
@@ -158,11 +161,13 @@ export async function POST(req: Request) {
 
     const successful = results.filter((r) => r.status === "success").length;
     const approved = results.filter((r) => r.status === "success" && (r.overall || 0) >= 75).length;
+    const errors = results.filter((r) => r.status === "error").map((r) => r.error);
 
     return NextResponse.json({
       total: unscoredImages.length,
       scored: successful,
       approved,
+      errors: errors.length > 0 ? errors : undefined,
       results,
     });
   } catch (error) {

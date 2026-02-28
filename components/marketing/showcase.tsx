@@ -26,21 +26,21 @@ function ImageCard({ image }: { image: (typeof showcaseImages)[0] }) {
     <motion.div
       variants={staggerItem}
       whileHover={{ y: -4, transition: springs.smooth }}
-      className={`group relative ${image.aspect} overflow-hidden rounded-lg border border-white/[0.06] bg-[#141414]`}
+      className={`group relative ${image.aspect} overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100`}
     >
       <div className={`absolute inset-0 ${image.color} transition-transform duration-500 group-hover:scale-105`} />
 
       {/* Score badge */}
-      <div className="absolute right-2 top-2 flex items-center gap-1 rounded border border-white/[0.08] bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute right-2 top-2 flex items-center gap-1 rounded border border-neutral-200 bg-white/90 px-1.5 py-0.5 backdrop-blur-sm">
         <div className="h-1 w-1 rounded-full bg-[#2430AD]" />
-        <span className="font-mono text-[9px] text-white/60">{image.score}</span>
+        <span className="font-mono text-[9px] text-neutral-500">{image.score}</span>
       </div>
 
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <div className="absolute bottom-0 left-0 right-0 flex flex-wrap gap-1 p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
         {["Comp", "Color", "Mood"].map((tag) => (
-          <span key={tag} className="rounded border border-white/[0.08] bg-black/60 px-1 py-0.5 font-mono text-[8px] text-white/50 backdrop-blur-sm">
+          <span key={tag} className="rounded border border-neutral-200 bg-white/90 px-1 py-0.5 font-mono text-[8px] text-neutral-900/50 backdrop-blur-sm">
             {tag}
           </span>
         ))}
@@ -54,9 +54,9 @@ export function Showcase() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="showcase" className="relative overflow-hidden bg-[#111111] py-24">
+    <section id="showcase" className="relative overflow-hidden bg-white py-24">
       {/* Subtle top border accent */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-1/2 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-1/2 bg-gradient-to-r from-transparent via-black/[0.06] to-transparent" />
 
       <div className="relative mx-auto max-w-7xl px-6" ref={ref}>
         <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
@@ -69,7 +69,7 @@ export function Showcase() {
           >
             <div className="mb-5 font-mono text-xs text-neutral-600">4.4 — AI curation</div>
             <h2
-              className="mb-5 text-3xl font-medium text-white sm:text-4xl"
+              className="mb-5 text-3xl font-medium text-neutral-900 sm:text-4xl"
               style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}
             >
               Only exceptional
@@ -94,7 +94,7 @@ export function Showcase() {
                     ease: [0.25, 0.46, 0.45, 0.94],
                   }}
                   className={`flex items-center gap-4 px-5 py-4 ${
-                    i < scoreRows.length - 1 ? "border-b border-white/[0.06]" : ""
+                    i < scoreRows.length - 1 ? "border-b border-neutral-200" : ""
                   }`}
                   style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}
                 >
@@ -103,7 +103,7 @@ export function Showcase() {
 
                   {/* Label */}
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-white" style={{ letterSpacing: "-0.012em" }}>
+                    <div className="text-sm font-medium text-neutral-900" style={{ letterSpacing: "-0.012em" }}>
                       {row.label}
                     </div>
                     <div className="font-mono text-[10px] text-neutral-600">{row.sublabel}</div>

@@ -300,23 +300,26 @@ function Fig02Animated() {
 }
 
 // ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
-// Uses animate prop directly on motion.rect — the correct way to animate
-// SVG attributes in Framer Motion v12 (MotionValue on SVG attrs is unreliable)
+// Animates scaleX (CSS transform) instead of SVG width attribute.
+// Always renders at maxW, scales from left edge (transformOrigin = left center).
+// This is reliable in all Framer Motion versions because it uses CSS, not SVG attrs.
 function AnimatedBarH({
   y, idleW, hoverW, hovered, delay,
 }: {
   y: number; idleW: number; hoverW: number; hovered: boolean; delay: number;
 }) {
+  const maxW = Math.max(idleW, hoverW);
   return (
     <motion.rect
       x={56}
       y={y - 21}
+      width={maxW}
       height={42}
       rx={21}
       ry={21}
       fill="url(#f3-bar)"
-      initial={{ width: idleW }}
-      animate={{ width: hovered ? hoverW : idleW }}
+      animate={{ scaleX: hovered ? hoverW / maxW : idleW / maxW }}
+      style={{ transformOrigin: `56px ${y}px` }}
       transition={{
         type: "spring",
         stiffness: 600,

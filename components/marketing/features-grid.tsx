@@ -300,18 +300,17 @@ function Fig02Animated() {
 }
 
 // ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
-// Each bar has a FIXED width and RIGHT-ALIGNED x. On hover, bars swap Y rows.
+// Each bar has a FIXED width and LEFT-ALIGNED x (all start at x=76).
+// On hover, bars swap Y rows — two pairs crossing: (308↑,163↓) and (200↑,340↓).
 // Values extracted from user's design frames via coordinate math on SVG transforms.
-// Bars are right-aligned: x = RIGHT_EDGE - width (right edge fixed at ~416).
-// On hover: bars 308 and 200 RISE, bars 163 and 340 DROP — creating a resort effect.
 function AnimatedBarH({
-  x, width, idleY, hoverY, hovered, delay,
+  width, idleY, hoverY, hovered, delay,
 }: {
-  x: number; width: number; idleY: number; hoverY: number; hovered: boolean; delay: number;
+  width: number; idleY: number; hoverY: number; hovered: boolean; delay: number;
 }) {
   return (
     <motion.rect
-      x={x}
+      x={76}
       y={0}
       width={width}
       height={42}
@@ -334,15 +333,14 @@ function AnimatedBarH({
 function Fig03Animated() {
   const [hovered, setHovered] = React.useState(false);
 
-  // RIGHT_EDGE = 416 in folder-local space. Bars are right-aligned.
+  // LEFT_EDGE = 76. All bars start at x=76, right edge varies by width.
   // Frame 1 (idle) → Frame 7 (hover) Y centers extracted from SVG frames.
   // Two pairs swap: (308↑,163↓) and (200↑,340↓)
-  const R = 416;
   const bars = [
-    { width: 308, x: R - 308, idleY: 213, hoverY: 146, delay: 0    },
-    { width: 163, x: R - 163, idleY: 157, hoverY: 208, delay: 0.05 },
-    { width: 200, x: R - 200, idleY: 333, hoverY: 271, delay: 0.10 },
-    { width: 340, x: R - 340, idleY: 272, hoverY: 332, delay: 0.15 },
+    { width: 308, idleY: 213, hoverY: 146, delay: 0    },
+    { width: 163, idleY: 157, hoverY: 208, delay: 0.05 },
+    { width: 200, idleY: 333, hoverY: 271, delay: 0.10 },
+    { width: 340, idleY: 272, hoverY: 332, delay: 0.15 },
   ];
 
   return (
@@ -450,7 +448,7 @@ const FEATURES = [
     description:
       "AI reads your board and generates a structured creative brief — positioning, tone, constraints — so you spend less time writing and more time designing.",
     idle:  { y: 0, opacity: 1 },
-    hover: { y: -10, opacity: 1, transition: { type: "spring", stiffness: 600, damping: 16 } },
+    hover: { y: 0, opacity: 1 },
   },
   {
     fig: "FIG 0.4",

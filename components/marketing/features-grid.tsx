@@ -299,35 +299,30 @@ function Fig02Animated() {
   );
 }
 
-// ── FIG 0.3 — horizontal bar constants ──────────────────────────────────────
-const HBAR_SPRING = { type: "spring" as const, stiffness: 600, damping: 16 };
-
-// Horizontal pill bar — animates its width (right edge) while left edge stays fixed.
-// Same useMotionValue pattern as AnimatedBar but for x instead of y.
+// ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
+// Uses animate prop directly on motion.rect — the correct way to animate
+// SVG attributes in Framer Motion v12 (MotionValue on SVG attrs is unreliable)
 function AnimatedBarH({
   y, idleW, hoverW, hovered, delay,
 }: {
   y: number; idleW: number; hoverW: number; hovered: boolean; delay: number;
 }) {
-  const w = useMotionValue(idleW);
-
-  React.useEffect(() => {
-    const controls = animate(w, hovered ? hoverW : idleW, {
-      ...HBAR_SPRING,
-      delay: hovered ? delay : delay * 0.4,
-    });
-    return () => controls.stop();
-  }, [hovered]); // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
     <motion.rect
       x={56}
       y={y - 21}
-      width={w}
       height={42}
       rx={21}
       ry={21}
       fill="url(#f3-bar)"
+      initial={{ width: idleW }}
+      animate={{ width: hovered ? hoverW : idleW }}
+      transition={{
+        type: "spring",
+        stiffness: 600,
+        damping: 16,
+        delay: hovered ? delay : delay * 0.4,
+      }}
     />
   );
 }

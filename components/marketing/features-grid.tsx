@@ -339,10 +339,11 @@ function Fig03Animated() {
   // Bars are left-aligned (x=56). y = center. widths shuffle on hover.
   // Idle order (top→bottom): short, wide, medium, narrow
   // Hover order: wide, narrow, short, medium  ← visual "AI resorting"
+  // Values extracted from user's 7 design frames (frame 1 = idle, frame 7 = hover)
   const bars = [
     { y: 158, idleW: 220, hoverW: 360, delay: 0    },
-    { y: 218, idleW: 360, hoverW: 183, delay: 0.04 },
-    { y: 277, idleW: 328, hoverW: 220, delay: 0.08 },
+    { y: 218, idleW: 360, hoverW: 220, delay: 0.04 },
+    { y: 277, idleW: 328, hoverW: 183, delay: 0.08 },
     { y: 333, idleW: 183, hoverW: 328, delay: 0.12 },
   ];
 

@@ -3,9 +3,14 @@
 
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy — don't instantiate at module level so missing env vars don't crash the build
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 export interface ImageScore {
   composition: number;
@@ -65,7 +70,7 @@ export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini", // Using mini for cost-effectiveness, upgrade to gpt-4o if needed
     messages: [
       {

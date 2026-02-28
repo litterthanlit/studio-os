@@ -299,6 +299,129 @@ function Fig02Animated() {
   );
 }
 
+// ── FIG 0.3 — horizontal bar constants ──────────────────────────────────────
+const HBAR_SPRING = { type: "spring" as const, stiffness: 600, damping: 16 };
+
+// Horizontal pill bar — animates its width (right edge) while left edge stays fixed.
+// Same useMotionValue pattern as AnimatedBar but for x instead of y.
+function AnimatedBarH({
+  y, idleW, hoverW, hovered, delay,
+}: {
+  y: number; idleW: number; hoverW: number; hovered: boolean; delay: number;
+}) {
+  const w = useMotionValue(idleW);
+
+  React.useEffect(() => {
+    const controls = animate(w, hovered ? hoverW : idleW, {
+      ...HBAR_SPRING,
+      delay: hovered ? delay : delay * 0.4,
+    });
+    return () => controls.stop();
+  }, [hovered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <motion.rect
+      x={56}
+      y={y - 21}
+      width={w}
+      height={42}
+      rx={21}
+      ry={21}
+      fill="url(#f3-bar)"
+    />
+  );
+}
+
+// ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
+function Fig03Animated() {
+  const [hovered, setHovered] = React.useState(false);
+
+  // Bars are left-aligned (x=56). y = center. widths shuffle on hover.
+  // Idle order (top→bottom): short, wide, medium, narrow
+  // Hover order: wide, narrow, short, medium  ← visual "AI resorting"
+  const bars = [
+    { y: 158, idleW: 220, hoverW: 360, delay: 0    },
+    { y: 218, idleW: 360, hoverW: 183, delay: 0.04 },
+    { y: 277, idleW: 328, hoverW: 220, delay: 0.08 },
+    { y: 333, idleW: 183, hoverW: 328, delay: 0.12 },
+  ];
+
+  return (
+    <div
+      className="h-full w-full"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <svg
+        viewBox="0 0 524 421"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-full w-full object-contain"
+      >
+        <defs>
+          <linearGradient id="f3-folder-t" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(99,141,236)" stopOpacity="0.6" />
+            <stop offset="1" stopColor="rgba(92,105,247,0)" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="f3-folder-s" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(103,147,240)" />
+            <stop offset="1" stopColor="rgb(38,66,192)" />
+          </linearGradient>
+          {/* Single gradient for all bars — top-to-bottom white→ice */}
+          <linearGradient id="f3-bar" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="rgb(255,255,255)" />
+            <stop offset="1" stopColor="rgb(214,238,255)" />
+          </linearGradient>
+          <linearGradient id="f3-sparkle" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(233,77,161)" />
+            <stop offset="1" stopColor="rgb(255,107,186)" />
+          </linearGradient>
+          {/* Clip to folder body */}
+          <clipPath id="f3-folder-clip">
+            <path d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z" />
+          </clipPath>
+        </defs>
+
+        {/* Back-back panel */}
+        <path
+          d="M 0 49 C 0 31.327 14.327 17 32 17 L 464 17 C 481.673 17 496 31.327 496 49 L 496 301 C 496 318.673 481.673 333 464 333 L 32 333 C 14.327 333 0 318.673 0 301 Z"
+          fill="url(#f3-folder-t)"
+        />
+        {/* Back panel with tab */}
+        <path
+          d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z"
+          fill="url(#f3-folder-t)"
+        />
+
+        {/* Front folder group */}
+        <g transform="translate(28 64)">
+          <path
+            d="M 0 42 C 0 24.327 14.327 10 32 10 L 464 10 C 481.673 10 496 24.327 496 42 L 496 294 C 496 311.673 481.673 326 464 326 L 32 326 C 14.327 326 0 311.673 0 294 Z"
+            fill="url(#f3-folder-s)" strokeWidth="0.5" stroke="rgba(255,255,255,0.35)"
+          />
+          <path
+            d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z"
+            fill="url(#f3-folder-s)" strokeWidth="0.5" stroke="rgba(255,255,255,0.58)"
+          />
+          {/* Bars — clipped to folder */}
+          <g clipPath="url(#f3-folder-clip)">
+            {bars.map((bar, i) => (
+              <AnimatedBarH key={i} {...bar} hovered={hovered} />
+            ))}
+          </g>
+        </g>
+
+        {/* Pink sparkle — in root SVG space, matches original fig-0.3.svg position */}
+        <path
+          d="M 6.646 19.809 C 29.197 19.809 29.867 -14.926 29.867 7.596 C 29.867 30.119 74.985 33.222 50.23 33.432 C 38.954 33.432 32.267 42.719 29.873 47.026 C 27.479 51.334 26.164 53.534 26.164 42.273 C 26.164 19.75 -15.905 19.809 6.646 19.809 Z"
+          transform="translate(455.704 131.401) rotate(255 28.75 25.25)"
+          fill="url(#f3-sparkle)"
+        />
+      </svg>
+    </div>
+  );
+}
+
 // ── Feature card spring configs ────────────────────────────────────────────
 const spring = { type: "spring", stiffness: 340, damping: 22 };
 
@@ -323,7 +446,7 @@ const FEATURES = [
   },
   {
     fig: "FIG 0.3",
-    src: "/fig-0.3.svg",
+    src: null,
     title: "Brief in seconds.",
     description:
       "AI reads your board and generates a structured creative brief — positioning, tone, constraints — so you spend less time writing and more time designing.",
@@ -391,7 +514,9 @@ export function FeaturesGrid() {
                   style={{ originX: "50%", originY: "60%" }}
                 >
                   {feature.src === null ? (
-                    feature.fig === "FIG 0.2" ? <Fig02Animated /> : <Fig01Animated />
+                    feature.fig === "FIG 0.3" ? <Fig03Animated /> :
+                    feature.fig === "FIG 0.2" ? <Fig02Animated /> :
+                    <Fig01Animated />
                   ) : (
                     <img
                       src={feature.src}

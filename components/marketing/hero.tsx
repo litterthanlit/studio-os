@@ -181,7 +181,7 @@ export function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-white pt-16">
+    <section className="relative min-h-screen overflow-x-hidden bg-white pt-16">
       {/* ── Grain texture overlay ── */}
       <div
         className="pointer-events-none absolute inset-0 z-[1] opacity-[0.055]"
@@ -363,16 +363,19 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
-        {/* ── Product Mockup — mobile: full-width peek, md+: padded ── */}
+        {/* ── Product Mockup — Cursor-style: natural size, clips right on mobile ── */}
+        {/* Outer bleed wrapper: overflows right on mobile, clips cleanly */}
+        <div className="relative mt-10 w-screen md:mt-16 md:w-full md:max-w-6xl" style={{ marginLeft: 0, marginRight: 0 }}>
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...springs.smooth, delay: 0.4 }}
-          className="relative mt-10 w-full max-w-6xl overflow-hidden rounded-2xl md:mt-16"
+          className="relative overflow-hidden rounded-2xl"
           style={{
-            paddingTop: "clamp(24px, 5vw, 56px)",
-            paddingLeft: "clamp(12px, 3vw, 40px)",
-            paddingRight: "clamp(12px, 3vw, 40px)",
+            marginLeft: "clamp(16px, 4vw, 0px)",
+            paddingTop: 56,
+            paddingLeft: 40,
+            paddingRight: 40,
             background: MOCKUP_BG,
           }}
         >
@@ -389,14 +392,14 @@ export function Hero() {
             className="pointer-events-none absolute inset-x-0 top-0 h-24"
             style={{ background: "linear-gradient(to bottom, rgba(221,225,250,0.6), transparent)" }}
           />
-          {/* Mobile bottom fade — hides hard crop, creates "peek" effect */}
+          {/* Right-side fade on mobile — softens the clip edge */}
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-32 md:hidden"
-            style={{ background: "linear-gradient(to top, rgba(200,207,248,0.95), transparent)" }}
+            className="pointer-events-none absolute inset-y-0 right-0 w-16 md:hidden"
+            style={{ background: "linear-gradient(to right, transparent, rgba(200,207,248,0.7))" }}
           />
 
-          {/* Browser chrome — light theme */}
-          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-black/[0.08] shadow-[0_-8px_60px_rgba(36,48,173,0.18),0_-2px_20px_rgba(0,0,0,0.1)]" style={{ background: "#FFFFFF", maxHeight: "clamp(260px, 60vw, 9999px)", overflow: "hidden" }}>
+          {/* Browser chrome — light theme, min-width keeps content from squishing */}
+          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-black/[0.08] shadow-[0_-8px_60px_rgba(36,48,173,0.18),0_-2px_20px_rgba(0,0,0,0.1)]" style={{ background: "#FFFFFF", minWidth: 640 }}>
 
             {/* Title bar */}
             <div className="flex items-center gap-2 border-b border-black/[0.07] px-4 py-2.5" style={{ background: "#F5F5F7" }}>
@@ -576,6 +579,7 @@ export function Hero() {
             </div>
           </div>
         </motion.div>
+        </div>
       </div>
     </section>
   );

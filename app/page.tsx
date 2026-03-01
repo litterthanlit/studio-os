@@ -4,7 +4,6 @@ import { FeatureShowcase } from "@/components/marketing/feature-showcase";
 import { Showcase } from "@/components/marketing/showcase";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { Pricing } from "@/components/marketing/pricing";
-import { Testimonials } from "@/components/marketing/testimonials";
 import { CTA } from "@/components/marketing/cta";
 import { FAQ } from "@/components/marketing/faq";
 import { MarketingNav } from "@/components/marketing/navigation";
@@ -30,7 +29,6 @@ export default function MarketingPage() {
           <FeatureShowcase />
           <Showcase />
           <Pricing />
-          <Testimonials />
           <CTA />
           <FAQ />
         </main>

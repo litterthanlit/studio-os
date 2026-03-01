@@ -330,20 +330,23 @@ export function Hero() {
                     <motion.button
                       type="submit"
                       disabled={heroState === "loading"}
-                      whileHover={{ scale: 1.03, opacity: 0.92 }}
-                      whileTap={{ scale: 0.97 }}
-                      className="flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-medium text-white disabled:opacity-40 shrink-0"
-                      style={{ background: "linear-gradient(145deg, #3040C4 0%, #5C69F7 100%)" }}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full disabled:opacity-40"
+                      style={{
+                        background: "linear-gradient(160deg, #1E2BA8 0%, #2D3CC4 40%, #4A57E0 100%)",
+                        boxShadow: "0 2px 0 rgba(255,255,255,0.12) inset, 0 6px 20px rgba(30,43,168,0.45), 0 1px 3px rgba(30,43,168,0.3)",
+                      }}
                       aria-label="Join waitlist"
                     >
                       {heroState === "loading" ? (
-                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
                       ) : (
-                        <svg viewBox="0 0 16 16" fill="none" className="h-4 w-4">
-                          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        <svg viewBox="0 0 16 16" fill="none" className="h-[18px] w-[18px] text-white" style={{ strokeWidth: 2.2 }}>
+                          <path d="M4 8h8M9 4.5l3.5 3.5L9 11.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </motion.button>

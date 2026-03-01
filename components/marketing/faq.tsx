@@ -100,7 +100,7 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = React.useState<number | null>(0);
 
   return (
-    <section className="bg-white py-32">
+    <section id="faq" className="bg-white py-32">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid grid-cols-1 gap-16 lg:grid-cols-[1fr_2fr]">
 

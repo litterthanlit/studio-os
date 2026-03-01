@@ -8,8 +8,8 @@ import { springs } from "@/lib/animations";
 const NAV_ITEMS = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "Testimonials", href: "#testimonials" },
   { label: "Pricing", href: "#pricing" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 // ── Inline logo — 3 stacked folders, each lifts with staggered spring ──
@@ -22,8 +22,8 @@ function LogoMark() {
       whileHover="hover"
       whileTap="tap"
       viewBox="0 0 585 451"
-      width={55}
-      height={42}
+      width={40}
+      height={31}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{ overflow: "visible", display: "block" }}
@@ -118,12 +118,12 @@ export function MarketingNav() {
       >
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 md:px-6" style={{ overflow: "visible" }}>
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0" style={{ overflow: "visible" }}>
-            <div style={{ overflow: "visible", padding: "6px 4px 0" }}>
+          <Link href="/" className="flex items-center gap-[6px] shrink-0" style={{ overflow: "visible" }}>
+            <div style={{ overflow: "visible", padding: "4px 2px 0" }}>
               <LogoMark />
             </div>
             <span
-              className="text-[22px] md:text-[26px] font-semibold leading-none"
+              className="text-[19px] md:text-[21px] font-semibold leading-none"
               style={{
                 fontFamily: "var(--font-instrument-sans)",
                 background: "linear-gradient(180deg, #2430AD 0%, #6E79F5 100%)",
@@ -151,12 +151,6 @@ export function MarketingNav() {
             </nav>
             <div className="h-5 w-px bg-black/10" />
             <div className="flex items-center gap-3">
-              <a
-                href="/login"
-                className="text-[13.5px] font-normal text-neutral-500 transition-colors hover:text-neutral-900"
-              >
-                Log in
-              </a>
               <motion.a
                 href="#waitlist"
                 className="flex items-center justify-center rounded-full border border-neutral-900 bg-neutral-900 px-4 py-1.5 text-[13.5px] font-medium text-white transition-all hover:bg-neutral-700"
@@ -253,14 +247,6 @@ export function MarketingNav() {
                     {item.label}
                   </a>
                 ))}
-                <div className="my-2 h-px bg-neutral-100" />
-                <a
-                  href="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex h-11 items-center rounded-lg px-3 text-sm text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
-                >
-                  Log in
-                </a>
               </nav>
             </motion.div>
           </>

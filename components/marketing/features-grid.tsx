@@ -436,27 +436,24 @@ function MasonTile({
   fill: string; hovered: boolean; delay: number;
 }) {
   const t = { ...MASON_SPRING, delay: hovered ? delay : delay * 0.3 };
-  // Rect is fixed at the IDLE size (100×100). Scale=1 in idle → clean uniform grid.
-  // On hover, scaleX/Y grow the tile from the top-left (transformOrigin 0% 0%).
-  // translateX/Y handles both the idle position and hover position shift.
+  // Split into two layers to avoid CSS transform-origin issues on SVG inside translated groups:
+  //   motion.g  → position only (CSS translateX/Y — unaffected by transform-origin)
+  //   motion.rect → width/height only (direct SVG attribute interpolation — no transforms)
+  // This gives a clean 100×100 uniform grid in idle, and exact frame-2 masonry on hover.
   return (
-    <motion.rect
-      x={0} y={0}
-      width={idleW} height={idleH}
-      rx={20} fill={fill}
-      initial={{
-        translateX: idleX, translateY: idleY,
-        scaleX: 1, scaleY: 1,
-      }}
-      animate={{
-        translateX: hovered ? hoverX : idleX,
-        translateY: hovered ? hoverY : idleY,
-        scaleX: hovered ? hoverW / idleW : 1,
-        scaleY: hovered ? hoverH / idleH : 1,
-      }}
-      style={{ transformOrigin: "0% 0%" }}
+    <motion.g
+      initial={{ x: idleX, y: idleY }}
+      animate={{ x: hovered ? hoverX : idleX, y: hovered ? hoverY : idleY }}
       transition={t}
-    />
+    >
+      <motion.rect
+        x={0} y={0}
+        initial={{ width: idleW, height: idleH }}
+        animate={{ width: hovered ? hoverW : idleW, height: hovered ? hoverH : idleH }}
+        rx={20} fill={fill}
+        transition={t}
+      />
+    </motion.g>
   );
 }
 

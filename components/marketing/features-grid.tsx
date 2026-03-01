@@ -5,7 +5,7 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { springs } from "@/lib/animations";
 
 const ARROW_PATH =
-  "M 86 10 C 86 -0.221 87.684 0.001 96 0 L 198.517 0 C 206.915 0 208.346 -0.031 208.346 10 C 208.346 20.031 208.346 160.5 208.346 160.5 L 274.309 160.669 C 287.962 160.669 295.343 176.668 286.481 187.054 L 157.762 337.902 C 151.387 345.372 139.851 345.39 133.453 337.941 L 3.893 187.093 C -5.018 176.718 2.354 160.669 16.031 160.669 L 86 160.669 C 86 160.669 86 20.222 86 10 Z";
+  "M 68.800 8.000 C 68.800 -0.177 70.147 0.001 76.800 0.000 L 158.814 0.000 C 165.532 0.000 166.677 -0.025 166.677 8.000 C 166.677 16.025 166.677 128.400 166.677 128.400 L 219.447 128.535 C 230.370 128.535 236.274 141.334 229.185 149.643 L 126.210 270.322 C 121.110 276.298 111.881 276.312 106.762 270.353 L 3.114 149.674 C -4.014 141.374 1.883 128.535 12.825 128.535 L 68.800 128.535 C 68.800 128.535 68.800 16.178 68.800 8.000 Z";
 
 // ── FIG 0.1 — inline animated SVG ─────────────────────────────────────────
 // Arrow drops on hover only. Blue → pink gradient crossfade as it falls.
@@ -128,7 +128,7 @@ function Fig01Animated() {
           Inner <motion.g> only animates CSS y (px) so the coordinate systems don't fight.
           Two overlaid paths crossfade blue→pink as the arrow drops.
         */}
-        <g transform="translate(105.154 0)">
+        <g transform="translate(134.186 0)">
           <motion.g
             animate={{ y: hovered ? 0 : -155 }}
             transition={hovered ? dropSpring : returnSpring}

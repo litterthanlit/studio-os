@@ -120,10 +120,22 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         <motion.div whileHover={{ scale: 1.02, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
           <Link
             href="/home"
-            className="flex items-center text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
+            className="flex items-center gap-[6px] text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-icon.svg" alt="Studio OS" className="w-7 h-7 shrink-0" />
+            <img src="/logo-icon.svg" alt="Studio OS" className="shrink-0" style={{ width: 36, height: 28 }} />
+            <span
+              className="text-[17px] font-semibold leading-none"
+              style={{
+                fontFamily: "var(--font-instrument-sans)",
+                background: "linear-gradient(180deg, #2430AD 0%, #6E79F5 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              studio OS
+            </span>
           </Link>
         </motion.div>
 

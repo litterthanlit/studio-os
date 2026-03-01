@@ -421,9 +421,9 @@ function Fig03Animated() {
 }
 
 // ── FIG 0.4 — masonry tile grid ─────────────────────────────────────────────
-// Each tile has idle (DEFAULT) and hover (FRAME 2) x/y/w/h from SVG frames.
-// motion.g handles position via CSS translateX/Y; motion.rect handles size via scaleX/Y.
-// transform-origin "0 0" so tiles grow from their top-left corner.
+// SVG x/y attributes set the idle position (always correct on first paint).
+// CSS translateX/Y offsets handle position delta on hover.
+// CSS scaleX/Y handles size change, anchored to tile top-left via transformOrigin.
 const MASON_SPRING = { type: "spring" as const, stiffness: 260, damping: 16 };
 
 function MasonTile({
@@ -438,25 +438,29 @@ function MasonTile({
   const maxW = Math.max(idleW, hoverW);
   const maxH = Math.max(idleH, hoverH);
   const t = { ...MASON_SPRING, delay: hovered ? delay : delay * 0.3 };
+  // Rect always at x=0,y=0. All positioning via CSS translateX/Y so the
+  // transform-origin "0% 0%" unambiguously means the tile's own top-left,
+  // regardless of any ancestor <g transform> offsets.
+  // Framer Motion order: translate (outermost) → scale → so:
+  //   scale anchored to top-left, then translate shifts to target position.
   return (
-    <motion.g
-      initial={{ x: idleX, y: idleY }}
-      animate={{ x: hovered ? hoverX : idleX, y: hovered ? hoverY : idleY }}
+    <motion.rect
+      x={0} y={0}
+      width={maxW} height={maxH}
+      rx={20} fill={fill}
+      initial={{
+        translateX: idleX, translateY: idleY,
+        scaleX: idleW / maxW, scaleY: idleH / maxH,
+      }}
+      animate={{
+        translateX: hovered ? hoverX : idleX,
+        translateY: hovered ? hoverY : idleY,
+        scaleX: hovered ? hoverW / maxW : idleW / maxW,
+        scaleY: hovered ? hoverH / maxH : idleH / maxH,
+      }}
+      style={{ transformOrigin: "0% 0%" }}
       transition={t}
-    >
-      <motion.rect
-        x={0} y={0}
-        width={maxW} height={maxH}
-        rx={20} fill={fill}
-        initial={{ scaleX: idleW / maxW, scaleY: idleH / maxH }}
-        animate={{
-          scaleX: hovered ? hoverW / maxW : idleW / maxW,
-          scaleY: hovered ? hoverH / maxH : idleH / maxH,
-        }}
-        style={{ transformOrigin: "0px 0px" }}
-        transition={t}
-      />
-    </motion.g>
+    />
   );
 }
 

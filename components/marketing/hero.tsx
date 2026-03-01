@@ -330,12 +330,12 @@ export function Hero() {
                     <motion.button
                       type="submit"
                       disabled={heroState === "loading"}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
-                      className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full disabled:opacity-40"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="flex h-[52px] w-[64px] shrink-0 items-center justify-center rounded-[18px] disabled:opacity-40"
                       style={{
-                        background: "linear-gradient(160deg, #1E2BA8 0%, #2D3CC4 40%, #4A57E0 100%)",
-                        boxShadow: "0 2px 0 rgba(255,255,255,0.12) inset, 0 6px 20px rgba(30,43,168,0.45), 0 1px 3px rgba(30,43,168,0.3)",
+                        background: "linear-gradient(175deg, #2D40D8 0%, #3D52EE 50%, #5468FF 100%)",
+                        boxShadow: "0 1px 0 rgba(255,255,255,0.18) inset, 0 8px 24px rgba(45,64,216,0.5), 0 2px 6px rgba(45,64,216,0.3)",
                       }}
                       aria-label="Join waitlist"
                     >
@@ -345,8 +345,8 @@ export function Hero() {
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
                       ) : (
-                        <svg viewBox="0 0 16 16" fill="none" className="h-[18px] w-[18px] text-white" style={{ strokeWidth: 2.2 }}>
-                          <path d="M4 8h8M9 4.5l3.5 3.5L9 11.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-white">
+                          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </motion.button>

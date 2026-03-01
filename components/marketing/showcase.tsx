@@ -67,7 +67,7 @@ export function Showcase() {
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            <div className="mb-5 font-mono text-xs text-neutral-600">5.0 — AI curation</div>
+            <div className="mb-5 font-mono text-xs text-neutral-600">4.0 — AI curation</div>
             <h2
               className="mb-5 text-3xl font-medium text-neutral-900 sm:text-4xl"
               style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}

@@ -246,7 +246,7 @@ export function FeatureShowcase() {
         {/* Section header */}
         <div className="mb-16 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-end">
           <div>
-            <div className="mb-4 font-mono text-xs text-neutral-400">4.0 — Feature overview</div>
+            <div className="mb-4 font-mono text-xs text-neutral-400">3.0 — Feature overview</div>
             <h2
               className="text-3xl font-medium text-neutral-900 sm:text-4xl"
               style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}

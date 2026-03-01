@@ -139,7 +139,7 @@ export function HowItWorks() {
           transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="mb-20"
         >
-          <div className="mb-4 font-mono text-xs text-neutral-400">3.0 — How it works</div>
+          <div className="mb-4 font-mono text-xs text-neutral-400">2.0 — How it works</div>
           <h2
             className="text-3xl font-medium text-neutral-900 sm:text-4xl"
             style={{ letterSpacing: "-0.022em", lineHeight: 1.1 }}

@@ -7,7 +7,7 @@ import { springs } from "@/lib/animations";
 const ARROW_PATH =
   "M 68.800 8.000 C 68.800 -0.177 70.147 0.001 76.800 0.000 L 158.814 0.000 C 165.532 0.000 166.677 -0.025 166.677 8.000 C 166.677 16.025 166.677 128.400 166.677 128.400 L 219.447 128.535 C 230.370 128.535 236.274 141.334 229.185 149.643 L 126.210 270.322 C 121.110 276.298 111.881 276.312 106.762 270.353 L 3.114 149.674 C -4.014 141.374 1.883 128.535 12.825 128.535 L 68.800 128.535 C 68.800 128.535 68.800 16.178 68.800 8.000 Z";
 
-// ── FIG 0.1 — inline animated SVG ─────────────────────────────────────────
+// ── FIG 1.1 — inline animated SVG ─────────────────────────────────────────
 // Arrow drops on hover only. Blue → pink gradient crossfade as it falls.
 // Eyes blink independently on a timer.
 // Folder panels lift in staggered spring on hover (like nav logo).
@@ -154,7 +154,7 @@ function Fig01Animated() {
   );
 }
 
-// ── FIG 0.2 — shared bar constants (module-level, never re-created) ─────────
+// ── FIG 1.2 — shared bar constants (module-level, never re-created) ─────────
 const BAR_TRACK =
   "M 0 20 C 0 8.954 8.954 0 20 0 L 27.487 0 C 38.532 0 47.487 8.954 47.487 20 L 47.487 185.902 C 47.487 196.947 38.532 205.902 27.487 205.902 L 20 205.902 C 8.954 205.902 0 196.947 0 185.902 Z";
 
@@ -199,7 +199,7 @@ function AnimatedBar({
   );
 }
 
-// ── FIG 0.2 — equalizer bars ────────────────────────────────────────────────
+// ── FIG 1.2 — equalizer bars ────────────────────────────────────────────────
 function Fig02Animated() {
   const [hovered, setHovered] = React.useState(false);
 
@@ -299,7 +299,7 @@ function Fig02Animated() {
   );
 }
 
-// ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
+// ── FIG 1.3 — horizontal bar shuffle ────────────────────────────────────────
 // Each bar has a FIXED width and LEFT-ALIGNED x (all start at x=76).
 // On hover, bars swap Y rows — two pairs crossing: (308↑,163↓) and (200↑,340↓).
 // Values extracted from user's design frames via coordinate math on SVG transforms.
@@ -329,7 +329,7 @@ function AnimatedBarH({
   );
 }
 
-// ── FIG 0.3 — horizontal bar shuffle ────────────────────────────────────────
+// ── FIG 1.3 — horizontal bar shuffle ────────────────────────────────────────
 function Fig03Animated() {
   const [hovered, setHovered] = React.useState(false);
 
@@ -420,7 +420,7 @@ function Fig03Animated() {
   );
 }
 
-// ── FIG 0.4 — masonry tile grid ─────────────────────────────────────────────
+// ── FIG 1.4 — masonry tile grid ─────────────────────────────────────────────
 // SVG x/y attributes set the idle position (always correct on first paint).
 // CSS translateX/Y offsets handle position delta on hover.
 // CSS scaleX/Y handles size change, anchored to tile top-left via transformOrigin.
@@ -545,7 +545,7 @@ const spring = { type: "spring", stiffness: 340, damping: 22 };
 
 const FEATURES = [
   {
-    fig: "FIG 0.1",
+    fig: "FIG 1.1",
     src: null,
     title: "Every reference, one place.",
     description:
@@ -554,7 +554,7 @@ const FEATURES = [
     hover: { rotate: 0, y: 0, scale: 1 },
   },
   {
-    fig: "FIG 0.2",
+    fig: "FIG 1.2",
     src: null,
     title: "Your design system, alive.",
     description:
@@ -563,7 +563,7 @@ const FEATURES = [
     hover: { rotate: 0, y: 0, scale: 1 },
   },
   {
-    fig: "FIG 0.3",
+    fig: "FIG 1.3",
     src: null,
     title: "Brief in seconds.",
     description:
@@ -572,7 +572,7 @@ const FEATURES = [
     hover: { y: 0, opacity: 1 },
   },
   {
-    fig: "FIG 0.4",
+    fig: "FIG 1.4",
     src: null,
     title: "A feed that gets your taste.",
     description:
@@ -632,9 +632,9 @@ export function FeaturesGrid() {
                   style={{ originX: "50%", originY: "60%" }}
                 >
                   {feature.src === null ? (
-                    feature.fig === "FIG 0.4" ? <Fig04Animated /> :
-                    feature.fig === "FIG 0.3" ? <Fig03Animated /> :
-                    feature.fig === "FIG 0.2" ? <Fig02Animated /> :
+                    feature.fig === "FIG 1.4" ? <Fig04Animated /> :
+                    feature.fig === "FIG 1.3" ? <Fig03Animated /> :
+                    feature.fig === "FIG 1.2" ? <Fig02Animated /> :
                     <Fig01Animated />
                   ) : (
                     <img

@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import { Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className={GeistSans.className}>
         <ThemeProvider>
           <div className="min-h-screen">{children}</div>
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>

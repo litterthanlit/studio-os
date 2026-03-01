@@ -12,8 +12,44 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Studio OS",
-  description: "Designer's operating system for studio work.",
+  title: {
+    default: "Studio OS — The Operating System for Creative Studios",
+    template: "%s | Studio OS",
+  },
+  description:
+    "Studio OS is the all-in-one workspace built for creative professionals. Manage projects, assets, clients, and your entire studio — beautifully.",
+  keywords: [
+    "studio management",
+    "creative studio software",
+    "designer workspace",
+    "project management for designers",
+    "creative operating system",
+    "studio OS",
+  ],
+  metadataBase: new URL("https://studio-os.io"),
+  openGraph: {
+    type: "website",
+    url: "https://studio-os.io",
+    title: "Studio OS — The Operating System for Creative Studios",
+    description:
+      "The all-in-one workspace built for creative professionals. Manage projects, assets, clients, and your entire studio — beautifully.",
+    siteName: "Studio OS",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Studio OS — The Operating System for Creative Studios",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Studio OS — The Operating System for Creative Studios",
+    description:
+      "The all-in-one workspace built for creative professionals. Manage projects, assets, clients, and your entire studio — beautifully.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/logo-icon.svg",
     apple: "/logo-icon.svg",

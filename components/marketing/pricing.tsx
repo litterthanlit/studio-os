@@ -43,11 +43,14 @@ function PricingCard({ plan }: { plan: (typeof plans)[0] }) {
   return (
     <motion.div
       variants={staggerItem}
+      whileHover={plan.popular ? { y: -6, scale: 1.02, boxShadow: "0 24px 48px rgba(36,48,173,0.45), 0 8px 16px rgba(36,48,173,0.25)" } : {}}
+      transition={{ type: "spring", stiffness: 340, damping: 22 }}
       className={`group relative flex flex-col overflow-hidden border rounded-xl w-full max-w-xs ${
         plan.popular
-          ? "border-[#2430AD] bg-[#2430AD] md:scale-105 z-10 shadow-2xl shadow-[#2430AD]/30"
+          ? "border-[#2430AD] md:scale-105 z-10 shadow-2xl shadow-[#2430AD]/30"
           : "border-neutral-200 bg-white"
       }`}
+      style={plan.popular ? { background: "linear-gradient(to bottom, #2430AD 0%, #5C69F7 100%)" } : undefined}
     >
       {/* Header */}
       <div className="p-5 pb-3">

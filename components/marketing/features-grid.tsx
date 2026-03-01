@@ -435,28 +435,24 @@ function MasonTile({
   hoverX: number; hoverY: number; hoverW: number; hoverH: number;
   fill: string; hovered: boolean; delay: number;
 }) {
-  const maxW = Math.max(idleW, hoverW);
-  const maxH = Math.max(idleH, hoverH);
   const t = { ...MASON_SPRING, delay: hovered ? delay : delay * 0.3 };
-  // Rect always at x=0,y=0. All positioning via CSS translateX/Y so the
-  // transform-origin "0% 0%" unambiguously means the tile's own top-left,
-  // regardless of any ancestor <g transform> offsets.
-  // Framer Motion order: translate (outermost) → scale → so:
-  //   scale anchored to top-left, then translate shifts to target position.
+  // Rect is fixed at the IDLE size (100×100). Scale=1 in idle → clean uniform grid.
+  // On hover, scaleX/Y grow the tile from the top-left (transformOrigin 0% 0%).
+  // translateX/Y handles both the idle position and hover position shift.
   return (
     <motion.rect
       x={0} y={0}
-      width={maxW} height={maxH}
+      width={idleW} height={idleH}
       rx={20} fill={fill}
       initial={{
         translateX: idleX, translateY: idleY,
-        scaleX: idleW / maxW, scaleY: idleH / maxH,
+        scaleX: 1, scaleY: 1,
       }}
       animate={{
         translateX: hovered ? hoverX : idleX,
         translateY: hovered ? hoverY : idleY,
-        scaleX: hovered ? hoverW / maxW : idleW / maxW,
-        scaleY: hovered ? hoverH / maxH : idleH / maxH,
+        scaleX: hovered ? hoverW / idleW : 1,
+        scaleY: hovered ? hoverH / idleH : 1,
       }}
       style={{ transformOrigin: "0% 0%" }}
       transition={t}

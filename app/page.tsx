@@ -29,8 +29,8 @@ export default function MarketingPage() {
           <FeatureShowcase />
           <Showcase />
           <Pricing />
-          <CTA />
           <FAQ />
+          <CTA />
         </main>
         <MarketingFooter />
       </div>

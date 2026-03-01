@@ -5,7 +5,10 @@ import path from "path";
 import { Resend } from "resend";
 
 // ─── Storage ────────────────────────────────────────────────────────────────
-const DATA_FILE = path.join(process.cwd(), "data", "waitlist.json");
+// Use /tmp — the only writable directory on Vercel serverless functions.
+// This is ephemeral (resets on cold start) but acts as a fast dedup cache.
+// Resend audience is the real source of truth.
+const DATA_FILE = path.join("/tmp", "waitlist.json");
 
 async function readEntries(): Promise<string[]> {
   try {
@@ -17,8 +20,11 @@ async function readEntries(): Promise<string[]> {
 }
 
 async function writeEntries(entries: string[]): Promise<void> {
-  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(entries, null, 2));
+  try {
+    await fs.writeFile(DATA_FILE, JSON.stringify(entries, null, 2));
+  } catch {
+    // Non-fatal — Resend audience is the source of truth
+  }
 }
 
 // ─── Resend ──────────────────────────────────────────────────────────────────

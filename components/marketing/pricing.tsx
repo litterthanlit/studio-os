@@ -43,7 +43,7 @@ function PricingCard({ plan }: { plan: (typeof plans)[0] }) {
   return (
     <motion.div
       variants={staggerItem}
-      className={`group relative flex flex-col overflow-hidden border rounded-xl w-full max-w-sm ${
+      className={`group relative flex flex-col overflow-hidden border rounded-xl w-full max-w-xs ${
         plan.popular
           ? "border-[#2430AD] bg-[#2430AD] md:scale-105 z-10 shadow-2xl shadow-[#2430AD]/30"
           : "border-neutral-200 bg-white"
@@ -94,7 +94,7 @@ function PricingCard({ plan }: { plan: (typeof plans)[0] }) {
           href="#waitlist"
           className={`flex h-10 w-full items-center justify-center rounded-full text-sm font-medium transition-all ${
             plan.popular
-              ? "bg-white text-[#2430AD] hover:bg-white/90"
+              ? "bg-white text-neutral-900 hover:bg-white/90"
               : "bg-neutral-900 text-white hover:bg-neutral-700"
           }`}
           whileHover={{ y: -1 }}

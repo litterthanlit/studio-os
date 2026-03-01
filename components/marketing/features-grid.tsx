@@ -533,8 +533,9 @@ function Fig04Animated() {
           <path d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z" fill="url(#f4-folder-s)" strokeWidth="0.5" stroke="rgba(255,255,255,0.58)" />
 
           {/* Masonry tile grid */}
+          {/* translate(54 75): centers tile grid (388×237) in the folder content area (496×253, below tab y=73) */}
           <g clipPath="url(#f4-folder-clip)">
-            <g transform="translate(82 141)">
+            <g transform="translate(54 75)">
               {tiles.map((tile, i) => (
                 <MasonTile key={i} {...tile} hovered={hovered} />
               ))}

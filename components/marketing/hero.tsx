@@ -363,16 +363,16 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
-        {/* ── Product Mockup — hidden on mobile, shown md+ ── */}
+        {/* ── Product Mockup — mobile: full-width peek, md+: padded ── */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...springs.smooth, delay: 0.4 }}
-          className="relative mt-16 hidden w-full max-w-6xl overflow-hidden rounded-2xl md:block"
+          className="relative mt-10 w-full max-w-6xl overflow-hidden rounded-2xl md:mt-16"
           style={{
-            paddingTop: 56,
-            paddingLeft: 40,
-            paddingRight: 40,
+            paddingTop: "clamp(24px, 5vw, 56px)",
+            paddingLeft: "clamp(12px, 3vw, 40px)",
+            paddingRight: "clamp(12px, 3vw, 40px)",
             background: MOCKUP_BG,
           }}
         >
@@ -389,9 +389,14 @@ export function Hero() {
             className="pointer-events-none absolute inset-x-0 top-0 h-24"
             style={{ background: "linear-gradient(to bottom, rgba(221,225,250,0.6), transparent)" }}
           />
+          {/* Mobile bottom fade — hides hard crop, creates "peek" effect */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-32 md:hidden"
+            style={{ background: "linear-gradient(to top, rgba(200,207,248,0.95), transparent)" }}
+          />
 
           {/* Browser chrome — light theme */}
-          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-black/[0.08] shadow-[0_-8px_60px_rgba(36,48,173,0.18),0_-2px_20px_rgba(0,0,0,0.1)]" style={{ background: "#FFFFFF" }}>
+          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-black/[0.08] shadow-[0_-8px_60px_rgba(36,48,173,0.18),0_-2px_20px_rgba(0,0,0,0.1)]" style={{ background: "#FFFFFF", maxHeight: "clamp(260px, 60vw, 9999px)", overflow: "hidden" }}>
 
             {/* Title bar */}
             <div className="flex items-center gap-2 border-b border-black/[0.07] px-4 py-2.5" style={{ background: "#F5F5F7" }}>

@@ -332,7 +332,7 @@ export function Hero() {
                       disabled={heroState === "loading"}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
-                      className="flex h-[52px] w-[64px] shrink-0 items-center justify-center rounded-[999px] disabled:opacity-40"
+                      className="flex h-[52px] w-[76px] shrink-0 items-center justify-center rounded-[999px] disabled:opacity-40"
                       style={{
                         background: "linear-gradient(175deg, #2D40D8 0%, #3D52EE 50%, #5468FF 100%)",
                         boxShadow: "0 1px 0 rgba(255,255,255,0.18) inset, 0 8px 24px rgba(45,64,216,0.5), 0 2px 6px rgba(45,64,216,0.3)",
@@ -345,7 +345,7 @@ export function Hero() {
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
                       ) : (
-                        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-white">
+                        <svg viewBox="0 0 24 24" fill="none" className="h-[29px] w-[29px] text-white">
                           <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}

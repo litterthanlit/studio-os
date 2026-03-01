@@ -112,9 +112,6 @@ export function FAQ() {
             transition={springs.smooth}
             className="lg:pt-2"
           >
-            <p className="mb-4 font-mono text-[11px] text-neutral-400">
-              7.0 — FAQ
-            </p>
             <h2 className="text-3xl font-semibold leading-tight tracking-tight text-neutral-900 sm:text-4xl">
               Questions worth asking.
             </h2>

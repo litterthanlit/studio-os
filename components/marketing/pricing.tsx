@@ -45,7 +45,7 @@ function PricingCard({ plan }: { plan: (typeof plans)[0] }) {
       variants={staggerItem}
       className={`group relative flex flex-col overflow-hidden border rounded-xl w-full max-w-xs ${
         plan.popular
-          ? "border-[#2430AD] md:scale-105 z-10 shadow-2xl shadow-[#2430AD]/30"
+          ? "border-white/30 md:scale-105 z-10 shadow-2xl shadow-[#2430AD]/30"
           : "border-neutral-200 bg-white"
       }`}
       style={plan.popular ? { background: "linear-gradient(to bottom, #5C69F7 0%, #2430AD 100%)" } : undefined}
@@ -95,10 +95,10 @@ function PricingCard({ plan }: { plan: (typeof plans)[0] }) {
           href="#waitlist"
           className={`flex h-10 w-full items-center justify-center rounded-full text-sm font-medium transition-all ${
             plan.popular
-              ? "bg-white text-neutral-900 hover:bg-white/90"
+              ? "bg-white text-neutral-900"
               : "bg-neutral-900 text-white hover:bg-neutral-700"
           }`}
-          whileHover={{ y: plan.popular ? -4 : -1, boxShadow: plan.popular ? "0 12px 28px rgba(36,48,173,0.5), 0 4px 8px rgba(36,48,173,0.3)" : undefined }}
+          whileHover={{ y: plan.popular ? -4 : -1, boxShadow: plan.popular ? "0 8px 32px rgba(255,255,255,0.35), 0 2px 8px rgba(255,255,255,0.2)" : undefined }}
           whileTap={{ scale: 0.97 }}
           transition={{ type: "spring", stiffness: 380, damping: 20 }}
         >

@@ -120,7 +120,7 @@ export function Pricing() {
           ref={ref}
           className="mb-6"
         >
-          <div className="mb-4 font-mono text-xs text-neutral-600">7.0 — Pricing</div>
+          <div className="mb-4 font-mono text-xs text-neutral-600">6.0 — Pricing</div>
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <h2
               className="text-3xl font-medium text-neutral-900 sm:text-4xl"

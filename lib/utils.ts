@@ -11,7 +11,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function safeRedirectPath(
   next: string | null | undefined,
-  fallback = "/brief"
+  fallback = "/home"
 ): string {
   if (!next || typeof next !== "string") return fallback;
   const trimmed = next.trim();

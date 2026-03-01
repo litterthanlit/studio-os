@@ -1,15 +1,14 @@
 "use client";
 
-import { motion, useInView, AnimatePresence } from "framer-motion";
-import { useRef, useState } from "react";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 import { Check } from "lucide-react";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 const plans = [
   {
     name: "Free",
-    priceMonthly: 0,
-    priceYearly: 0,
+    price: 0,
     period: "Free for everyone",
     features: [
       "5 projects",
@@ -17,15 +16,13 @@ const plans = [
       "Board, Type, Palette, Tasks, Brief",
       "⌘K command palette",
       "Daily inspiration (curated feed)",
-      "Light & dark mode",
     ],
     cta: "Join waitlist",
     popular: false,
   },
   {
     name: "Pro",
-    priceMonthly: 9,
-    priceYearly: 7,
+    price: 9,
     period: "per month",
     features: [
       "Unlimited projects",
@@ -40,104 +37,35 @@ const plans = [
   },
 ];
 
-function Toggle({
-  yearly,
-  onChange,
-}: {
-  yearly: boolean;
-  onChange: (yearly: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-center gap-4">
-      <span
-        className={`text-sm transition-colors ${
-          !yearly ? "text-neutral-900" : "text-neutral-500"
-        }`}
-      >
-        Monthly
-      </span>
-      <button
-        onClick={() => onChange(!yearly)}
-        className="relative h-6 w-11 rounded-full bg-[#2430AD] transition-colors"
-      >
-        <motion.div
-          className="absolute top-1 h-4 w-4 rounded-full bg-white"
-          animate={{ left: yearly ? "calc(100% - 1.25rem)" : "0.25rem" }}
-          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        />
-      </button>
-      <span
-        className={`text-sm transition-colors ${
-          yearly ? "text-neutral-900" : "text-neutral-500"
-        }`}
-      >
-        Yearly
-      </span>
-    </div>
-  );
-}
-
-function PricingCard({
-  plan,
-  yearly,
-}: {
-  plan: (typeof plans)[0];
-  yearly: boolean;
-}) {
-  const price = yearly ? plan.priceYearly : plan.priceMonthly;
-  const isEnterprise = price === null;
+function PricingCard({ plan }: { plan: (typeof plans)[0] }) {
+  const isFree = plan.price === 0;
 
   return (
     <motion.div
       variants={staggerItem}
-      className={`group relative flex flex-col overflow-hidden border rounded-xl ${
+      className={`group relative flex flex-col overflow-hidden border rounded-xl w-full max-w-sm ${
         plan.popular
-          ? "border-[#2430AD]/50 bg-white scale-105 z-10 shadow-2xl shadow-[#2430AD]/10"
+          ? "border-[#2430AD]/50 bg-white md:scale-105 z-10 shadow-2xl shadow-[#2430AD]/10"
           : "border-neutral-200 bg-white"
       }`}
     >
-      {/* Popular indicator dot */}
-      {plan.popular && (
-        <div className="absolute top-4 right-4">
-          <div className="h-2 w-2 rounded-full bg-[#2430AD]" />
-        </div>
-      )}
-
       {/* Header */}
       <div className="p-6 pb-4">
         <h3 className="mb-1 text-lg font-semibold text-neutral-900">
           {plan.name}
         </h3>
-        
+
         {/* Price */}
         <div className="mt-4 flex items-baseline">
-          {isEnterprise ? (
-            <span className="text-2xl font-semibold text-neutral-900">
-              Contact us
-            </span>
-          ) : (
-            <>
-              <span className="text-3xl font-semibold text-neutral-900">
-                US${price}
-              </span>
-              <span className="ml-1 text-sm text-neutral-500">
-                {plan.period}
-              </span>
-            </>
+          <span className="text-3xl font-semibold text-neutral-900">
+            {isFree ? "Free" : `US$${plan.price}`}
+          </span>
+          {!isFree && (
+            <span className="ml-1 text-sm text-neutral-500">{plan.period}</span>
           )}
         </div>
-        
-        {/* Billed yearly toggle indicator */}
-        {!isEnterprise && plan.priceMonthly !== 0 && (
-          <div className="mt-3 flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${yearly ? 'bg-[#2430AD]' : 'bg-neutral-300'}`} />
-            <span className={`text-xs ${yearly ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              Billed yearly
-            </span>
-          </div>
-        )}
-        
-        {plan.priceMonthly === 0 && (
+
+        {isFree && (
           <div className="mt-3">
             <span className="text-xs text-neutral-500">Free for everyone</span>
           </div>
@@ -160,7 +88,7 @@ function PricingCard({
       {/* CTA */}
       <div className="p-6 pt-0">
         <motion.a
-          href={plan.name === "Enterprise" ? "mailto:hello@studio-os.app" : "#waitlist"}
+          href="#waitlist"
           className={`flex h-11 w-full items-center justify-center rounded-full text-sm font-medium transition-all ${
             plan.popular
               ? "bg-neutral-900 text-white hover:bg-neutral-800"
@@ -172,7 +100,6 @@ function PricingCard({
         >
           {plan.cta}
         </motion.a>
-        
       </div>
     </motion.div>
   );
@@ -181,7 +108,6 @@ function PricingCard({
 export function Pricing() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [yearly, setYearly] = useState(true);
 
   return (
     <section id="pricing" className="relative bg-[#FAFAFA] py-24">
@@ -211,26 +137,21 @@ export function Pricing() {
         </motion.div>
 
         {/* Hairline divider */}
-        <div className="mb-10 h-px w-full bg-white/[0.06]" />
-
-        {/* Toggle */}
-        <div className="mb-10">
-          <Toggle yearly={yearly} onChange={setYearly} />
-        </div>
+        <div className="mb-10 h-px w-full bg-neutral-200" />
 
         {/* Pricing grid - Centered 2 cards */}
         <motion.div
           variants={staggerContainer}
           initial="initial"
           animate={isInView ? "animate" : "initial"}
-          className="flex justify-center gap-4 items-start"
+          className="flex flex-col items-center gap-4 md:flex-row md:justify-center md:items-start"
         >
           {plans.map((plan) => (
-            <PricingCard key={plan.name} plan={plan} yearly={yearly} />
+            <PricingCard key={plan.name} plan={plan} />
           ))}
         </motion.div>
 
-        {/* Bottom footnote — replaces "contact sales" */}
+        {/* Bottom footnote */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : {}}

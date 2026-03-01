@@ -21,16 +21,12 @@ const HEADLINES = [
   "Vision, system, brief.",
 ];
 
-// Painterly landscape gradient — romanticist landscape backdrop
-const PAINTING_BG = `
-  radial-gradient(ellipse 150% 50% at 50% 0%, rgba(200,215,235,0.92) 0%, transparent 50%),
-  radial-gradient(ellipse 48% 78% at 0% 78%, rgba(18,45,12,0.92) 0%, transparent 55%),
-  radial-gradient(ellipse 48% 78% at 100% 80%, rgba(22,50,15,0.88) 0%, transparent 55%),
-  radial-gradient(ellipse 65% 28% at 50% 56%, rgba(218,195,128,0.74) 0%, transparent 55%),
-  radial-gradient(ellipse 70% 30% at 50% 72%, rgba(115,148,75,0.62) 0%, transparent 55%),
-  radial-gradient(ellipse 150% 42% at 50% 100%, rgba(18,40,10,0.96) 0%, transparent 48%),
-  radial-gradient(ellipse 25% 18% at 50% 60%, rgba(175,205,228,0.40) 0%, transparent 50%),
-  linear-gradient(180deg, #AABDD0 0%, #C4AD78 25%, #7A9E56 52%, #3E6030 75%, #28421E 100%)
+// On-brand canvas background — design grid aesthetic with brand blue depth
+const MOCKUP_BG = `
+  radial-gradient(ellipse 100% 60% at 50% 110%, rgba(36,48,173,0.22) 0%, transparent 55%),
+  radial-gradient(ellipse 55% 45% at 5% 55%, rgba(92,105,247,0.12) 0%, transparent 55%),
+  radial-gradient(ellipse 55% 45% at 95% 55%, rgba(36,48,173,0.1) 0%, transparent 55%),
+  linear-gradient(160deg, #DDE1FA 0%, #CDD3F8 40%, #C2C9F6 70%, #B6BFF4 100%)
 `;
 
 export function Hero() {
@@ -229,7 +225,7 @@ export function Hero() {
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-0" aria-hidden />
 
       {/* Content */}
-      <div className="relative z-[2] mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col items-center justify-center px-6 py-24 text-center">
+      <div className="relative z-[2] mx-auto flex min-h-[calc(100svh-4rem)] max-w-7xl flex-col items-center justify-center px-5 py-20 md:py-24 text-center">
         <motion.div
           variants={staggerContainer}
           initial="initial"
@@ -364,62 +360,65 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
-        {/* ── Product Mockup with painting backdrop ── */}
+        {/* ── Product Mockup — hidden on mobile, shown md+ ── */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...springs.smooth, delay: 0.4 }}
-          className="relative mt-16 w-full max-w-6xl overflow-hidden rounded-2xl"
+          className="relative mt-16 hidden w-full max-w-6xl overflow-hidden rounded-2xl md:block"
           style={{
-            paddingTop: 72,
-            paddingLeft: 48,
-            paddingRight: 48,
-            background: PAINTING_BG,
+            paddingTop: 56,
+            paddingLeft: 40,
+            paddingRight: 40,
+            background: MOCKUP_BG,
           }}
         >
-          {/* Grain texture for painterly feel */}
+          {/* Subtle grid overlay — evokes design canvas */}
           <div
             className="pointer-events-none absolute inset-0"
             style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-              backgroundSize: "200px 200px",
-              opacity: 0.14,
-              mixBlendMode: "multiply",
+              backgroundImage: "linear-gradient(rgba(36,48,173,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(36,48,173,0.07) 1px, transparent 1px)",
+              backgroundSize: "40px 40px",
             }}
           />
+          {/* Vignette fade at top */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-24"
+            style={{ background: "linear-gradient(to bottom, rgba(221,225,250,0.6), transparent)" }}
+          />
 
-          {/* Browser chrome */}
-          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-white/[0.12] shadow-[0_-8px_80px_rgba(0,0,0,0.35)]" style={{ background: "#0F0F0F" }}>
+          {/* Browser chrome — light theme */}
+          <div className="relative overflow-hidden rounded-t-xl border-x border-t border-black/[0.08] shadow-[0_-8px_60px_rgba(36,48,173,0.18),0_-2px_20px_rgba(0,0,0,0.1)]" style={{ background: "#FFFFFF" }}>
 
             {/* Title bar */}
-            <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5" style={{ background: "#0A0A0A" }}>
+            <div className="flex items-center gap-2 border-b border-black/[0.07] px-4 py-2.5" style={{ background: "#F5F5F7" }}>
               <div className="flex gap-1.5">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#FF5F56]" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#27C840]" />
               </div>
               <div className="ml-3 flex-1">
-                <div className="mx-auto flex w-fit items-center gap-1.5 rounded border border-white/[0.08] bg-white/[0.04] px-3 py-0.5">
+                <div className="mx-auto flex w-fit items-center gap-1.5 rounded border border-black/[0.08] bg-white px-3 py-0.5">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#2430AD]" />
-                  <span className="font-mono text-[10px] text-neutral-600">studio-os.app/home</span>
+                  <span className="font-mono text-[10px] text-neutral-400">studio-os.app/home</span>
                 </div>
               </div>
             </div>
 
-            {/* App layout */}
+            {/* App layout — light theme */}
             <div className="flex" style={{ height: 520 }}>
 
               {/* Sidebar */}
-              <div className="flex w-44 shrink-0 flex-col border-r border-white/[0.06]" style={{ background: "#0D0D0D" }}>
+              <div className="flex w-44 shrink-0 flex-col border-r border-black/[0.06]" style={{ background: "#FAFAFA" }}>
                 {/* Logo row */}
-                <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2.5">
+                <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2.5">
                   <div className="flex h-6 w-6 items-center justify-center rounded-[5px] bg-[#2430AD]">
-                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3 text-neutral-900">
-                      <rect x="2" y="2" width="3.2" height="8" rx="1" fill="currentColor"/>
-                      <rect x="6.8" y="2" width="3.2" height="8" rx="1" fill="currentColor"/>
+                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3">
+                      <rect x="2" y="2" width="3.2" height="8" rx="1" fill="white"/>
+                      <rect x="6.8" y="2" width="3.2" height="8" rx="1" fill="white"/>
                     </svg>
                   </div>
-                  <span className="text-[11px] font-semibold text-neutral-900">Studio OS</span>
+                  <span className="text-[11px] font-semibold text-neutral-800">Studio OS</span>
                 </div>
                 {/* Nav items */}
                 <div className="flex-1 px-1.5 py-2 space-y-0.5">
@@ -434,43 +433,43 @@ export function Hero() {
                       key={item.label}
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px]"
                       style={{
-                        background: item.active ? "rgba(36,48,173,0.15)" : "transparent",
-                        color: item.active ? "#818cf8" : "#555",
+                        background: item.active ? "rgba(36,48,173,0.08)" : "transparent",
+                        color: item.active ? "#2430AD" : "#888",
                       }}
                     >
-                      <div className="h-1.5 w-1.5 rounded-full" style={{ background: item.active ? "#2430AD" : "#333" }} />
+                      <div className="h-1.5 w-1.5 rounded-full" style={{ background: item.active ? "#2430AD" : "#D4D4D4" }} />
                       {item.label}
                     </div>
                   ))}
                   {/* Projects list */}
-                  <div className="mt-3 px-2 pb-1 text-[9px] font-medium uppercase tracking-widest text-neutral-700">Projects</div>
+                  <div className="mt-3 px-2 pb-1 text-[9px] font-medium uppercase tracking-widest text-neutral-400">Projects</div>
                   {[
                     { name: "Acme Rebrand", color: "#FF5533" },
                     { name: "Lumina App", color: "#7C3AED" },
                     { name: "Nox Identity", color: "#059669" },
                   ].map((p) => (
-                    <div key={p.name} className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] text-neutral-600 hover:text-neutral-500">
+                    <div key={p.name} className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] text-neutral-500">
                       <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.color }} />
                       <span className="truncate">{p.name}</span>
                     </div>
                   ))}
                 </div>
                 {/* User row */}
-                <div className="border-t border-white/[0.06] px-3 py-2 flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-full bg-gradient-to-br from-[#2430AD] to-purple-500 flex items-center justify-center text-[8px] font-bold text-neutral-900">N</div>
+                <div className="border-t border-black/[0.06] px-3 py-2 flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-full bg-gradient-to-br from-[#2430AD] to-[#5C69F7] flex items-center justify-center text-[8px] font-bold text-white">N</div>
                   <div>
-                    <div className="text-[10px] font-medium text-neutral-500">Nick</div>
-                    <div className="text-[9px] text-neutral-700">Free plan</div>
+                    <div className="text-[10px] font-medium text-neutral-700">Nick</div>
+                    <div className="text-[9px] text-neutral-400">Free plan</div>
                   </div>
                 </div>
               </div>
 
               {/* Main content */}
-              <div className="flex-1 overflow-hidden" style={{ background: "#141414" }}>
+              <div className="flex-1 overflow-hidden" style={{ background: "#FFFFFF" }}>
                 {/* Top bar */}
-                <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-2" style={{ background: "#111" }}>
-                  <span className="text-[10px] text-neutral-600">home</span>
-                  <div className="flex items-center gap-1.5 rounded-md bg-[#2430AD] px-2.5 py-1 text-[10px] font-medium text-neutral-900">
+                <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-2" style={{ background: "#FAFAFA" }}>
+                  <span className="text-[10px] text-neutral-400">home</span>
+                  <div className="flex items-center gap-1.5 rounded-md bg-[#2430AD] px-2.5 py-1 text-[10px] font-medium text-white">
                     + New project
                   </div>
                 </div>
@@ -478,78 +477,73 @@ export function Hero() {
                 <div className="overflow-y-auto h-full px-5 py-5" style={{ scrollbarWidth: "none" }}>
                   {/* Greeting */}
                   <div className="mb-5 text-center">
-                    <div className="text-lg font-light text-neutral-900">Good morning, Nick</div>
+                    <div className="text-lg font-light text-neutral-800">Good morning, Nick</div>
                   </div>
 
                   {/* Command bar */}
-                  <div className="mb-5 flex items-center gap-2 rounded-lg border border-[#2430AD]/40 bg-[#1A1A1A] px-3 py-2 ring-1 ring-[#2430AD]/10">
-                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3 text-neutral-600 shrink-0">
+                  <div className="mb-5 flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 shadow-sm">
+                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3 text-neutral-400 shrink-0">
                       <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1"/>
                       <path d="M8 8l2.5 2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
                     </svg>
-                    <span className="flex-1 text-[11px] text-neutral-600">What are you working on today?</span>
-                    <div className="flex items-center gap-0.5 rounded border border-white/10 px-1 py-0.5 text-[8px] text-neutral-700">⌘K</div>
+                    <span className="flex-1 text-[11px] text-neutral-400">What are you working on today?</span>
+                    <div className="flex items-center gap-0.5 rounded border border-neutral-200 px-1 py-0.5 text-[8px] text-neutral-400">⌘K</div>
                   </div>
 
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-white/[0.05]" />
-                    <div className="h-1 w-1 rounded-full bg-neutral-700" />
-                    <div className="h-px flex-1 bg-white/[0.05]" />
+                    <div className="h-px flex-1 bg-neutral-100" />
+                    <div className="h-1 w-1 rounded-full bg-neutral-300" />
+                    <div className="h-px flex-1 bg-neutral-100" />
                   </div>
 
                   {/* Recent projects */}
                   <div className="mb-5">
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[9px] font-medium uppercase tracking-widest text-neutral-700">Recent Projects</span>
-                      <span className="text-[9px] text-neutral-700">View all →</span>
+                      <span className="text-[9px] font-medium uppercase tracking-widest text-neutral-400">Recent Projects</span>
+                      <span className="text-[9px] text-neutral-400">View all →</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { name: "Acme Rebrand", phase: "Discovery", c1: "#FF5533", c2: "#FF5533", bg: "rgba(255,85,51,0.12)", text: "#FF5533", hover: true },
-                        { name: "Lumina App",   phase: "Design",    c1: "#7C3AED", c2: "#a78bfa", bg: "rgba(124,58,237,0.12)", text: "#a78bfa", hover: false },
-                        { name: "Nox Identity", phase: "Handoff",   c1: "#059669", c2: "#34d399", bg: "rgba(5,150,105,0.12)",  text: "#34d399", hover: false },
+                        { name: "Acme Rebrand", phase: "Discovery", c1: "#FF5533", c2: "#FF8866", bg: "rgba(255,85,51,0.08)", text: "#CC3311", hover: true },
+                        { name: "Lumina App",   phase: "Design",    c1: "#7C3AED", c2: "#A78BFA", bg: "rgba(124,58,237,0.08)", text: "#6D28D9", hover: false },
+                        { name: "Nox Identity", phase: "Handoff",   c1: "#059669", c2: "#34D399", bg: "rgba(5,150,105,0.08)",  text: "#047857", hover: false },
                       ].map((p, i) => (
                         <div
                           key={i}
                           className="relative overflow-hidden rounded-xl border transition-all duration-300"
                           style={{
-                            borderColor: p.hover ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)",
-                            background: "#1C1C1C",
+                            borderColor: p.hover ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.06)",
+                            background: "#FFFFFF",
                             transform: p.hover ? "translateY(-1px)" : "none",
-                            boxShadow: p.hover ? `0 6px 20px ${p.c1}18` : "none",
+                            boxShadow: p.hover ? `0 4px 16px rgba(0,0,0,0.08)` : "0 1px 4px rgba(0,0,0,0.04)",
                           }}
                         >
                           <div
                             className="aspect-[16/9] w-full"
-                            style={{ background: `linear-gradient(135deg, ${p.c1}25 0%, ${p.c2}55 100%)` }}
+                            style={{ background: `linear-gradient(135deg, ${p.c1}18 0%, ${p.c2}38 100%)` }}
                           >
-                            <div className="h-full w-full" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "10px 10px" }} />
+                            <div className="h-full w-full" style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.04) 1px, transparent 1px)", backgroundSize: "10px 10px" }} />
                           </div>
-                          <div className="flex flex-col gap-1 px-2 py-1.5" style={{ background: "#181818" }}>
-                            <span className="text-[10px] font-medium text-neutral-900 truncate">{p.name}</span>
+                          <div className="flex flex-col gap-1 px-2 py-1.5 border-t border-black/[0.04]">
+                            <span className="text-[10px] font-medium text-neutral-700 truncate">{p.name}</span>
                             <span className="self-start rounded px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wider" style={{ background: p.bg, color: p.text }}>{p.phase}</span>
                           </div>
-                          {p.hover && (
-                            <div className="absolute inset-0 flex items-end justify-between px-2 py-1.5" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)" }}>
-                              <span className="text-[8px] text-neutral-900/60">Open →</span>
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
                   </div>
 
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-white/[0.05]" />
-                    <div className="h-1 w-1 rounded-full bg-neutral-700" />
-                    <div className="h-px flex-1 bg-white/[0.05]" />
+                    <div className="h-px flex-1 bg-neutral-100" />
+                    <div className="h-1 w-1 rounded-full bg-neutral-300" />
+                    <div className="h-px flex-1 bg-neutral-100" />
                   </div>
 
                   {/* Inspiration */}
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[9px] font-medium uppercase tracking-widest text-neutral-700">Daily Inspiration</span>
-                      <span className="text-[9px] text-neutral-700">Abstract</span>
+                      <span className="text-[9px] font-medium uppercase tracking-widest text-neutral-400">Daily Inspiration</span>
+                      <span className="text-[9px] text-neutral-400">Abstract</span>
                     </div>
                     <div className="grid grid-cols-6 gap-1.5">
                       {[
@@ -557,12 +551,12 @@ export function Hero() {
                         { score: 92, color: "#10B981" }, { score: 89, color: "#F43F5E" },
                         { score: 91, color: "#8B5CF6" }, { score: 88, color: "#06B6D4" },
                       ].map((item, i) => (
-                        <div key={i} className="relative aspect-[3/4] overflow-hidden rounded-md">
+                        <div key={i} className="relative aspect-[3/4] overflow-hidden rounded-md border border-black/[0.04]">
                           <div
                             className="h-full w-full"
-                            style={{ background: `linear-gradient(135deg, ${item.color}30 0%, ${item.color}60 100%)` }}
+                            style={{ background: `linear-gradient(135deg, ${item.color}20 0%, ${item.color}45 100%)` }}
                           />
-                          <div className="absolute right-1 top-1 rounded bg-black/50 px-1 py-0.5 font-mono text-[7px] text-neutral-900/80">
+                          <div className="absolute right-1 top-1 rounded bg-white/80 px-1 py-0.5 font-mono text-[7px] text-neutral-600 shadow-sm">
                             {item.score}
                           </div>
                         </div>

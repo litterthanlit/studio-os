@@ -151,7 +151,7 @@ export function HowItWorks() {
         </motion.div>
 
         {/* Steps */}
-        <div className="relative grid grid-cols-1 gap-0 lg:grid-cols-3">
+        <div className="relative grid grid-cols-1 gap-0 lg:grid-cols-3 divide-y divide-neutral-200 lg:divide-y-0">
           {/* Connecting line (desktop only) */}
           <div className="pointer-events-none absolute left-0 right-0 top-[52px] hidden lg:block">
             <motion.div
@@ -173,11 +173,9 @@ export function HowItWorks() {
                 delay: 0.1 + i * 0.12,
                 ease: [0.25, 0.46, 0.45, 0.94],
               }}
-              className={`relative flex flex-col gap-6 pb-12 lg:pb-0 ${
+              className={`relative flex flex-col gap-6 py-8 lg:py-0 lg:pb-0 ${
                 i < 2 ? "lg:border-r lg:border-neutral-200 lg:pr-12" : ""
-              } ${i > 0 ? "lg:pl-12" : ""} ${
-                i < 2 ? "border-b border-neutral-200 lg:border-b-0 pb-12" : ""
-              }`}
+              } ${i > 0 ? "lg:pl-12" : ""}`}
             >
               {/* Step number bubble */}
               <div className="flex items-center gap-4">

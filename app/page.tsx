@@ -9,6 +9,7 @@ import { CTA } from "@/components/marketing/cta";
 import { FAQ } from "@/components/marketing/faq";
 import { MarketingNav } from "@/components/marketing/navigation";
 import { MarketingFooter } from "@/components/marketing/footer";
+import { Preloader } from "@/components/marketing/preloader";
 
 export const metadata = {
   title: "Studio OS — A design workspace that thinks like you do",
@@ -19,6 +20,7 @@ export const metadata = {
 export default function MarketingPage() {
   return (
     <div className="relative min-h-screen bg-white">
+      <Preloader />
       <div className="relative z-10">
         <MarketingNav />
         <main>

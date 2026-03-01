@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import { springs } from "@/lib/animations";
+
+const NAV_ITEMS = [
+  { label: "Features", href: "#features" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Testimonials", href: "#testimonials" },
+  { label: "Pricing", href: "#pricing" },
+];
 
 // ── Inline logo — 3 stacked folders, each lifts with staggered spring ──
 function LogoMark() {
@@ -97,79 +105,167 @@ function LogoMark() {
 }
 
 export function MarketingNav() {
-  return (
-    <motion.header
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springs.smooth}
-      className="fixed top-0 left-0 right-0 z-50 border-b border-black/[0.06] bg-white/95 backdrop-blur-2xl"
-      style={{ overflow: "visible" }}
-    >
-      <div className="mx-auto flex h-[80px] max-w-7xl items-center justify-between px-6" style={{ overflow: "visible" }}>
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0" style={{ overflow: "visible" }}>
-          {/* Inline SVG logo — overflow visible so folders can lift without clipping */}
-          <div style={{ overflow: "visible", padding: "6px 4px 0" }}>
-            <LogoMark />
-          </div>
-          {/* Wordmark — gradient, stays still */}
-          <span
-            className="text-[26px] font-semibold leading-none"
-            style={{
-              fontFamily: "var(--font-instrument-sans)",
-              background: "linear-gradient(180deg, #2430AD 0%, #6E79F5 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            studio OS
-          </span>
-        </Link>
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-        {/* Right side: Nav + separator + CTAs */}
-        <div className="flex items-center gap-6">
-          {/* Nav Links */}
-          <nav className="hidden items-center gap-7 md:flex">
-            {[
-              { label: "Features", href: "#features" },
-              { label: "Resources", href: "#resources" },
-              { label: "Customers", href: "#customers" },
-              { label: "Pricing", href: "#pricing" },
-            ].map((item) => (
+  return (
+    <>
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springs.smooth}
+        className="fixed top-0 left-0 right-0 z-50 border-b border-black/[0.06] bg-white/95 backdrop-blur-2xl"
+        style={{ overflow: "visible" }}
+      >
+        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 md:px-6" style={{ overflow: "visible" }}>
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 shrink-0" style={{ overflow: "visible" }}>
+            <div style={{ overflow: "visible", padding: "6px 4px 0" }}>
+              <LogoMark />
+            </div>
+            <span
+              className="text-[22px] md:text-[26px] font-semibold leading-none"
+              style={{
+                fontFamily: "var(--font-instrument-sans)",
+                background: "linear-gradient(180deg, #2430AD 0%, #6E79F5 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              studio OS
+            </span>
+          </Link>
+
+          {/* Desktop: Nav + separator + CTAs */}
+          <div className="hidden md:flex items-center gap-6">
+            <nav className="flex items-center gap-7">
+              {NAV_ITEMS.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="text-[13.5px] font-normal text-neutral-500 transition-colors hover:text-neutral-900"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+            <div className="h-5 w-px bg-black/10" />
+            <div className="flex items-center gap-3">
               <a
-                key={item.label}
-                href={item.href}
+                href="/login"
                 className="text-[13.5px] font-normal text-neutral-500 transition-colors hover:text-neutral-900"
               >
-                {item.label}
+                Log in
               </a>
-            ))}
-          </nav>
+              <motion.a
+                href="#waitlist"
+                className="flex items-center justify-center rounded-full border border-neutral-900 bg-neutral-900 px-4 py-1.5 text-[13.5px] font-medium text-white transition-all hover:bg-neutral-700"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={springs.snappy}
+              >
+                Join waitlist
+              </motion.a>
+            </div>
+          </div>
 
-          {/* Separator */}
-          <div className="hidden h-5 w-px bg-black/10 md:block" />
-
-          {/* CTAs */}
-          <div className="flex items-center gap-3">
+          {/* Mobile: Join waitlist + hamburger */}
+          <div className="flex items-center gap-3 md:hidden">
             <a
-              href="/login"
-              className="text-[13.5px] font-normal text-neutral-500 transition-colors hover:text-neutral-900"
-            >
-              Log in
-            </a>
-            <motion.a
               href="#waitlist"
-              className="flex items-center justify-center rounded-full border border-neutral-900 bg-neutral-900 px-4 py-1.5 text-[13.5px] font-medium text-white transition-all hover:bg-neutral-700"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              transition={springs.snappy}
+              className="flex items-center justify-center rounded-full bg-neutral-900 px-4 py-1.5 text-[13px] font-medium text-white"
             >
               Join waitlist
-            </motion.a>
+            </a>
+            <button
+              type="button"
+              onClick={() => setMobileOpen((o) => !o)}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 transition-colors"
+            >
+              <motion.svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                className="h-5 w-5"
+                animate={mobileOpen ? "open" : "closed"}
+              >
+                <motion.path
+                  variants={{
+                    closed: { d: "M4 6h16" },
+                    open:   { d: "M5 19L19 5" },
+                  }}
+                  transition={{ duration: 0.22, ease: "easeInOut" }}
+                />
+                <motion.path
+                  variants={{
+                    closed: { d: "M4 12h16", opacity: 1 },
+                    open:   { d: "M4 12h16", opacity: 0 },
+                  }}
+                  transition={{ duration: 0.15 }}
+                />
+                <motion.path
+                  variants={{
+                    closed: { d: "M4 18h16" },
+                    open:   { d: "M5 5l14 14" },
+                  }}
+                  transition={{ duration: 0.22, ease: "easeInOut" }}
+                />
+              </motion.svg>
+            </button>
           </div>
         </div>
-      </div>
-    </motion.header>
+      </motion.header>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/10 backdrop-blur-sm md:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+            {/* Drawer */}
+            <motion.div
+              key="drawer"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed left-0 right-0 top-[72px] z-40 border-b border-black/[0.06] bg-white/98 px-5 pb-5 pt-3 shadow-lg backdrop-blur-2xl md:hidden"
+            >
+              <nav className="flex flex-col gap-1">
+                {NAV_ITEMS.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex h-11 items-center rounded-lg px-3 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+                <div className="my-2 h-px bg-neutral-100" />
+                <a
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex h-11 items-center rounded-lg px-3 text-sm text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+                >
+                  Log in
+                </a>
+              </nav>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

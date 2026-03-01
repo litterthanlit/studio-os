@@ -180,7 +180,7 @@ export function Testimonials() {
   const logosInView = useInView(logosRef, { once: true, margin: "-60px" });
 
   return (
-    <section className="relative bg-[#FAFAFA] py-24 overflow-hidden">
+    <section id="testimonials" className="relative bg-[#FAFAFA] py-24 overflow-hidden">
       {/* Subtle accent glow */}
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-px w-3/4 -translate-x-1/2"

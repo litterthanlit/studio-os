@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Preloader } from "@/components/marketing/preloader";
 
 export const metadata: Metadata = {
   title: "Studio OS — A design workspace that thinks like you do",
@@ -16,5 +17,10 @@ export default function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <Preloader />
+      {children}
+    </>
+  );
 }

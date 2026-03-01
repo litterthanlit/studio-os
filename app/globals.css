@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Tie dark: variant to data-theme so light mode isn't overridden by prefers-color-scheme */
 @custom-variant dark (&:where(html[data-theme="dark"], html[data-theme="dark"] *));
 

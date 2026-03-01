@@ -584,7 +584,7 @@ const FEATURES = [
 
 export function FeaturesGrid() {
   return (
-    <section className="bg-[#FAFAFA] py-32">
+    <section id="features" className="bg-[#FAFAFA] py-16 md:py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-6">
 
         {/* Section headline */}
@@ -595,7 +595,7 @@ export function FeaturesGrid() {
           transition={springs.smooth}
           className="mb-20 max-w-4xl"
         >
-          <h2 className="text-4xl font-semibold leading-[1.15] tracking-tight sm:text-5xl">
+          <h2 className="text-3xl font-semibold leading-[1.15] tracking-tight sm:text-4xl lg:text-5xl">
             <span className="text-neutral-900">One workspace, every creative layer.</span>{" "}
             <span className="text-neutral-500">
               From raw reference to final handoff — Studio OS holds your entire
@@ -614,7 +614,7 @@ export function FeaturesGrid() {
               viewport={{ once: true, margin: "-60px" }}
               transition={{ ...springs.smooth, delay: i * 0.07 }}
               className={[
-                "group flex flex-col bg-[#FAFAFA] p-10 transition-colors duration-300 hover:bg-white",
+                "group flex flex-col bg-[#FAFAFA] p-5 sm:p-8 lg:p-10 transition-colors duration-300 hover:bg-white",
                 i % 2 === 0 ? "sm:border-r border-neutral-200" : "",
                 i >= 2 ? "border-t border-neutral-200" : "",
               ].join(" ")}
@@ -623,7 +623,7 @@ export function FeaturesGrid() {
                 {feature.fig}
               </span>
 
-              <div className="mb-8 flex h-52 items-center justify-center overflow-hidden">
+              <div className="mb-8 flex h-36 sm:h-44 lg:h-52 items-center justify-center overflow-hidden">
                 <motion.div
                   className="h-full w-full"
                   initial={feature.idle}

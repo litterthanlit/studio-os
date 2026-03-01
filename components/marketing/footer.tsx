@@ -14,7 +14,7 @@ export function MarketingFooter() {
       <div
         className="pointer-events-none absolute inset-x-0 bottom-12 select-none text-center font-bold leading-none text-neutral-900"
         style={{
-          fontSize: "clamp(80px, 18vw, 260px)",
+          fontSize: "clamp(36px, 18vw, 260px)",
           opacity: 0.028,
           letterSpacing: "-0.04em",
           userSelect: "none",
@@ -63,7 +63,7 @@ export function MarketingFooter() {
           </div>
 
           {/* Center links */}
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6">
             {[
               { label: "Terms", href: "#" },
               { label: "Privacy", href: "/privacy" },

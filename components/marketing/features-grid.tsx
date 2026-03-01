@@ -420,6 +420,128 @@ function Fig03Animated() {
   );
 }
 
+// ── FIG 0.4 — masonry tile grid ─────────────────────────────────────────────
+// Each tile has idle (DEFAULT) and hover (FRAME 2) x/y/w/h from SVG frames.
+// motion.g handles position via CSS translateX/Y; motion.rect handles size via scaleX/Y.
+// transform-origin "0 0" so tiles grow from their top-left corner.
+const MASON_SPRING = { type: "spring" as const, stiffness: 260, damping: 16 };
+
+function MasonTile({
+  idleX, idleY, idleW, idleH,
+  hoverX, hoverY, hoverW, hoverH,
+  fill, hovered, delay,
+}: {
+  idleX: number; idleY: number; idleW: number; idleH: number;
+  hoverX: number; hoverY: number; hoverW: number; hoverH: number;
+  fill: string; hovered: boolean; delay: number;
+}) {
+  const maxW = Math.max(idleW, hoverW);
+  const maxH = Math.max(idleH, hoverH);
+  const t = { ...MASON_SPRING, delay: hovered ? delay : delay * 0.3 };
+  return (
+    <motion.g
+      initial={{ x: idleX, y: idleY }}
+      animate={{ x: hovered ? hoverX : idleX, y: hovered ? hoverY : idleY }}
+      transition={t}
+    >
+      <motion.rect
+        x={0} y={0}
+        width={maxW} height={maxH}
+        rx={20} fill={fill}
+        initial={{ scaleX: idleW / maxW, scaleY: idleH / maxH }}
+        animate={{
+          scaleX: hovered ? hoverW / maxW : idleW / maxW,
+          scaleY: hovered ? hoverH / maxH : idleH / maxH,
+        }}
+        style={{ transformOrigin: "0px 0px" }}
+        transition={t}
+      />
+    </motion.g>
+  );
+}
+
+function Fig04Animated() {
+  const [hovered, setHovered] = React.useState(false);
+
+  // Tile positions extracted from SVG frames (in tile-group-local space).
+  // idle = DEFAULT frame, hover = FRAME 2 (most dramatic state).
+  // Tiles are in a translate(82 141) group inside the folder.
+  const tiles = [
+    { fill: "url(#f4-t1)", idleX:   0, idleY:   0, idleW: 100, idleH: 100, hoverX:   0, hoverY:   0, hoverW: 100, hoverH: 147, delay: 0    },
+    { fill: "url(#f4-t2)", idleX: 150, idleY:   0, idleW: 100, idleH: 100, hoverX: 121, hoverY:   0, hoverW: 156, hoverH: 100, delay: 0.04 },
+    { fill: "url(#f4-t3)", idleX: 288, idleY:   0, idleW: 100, idleH: 100, hoverX: 288, hoverY:   0, hoverW: 100, hoverH: 126, delay: 0.08 },
+    { fill: "url(#f4-t4)", idleX: 150, idleY: 137, idleW: 100, idleH: 100, hoverX: 121, hoverY: 108, hoverW: 129, hoverH: 129, delay: 0.12 },
+    { fill: "url(#f4-t5)", idleX: 288, idleY: 135, idleW: 100, idleH: 100, hoverX: 260, hoverY: 135, hoverW: 128, hoverH: 100, delay: 0.16 },
+    { fill: "url(#f4-t6)", idleX:   0, idleY: 137, idleW: 100, idleH: 100, hoverX:   0, hoverY: 167, hoverW: 100, hoverH:  70, delay: 0.20 },
+  ];
+
+  return (
+    <div
+      className="h-full w-full"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <svg
+        width="524" height="421" fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-full w-full object-contain"
+      >
+        <defs>
+          <linearGradient id="f4-folder-t" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(99,141,236)" stopOpacity="0.6" />
+            <stop offset="1" stopColor="rgba(92,105,247,0)" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="f4-folder-s" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(103,147,240)" />
+            <stop offset="1" stopColor="rgb(38,66,192)" />
+          </linearGradient>
+          {/* Tile colors extracted from SVG frames */}
+          <linearGradient id="f4-t1" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(255,255,255)" /><stop offset="1" stopColor="rgb(237,237,230)" />
+          </linearGradient>
+          <linearGradient id="f4-t2" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(48,85,241)" /><stop offset="1" stopColor="rgb(36,63,171)" />
+          </linearGradient>
+          <linearGradient id="f4-t3" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(163,200,255)" /><stop offset="1" stopColor="rgb(99,162,255)" />
+          </linearGradient>
+          <linearGradient id="f4-t4" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(217,231,255)" /><stop offset="1" stopColor="rgb(173,203,255)" />
+          </linearGradient>
+          <linearGradient id="f4-t5" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(222,66,143)" /><stop offset="1" stopColor="rgb(211,67,222)" />
+          </linearGradient>
+          <linearGradient id="f4-t6" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="rgb(239,174,212)" /><stop offset="1" stopColor="rgb(204,41,84)" />
+          </linearGradient>
+          <clipPath id="f4-folder-clip">
+            <path d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z" />
+          </clipPath>
+        </defs>
+
+        {/* Back panels */}
+        <path d="M 0 49 C 0 31.327 14.327 17 32 17 L 464 17 C 481.673 17 496 31.327 496 49 L 496 301 C 496 318.673 481.673 333 464 333 L 32 333 C 14.327 333 0 318.673 0 301 Z" fill="url(#f4-folder-t)" />
+        <path d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z" fill="url(#f4-folder-t)" />
+
+        {/* Front folder */}
+        <g transform="translate(28 64)">
+          <path d="M 0 42 C 0 24.327 14.327 10 32 10 L 464 10 C 481.673 10 496 24.327 496 42 L 496 294 C 496 311.673 481.673 326 464 326 L 32 326 C 14.327 326 0 311.673 0 294 Z" fill="url(#f4-folder-s)" strokeWidth="0.5" stroke="rgba(255,255,255,0.35)" />
+          <path d="M 0 32 C 0 14.327 14.327 0 32 0 L 215.167 0 C 221.801 0 228.139 2.746 232.676 7.586 L 259.259 35.943 C 262.284 39.169 266.509 41 270.932 41 L 464 41 C 481.673 41 496 55.327 496 73 L 496 325 C 496 342.673 481.673 357 464 357 L 32 357 C 14.327 357 0 342.673 0 325 Z" fill="url(#f4-folder-s)" strokeWidth="0.5" stroke="rgba(255,255,255,0.58)" />
+
+          {/* Masonry tile grid */}
+          <g clipPath="url(#f4-folder-clip)">
+            <g transform="translate(82 141)">
+              {tiles.map((tile, i) => (
+                <MasonTile key={i} {...tile} hovered={hovered} />
+              ))}
+            </g>
+          </g>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 // ── Feature card spring configs ────────────────────────────────────────────
 const spring = { type: "spring", stiffness: 340, damping: 22 };
 
@@ -453,12 +575,12 @@ const FEATURES = [
   },
   {
     fig: "FIG 0.4",
-    src: "/fig-0.4.svg",
+    src: null,
     title: "A feed that gets your taste.",
     description:
       "Daily curated images scored by your aesthetic. Connect Are.na channels and Pinterest boards to make it entirely yours.",
     idle:  { rotate: 0, scale: 1 },
-    hover: { rotate: -2.5, scale: 1.04, transition: { type: "spring", stiffness: 220, damping: 20 } },
+    hover: { rotate: 0, scale: 1 },
   },
 ];
 
@@ -512,6 +634,7 @@ export function FeaturesGrid() {
                   style={{ originX: "50%", originY: "60%" }}
                 >
                   {feature.src === null ? (
+                    feature.fig === "FIG 0.4" ? <Fig04Animated /> :
                     feature.fig === "FIG 0.3" ? <Fig03Animated /> :
                     feature.fig === "FIG 0.2" ? <Fig02Animated /> :
                     <Fig01Animated />

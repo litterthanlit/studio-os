@@ -210,6 +210,67 @@ export async function searchPins(
 }
 
 /**
+ * List all boards for the personal access token owner.
+ */
+export async function listBoardsWithToken(token: string): Promise<PinterestBoard[]> {
+  const boards: PinterestBoard[] = [];
+  let bookmark: string | undefined;
+
+  do {
+    const params = new URLSearchParams({ page_size: "50" });
+    if (bookmark) params.set("bookmark", bookmark);
+
+    const res = await fetch(`${PINTEREST_API}/boards?${params}`, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Pinterest boards ${res.status}: ${body}`);
+    }
+
+    const data = (await res.json()) as { items: PinterestBoard[]; bookmark?: string };
+    boards.push(...data.items);
+    bookmark = data.bookmark;
+  } while (bookmark && boards.length < 200);
+
+  return boards;
+}
+
+/**
+ * Fetch image pins from a board using a personal access token.
+ */
+export async function fetchBoardPinsWithToken(
+  boardId: string,
+  token: string,
+  limit = 50
+): Promise<PinterestPin[]> {
+  const pins: PinterestPin[] = [];
+  let bookmark: string | undefined;
+
+  do {
+    const params = new URLSearchParams({ page_size: "100" });
+    if (bookmark) params.set("bookmark", bookmark);
+
+    const res = await fetch(`${PINTEREST_API}/boards/${boardId}/pins?${params}`, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Pinterest board pins ${res.status}: ${body}`);
+    }
+
+    const data = (await res.json()) as { items: PinterestPin[]; bookmark?: string };
+    const imagePins = data.items.filter((p) => pinImageUrl(p) !== null);
+    pins.push(...imagePins);
+    bookmark = data.bookmark;
+  } while (bookmark && pins.length < limit);
+
+  return pins.slice(0, limit);
+}
+
+/**
  * Search Pinterest using a personal access token (for admin/server use).
  * Set PINTEREST_PERSONAL_ACCESS_TOKEN in env to use without user OAuth.
  */

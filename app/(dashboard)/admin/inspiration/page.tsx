@@ -37,11 +37,18 @@ export default function AdminInspirationPage() {
   const [minScore, setMinScore] = useState(0);
   const [batchScoring, setBatchScoring] = useState(false);
 
-  // Pinterest search state
+  // Pinterest board import state
+  const [boards, setBoards] = useState<{ id: string; name: string; pin_count: number }[]>([]);
+  const [boardsLoading, setBoardsLoading] = useState(false);
+  const [selectedBoardId, setSelectedBoardId] = useState("");
+  const [boardImporting, setBoardImporting] = useState(false);
+  const [boardResult, setBoardResult] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Pinterest search state (kept for when Standard access is approved)
   const [searchQuery, setSearchQuery] = useState("");
   const [pinterestScoring, setPinterestScoring] = useState(false);
   const [pinterestResult, setPinterestResult] = useState<string | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchImages();
@@ -79,6 +86,52 @@ export default function AdminInspirationPage() {
       alert(`Batch scoring failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setBatchScoring(false);
+    }
+  }
+
+  async function loadBoards() {
+    setBoardsLoading(true);
+    setBoardResult(null);
+    try {
+      const res = await fetch("/api/inspiration/admin/list-boards");
+      const data = await res.json();
+      if (!res.ok) {
+        setBoardResult(`Error: ${data.error}`);
+      } else {
+        setBoards(data.boards || []);
+        if (data.boards?.length > 0) setSelectedBoardId(data.boards[0].id);
+      }
+    } catch (err) {
+      setBoardResult(`Failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setBoardsLoading(false);
+    }
+  }
+
+  async function importBoard() {
+    if (!selectedBoardId || boardImporting) return;
+    setBoardImporting(true);
+    setBoardResult(null);
+    const board = boards.find((b) => b.id === selectedBoardId);
+    try {
+      const res = await fetch("/api/inspiration/admin/import-pinterest-board", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boardId: selectedBoardId, boardName: board?.name, limit: 5 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBoardResult(`Error: ${data.error}`);
+      } else if (data.scored === 0) {
+        setBoardResult(data.message || "No new pins scored");
+      } else {
+        setBoardResult(`✓ Scored ${data.scored} pins · ${data.approved} approved and added to Daily Inspiration`);
+        fetchImages();
+      }
+    } catch (err) {
+      setBoardResult(`Failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setBoardImporting(false);
     }
   }
 
@@ -161,60 +214,92 @@ export default function AdminInspirationPage() {
           </button>
         </div>
 
-        {/* ── Pinterest Search ── */}
+        {/* ── Pinterest Board Import ── */}
         <div className="mb-8 rounded-xl border border-border-primary bg-bg-secondary p-5">
           <div className="flex items-center gap-2 mb-3">
             <svg viewBox="0 0 24 24" className="h-4 w-4 text-rose-500" fill="currentColor">
               <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
             </svg>
-            <span className="text-sm font-medium text-text-primary">Search Pinterest → Score → Daily Inspiration</span>
+            <span className="text-sm font-medium text-text-primary">Import Pinterest Board → Score → Daily Inspiration</span>
           </div>
 
-          <form onSubmit={runPinterestSearch} className="flex gap-3">
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder='e.g. "brutalist typography" · "minimal architecture" · "editorial design"'
-              disabled={pinterestScoring}
-              className="flex-1 px-4 py-2.5 bg-bg-primary border border-border-primary rounded-lg text-sm text-text-primary placeholder:text-text-placeholder outline-none focus:border-accent transition-colors disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={pinterestScoring || !searchQuery.trim()}
-              className="px-5 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600 disabled:opacity-40 transition-colors flex items-center gap-2 shrink-0"
-            >
-              {pinterestScoring ? (
-                <>
-                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Scoring (~30s)
-                </>
-              ) : (
-                "Search & Score"
-              )}
-            </button>
-          </form>
+          <div className="flex gap-3">
+            {boards.length === 0 ? (
+              <button
+                onClick={loadBoards}
+                disabled={boardsLoading}
+                className="px-4 py-2.5 bg-bg-primary border border-border-primary text-text-secondary rounded-lg text-sm hover:bg-bg-tertiary disabled:opacity-40 transition-colors flex items-center gap-2"
+              >
+                {boardsLoading ? (
+                  <>
+                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading boards...
+                  </>
+                ) : (
+                  "Load My Pinterest Boards"
+                )}
+              </button>
+            ) : (
+              <>
+                <select
+                  value={selectedBoardId}
+                  onChange={(e) => setSelectedBoardId(e.target.value)}
+                  disabled={boardImporting}
+                  className="flex-1 px-4 py-2.5 bg-bg-primary border border-border-primary rounded-lg text-sm text-text-primary outline-none focus:border-accent transition-colors disabled:opacity-50"
+                >
+                  {boards.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.pin_count} pins)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={importBoard}
+                  disabled={boardImporting || !selectedBoardId}
+                  className="px-5 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600 disabled:opacity-40 transition-colors flex items-center gap-2 shrink-0"
+                >
+                  {boardImporting ? (
+                    <>
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Importing (~30s)
+                    </>
+                  ) : (
+                    "Import & Score"
+                  )}
+                </button>
+                <button
+                  onClick={loadBoards}
+                  disabled={boardsLoading || boardImporting}
+                  className="px-3 py-2.5 bg-bg-primary border border-border-primary text-text-secondary rounded-lg text-sm hover:bg-bg-tertiary disabled:opacity-40 transition-colors"
+                  title="Refresh boards"
+                >
+                  ↺
+                </button>
+              </>
+            )}
+          </div>
 
           <AnimatePresence>
-            {pinterestResult && (
+            {boardResult && (
               <motion.p
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className={`mt-3 text-sm ${pinterestResult.startsWith("✓") ? "text-emerald-500" : "text-red-500"}`}
+                className={`mt-3 text-sm ${boardResult.startsWith("✓") ? "text-emerald-500" : "text-red-500"}`}
               >
-                {pinterestResult}
+                {boardResult}
               </motion.p>
             )}
           </AnimatePresence>
 
           <p className="mt-3 text-xs text-text-muted">
-            Scores up to 5 pins per search · Auto-approves ≥ 75 · Requires{" "}
-            <code className="font-mono bg-bg-tertiary px-1 rounded">PINTEREST_PERSONAL_ACCESS_TOKEN</code>
+            Scores up to 5 pins per import · Auto-approves ≥ 75 · Save pins to a board on Pinterest first
           </p>
         </div>
 

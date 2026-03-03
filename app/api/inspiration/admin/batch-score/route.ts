@@ -53,12 +53,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "LUMMI_API_KEY not configured" }, { status: 500 });
       }
 
-      // Limit to 10 images for rate limiting (10 req/min)
-      const fetchLimit = Math.min(limit, 10);
-      
+      // Fetch a large pool so the duplicate filter always finds fresh images
+      const fetchPool = 50;
+
       const params = new URLSearchParams({
-        perPage: String(fetchLimit),
-        orientation: "portrait",
+        perPage: String(fetchPool),
       });
 
       const res = await fetch(`https://api.lummi.ai/v1/images/random?${params.toString()}`, {
@@ -71,13 +70,17 @@ export async function POST(req: Request) {
         images = getSampleImages(limit);
       } else {
         const data = await res.json();
-        const lummiImages = Array.isArray(data) ? data : data.images || [];
-        images = lummiImages.map((img: { id: string; url?: string; urls?: { regular?: string; small?: string }; title?: string; alt?: string }) => ({
-          id: img.id,
-          url: img.url || img.urls?.regular || "",
-          thumbnailUrl: img.urls?.small,
-          title: img.title || img.alt || "Untitled",
-        }));
+        const lummiImages = Array.isArray(data) ? data : data.images || data.data || [];
+        images = lummiImages
+          .filter((img: { id?: string; url?: string; urls?: { regular?: string } }) =>
+            img.id && (img.url || img.urls?.regular)
+          )
+          .map((img: { id: string; url?: string; urls?: { regular?: string; small?: string }; title?: string; alt?: string }) => ({
+            id: img.id,
+            url: img.url || img.urls?.regular || "",
+            thumbnailUrl: img.urls?.small || img.url || img.urls?.regular || "",
+            title: img.title || img.alt || "Untitled",
+          }));
       }
     } else {
       // Testing: Use sample images with unique IDs each time

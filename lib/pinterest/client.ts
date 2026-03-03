@@ -174,6 +174,72 @@ export function pinImageUrl(pin: PinterestPin): string | null {
   );
 }
 
+// ─── Search ───────────────────────────────────────────────────────────────────
+
+/**
+ * Search public Pinterest pins by keyword (max 50 results).
+ * Uses the authenticated user's token — requires pins:read scope.
+ */
+export async function searchPins(
+  query: string,
+  supabase: SupabaseClient,
+  limit = 25
+): Promise<PinterestPin[]> {
+  const pins: PinterestPin[] = [];
+  let bookmark: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      query,
+      page_size: String(Math.min(limit - pins.length, 25)),
+      pin_type: "STATIC",
+    });
+    if (bookmark) params.set("bookmark", bookmark);
+
+    const data = await pinterestFetch<{ items: PinterestPin[]; bookmark?: string }>(
+      `/pins/search?${params}`,
+      supabase
+    );
+
+    const imagePins = data.items.filter((p) => pinImageUrl(p) !== null);
+    pins.push(...imagePins);
+    bookmark = data.bookmark;
+  } while (bookmark && pins.length < limit);
+
+  return pins.slice(0, limit);
+}
+
+/**
+ * Search Pinterest using a personal access token (for admin/server use).
+ * Set PINTEREST_PERSONAL_ACCESS_TOKEN in env to use without user OAuth.
+ */
+export async function searchPinsWithToken(
+  query: string,
+  token: string,
+  limit = 25
+): Promise<PinterestPin[]> {
+  const params = new URLSearchParams({
+    query,
+    page_size: String(Math.min(limit, 25)),
+    pin_type: "STATIC",
+  });
+
+  const res = await fetch(`${PINTEREST_API}/pins/search?${params}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Pinterest search ${res.status}: ${body}`);
+  }
+
+  const data = (await res.json()) as { items: PinterestPin[]; bookmark?: string };
+  return data.items.filter((p) => pinImageUrl(p) !== null).slice(0, limit);
+}
+
 /**
  * Fetch all image pins from a board (max 500, images only).
  */

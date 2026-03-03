@@ -1,10 +1,7 @@
-// app/(dashboard)/admin/inspiration/page.tsx
-// Admin view for managing curated inspiration images
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ScoredImage {
   id: string;
@@ -27,12 +24,24 @@ interface ScoredImage {
   createdAt: string;
 }
 
+const SOURCE_COLORS: Record<string, string> = {
+  pinterest: "bg-rose-500/80",
+  lummi: "bg-violet-500/80",
+  sample: "bg-neutral-500/80",
+};
+
 export default function AdminInspirationPage() {
   const [images, setImages] = useState<ScoredImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected" | "featured">("all");
   const [minScore, setMinScore] = useState(0);
   const [batchScoring, setBatchScoring] = useState(false);
+
+  // Pinterest search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pinterestScoring, setPinterestScoring] = useState(false);
+  const [pinterestResult, setPinterestResult] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchImages();
@@ -54,43 +63,64 @@ export default function AdminInspirationPage() {
   async function runBatchScore() {
     setBatchScoring(true);
     try {
-      // Default to sample images for testing (no API rate limits)
-      // Set useLummi: true for production with Lummi API
       const res = await fetch("/api/inspiration/admin/batch-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: "lummi", useLummi: false, limit: 6 }),
+        body: JSON.stringify({ source: "lummi", useLummi: true, limit: 6 }),
       });
       const data = await res.json();
-      console.log("[batch-score] Response:", data);
       if (!res.ok) {
-        alert(`Error ${res.status}: ${data.error || data.details || 'Unknown error'}`);
-      } else if (data.scored === 0 && data.errors?.length > 0) {
-        alert(`Scoring failed. Errors:\n${data.errors.slice(0, 3).join('\n')}`);
-      } else if (data.scored === 0) {
-        alert(`${data.message || "No images to score"}\nTotal available: ${data.total || 0}`);
+        alert(`Error ${res.status}: ${data.error || "Unknown error"}`);
       } else {
-        alert(`Scored ${data.scored}/${data.total} images, ${data.approved} approved (75+ score)`);
+        alert(`Scored ${data.scored}/${data.total} images · ${data.approved} approved (75+)`);
       }
       fetchImages();
     } catch (error) {
-      console.error("[admin/inspiration] Batch score error:", error);
-      alert(`Batch scoring failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`Batch scoring failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setBatchScoring(false);
     }
   }
 
+  async function runPinterestSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!searchQuery.trim() || pinterestScoring) return;
+    setPinterestScoring(true);
+    setPinterestResult(null);
+
+    try {
+      const res = await fetch("/api/inspiration/admin/score-pinterest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery.trim(), limit: 5 }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPinterestResult(`Error: ${data.error}`);
+      } else if (data.scored === 0) {
+        setPinterestResult(data.message || "No new pins scored");
+      } else {
+        setPinterestResult(
+          `✓ Scored ${data.scored} pins · ${data.approved} approved and added to Daily Inspiration`
+        );
+        fetchImages();
+      }
+    } catch (error) {
+      setPinterestResult(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setPinterestScoring(false);
+    }
+  }
+
   async function updateStatus(imageId: string, status: ScoredImage["curationStatus"]) {
     try {
-      const res = await fetch(`/api/inspiration/admin/update-status`, {
+      const res = await fetch("/api/inspiration/admin/update-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageId, status }),
       });
-      if (res.ok) {
-        fetchImages();
-      }
+      if (res.ok) fetchImages();
     } catch (error) {
       console.error("[admin/inspiration] Update error:", error);
     }
@@ -103,52 +133,112 @@ export default function AdminInspirationPage() {
     return "text-red-500";
   };
 
+  const stats = {
+    total: images.length,
+    high: images.filter((i) => i.scoreOverall >= 75).length,
+    approved: images.filter((i) => i.curationStatus === "approved").length,
+    pending: images.filter((i) => i.curationStatus === "pending").length,
+  };
+
   return (
     <div className="min-h-screen px-8 py-8">
       <div className="max-w-7xl mx-auto">
+
+        {/* ── Header ── */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-medium text-text-primary">Curated Inspiration Admin</h1>
+          <div>
+            <h1 className="text-2xl font-medium text-text-primary">Curated Inspiration Admin</h1>
+            <p className="text-sm text-text-tertiary mt-0.5">
+              Approved images (score ≥ 75) appear automatically in Daily Inspiration
+            </p>
+          </div>
           <button
             onClick={runBatchScore}
             disabled={batchScoring}
-            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/90 disabled:opacity-50"
+            className="px-4 py-2 bg-bg-secondary border border-border-primary text-text-secondary rounded-lg text-sm hover:bg-bg-tertiary disabled:opacity-40 transition-colors"
           >
-            {batchScoring ? "Scoring..." : "Batch Score New Images"}
+            {batchScoring ? "Scoring Lummi..." : "Batch Score Lummi"}
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-bg-secondary p-4 rounded border border-border-primary">
-            <div className="text-3xl font-medium text-text-primary">{images.length}</div>
-            <div className="text-sm text-text-tertiary">Total Images</div>
+        {/* ── Pinterest Search ── */}
+        <div className="mb-8 rounded-xl border border-border-primary bg-bg-secondary p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-rose-500" fill="currentColor">
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
+            </svg>
+            <span className="text-sm font-medium text-text-primary">Search Pinterest → Score → Daily Inspiration</span>
           </div>
-          <div className="bg-bg-secondary p-4 rounded border border-border-primary">
-            <div className="text-3xl font-medium text-emerald-500">
-              {images.filter((i) => i.scoreOverall >= 75).length}
-            </div>
-            <div className="text-sm text-text-tertiary">Score 75+</div>
-          </div>
-          <div className="bg-bg-secondary p-4 rounded border border-border-primary">
-            <div className="text-3xl font-medium text-blue-500">
-              {images.filter((i) => i.curationStatus === "approved").length}
-            </div>
-            <div className="text-sm text-text-tertiary">Approved</div>
-          </div>
-          <div className="bg-bg-secondary p-4 rounded border border-border-primary">
-            <div className="text-3xl font-medium text-amber-500">
-              {images.filter((i) => i.curationStatus === "pending").length}
-            </div>
-            <div className="text-sm text-text-tertiary">Pending</div>
-          </div>
+
+          <form onSubmit={runPinterestSearch} className="flex gap-3">
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder='e.g. "brutalist typography" · "minimal architecture" · "editorial design"'
+              disabled={pinterestScoring}
+              className="flex-1 px-4 py-2.5 bg-bg-primary border border-border-primary rounded-lg text-sm text-text-primary placeholder:text-text-placeholder outline-none focus:border-accent transition-colors disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={pinterestScoring || !searchQuery.trim()}
+              className="px-5 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600 disabled:opacity-40 transition-colors flex items-center gap-2 shrink-0"
+            >
+              {pinterestScoring ? (
+                <>
+                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Scoring (~30s)
+                </>
+              ) : (
+                "Search & Score"
+              )}
+            </button>
+          </form>
+
+          <AnimatePresence>
+            {pinterestResult && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className={`mt-3 text-sm ${pinterestResult.startsWith("✓") ? "text-emerald-500" : "text-red-500"}`}
+              >
+                {pinterestResult}
+              </motion.p>
+            )}
+          </AnimatePresence>
+
+          <p className="mt-3 text-xs text-text-muted">
+            Scores up to 5 pins per search · Auto-approves ≥ 75 · Requires{" "}
+            <code className="font-mono bg-bg-tertiary px-1 rounded">PINTEREST_PERSONAL_ACCESS_TOKEN</code>
+          </p>
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-4 mb-6">
+        {/* ── Stats ── */}
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[
+            { label: "Total Images", value: stats.total, color: "text-text-primary" },
+            { label: "Score 75+", value: stats.high, color: "text-emerald-500" },
+            { label: "Approved", value: stats.approved, color: "text-blue-500" },
+            { label: "Pending", value: stats.pending, color: "text-amber-500" },
+          ].map((s) => (
+            <div key={s.label} className="bg-bg-secondary p-4 rounded-lg border border-border-primary">
+              <div className={`text-3xl font-medium ${s.color}`}>{s.value}</div>
+              <div className="text-sm text-text-tertiary mt-0.5">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Filters ── */}
+        <div className="flex gap-3 mb-6">
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as typeof filter)}
-            className="px-3 py-2 bg-bg-secondary border border-border-primary rounded text-text-primary"
+            className="px-3 py-2 bg-bg-secondary border border-border-primary rounded-lg text-sm text-text-primary"
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -159,7 +249,7 @@ export default function AdminInspirationPage() {
           <select
             value={minScore}
             onChange={(e) => setMinScore(Number(e.target.value))}
-            className="px-3 py-2 bg-bg-secondary border border-border-primary rounded text-text-primary"
+            className="px-3 py-2 bg-bg-secondary border border-border-primary rounded-lg text-sm text-text-primary"
           >
             <option value={0}>All Scores</option>
             <option value={75}>75+ only</option>
@@ -167,18 +257,20 @@ export default function AdminInspirationPage() {
           </select>
         </div>
 
-        {/* Image Grid */}
+        {/* ── Image Grid ── */}
         {loading ? (
-          <div className="text-center py-12 text-text-tertiary">Loading...</div>
+          <div className="text-center py-16 text-text-tertiary text-sm">Loading...</div>
         ) : images.length === 0 ? (
-          <div className="text-center py-12 text-text-tertiary">No images found</div>
+          <div className="text-center py-16 text-text-tertiary text-sm">
+            No images yet — try "Search & Score" above to pull from Pinterest
+          </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {images.map((image) => (
               <motion.div
                 key={image.id}
                 layout
-                className="group relative aspect-[3/4] bg-bg-tertiary rounded overflow-hidden"
+                className="group relative aspect-[3/4] bg-bg-tertiary rounded-lg overflow-hidden"
               >
                 <img
                   src={image.thumbnailUrl || image.imageUrl}
@@ -187,8 +279,9 @@ export default function AdminInspirationPage() {
                   loading="lazy"
                 />
 
-                {/* Score overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {/* Score */}
                   <div className="absolute top-2 right-2">
                     <span className={`text-lg font-bold ${scoreColor(image.scoreOverall)}`}>
                       {image.scoreOverall}
@@ -196,17 +289,19 @@ export default function AdminInspirationPage() {
                   </div>
 
                   <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-white mb-2">
+                    {/* Score breakdown */}
+                    <div className="grid grid-cols-2 gap-1 text-[10px] text-white/80 mb-2">
                       <div>Comp: {image.scoreComposition}</div>
                       <div>Color: {image.scoreColor}</div>
                       <div>Mood: {image.scoreMood}</div>
                       <div>Unique: {image.scoreUniqueness}</div>
                     </div>
 
+                    {/* Tags */}
                     {image.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
                         {image.tags.slice(0, 4).map((tag) => (
-                          <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-white/20 rounded">
+                          <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-white/20 rounded text-white">
                             {tag}
                           </span>
                         ))}
@@ -219,7 +314,7 @@ export default function AdminInspirationPage() {
                         <button
                           key={status}
                           onClick={() => updateStatus(image.id, status)}
-                          className={`text-[9px] px-2 py-1 rounded capitalize ${
+                          className={`text-[9px] px-2 py-1 rounded capitalize transition-colors ${
                             image.curationStatus === status
                               ? "bg-accent text-white"
                               : "bg-white/20 text-white hover:bg-white/30"
@@ -249,10 +344,21 @@ export default function AdminInspirationPage() {
                   </span>
                 </div>
 
+                {/* Source badge */}
+                <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span
+                    className={`text-[9px] px-2 py-1 rounded-full text-white ${
+                      SOURCE_COLORS[image.source] ?? "bg-neutral-500/80"
+                    }`}
+                  >
+                    {image.source}
+                  </span>
+                </div>
+
                 {/* Display count */}
                 <div className="absolute bottom-2 right-2">
                   <span className="text-[9px] px-2 py-1 bg-black/50 text-white rounded">
-                    {image.displayCount} views
+                    {image.displayCount}×
                   </span>
                 </div>
               </motion.div>

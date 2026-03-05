@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { PHASE_STYLES } from "../projects-data";
 import type { Project } from "../projects-data";
 import { ProjectRoomSections } from "../project-room";
-import { getStoredProjects } from "@/components/new-project-modal";
+import { getStoredProjects, getProjectCover, setProjectCover } from "@/components/new-project-modal";
 
 function getStoredReferenceCount(projectId: string): number {
   try {
@@ -33,7 +33,7 @@ function storedToProject(sp: {
     client: "—",
     phase: "Discovery",
     progress: 0,
-    leadImage: `https://picsum.photos/seed/${sp.id}/400/300`,
+    leadImage: getProjectCover(sp.id) ?? `https://picsum.photos/seed/${sp.id}/400/300`,
     palette: [sp.color, "#111111", "#222222", "#333333", "#999999"],
     lastActivity: "Just created",
     references: getStoredReferenceCount(sp.id),
@@ -50,12 +50,22 @@ export function ProjectRoomPageClient({
   staticProject: Project | null;
 }) {
   const router = useRouter();
-  const [project, setProject] = React.useState<Project | null>(staticProject);
+  const coverInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [project, setProject] = React.useState<Project | null>(() => {
+    if (!staticProject) return null;
+    const cover = typeof window !== "undefined" ? getProjectCover(id) : null;
+    return cover ? { ...staticProject, leadImage: cover } : staticProject;
+  });
   const [checked, setChecked] = React.useState(staticProject !== null);
 
   // For localStorage-created projects, look them up on mount
   React.useEffect(() => {
-    if (staticProject) return;
+    if (staticProject) {
+      const cover = getProjectCover(id);
+      if (cover) setProject((prev) => prev ? { ...prev, leadImage: cover } : prev);
+      return;
+    }
     const stored = getStoredProjects();
     const found = stored.find((p) => p.id === id);
     if (found) {
@@ -92,6 +102,19 @@ export function ProjectRoomPageClient({
     };
   }, [project?.id]);
 
+  function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !project) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setProjectCover(project.id, dataUrl);
+      setProject((prev) => prev ? { ...prev, leadImage: dataUrl } : prev);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
   if (!project) {
     return (
       <div className="flex h-48 items-center justify-center text-[11px] text-gray-500">
@@ -114,9 +137,22 @@ export function ProjectRoomPageClient({
         <span className="text-gray-400 transition-colors duration-300">{project.name}</span>
       </div>
 
+      {/* Hidden file input for cover photo */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleCoverChange}
+      />
+
       {/* Room header */}
       <div className="flex gap-4">
-        <div className="relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg transition-colors duration-300 rounded-xl">
+        <button
+          type="button"
+          onClick={() => coverInputRef.current?.click()}
+          className="group relative h-20 w-32 flex-none overflow-hidden border border-card-border bg-card-bg transition-colors duration-300 rounded-xl cursor-pointer"
+        >
           <Image
             src={project.leadImage}
             alt={project.name}
@@ -125,7 +161,14 @@ export function ProjectRoomPageClient({
             className="h-full w-full object-cover"
             unoptimized
           />
-        </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+            </svg>
+            <span className="text-[9px] font-medium text-white">Change cover</span>
+          </div>
+        </button>
 
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>

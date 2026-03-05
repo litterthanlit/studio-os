@@ -52,6 +52,16 @@ function saveProject(project: StoredProject): void {
   localStorage.setItem(LS_KEY, JSON.stringify([project, ...existing]));
 }
 
+export function getProjectCover(projectId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(`studio-os:cover:${projectId}`);
+}
+
+export function setProjectCover(projectId: string, imageUrl: string): void {
+  localStorage.setItem(`studio-os:cover:${projectId}`, imageUrl);
+  window.dispatchEvent(new Event("projects-updated"));
+}
+
 export function slugify(name: string): string {
   return name
     .toLowerCase()

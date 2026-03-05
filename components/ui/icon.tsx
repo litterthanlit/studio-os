@@ -11,6 +11,7 @@ export type IconName =
   | "type"
   | "projects"
   | "flow"
+  | "canvas"
   // ── Artboard Utility (8) ──
   | "search"
   | "flag"
@@ -129,6 +130,17 @@ function renderContent(name: IconName): React.ReactNode {
         <>
           <path d="M5 12c1.5-3 3-3 4.5 0s3 3 4.5 0 3-3 4.5 0" />
           <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" opacity="0.6" />
+        </>
+      );
+
+    case "canvas":
+      return (
+        <>
+          <rect x="4" y="4" width="16" height="16" rx="2" opacity="0.3" />
+          <path d="M8 12l2-4 2 4" />
+          <path d="M14 8v8" opacity="0.7" />
+          <circle cx="17" cy="8" r="1.5" fill="currentColor" stroke="none" opacity="0.5" />
+          <path d="M8 16h8" opacity="0.4" />
         </>
       );
 
@@ -370,6 +382,7 @@ export const VisionIcon   = makeIcon("vision");
 export const TypeIcon     = makeIcon("type");
 export const ProjectsIcon = makeIcon("projects");
 export const FlowIcon     = makeIcon("flow");
+export const CanvasIcon   = makeIcon("canvas");
 
 // Artboard utility
 export const SearchIcon   = makeIcon("search");

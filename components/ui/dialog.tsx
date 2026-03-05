@@ -46,6 +46,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
               exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
               className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              onClick={() => onOpenChange(false)}
             >
               {children}
             </motion.div>

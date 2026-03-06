@@ -25,16 +25,22 @@ type ComponentPreviewProps = {
 function tokensToCSS(tokens: DesignSystemTokens): string {
   const lines: string[] = [];
   for (const [k, v] of Object.entries(tokens.colors))
-    lines.push("--ds-color-" + k + ": " + v + ";");
+    lines.push("--color-" + k + ": " + v + ";");
+  lines.push("--font-heading: " + tokens.typography.fontFamily + ";");
+  lines.push("--font-body: " + tokens.typography.fontFamily + ";");
   for (const [k, v] of Object.entries(tokens.typography.scale))
-    lines.push("--ds-font-" + k + ": " + v + ";");
-  lines.push("--ds-font-family: " + tokens.typography.fontFamily + ";");
-  for (const [k, v] of Object.entries(tokens.spacing.scale))
-    lines.push("--ds-space-" + k + ": " + v + ";");
+    lines.push("--font-" + k + ": " + v + ";");
+  const spaceMap: Record<string, string> = {
+    "1": "xs", "2": "sm", "4": "md", "8": "lg", "12": "xl", "16": "2xl",
+  };
+  for (const [k, v] of Object.entries(tokens.spacing.scale)) {
+    const alias = spaceMap[k];
+    if (alias) lines.push("--space-" + alias + ": " + v + ";");
+  }
   for (const [k, v] of Object.entries(tokens.radii))
-    lines.push("--ds-radius-" + k + ": " + v + ";");
+    lines.push("--radius-" + k + ": " + v + ";");
   for (const [k, v] of Object.entries(tokens.shadows))
-    lines.push("--ds-shadow-" + k + ": " + v + ";");
+    lines.push("--shadow-" + k + ": " + v + ";");
   return lines.join("\n    ");
 }
 

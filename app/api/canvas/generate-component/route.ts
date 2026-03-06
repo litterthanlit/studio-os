@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import { COMPONENT_GENERATION_PROMPT } from "@/lib/canvas/generate-component";
+import { buildSitePrompt, type SectionId } from "@/lib/canvas/generate-site";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, tokens } = body as {
+    const { prompt, tokens, sectionId, existingSections } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
+      sectionId?: SectionId;
+      existingSections?: string;
     };
 
     if (!prompt || !tokens) {
@@ -28,16 +30,13 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
 
+    const systemPrompt = buildSitePrompt(tokens, prompt, sectionId, existingSections);
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: COMPONENT_GENERATION_PROMPT(tokens, prompt),
-        },
-      ],
-      max_tokens: 4000,
-      temperature: 0.5,
+      messages: [{ role: "user", content: systemPrompt }],
+      max_tokens: 8000,
+      temperature: 0.4,
     });
 
     let code = response.choices[0]?.message?.content ?? "";
@@ -47,18 +46,19 @@ export async function POST(req: NextRequest) {
       .replace(/\n?```\s*$/gm, "")
       .trim();
 
-    const nameMatch = code.match(
-      /(?:function|const)\s+(\w+)/
-    );
-    const name = nameMatch?.[1] || "GeneratedComponent";
+    const nameMatch = code.match(/export\s+default\s+function\s+(\w+)/);
+    const name = nameMatch?.[1] || "Page";
 
     return NextResponse.json({
       code,
       name,
-      description: `Generated from prompt: "${prompt}"`,
+      description: sectionId
+        ? `Regenerated section: ${sectionId}`
+        : `Generated site from: "${prompt}"`,
+      sectionId: sectionId || null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Component generation failed";
+    const message = err instanceof Error ? err.message : "Site generation failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

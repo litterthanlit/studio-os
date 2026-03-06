@@ -47,6 +47,10 @@ export function CanvasPage() {
 
   const [viewMode, setViewMode] = React.useState<"preview" | "code">("preview");
 
+  React.useEffect(() => {
+    if (tokens) setMarkdown(tokensToMarkdown(tokens));
+  }, [tokens]);
+
   function handleFilesAdded(files: File[]) {
     const newImages: ReferenceImage[] = files.map((file, i) => {
       const url = URL.createObjectURL(file);
@@ -602,14 +606,14 @@ export function CanvasPage() {
                 )}
 
                 {/* Preview / Code area */}
-                <div className="flex-1 overflow-auto p-4">
+                <div className="flex-1 flex flex-col min-h-0">
                   <AnimatePresence mode="wait">
                     {viewMode === "preview" ? (
-                      <motion.div key="preview" {...fadeIn} transition={springs.smooth} className="h-full">
-                        <ComponentPreview code={generatedCode} loading={generateLoading} />
+                      <motion.div key="preview" {...fadeIn} transition={springs.smooth} className="flex-1 flex flex-col min-h-0">
+                        <ComponentPreview code={generatedCode} tokens={tokens} loading={generateLoading} />
                       </motion.div>
                     ) : (
-                      <motion.div key="code" {...fadeIn} transition={springs.smooth} className="h-full">
+                      <motion.div key="code" {...fadeIn} transition={springs.smooth} className="flex-1 overflow-auto p-4">
                         <CodeViewer code={generatedCode} className="h-full border border-border-primary rounded-lg overflow-hidden" />
                       </motion.div>
                     )}

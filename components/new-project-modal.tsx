@@ -52,6 +52,16 @@ function saveProject(project: StoredProject): void {
   localStorage.setItem(LS_KEY, JSON.stringify([project, ...existing]));
 }
 
+export function getProjectCover(projectId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(`studio-os:cover:${projectId}`);
+}
+
+export function setProjectCover(projectId: string, imageUrl: string): void {
+  localStorage.setItem(`studio-os:cover:${projectId}`, imageUrl);
+  window.dispatchEvent(new Event("projects-updated"));
+}
+
 export function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -276,7 +286,7 @@ function NewProjectModalInner({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
         className="fixed inset-0 z-50 flex items-center justify-center px-4"
-        onClick={(e) => e.stopPropagation()}
+        onClick={onClose}
       >
         {/* Modal panel */}
         <motion.div
@@ -289,6 +299,7 @@ function NewProjectModalInner({
           role="dialog"
           aria-modal="true"
           aria-label="New Project"
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-card-border px-5 py-4">

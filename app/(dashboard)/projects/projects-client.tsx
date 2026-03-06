@@ -17,6 +17,7 @@ import type { Project } from "./projects-data";
 import {
   useNewProjectModal,
   getStoredProjects,
+  getProjectCover,
 } from "@/components/new-project-modal";
 import {
   DEMO_PROJECT,
@@ -39,7 +40,7 @@ function storedToProject(sp: {
     client: "—",
     phase: "Discovery",
     progress: 0,
-    leadImage: `https://picsum.photos/seed/${sp.id}/400/300`,
+    leadImage: getProjectCover(sp.id) ?? `https://picsum.photos/seed/${sp.id}/400/300`,
     palette: [sp.color, "#111111", "#222222", "#333333", "#999999"],
     lastActivity: "Just created",
     references: 0,
@@ -151,7 +152,13 @@ export function ProjectsPage() {
     setShowDemo(false);
   }
 
-  const allProjects = [...localProjects, ...PROJECTS];
+  const allProjects = [
+    ...localProjects,
+    ...PROJECTS.map((p) => {
+      const cover = getProjectCover(p.id);
+      return cover ? { ...p, leadImage: cover } : p;
+    }),
+  ];
 
   return (
     <section className="space-y-6">

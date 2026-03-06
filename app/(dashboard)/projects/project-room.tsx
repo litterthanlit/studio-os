@@ -189,6 +189,44 @@ function BoardTab({ project }: { project: Project }) {
     writeProjectReferences(project.id, references);
   }, [loadedProjectId, project.id, references]);
 
+  React.useEffect(() => {
+    function onDocumentPaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (!e.clipboardData) return;
+
+      const items = Array.from(e.clipboardData.items);
+      const imageFiles = items
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null);
+
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        void importFiles(imageFiles);
+        return;
+      }
+
+      const text = e.clipboardData.getData("text");
+      if (text && isImageUrl(text)) {
+        e.preventDefault();
+        openImport("url", text);
+      }
+    }
+
+    document.addEventListener("paste", onDocumentPaste);
+    return () => document.removeEventListener("paste", onDocumentPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
+
   function openImport(mode: "upload" | "arena" | "pinterest" | "url", initialUrl = "") {
     setInitialImportMode(mode);
     setInitialImportUrl(initialUrl);
@@ -238,6 +276,18 @@ function BoardTab({ project }: { project: Project }) {
   }
 
   function handlePaste(event: React.ClipboardEvent<HTMLDivElement>) {
+    const items = Array.from(event.clipboardData.items);
+    const imageFiles = items
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f !== null);
+
+    if (imageFiles.length > 0) {
+      event.preventDefault();
+      void importFiles(imageFiles);
+      return;
+    }
+
     const text = event.clipboardData.getData("text");
     if (!text || !isImageUrl(text)) return;
     event.preventDefault();

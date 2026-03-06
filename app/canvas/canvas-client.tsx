@@ -25,11 +25,115 @@ const STAGE_META: Record<Stage, { label: string; number: string; description: st
   generate: { label: "Generate", number: "03", description: "Create Framer-ready components" },
 };
 
-export function CanvasPage() {
+// ─── Project data helpers ────────────────────────────────────────────────────
+
+type StoredRef = {
+  id: string;
+  imageUrl: string;
+  source?: string;
+  title?: string;
+};
+
+function loadProjectRefs(projectId: string): ReferenceImage[] {
+  try {
+    const raw = localStorage.getItem(`studio-os:references:${projectId}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as StoredRef[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((r) => r && r.imageUrl)
+      .map((r) => ({
+        id: r.id || `ref-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        url: r.imageUrl,
+        thumbnail: r.imageUrl,
+        name: r.title || "Reference",
+      }));
+  } catch {
+    return [];
+  }
+}
+
+type StoredProject = { id: string; name: string; color: string };
+
+const STATIC_PALETTES: Record<string, { name: string; palette: string[] }> = {
+  "acme-rebrand": { name: "Acme Rebrand", palette: ["#1b1b1f", "#f97316", "#fed7aa", "#0f172a", "#e4e4e7"] },
+  "fintech-dashboard": { name: "FinTech Dashboard", palette: ["#020617", "#0f172a", "#1d4ed8", "#38bdf8", "#e5e7eb"] },
+  "editorial-magazine": { name: "Editorial Magazine", palette: ["#f9fafb", "#1f2937", "#111827", "#e5e7eb", "#f97316"] },
+  "personal-portfolio": { name: "Personal Portfolio", palette: ["#020617", "#f9fafb", "#64748b", "#e5e7eb", "#0f172a"] },
+};
+
+function loadProjectMeta(projectId: string): { name: string; palette: string[] } | null {
+  try {
+    const staticMatch = STATIC_PALETTES[projectId];
+    if (staticMatch) return staticMatch;
+
+    const raw = localStorage.getItem("studio-os:projects");
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as StoredProject[];
+    const match = stored.find((p) => p.id === projectId);
+    if (!match) return null;
+    return {
+      name: match.name,
+      palette: [match.color, "#111111", "#222222", "#333333", "#999999"],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function paletteToTokens(palette: string[]): DesignSystemTokens {
+  const p = palette.length >= 5 ? palette : [...palette, "#111111", "#222222", "#333333", "#999999", "#eeeeee"].slice(0, 5);
+  const bg = p[0];
+  const isLight = (() => {
+    const c = bg.replace("#", "");
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+  })();
+
+  return {
+    colors: {
+      primary: p[0],
+      secondary: p[1],
+      accent: p[2] || "#6366F1",
+      background: isLight ? p[0] : p[3] || "#0a0a0a",
+      surface: isLight ? p[4] || "#f5f5f5" : p[1],
+      text: isLight ? "#111111" : "#ffffff",
+      textMuted: isLight ? "#666666" : "#94a3b8",
+      border: isLight ? "#e0e0e0" : "#262626",
+    },
+    typography: {
+      fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
+      scale: { xs: "0.75rem", sm: "0.875rem", base: "1rem", lg: "1.125rem", xl: "1.25rem", "2xl": "1.5rem", "3xl": "1.875rem", "4xl": "2.25rem" },
+      weights: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+      lineHeight: { tight: "1.25", normal: "1.5", relaxed: "1.75" },
+    },
+    spacing: {
+      unit: 6,
+      scale: { "0": "0", "1": "6px", "2": "12px", "3": "18px", "4": "24px", "6": "36px", "8": "48px", "12": "72px", "16": "96px" },
+    },
+    radii: { sm: "4px", md: "8px", lg: "12px", xl: "16px", full: "9999px" },
+    shadows: { sm: "0 1px 2px rgba(0,0,0,0.06)", md: "0 4px 6px -1px rgba(0,0,0,0.1)", lg: "0 10px 15px -3px rgba(0,0,0,0.1)" },
+    animation: {
+      spring: {
+        smooth: { stiffness: 300, damping: 30 },
+        snappy: { stiffness: 400, damping: 25 },
+        gentle: { stiffness: 200, damping: 20 },
+        bouncy: { stiffness: 500, damping: 15 },
+      },
+    },
+  };
+}
+
+// ─── Canvas Page ─────────────────────────────────────────────────────────────
+
+export function CanvasPage({ projectId }: { projectId?: string }) {
   const [stage, setStage] = React.useState<Stage>("moodboard");
   const [images, setImages] = React.useState<ReferenceImage[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [setName, setSetName] = React.useState("");
+  const [linkedProjectId] = React.useState(projectId || null);
 
   const [analysis, setAnalysis] = React.useState<ImageAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = React.useState(false);
@@ -50,6 +154,29 @@ export function CanvasPage() {
   React.useEffect(() => {
     if (tokens) setMarkdown(tokensToMarkdown(tokens));
   }, [tokens]);
+
+  // Load project data on mount when a projectId is present
+  React.useEffect(() => {
+    if (!linkedProjectId) return;
+
+    const refs = loadProjectRefs(linkedProjectId);
+    if (refs.length > 0) {
+      setImages(refs);
+      setSelectedIds(new Set(refs.map((r) => r.id)));
+    }
+
+    const meta = loadProjectMeta(linkedProjectId);
+    if (meta) {
+      setSetName(meta.name);
+      if (meta.palette.length > 0) {
+        const projectTokens = paletteToTokens(meta.palette);
+        setTokens(projectTokens);
+        if (refs.length > 0) {
+          setStage("system");
+        }
+      }
+    }
+  }, [linkedProjectId]);
 
   function handleFilesAdded(files: File[]) {
     const newImages: ReferenceImage[] = files.map((file, i) => {
@@ -243,10 +370,23 @@ export function CanvasPage() {
             })}
           </div>
 
-          {setName && (
-            <span className="ml-auto text-[11px] text-text-muted font-mono truncate">
-              {setName}
-            </span>
+          {(setName || linkedProjectId) && (
+            <div className="ml-auto flex items-center gap-2 truncate">
+              {linkedProjectId && (
+                <a
+                  href={`/projects/${linkedProjectId}`}
+                  className="flex items-center gap-1 text-[10px] text-accent hover:underline font-mono"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                  Project
+                </a>
+              )}
+              {setName && (
+                <span className="text-[11px] text-text-muted font-mono truncate">
+                  {setName}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -648,9 +788,55 @@ export function CanvasPage() {
               onTokensChange={setTokens}
               loading={systemLoading}
             />
+
+            {linkedProjectId && tokens && (
+              <SyncToProjectButton projectId={linkedProjectId} tokens={tokens} />
+            )}
           </div>
         </motion.aside>
       </div>
+    </div>
+  );
+}
+
+// ─── Sync to Project ─────────────────────────────────────────────────────────
+
+function SyncToProjectButton({
+  projectId,
+  tokens,
+}: {
+  projectId: string;
+  tokens: DesignSystemTokens;
+}) {
+  const [synced, setSynced] = React.useState(false);
+
+  function handleSync() {
+    try {
+      const key = `studio-os:canvas-system:${projectId}`;
+      localStorage.setItem(key, JSON.stringify(tokens));
+      window.dispatchEvent(new Event("canvas-system-synced"));
+      setSynced(true);
+      setTimeout(() => setSynced(false), 2500);
+    } catch {
+      // storage full or unavailable
+    }
+  }
+
+  return (
+    <div className="border-t border-border-subtle pt-3">
+      <Button
+        onClick={handleSync}
+        variant="secondary"
+        className={cn(
+          "w-full h-8 text-[10px] uppercase tracking-[0.12em] transition-colors",
+          synced && "border-green-500/40 text-green-400"
+        )}
+      >
+        {synced ? "✓ Synced to Project" : "Sync System → Project"}
+      </Button>
+      <p className="text-[9px] text-text-muted mt-1.5 text-center">
+        Save design tokens back to the project room
+      </p>
     </div>
   );
 }

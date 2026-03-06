@@ -34,6 +34,11 @@ export function ProjectRoomSections({ project }: { project: Project }) {
         <PaletteTab project={project} />
       </section>
 
+      {/* Canvas — generate a site from this project's references + palette */}
+      <section id="canvas" className="py-8 border-b border-card-border">
+        <CanvasLauncher project={project} />
+      </section>
+
       <section id="tasks" className="py-8 border-b border-card-border">
         <TasksTab projectId={project.id} />
       </section>
@@ -41,6 +46,47 @@ export function ProjectRoomSections({ project }: { project: Project }) {
       <section id="overview" className="py-8">
         <OverviewTab project={project} />
       </section>
+    </div>
+  );
+}
+
+function CanvasLauncher({ project }: { project: Project }) {
+  const refCount = readProjectReferences(project.id).length;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[8px] leading-none text-text-tertiary transition-colors duration-300">■</span>
+            <span className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary transition-colors duration-300">
+              Canvas
+            </span>
+          </div>
+          <p className="text-xs text-text-muted transition-colors duration-300">
+            Generate a full site from your references, palette, and typography
+          </p>
+        </div>
+        <a
+          href={`/canvas?project=${encodeURIComponent(project.id)}`}
+          className="inline-flex items-center gap-2 border border-accent bg-accent/10 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.12em] text-accent transition-colors duration-200 hover:bg-accent/20"
+        >
+          Open Canvas
+          <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3">
+            <path d="M2 10L10 2M10 2H4M10 2v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
+      </div>
+      <div className="flex items-center gap-4 text-[10px] text-text-muted font-mono transition-colors duration-300">
+        <span>{refCount} reference{refCount !== 1 ? "s" : ""} ready</span>
+        <span className="text-text-muted/30">·</span>
+        <span>{project.palette.length} palette colors</span>
+        {project.headingFont && (
+          <>
+            <span className="text-text-muted/30">·</span>
+            <span>{project.headingFont.family}</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }

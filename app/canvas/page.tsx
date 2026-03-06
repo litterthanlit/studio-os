@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   description: "AI-powered design generator — moodboard to Framer-ready components",
 };
 
-export default function Page() {
-  return <CanvasPage />;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ project?: string }>;
+}) {
+  const params = await searchParams;
+  return <CanvasPage projectId={params.project} />;
 }

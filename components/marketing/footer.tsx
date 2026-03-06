@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { Twitter, Github } from "lucide-react";
 
 export function MarketingFooter() {
   const currentYear = new Date().getFullYear();
@@ -67,7 +65,7 @@ export function MarketingFooter() {
             {[
               { label: "Terms", href: "#" },
               { label: "Privacy", href: "/privacy" },
-              { label: "hello@studio-os.app", href: "mailto:hello@studio-os.app" },
+              { label: "hello@studio-os.io", href: "mailto:hello@studio-os.io" },
             ].map((link) => (
               <a
                 key={link.label}
@@ -79,27 +77,7 @@ export function MarketingFooter() {
             ))}
           </div>
 
-          {/* Social icons */}
-          <div className="flex items-center gap-3">
-            <a
-              href="https://twitter.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-neutral-400 transition-colors hover:text-neutral-700"
-              aria-label="Twitter"
-            >
-              <Twitter className="h-3.5 w-3.5" />
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-neutral-400 transition-colors hover:text-neutral-700"
-              aria-label="GitHub"
-            >
-              <Github className="h-3.5 w-3.5" />
-            </a>
-          </div>
+          {/* Social icons — re-enable when accounts are live */}
         </div>
       </div>
     </footer>

@@ -1,18 +1,19 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
 const showcaseImages = [
-  { id: 1, aspect: "aspect-[4/5]",  color: "bg-amber-100/20",   score: 97 },
-  { id: 2, aspect: "aspect-square", color: "bg-blue-100/20",    score: 92 },
-  { id: 3, aspect: "aspect-[3/4]",  color: "bg-emerald-100/20", score: 95 },
-  { id: 4, aspect: "aspect-[4/3]",  color: "bg-rose-100/20",    score: 88 },
-  { id: 5, aspect: "aspect-[3/5]",  color: "bg-violet-100/20",  score: 94 },
-  { id: 6, aspect: "aspect-square", color: "bg-orange-100/20",  score: 91 },
-  { id: 7, aspect: "aspect-[4/5]",  color: "bg-cyan-100/20",    score: 96 },
-  { id: 8, aspect: "aspect-[3/4]",  color: "bg-pink-100/20",    score: 89 },
+  { id: 1, aspect: "aspect-[4/5]",  src: "/showcase/canvas-moodboard.webp", alt: "Canvas — Moodboard upload",     score: 97 },
+  { id: 2, aspect: "aspect-square", src: "/showcase/vision.webp",           alt: "Vision — Reference board",       score: 92 },
+  { id: 3, aspect: "aspect-[3/4]",  src: "/showcase/canvas-system.webp",    alt: "Canvas — Design system tokens",  score: 95 },
+  { id: 4, aspect: "aspect-[4/3]",  src: "/showcase/projects.webp",         alt: "Project Rooms",                  score: 88 },
+  { id: 5, aspect: "aspect-[3/5]",  src: "/showcase/canvas-dark.webp",      alt: "Canvas — Dark mode",             score: 94 },
+  { id: 6, aspect: "aspect-square", src: "/showcase/type-library.webp",     alt: "Type Library — Font browser",    score: 91 },
+  { id: 7, aspect: "aspect-[4/5]",  src: "/showcase/canvas-generate.webp",  alt: "Canvas — Component generator",   score: 96 },
+  { id: 8, aspect: "aspect-[3/4]",  src: "/showcase/home.webp",             alt: "Home — Command bar",             score: 89 },
 ];
 
 const scoreRows = [
@@ -28,22 +29,26 @@ function ImageCard({ image }: { image: (typeof showcaseImages)[0] }) {
       whileHover={{ y: -4, transition: springs.smooth }}
       className={`group relative ${image.aspect} overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100`}
     >
-      <div className={`absolute inset-0 ${image.color} transition-transform duration-500 group-hover:scale-105`} />
+      <Image
+        src={image.src}
+        alt={image.alt}
+        fill
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
+        sizes="(max-width: 768px) 50vw, 25vw"
+      />
 
       {/* Score badge */}
-      <div className="absolute right-2 top-2 flex items-center gap-1 rounded border border-neutral-200 bg-white/90 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded border border-neutral-200 bg-white/90 px-1.5 py-0.5 backdrop-blur-sm">
         <div className="h-1 w-1 rounded-full bg-[#2430AD]" />
         <span className="font-mono text-[9px] text-neutral-500">{image.score}</span>
       </div>
 
       {/* Hover overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      <div className="absolute bottom-0 left-0 right-0 flex flex-wrap gap-1 p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        {["Comp", "Color", "Mood"].map((tag) => (
-          <span key={tag} className="rounded border border-neutral-200 bg-white/90 px-1 py-0.5 font-mono text-[8px] text-neutral-900/50 backdrop-blur-sm">
-            {tag}
-          </span>
-        ))}
+      <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-wrap gap-1 p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <span className="rounded border border-white/20 bg-black/60 px-1.5 py-0.5 font-mono text-[8px] text-white/80 backdrop-blur-sm">
+          {image.alt}
+        </span>
       </div>
     </motion.div>
   );

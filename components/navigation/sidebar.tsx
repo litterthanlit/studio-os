@@ -92,7 +92,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             id: p.id,
             name: p.name,
             brief: p.client,
-            color: p.palette[1] ?? "#2430AD",
+            color: p.palette[2] || p.palette[1] || "#2430AD",
             createdAt: new Date(
               Date.now() - p.daysActive * 24 * 60 * 60 * 1000
             ).toISOString(),

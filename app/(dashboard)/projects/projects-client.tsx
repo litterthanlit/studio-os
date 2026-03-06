@@ -17,7 +17,6 @@ import type { Project } from "./projects-data";
 import {
   useNewProjectModal,
   getStoredProjects,
-  getProjectCover,
 } from "@/components/new-project-modal";
 import {
   DEMO_PROJECT,
@@ -40,8 +39,8 @@ function storedToProject(sp: {
     client: "—",
     phase: "Discovery",
     progress: 0,
-    leadImage: getProjectCover(sp.id) ?? `https://picsum.photos/seed/${sp.id}/400/300`,
-    palette: [sp.color, "#111111", "#222222", "#333333", "#999999"],
+    leadImage: `https://picsum.photos/seed/${sp.id}/400/300`,
+    palette: ["#111111", sp.color, "#222222", "#333333", "#999999"],
     lastActivity: "Just created",
     references: 0,
     fontsSelected: 0,
@@ -152,13 +151,7 @@ export function ProjectsPage() {
     setShowDemo(false);
   }
 
-  const allProjects = [
-    ...localProjects,
-    ...PROJECTS.map((p) => {
-      const cover = getProjectCover(p.id);
-      return cover ? { ...p, leadImage: cover } : p;
-    }),
-  ];
+  const allProjects = [...localProjects, ...PROJECTS];
 
   return (
     <section className="space-y-6">
@@ -232,29 +225,23 @@ export function ProjectsPage() {
                   key={project.id}
                   href={`/projects/${project.id}`}
                   className={cn(
-                    "flex w-full flex-col overflow-hidden border border-[#1a1a1a] bg-card-bg text-left rounded-xl",
-                    "transition-[border-color] duration-200 ease-out hover:border-[#252525]"
+                    "flex w-full flex-col overflow-hidden border border-card-border bg-card-bg text-left rounded-xl",
+                    "transition-[border-color] duration-200 ease-out hover:border-border-hover"
                   )}
                 >
-                  {/* Full-width thumbnail */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-card-bg">
-                    <Image
-                      src={project.leadImage}
-                      alt={project.name}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  </div>
-
-                  {/* Card content */}
-                  <div className="flex flex-col gap-2 p-4">
-                    {/* Name */}
-                    <div className="text-sm font-semibold text-text-primary">
-                      {project.name}
+                  <div className="flex flex-col gap-2.5 p-4">
+                    {/* Color dot + Name row */}
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="w-3 h-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: project.palette[1] || project.palette[0] }}
+                      />
+                      <span className="text-sm font-semibold text-text-primary truncate">
+                        {project.name}
+                      </span>
                     </div>
 
-                    {/* Client + Phase on same line */}
+                    {/* Client + Phase */}
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] text-text-tertiary">
                         {project.client}
@@ -269,9 +256,9 @@ export function ProjectsPage() {
                       </span>
                     </div>
 
-                    {/* Progress bar + % */}
+                    {/* Progress */}
                     <div className="space-y-1">
-                      <div className="h-0.5 w-full bg-bg-input">
+                      <div className="h-0.5 w-full bg-bg-input overflow-hidden">
                         <div
                           className="h-full bg-accent"
                           style={{ width: `${project.progress}%` }}
@@ -282,12 +269,12 @@ export function ProjectsPage() {
                       </div>
                     </div>
 
-                    {/* Palette + ref count + time */}
-                    <div className="flex items-center justify-between pt-0.5">
+                    {/* Palette + meta */}
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
-                        {project.palette.slice(0, 5).map((color) => (
+                        {project.palette.slice(0, 5).map((color, i) => (
                           <span
-                            key={`${project.id}-${color}`}
+                            key={`${project.id}-${color}-${i}`}
                             className="h-3 w-3 rounded-full border border-white/10"
                             style={{ backgroundColor: color }}
                           />

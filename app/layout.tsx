@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import { Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Preloader } from "@/components/preloader";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const instrumentSans = Instrument_Sans({
@@ -77,7 +78,9 @@ export default function RootLayout({
       </head>
       <body className={GeistSans.className}>
         <ThemeProvider>
-          <div className="min-h-screen">{children}</div>
+          <Preloader>
+            <div className="min-h-screen">{children}</div>
+          </Preloader>
           <SpeedInsights />
         </ThemeProvider>
       </body>

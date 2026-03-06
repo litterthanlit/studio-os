@@ -47,6 +47,10 @@ export function CanvasPage() {
 
   const [viewMode, setViewMode] = React.useState<"preview" | "code">("preview");
 
+  React.useEffect(() => {
+    if (tokens) setMarkdown(tokensToMarkdown(tokens));
+  }, [tokens]);
+
   function handleFilesAdded(files: File[]) {
     const newImages: ReferenceImage[] = files.map((file, i) => {
       const url = URL.createObjectURL(file);

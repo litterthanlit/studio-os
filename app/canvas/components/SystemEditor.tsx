@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { springs, slideUp, staggerContainer, staggerItem } from "@/lib/animations";
+import { ColorPickerPanel } from "@/components/color-picker";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
 type SystemEditorProps = {
@@ -14,28 +16,42 @@ type SystemEditorProps = {
   loading: boolean;
 };
 
+type PickerState = {
+  key: keyof DesignSystemTokens["colors"];
+  position: { top: number; left: number };
+} | null;
+
+const PANEL_H = 360;
+const PANEL_W = 248;
+
+function computePickerPos(triggerEl: HTMLElement): { top: number; left: number } {
+  const rect = triggerEl.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const top = spaceBelow >= PANEL_H ? rect.bottom + 8 : rect.top - PANEL_H - 8;
+  const left = Math.min(rect.left, window.innerWidth - PANEL_W - 8);
+  return { top, left };
+}
+
 function TokenColorRow({
   label,
   value,
+  onOpenPicker,
   onChange,
 }: {
   label: string;
   value: string;
+  onOpenPicker: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onChange: (v: string) => void;
 }) {
   return (
     <div className="flex items-center gap-2 group">
-      <div
-        className="w-5 h-5 shrink-0 border border-border-primary cursor-pointer relative overflow-hidden"
+      <button
+        type="button"
+        onClick={onOpenPicker}
+        className="w-5 h-5 shrink-0 border border-border-primary cursor-pointer rounded-sm transition-[box-shadow] duration-150 hover:ring-2 hover:ring-white/20 hover:ring-offset-1 hover:ring-offset-bg-primary"
         style={{ backgroundColor: value }}
-      >
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        />
-      </div>
+        aria-label={`Pick color for ${label}`}
+      />
       <span className="text-[10px] text-text-muted flex-1 truncate">{label}</span>
       <input
         type="text"
@@ -55,6 +71,10 @@ export function SystemEditor({
   loading,
 }: SystemEditorProps) {
   const [mode, setMode] = React.useState<"visual" | "markdown">("visual");
+  const [picker, setPicker] = React.useState<PickerState>(null);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => { setMounted(true); }, []);
 
   if (loading) {
     return (
@@ -74,7 +94,7 @@ export function SystemEditor({
   if (!tokens) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
-        <span className="font-mono text-lg text-text-muted">{ }</span>
+        <span className="font-mono text-lg text-text-muted">{"{ }"}</span>
         <p className="text-[11px] text-text-tertiary">
           Analyze references first to generate a design system
         </p>
@@ -88,6 +108,14 @@ export function SystemEditor({
       ...tokens,
       colors: { ...tokens.colors, [key]: value },
     });
+  }
+
+  function handleOpenPicker(
+    key: keyof DesignSystemTokens["colors"],
+    e: React.MouseEvent<HTMLButtonElement>
+  ) {
+    const pos = computePickerPos(e.currentTarget);
+    setPicker({ key, position: pos });
   }
 
   return (
@@ -129,6 +157,7 @@ export function SystemEditor({
                   key={key}
                   label={key}
                   value={tokens.colors[key]}
+                  onOpenPicker={(e) => handleOpenPicker(key, e)}
                   onChange={(v) => updateColor(key, v)}
                 />
               ))}
@@ -147,16 +176,11 @@ export function SystemEditor({
               {Object.entries(tokens.typography.scale)
                 .reverse()
                 .map(([name, size]) => (
-                  <div
-                    key={name}
-                    className="flex items-baseline gap-2"
-                  >
+                  <div key={name} className="flex items-baseline gap-2">
                     <span className="text-[9px] font-mono text-text-muted w-6 shrink-0 text-right">
                       {name}
                     </span>
-                    <span
-                      style={{ fontSize: size, lineHeight: 1.3, color: tokens.colors.text }}
-                    >
+                    <span style={{ fontSize: size, lineHeight: 1.3, color: tokens.colors.text }}>
                       Aa
                     </span>
                   </div>
@@ -167,7 +191,7 @@ export function SystemEditor({
           {/* Spacing */}
           <motion.div variants={staggerItem} className="space-y-2">
             <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-              Spacing · {tokens.spacing.unit}px base
+              Spacing &middot; {tokens.spacing.unit}px base
             </h4>
             <div className="flex items-end gap-0.5">
               {Object.entries(tokens.spacing.scale)
@@ -175,10 +199,7 @@ export function SystemEditor({
                 .map(([name, value]) => {
                   const px = parseInt(value);
                   return (
-                    <div
-                      key={name}
-                      className="flex flex-col items-center gap-0.5"
-                    >
+                    <div key={name} className="flex flex-col items-center gap-0.5">
                       <div
                         className="bg-accent/30 border border-accent/50"
                         style={{ width: 12, height: Math.min(px, 60) }}
@@ -199,7 +220,6 @@ export function SystemEditor({
               className="border border-border-primary p-4 space-y-3"
               style={{ backgroundColor: tokens.colors.background }}
             >
-              {/* Button */}
               <button
                 type="button"
                 style={{
@@ -215,8 +235,6 @@ export function SystemEditor({
               >
                 Primary Button
               </button>
-
-              {/* Card */}
               <div
                 style={{
                   backgroundColor: tokens.colors.surface,
@@ -226,18 +244,10 @@ export function SystemEditor({
                   boxShadow: tokens.shadows.sm,
                 }}
               >
-                <p
-                  style={{
-                    color: tokens.colors.text,
-                    fontSize: tokens.typography.scale.sm,
-                    margin: 0,
-                  }}
-                >
+                <p style={{ color: tokens.colors.text, fontSize: tokens.typography.scale.sm, margin: 0 }}>
                   Card component preview
                 </p>
               </div>
-
-              {/* Input */}
               <input
                 type="text"
                 placeholder="Input component"
@@ -269,6 +279,19 @@ export function SystemEditor({
           />
         </div>
       )}
+
+      {/* Color picker panel — portalled to body */}
+      {mounted && picker && typeof document !== "undefined" &&
+        createPortal(
+          <ColorPickerPanel
+            value={tokens.colors[picker.key]}
+            position={picker.position}
+            onChange={(c) => updateColor(picker.key, c)}
+            onClose={() => setPicker(null)}
+          />,
+          document.body
+        )
+      }
     </motion.div>
   );
 }

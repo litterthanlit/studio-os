@@ -524,22 +524,58 @@ function CanvasToolbar({
   );
 }
 
+// ─── Site type options ────────────────────────────────────────────────────────
+
+type SiteType =
+  | "auto"
+  | "saas-landing"
+  | "portfolio"
+  | "agency"
+  | "ecommerce"
+  | "docs-site"
+  | "blog";
+
+const SITE_TYPE_OPTIONS: { value: SiteType; label: string; desc: string; icon: string }[] = [
+  { value: "auto",         label: "Auto",          desc: "AI chooses based on prompt",        icon: "✦" },
+  { value: "saas-landing", label: "SaaS Landing",  desc: "Dark Linear-style product page",    icon: "◈" },
+  { value: "portfolio",    label: "Portfolio",     desc: "Minimal warm editorial personal",   icon: "◉" },
+  { value: "agency",       label: "Agency",        desc: "Bold high-contrast creative site",  icon: "⬡" },
+  { value: "ecommerce",    label: "E-commerce",    desc: "Clean premium product store",       icon: "⊕" },
+  { value: "docs-site",    label: "Documentation", desc: "Developer-focused Vercel docs",     icon: "⊞" },
+  { value: "blog",         label: "Blog",          desc: "Editorial serif publication",       icon: "◧" },
+];
+
+const STYLE_PRESETS: { label: string; tokens: string }[] = [
+  { label: "Minimal",      tokens: "clean, lots of whitespace, subtle borders, muted palette" },
+  { label: "Editorial",    tokens: "serif display, asymmetric, large imagery, magazine-style" },
+  { label: "Bold",         tokens: "oversized type, high contrast, electric accent, full-bleed" },
+  { label: "Glassmorphic", tokens: "frosted glass, gradient blurs, translucent layers, neon accent" },
+];
+
 // ─── Generate panel (sidebar overlay) ────────────────────────────────────────
 
 function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [prompt, setPrompt] = React.useState("");
+  const [siteType, setSiteType] = React.useState<SiteType>("auto");
+  const [stylePreset, setStylePreset] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState(false);
+  const [generated, setGenerated] = React.useState(false);
 
   async function handleGenerate() {
     if (!prompt.trim() || generating) return;
     setGenerating(true);
+    setGenerated(false);
     // Placeholder — hook into AI generation pipeline later
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 2200));
     setGenerating(false);
+    setGenerated(true);
   }
 
+  const selectedSiteType = SITE_TYPE_OPTIONS.find((o) => o.value === siteType);
+
   return (
-    <div className="absolute top-0 right-0 bottom-0 w-[320px] bg-[var(--bg-secondary)]/95 backdrop-blur-md border-l border-[var(--border-primary)] flex flex-col shadow-2xl z-20">
+    <div className="absolute top-0 right-0 bottom-0 w-[340px] bg-[var(--bg-secondary)]/95 backdrop-blur-md border-l border-[var(--border-primary)] flex flex-col shadow-2xl z-20">
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
         <div>
           <h2 className="text-[14px] font-semibold text-[var(--text-primary)]">Generate</h2>
@@ -556,8 +592,84 @@ function GeneratePanel({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        {/* Prompt */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {/* ── Site type ── */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+            Site type
+          </label>
+          {/* Selected preview */}
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-left transition-colors duration-150 hover:border-[var(--border-hover)] group"
+            onClick={() => {/* toggle open */}}
+          >
+            <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--accent)]/12 text-[var(--accent)] text-[14px] shrink-0">
+              {selectedSiteType?.icon}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-[var(--text-primary)] leading-none mb-0.5">
+                {selectedSiteType?.label}
+              </p>
+              <p className="text-[11px] text-[var(--text-muted)] truncate leading-none">
+                {selectedSiteType?.desc}
+              </p>
+            </div>
+            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" fill="currentColor">
+              <path d="M4.427 9.573a.75.75 0 001.06 0L8 7.06l2.513 2.513a.75.75 0 101.06-1.06l-3.043-3.044a.75.75 0 00-1.06 0L4.427 8.513a.75.75 0 000 1.06z" />
+            </svg>
+          </button>
+
+          {/* Site type grid */}
+          <div className="grid grid-cols-1 gap-1 pt-1">
+            {SITE_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSiteType(opt.value)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-left transition-all duration-100 w-full",
+                  siteType === opt.value
+                    ? "bg-[var(--accent)]/10 border border-[var(--accent)]/30"
+                    : "border border-transparent hover:bg-[var(--sidebar-hover)]"
+                )}
+              >
+                <span
+                  className={cn(
+                    "w-6 h-6 flex items-center justify-center rounded text-[12px] shrink-0",
+                    siteType === opt.value
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--text-muted)]"
+                  )}
+                >
+                  {opt.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <span
+                    className={cn(
+                      "text-[12px] font-medium leading-none block mb-0.5",
+                      siteType === opt.value ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
+                    )}
+                  >
+                    {opt.label}
+                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)] truncate block leading-none">
+                    {opt.desc}
+                  </span>
+                </div>
+                {siteType === opt.value && (
+                  <svg viewBox="0 0 16 16" className="w-3 h-3 text-[var(--accent)] shrink-0" fill="currentColor">
+                    <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-px bg-[var(--border-subtle)]" />
+
+        {/* ── Prompt ── */}
         <div className="space-y-2">
           <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
             Describe your design
@@ -565,32 +677,85 @@ function GeneratePanel({ onClose }: { onClose: () => void }) {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="A minimal SaaS dashboard for a finance app. Clean, dark mode, blue accent..."
-            rows={5}
+            placeholder={
+              siteType === "saas-landing"
+                ? "A project management SaaS. Dark mode, purple accent, for engineering teams..."
+                : siteType === "portfolio"
+                ? "Product designer with 5 years experience. Minimal, warm, serif type..."
+                : siteType === "ecommerce"
+                ? "Premium organic skincare brand. Clean, cream + forest green palette..."
+                : siteType === "docs-site"
+                ? "Developer platform API docs. Vercel-style, code-heavy, dark code blocks..."
+                : siteType === "blog"
+                ? "Tech + design publication. Editorial serif, cream tones, readers-first..."
+                : "Describe your site — brand, audience, aesthetic, key sections..."
+            }
+            rows={4}
             className="w-full bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2.5 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] resize-none transition-colors duration-200"
           />
         </div>
 
-        {/* Style cards */}
+        {/* ── Style preset ── */}
         <div className="space-y-2">
           <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
             Style preset
+            <span className="normal-case tracking-normal font-normal ml-1 text-[var(--text-muted)]">
+              (optional)
+            </span>
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {["Minimal", "Editorial", "Bold", "Glassmorphic"].map((style) => (
+            {STYLE_PRESETS.map((preset) => (
               <button
-                key={style}
+                key={preset.label}
                 type="button"
-                className="h-16 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[12px] font-medium text-[var(--text-tertiary)] hover:border-[var(--accent)] hover:text-[var(--text-primary)] transition-all duration-150"
+                onClick={() =>
+                  setStylePreset((prev) => (prev === preset.label ? null : preset.label))
+                }
+                className={cn(
+                  "h-14 rounded-lg border text-[12px] font-medium transition-all duration-150 flex flex-col items-center justify-center gap-0.5",
+                  stylePreset === preset.label
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-primary)]"
+                    : "border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[var(--text-tertiary)] hover:border-[var(--accent)]/40 hover:text-[var(--text-secondary)]"
+                )}
               >
-                {style}
+                {preset.label}
               </button>
             ))}
           </div>
         </div>
+
+        {/* ── Generated result placeholder ── */}
+        {generated && (
+          <div className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/8 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-[var(--accent)] flex items-center justify-center">
+                <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="white">
+                  <path d="M10 3L5 8.5 2 5.5" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span className="text-[12px] font-semibold text-[var(--text-primary)]">
+                Design generated
+              </span>
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              Your{" "}
+              <span className="text-[var(--text-secondary)] font-medium">
+                {selectedSiteType?.label}
+              </span>{" "}
+              template has been prepared. Click "Add to canvas" to place it as a new frame.
+            </p>
+            <button
+              type="button"
+              className="w-full py-2 rounded-md text-[12px] font-semibold bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+            >
+              Add to canvas →
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="p-4 border-t border-[var(--border-subtle)]">
+      {/* Footer CTA */}
+      <div className="p-4 border-t border-[var(--border-subtle)] space-y-2">
         <button
           type="button"
           onClick={handleGenerate}
@@ -608,12 +773,16 @@ function GeneratePanel({ onClose }: { onClose: () => void }) {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Generating…
+              Generating{siteType !== "auto" ? ` ${selectedSiteType?.label}` : ""}…
             </span>
           ) : (
-            "Generate design"
+            `Generate${siteType !== "auto" ? ` ${selectedSiteType?.label}` : " design"}`
           )}
         </button>
+        <p className="text-[10px] text-[var(--text-muted)] text-center">
+          Templates in{" "}
+          <code className="font-mono">lib/canvas/templates/</code>
+        </p>
       </div>
     </div>
   );

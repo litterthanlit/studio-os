@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { springs } from "@/lib/animations";
@@ -60,6 +61,19 @@ export function CTA() {
       className="relative overflow-hidden bg-[#1C1C1C] py-32"
       ref={ref}
     >
+      {/* ── Lummi CTA image — aerial studio, dark-overlaid ── */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <Image
+          src="/marketing/cta.webp"
+          alt=""
+          fill
+          className="object-cover opacity-[0.12] mix-blend-luminosity"
+          sizes="100vw"
+          onError={() => {}}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1C1C1C] via-[#1C1C1C]/70 to-[#1C1C1C]" />
+      </div>
+
       {/* Radial accent glow */}
       <div
         className="pointer-events-none absolute inset-0"

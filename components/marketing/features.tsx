@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import {
@@ -82,7 +83,20 @@ export function Features() {
 
   return (
     <section id="features" className="relative bg-[#1C1C1C] py-32">
-      <div className="mx-auto max-w-7xl px-6">
+      {/* ── Lummi features image — subtle atmospheric overlay ── */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <Image
+          src="/marketing/features.webp"
+          alt=""
+          fill
+          className="object-cover opacity-[0.06] mix-blend-luminosity"
+          sizes="100vw"
+          onError={() => {}}
+        />
+        {/* Dark gradient to keep text readable */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1C1C1C]/80 via-transparent to-[#1C1C1C]/80" />
+      </div>
+      <div className="relative mx-auto max-w-7xl px-6">
         {/* Section header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -112,3 +126,4 @@ export function Features() {
     </section>
   );
 }
+

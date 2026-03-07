@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .next-app/
+
+# Generated marketing images (run: npm run generate:marketing-images to recreate)
+public/marketing/*.webp
+# Keep the manifest so components know what's available
+!public/marketing/manifest.json

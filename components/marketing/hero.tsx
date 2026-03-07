@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
 
@@ -182,6 +183,19 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen overflow-x-hidden bg-white pt-16">
+      {/* ── Lummi hero image — atmospheric background, low opacity ── */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <Image
+          src="/marketing/hero.webp"
+          alt=""
+          fill
+          priority
+          className="object-cover opacity-[0.04] mix-blend-multiply"
+          sizes="100vw"
+          onError={() => {/* silently skip if not yet generated */}}
+        />
+      </div>
+
       {/* ── Grain texture overlay ── */}
       <div
         className="pointer-events-none absolute inset-0 z-[1] opacity-[0.055]"

@@ -1,4 +1,5 @@
 {
+  "pages": {},
   "app": {
     "[project]/app/_not-found/page": [
       "static/media/Geist_Variable-s.p.92592eb2.woff2",
@@ -6,6 +7,5 @@
     ]
   },
   "appUsingSizeAdjust": true,
-  "pages": {},
   "pagesUsingSizeAdjust": false
 }

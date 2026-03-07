@@ -68,13 +68,14 @@ export type PageNode = {
 export type GeneratedVariant = {
   id: string;
   name: string;
-  description: string;
-  siteType: SiteType;
+  pageTree: PageNode;
+  previewImage?: string | null;
+  compiledCode?: string | null;
   sourcePrompt: string;
   createdAt: string;
-  pageTree: PageNode;
-  compiledCode?: string;
-  favorite?: boolean;
+  isFavorite?: boolean;
+  description?: string;
+  siteType?: SiteType;
 };
 
 export type ComposeArtboard = {
@@ -536,11 +537,14 @@ export function createVariantSet(
   return VARIANT_PROFILES.map((profile, index) => ({
     id: uid("variant"),
     name: `${profile.name} ${index + 1}`,
-    description: profile.description,
-    siteType: resolvedSiteType,
+    pageTree: createVariantPageTree(profile, prompt, siteName, tokens),
+    previewImage: null,
+    compiledCode: null,
     sourcePrompt: prompt,
     createdAt,
-    pageTree: createVariantPageTree(profile, prompt, siteName, tokens),
+    isFavorite: false,
+    description: profile.description,
+    siteType: resolvedSiteType,
   }));
 }
 
@@ -933,4 +937,3 @@ export default function ${safeName}() {
 }
 `;
 }
-

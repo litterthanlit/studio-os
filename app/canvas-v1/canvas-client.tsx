@@ -13,7 +13,6 @@ import { UploadZone } from "./components/UploadZone";
 import { ReferenceGrid } from "./components/ReferenceGrid";
 import { AnalysisPanel } from "./components/AnalysisPanel";
 import { SystemEditor } from "./components/SystemEditor";
-import { CodeViewer } from "./components/CodeViewer";
 import { ComposeDocumentView } from "./components/ComposeDocumentView";
 import {
   BREAKPOINT_WIDTHS,
@@ -233,15 +232,53 @@ function formatNodeLabel(node: PageNode): string {
   return content.length > 42 ? `${content.slice(0, 42)}…` : content;
 }
 
+function normalizeVariant(variant: GeneratedVariant): GeneratedVariant {
+  const legacyVariant = variant as GeneratedVariant & { favorite?: boolean };
+  return {
+    ...variant,
+    previewImage: variant.previewImage ?? null,
+    compiledCode: variant.compiledCode ?? null,
+    isFavorite: variant.isFavorite ?? legacyVariant.favorite ?? false,
+  };
+}
+
+function normalizeVariants(variants: GeneratedVariant[]): GeneratedVariant[] {
+  return variants.map(normalizeVariant);
+}
+
 function setVariantFavorite(
   variants: GeneratedVariant[],
   variantId: string
 ): GeneratedVariant[] {
   return variants.map((variant) =>
     variant.id === variantId
-      ? { ...variant, favorite: !variant.favorite }
+      ? { ...variant, isFavorite: !variant.isFavorite }
       : variant
   );
+}
+
+function toggleVariantCompare(
+  variantIds: string[],
+  targetId: string
+): string[] {
+  if (variantIds.includes(targetId)) {
+    return variantIds.filter((id) => id !== targetId);
+  }
+  if (variantIds.length >= 2) {
+    return [variantIds[1], targetId];
+  }
+  return [...variantIds, targetId];
+}
+
+function formatVariantTimestamp(createdAt: string) {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "Just now";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function ExportMenu({
@@ -326,64 +363,326 @@ function VariantCard({
   active,
   onSelect,
   onFavorite,
+  onCompare,
+  onOpenCompose,
+  compareActive,
+  compareDisabled,
 }: {
   variant: GeneratedVariant;
   tokens: DesignSystemTokens;
   active: boolean;
   onSelect: () => void;
   onFavorite: () => void;
+  onCompare: () => void;
+  onOpenCompose: () => void;
+  compareActive: boolean;
+  compareDisabled: boolean;
 }) {
   return (
-    <motion.button
-      type="button"
-      onClick={onSelect}
+    <motion.div
       whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.99 }}
       className={cn(
-        "w-full rounded-2xl border bg-bg-primary text-left transition-colors overflow-hidden",
+        "w-full overflow-hidden rounded-[28px] border bg-bg-primary text-left transition-colors",
         active
           ? "border-accent shadow-[0_0_0_1px_var(--accent)]"
           : "border-border-primary hover:border-border-hover"
       )}
     >
-      <div className="border-b border-border-subtle px-4 py-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[13px] font-medium text-text-primary">{variant.name}</p>
-          <p className="mt-1 text-[11px] text-text-muted leading-relaxed">
-            {variant.description}
-          </p>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="block w-full text-left"
+      >
+        <div className="border-b border-border-subtle px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-medium text-text-primary">{variant.name}</p>
+              <p className="mt-1 text-[11px] text-text-muted">
+                {formatVariantTimestamp(variant.createdAt)}
+              </p>
+            </div>
+            {variant.isFavorite ? (
+              <span className="rounded-full bg-accent/12 px-2.5 py-1 text-[9px] uppercase tracking-[0.12em] text-accent">
+                Favorite
+              </span>
+            ) : null}
+          </div>
+          {variant.description ? (
+            <p className="mt-3 text-[11px] leading-relaxed text-text-muted">
+              {variant.description}
+            </p>
+          ) : null}
         </div>
+        <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-4">
+          <div className="overflow-hidden rounded-[22px] border border-border-primary bg-black/10">
+            <div className="h-[380px] overflow-y-auto">
+              <ComposeDocumentView
+                pageTree={variant.pageTree}
+                tokens={tokens}
+                breakpoint="desktop"
+                scale={variantCardScale(320)}
+                className="pointer-events-none"
+              />
+            </div>
+          </div>
+        </div>
+      </button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle px-4 py-3">
         <button
           type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onFavorite();
-          }}
+          onClick={onFavorite}
           className={cn(
-            "mt-0.5 rounded-md px-2 py-1 text-[10px] uppercase tracking-[0.12em]",
-            variant.favorite
-              ? "bg-accent/12 text-accent"
-              : "bg-bg-tertiary text-text-muted"
+            "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
+            variant.isFavorite
+              ? "bg-accent text-white"
+              : "bg-bg-secondary text-text-muted hover:text-text-secondary"
           )}
         >
-          {variant.favorite ? "★" : "☆"}
+          {variant.isFavorite ? "★ Starred" : "☆ Star"}
         </button>
-      </div>
-      <div className="bg-bg-secondary p-4">
-        <div
-          className="overflow-hidden rounded-xl border border-border-primary bg-black/10"
-          style={{ height: 360 }}
+        <button
+          type="button"
+          onClick={onCompare}
+          disabled={compareDisabled}
+          className={cn(
+            "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
+            compareActive
+              ? "bg-white text-black"
+              : "bg-bg-secondary text-text-muted hover:text-text-secondary",
+            compareDisabled && "cursor-not-allowed opacity-45"
+          )}
         >
-          <ComposeDocumentView
-            pageTree={variant.pageTree}
-            tokens={tokens}
-            breakpoint="desktop"
-            scale={variantCardScale()}
-            className="pointer-events-none"
+          {compareActive ? "Comparing" : "Compare"}
+        </button>
+        <Button
+          type="button"
+          className="ml-auto h-8 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
+          onClick={onOpenCompose}
+        >
+          Open in Compose
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+function GenerateSkeletonCard() {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-border-primary bg-bg-primary">
+      <div className="border-b border-border-subtle px-5 py-4">
+        <div className="h-4 w-32 animate-pulse rounded-full bg-bg-secondary" />
+        <div className="mt-2 h-3 w-24 animate-pulse rounded-full bg-bg-secondary" />
+      </div>
+      <div className="p-4">
+        <div className="h-[380px] animate-pulse rounded-[22px] border border-border-primary bg-bg-secondary" />
+      </div>
+      <div className="flex gap-2 border-t border-border-subtle px-4 py-3">
+        <div className="h-8 w-20 animate-pulse rounded-full bg-bg-secondary" />
+        <div className="h-8 w-24 animate-pulse rounded-full bg-bg-secondary" />
+        <div className="ml-auto h-8 w-32 animate-pulse rounded-full bg-bg-secondary" />
+      </div>
+    </div>
+  );
+}
+
+function GenerateEmptyState() {
+  return (
+    <div className="rounded-[32px] border border-dashed border-border-primary bg-bg-primary p-8">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_420px] lg:items-center">
+        <div className="space-y-4">
+          <PanelSectionLabel
+            label="Variant Gallery"
+            detail="Generate 2 to 4 site directions from the current system. Each card becomes a scrollable, comparable candidate for Compose."
           />
+          <p className="max-w-xl text-sm leading-relaxed text-text-secondary">
+            Studio OS will turn your prompt and design system into several full-page options. Star the strongest ones, compare two side-by-side, then send the best direction into Compose.
+          </p>
+          <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+            <span className="rounded-full border border-border-primary px-3 py-1.5">2-4 full-page variants</span>
+            <span className="rounded-full border border-border-primary px-3 py-1.5">compare mode</span>
+            <span className="rounded-full border border-border-primary px-3 py-1.5">compose-ready</span>
+          </div>
+        </div>
+        <div className="rounded-[28px] border border-border-primary bg-[linear-gradient(180deg,rgba(59,94,252,0.14),rgba(255,255,255,0.02))] p-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            {[0, 1].map((index) => (
+              <div
+                key={index}
+                className="overflow-hidden rounded-[22px] border border-white/10 bg-black/20"
+              >
+                <div className="border-b border-white/10 px-4 py-3">
+                  <div className="h-3.5 w-24 rounded-full bg-white/20" />
+                  <div className="mt-2 h-3 w-16 rounded-full bg-white/10" />
+                </div>
+                <div className="p-3">
+                  <div className="space-y-2 rounded-[18px] border border-white/10 bg-white/5 p-3">
+                    <div className="h-20 rounded-[14px] bg-white/10" />
+                    <div className="h-10 rounded-[12px] bg-white/10" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="h-16 rounded-[12px] bg-white/10" />
+                      <div className="h-16 rounded-[12px] bg-white/10" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </motion.button>
+    </div>
+  );
+}
+
+function VariantCompareView({
+  variants,
+  tokens,
+  onSelectWinner,
+}: {
+  variants: GeneratedVariant[];
+  tokens: DesignSystemTokens;
+  onSelectWinner: (variantId: string) => void;
+}) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      {variants.map((variant) => (
+        <div
+          key={variant.id}
+          className="overflow-hidden rounded-[30px] border border-border-primary bg-bg-primary"
+        >
+          <div className="flex items-center justify-between gap-4 border-b border-border-subtle px-5 py-4">
+            <div>
+              <p className="text-[13px] font-medium text-text-primary">{variant.name}</p>
+              <p className="mt-1 text-[11px] text-text-muted">
+                {formatVariantTimestamp(variant.createdAt)}
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="h-9 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
+              onClick={() => onSelectWinner(variant.id)}
+            >
+              Use this one
+            </Button>
+          </div>
+          <div className="h-[760px] overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-4">
+            <div className="overflow-hidden rounded-[22px] border border-border-primary bg-black/10">
+              <ComposeDocumentView
+                pageTree={variant.pageTree}
+                tokens={tokens}
+                breakpoint="desktop"
+                scale={variantCardScale(560)}
+                className="pointer-events-none"
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VariantGallery({
+  tokens,
+  variants,
+  selectedVariantId,
+  compareVariantIds,
+  generating,
+  onSelect,
+  onFavorite,
+  onToggleCompare,
+  onClearCompare,
+  onOpenCompose,
+}: {
+  tokens: DesignSystemTokens | null;
+  variants: GeneratedVariant[];
+  selectedVariantId: string | null;
+  compareVariantIds: string[];
+  generating: boolean;
+  onSelect: (variantId: string) => void;
+  onFavorite: (variantId: string) => void;
+  onToggleCompare: (variantId: string) => void;
+  onClearCompare: () => void;
+  onOpenCompose: (variantId: string) => void;
+}) {
+  const compareVariants = React.useMemo(
+    () => variants.filter((variant) => compareVariantIds.includes(variant.id)),
+    [compareVariantIds, variants]
+  );
+
+  if (generating) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+              Generating
+            </p>
+            <p className="mt-1 text-sm text-text-secondary">
+              Building multiple directions from your system...
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => (
+            <GenerateSkeletonCard key={item} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variants.length === 0 || !tokens) {
+    return <GenerateEmptyState />;
+  }
+
+  if (compareVariants.length === 2) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-4 rounded-[24px] border border-border-primary bg-bg-primary px-5 py-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+              Compare Mode
+            </p>
+            <p className="mt-1 text-sm text-text-secondary">
+              Review both directions side by side, then pick the one to carry into Compose.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClearCompare}
+            className="rounded-full border border-border-primary px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-text-secondary"
+          >
+            Exit compare
+          </button>
+        </div>
+        <VariantCompareView
+          variants={compareVariants}
+          tokens={tokens}
+          onSelectWinner={onOpenCompose}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      {variants.map((variant) => (
+        <VariantCard
+          key={variant.id}
+          variant={variant}
+          tokens={tokens}
+          active={selectedVariantId === variant.id}
+          compareActive={compareVariantIds.includes(variant.id)}
+          compareDisabled={
+            compareVariantIds.length >= 2 && !compareVariantIds.includes(variant.id)
+          }
+          onSelect={() => onSelect(variant.id)}
+          onFavorite={() => onFavorite(variant.id)}
+          onCompare={() => onToggleCompare(variant.id)}
+          onOpenCompose={() => onOpenCompose(variant.id)}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -1745,6 +2044,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   const [siteType, setSiteType] = React.useState<SiteType>("auto");
   const [generatedVariants, setGeneratedVariants] = React.useState<GeneratedVariant[]>([]);
   const [selectedVariantId, setSelectedVariantId] = React.useState<string | null>(null);
+  const [compareVariantIds, setCompareVariantIds] = React.useState<string[]>([]);
   const [generateLoading, setGenerateLoading] = React.useState(false);
   const [generateError, setGenerateError] = React.useState<string | null>(null);
   const [composeDocument, setComposeDocument] = React.useState<ComposeDocument | null>(null);
@@ -1794,7 +2094,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
       setSitePrompt(storedState.canvas?.componentPrompt ?? inferSiteName(meta.name));
       setSiteType(storedState.canvas?.siteType ?? "auto");
-      setGeneratedVariants(storedState.canvas?.generatedVariants ?? []);
+      setGeneratedVariants(normalizeVariants(storedState.canvas?.generatedVariants ?? []));
       setSelectedVariantId(
         storedState.canvas?.selectedVariantId ??
           storedState.canvas?.generatedVariants?.[0]?.id ??
@@ -1821,6 +2121,14 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     const timeout = window.setTimeout(() => setBootstrapToast(null), 3200);
     return () => window.clearTimeout(timeout);
   }, [bootstrapToast]);
+
+  React.useEffect(() => {
+    setCompareVariantIds((current) =>
+      current.filter((variantId) =>
+        generatedVariants.some((variant) => variant.id === variantId)
+      )
+    );
+  }, [generatedVariants]);
 
   const selectedVariant = React.useMemo(
     () =>
@@ -2033,8 +2341,10 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
       // Discard the response if a newer request has already been issued
       if (requestId !== generateRequestIdRef.current) return;
 
-      setGeneratedVariants(data.variants ?? []);
-      setSelectedVariantId(data.variants?.[0]?.id ?? null);
+      const normalizedVariants = normalizeVariants(data.variants ?? []);
+      setGeneratedVariants(normalizedVariants);
+      setSelectedVariantId(normalizedVariants[0]?.id ?? null);
+      setCompareVariantIds([]);
       if (!setName.trim() && data.siteName) {
         setSetName(data.siteName);
       }
@@ -2049,9 +2359,26 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     }
   }
 
-  function handleOpenCompose() {
+  function handleOpenCompose(preferredVariantId?: string) {
     if (generatedVariants.length === 0) return;
-    setComposeDocument(createComposeDocument(generatedVariants));
+    const nextDocument = createComposeDocument(generatedVariants);
+    const preferredArtboard = preferredVariantId
+      ? nextDocument.artboards.find((artboard) => artboard.variantId === preferredVariantId)
+      : nextDocument.artboards[0];
+
+    setComposeDocument(
+      preferredArtboard
+        ? {
+            ...nextDocument,
+            selectedArtboardId: preferredArtboard.id,
+            primaryArtboardId: preferredArtboard.id,
+            selectedNodeId: preferredArtboard.pageTree.id,
+          }
+        : nextDocument
+    );
+    if (preferredVariantId) {
+      setSelectedVariantId(preferredVariantId);
+    }
     setStage("compose");
   }
 
@@ -2248,7 +2575,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
                             Generated Variants
                           </h3>
                           <p className="mt-1 text-xs text-text-tertiary">
-                            Prompt and generate full-page directions here. The left rail stays out of the way in this stage.
+                            Describe the direction once, generate multiple candidates, then compare or move one into Compose.
                           </p>
                         </div>
                         {selectedVariant?.compiledCode ? (
@@ -2260,7 +2587,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
                         ) : null}
                       </div>
 
-                      <div className="grid gap-3 xl:grid-cols-[180px_minmax(0,1fr)_180px]">
+                      <div className="grid gap-3 xl:grid-cols-[180px_minmax(0,1fr)_190px]">
                         <select
                           value={siteType}
                           onChange={(event) => setSiteType(event.target.value as SiteType)}
@@ -2283,20 +2610,10 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
                           <Button
                             onClick={handleGenerateVariants}
                             disabled={!canGenerateVariants}
-                            className="h-11 text-[11px] uppercase tracking-[0.12em]"
+                            className="h-11 bg-[#3B5EFC] text-[11px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
                           >
                             {generateLoading ? "Generating..." : "Generate Variants"}
                           </Button>
-                          {generatedVariants.length > 0 ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="h-11 text-[11px] uppercase tracking-[0.12em]"
-                              onClick={handleOpenCompose}
-                            >
-                              Open in Compose
-                            </Button>
-                          ) : null}
                         </div>
                       </div>
 
@@ -2308,47 +2625,26 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
                     </div>
                   </div>
 
-                  {generatedVariants.length === 0 ? (
-                    <div className="rounded-3xl border border-dashed border-border-primary bg-bg-primary p-10 text-center">
-                      <p className="text-sm text-text-tertiary">
-                        Generate 2–4 full-page variants from the toolbar above.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-5">
-                      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                        {generatedVariants.map((variant) =>
-                          tokens ? (
-                            <VariantCard
-                              key={variant.id}
-                              variant={variant}
-                              tokens={tokens}
-                              active={selectedVariantId === variant.id}
-                              onSelect={() => setSelectedVariantId(variant.id)}
-                              onFavorite={() =>
-                                setGeneratedVariants((prev) =>
-                                  setVariantFavorite(prev, variant.id)
-                                )
-                              }
-                            />
-                          ) : null
-                        )}
-                      </div>
-
-                      <div className="min-h-[420px] rounded-3xl border border-border-primary bg-bg-primary overflow-hidden">
-                        {selectedVariant?.compiledCode ? (
-                          <CodeViewer
-                            code={selectedVariant.compiledCode}
-                            className="h-full"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center p-8 text-center text-sm text-text-muted">
-                            Select a variant to inspect its compiled output.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <VariantGallery
+                    tokens={tokens}
+                    variants={generatedVariants}
+                    selectedVariantId={selectedVariantId}
+                    compareVariantIds={compareVariantIds}
+                    generating={generateLoading}
+                    onSelect={setSelectedVariantId}
+                    onFavorite={(variantId) =>
+                      setGeneratedVariants((prev) =>
+                        setVariantFavorite(prev, variantId)
+                      )
+                    }
+                    onToggleCompare={(variantId) =>
+                      setCompareVariantIds((prev) =>
+                        toggleVariantCompare(prev, variantId)
+                      )
+                    }
+                    onClearCompare={() => setCompareVariantIds([])}
+                    onOpenCompose={handleOpenCompose}
+                  />
                 </div>
               </div>
             )

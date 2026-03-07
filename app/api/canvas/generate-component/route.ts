@@ -9,6 +9,32 @@ import {
 } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 
+function createVariantPreviewImage(
+  name: string,
+  tokens: DesignSystemTokens
+): string {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="720" height="520" viewBox="0 0 720 520" fill="none">
+      <rect width="720" height="520" rx="32" fill="${tokens.colors.background}" />
+      <rect x="36" y="36" width="648" height="108" rx="24" fill="${tokens.colors.surface}" stroke="${tokens.colors.border}" />
+      <rect x="36" y="172" width="648" height="148" rx="28" fill="${tokens.colors.surface}" stroke="${tokens.colors.border}" />
+      <rect x="36" y="348" width="202" height="136" rx="24" fill="${tokens.colors.surface}" stroke="${tokens.colors.border}" />
+      <rect x="258" y="348" width="202" height="136" rx="24" fill="${tokens.colors.surface}" stroke="${tokens.colors.border}" />
+      <rect x="480" y="348" width="204" height="136" rx="24" fill="${tokens.colors.surface}" stroke="${tokens.colors.border}" />
+      <rect x="60" y="60" width="140" height="14" rx="7" fill="${tokens.colors.textMuted}" opacity="0.55" />
+      <rect x="60" y="90" width="320" height="22" rx="11" fill="${tokens.colors.text}" />
+      <rect x="60" y="204" width="220" height="12" rx="6" fill="${tokens.colors.textMuted}" opacity="0.55" />
+      <rect x="60" y="232" width="512" height="22" rx="11" fill="${tokens.colors.text}" />
+      <rect x="60" y="268" width="428" height="14" rx="7" fill="${tokens.colors.textMuted}" opacity="0.65" />
+      <rect x="60" y="388" width="88" height="88" rx="22" fill="${tokens.colors.primary}" opacity="0.92" />
+      <rect x="282" y="388" width="88" height="88" rx="22" fill="${tokens.colors.secondary}" opacity="0.92" />
+      <rect x="504" y="388" width="88" height="88" rx="22" fill="${tokens.colors.accent}" opacity="0.92" />
+      <text x="648" y="70" text-anchor="end" fill="${tokens.colors.textMuted}" font-size="18" font-family="Arial, sans-serif">${name}</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -46,6 +72,7 @@ export async function POST(req: NextRequest) {
         resolvedSiteName
       ).map((variant) => ({
         ...variant,
+        previewImage: createVariantPreviewImage(variant.name, tokens),
         compiledCode: compilePageTreeToTSX(
           variant.pageTree,
           tokens,

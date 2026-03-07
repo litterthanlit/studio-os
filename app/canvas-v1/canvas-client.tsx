@@ -690,10 +690,14 @@ function StageStepper({
   stage,
   onSelect,
   completions,
+  availability,
+  counts,
 }: {
   stage: CanvasStage;
   onSelect: (stage: CanvasStage) => void;
   completions: Partial<Record<CanvasStage, boolean>>;
+  availability: Record<CanvasStage, { available: boolean; tooltip?: string }>;
+  counts: Partial<Record<CanvasStage, string>>;
 }) {
   return (
     <div className="flex items-center gap-1">
@@ -701,27 +705,68 @@ function StageStepper({
         const meta = STAGE_META[key];
         const active = key === stage;
         const complete = Boolean(completions[key]);
+        const { available, tooltip } = availability[key];
+        const badge = counts[key];
         return (
           <React.Fragment key={key}>
             {index > 0 ? (
               <div className="mx-1 h-px w-6 bg-border-primary" />
             ) : null}
-            <button
-              type="button"
-              onClick={() => onSelect(key)}
-              className={cn(
-                "flex items-center gap-2 border px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] font-medium transition-colors",
-                active
-                  ? "border-accent bg-accent/10 text-accent"
-                  : complete
-                  ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
-                  : "border-border-primary text-text-muted hover:text-text-secondary"
-              )}
-            >
-              <span className="font-mono opacity-60">{meta.number}</span>
-              {meta.label}
-              {complete && !active ? <span>✓</span> : null}
-            </button>
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={available ? () => onSelect(key) : undefined}
+                disabled={!available}
+                className={cn(
+                  "flex items-center gap-2 border px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] font-medium transition-colors",
+                  active && available
+                    ? "border-accent bg-accent/10 text-accent shadow-[0_0_0_1px_var(--accent)] animate-pulse"
+                    : complete
+                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
+                    : available
+                    ? "border-border-primary text-text-muted hover:text-text-secondary"
+                    : "cursor-not-allowed border-border-primary text-text-muted/55 opacity-70"
+                )}
+              >
+                <span className="inline-flex w-4 items-center justify-center text-[10px] font-mono opacity-70">
+                  {complete ? (
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m3.5 8.5 3 3 6-7" />
+                    </svg>
+                  ) : !available ? (
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 7V5.5a2.5 2.5 0 0 1 5 0V7" />
+                      <rect x="3.5" y="7" width="9" height="6" rx="1.5" />
+                    </svg>
+                  ) : (
+                    meta.number
+                  )}
+                </span>
+                <span>{meta.label}</span>
+                {badge ? (
+                  <span className="text-[9px] font-normal normal-case tracking-normal text-current/60">
+                    {badge}
+                  </span>
+                ) : null}
+              </button>
+              {!available && tooltip ? (
+                <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-border-primary bg-bg-primary px-3 py-1.5 text-[10px] normal-case tracking-normal text-text-secondary opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100">
+                  {tooltip}
+                </div>
+              ) : null}
+            </div>
           </React.Fragment>
         );
       })}
@@ -2389,10 +2434,35 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     tokens !== null && sitePrompt.trim().length > 0 && !generateLoading;
 
   const completions: Partial<Record<CanvasStage, boolean>> = {
-    moodboard: analysis !== null,
+    moodboard: images.length > 0,
     system: tokens !== null,
     generate: generatedVariants.length > 0,
-    compose: composeDocument !== null,
+    compose: false,
+  };
+
+  const availability: Record<
+    CanvasStage,
+    { available: boolean; tooltip?: string }
+  > = {
+    moodboard: { available: true },
+    system: {
+      available: images.length > 0,
+      tooltip: "Upload references first",
+    },
+    generate: {
+      available: tokens !== null,
+      tooltip: "Generate a design system first",
+    },
+    compose: {
+      available: generatedVariants.length > 0,
+      tooltip: "Generate variants first",
+    },
+  };
+
+  const stepCounts: Partial<Record<CanvasStage, string>> = {
+    moodboard: `${images.length} refs`,
+    system: `${tokens ? Object.keys(tokens.colors).length : 0} tokens`,
+    generate: `${generatedVariants.length} variant${generatedVariants.length === 1 ? "" : "s"}`,
   };
 
   return (
@@ -2430,7 +2500,13 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
           </div>
 
           <div className="ml-auto">
-            <StageStepper stage={stage} onSelect={setStage} completions={completions} />
+            <StageStepper
+              stage={stage}
+              onSelect={setStage}
+              completions={completions}
+              availability={availability}
+              counts={stepCounts}
+            />
           </div>
         </div>
       </div>

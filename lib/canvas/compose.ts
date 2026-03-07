@@ -3,7 +3,7 @@ import type { SiteType } from "./templates";
 
 export type CanvasStage = "moodboard" | "system" | "generate" | "compose";
 export type Breakpoint = "desktop" | "tablet" | "mobile";
-export type InspectorTab = "content" | "style" | "layout" | "ai";
+export type InspectorTab = "content" | "style" | "layout" | "effects" | "ai";
 
 export type PageNodeType =
   | "page"
@@ -131,6 +131,8 @@ export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
   tablet: 820,
   mobile: 430,
 };
+
+export const COMPOSE_ARTBOARD_GAP = 100;
 
 type VariantProfile = {
   key: string;
@@ -553,8 +555,8 @@ export function createComposeDocument(variants: GeneratedVariant[]): ComposeDocu
     id: uid("artboard"),
     variantId: variant.id,
     name: variant.name,
-    x: index * 1480,
-    y: 120,
+    x: index * (BREAKPOINT_WIDTHS.desktop + COMPOSE_ARTBOARD_GAP),
+    y: 0,
     pageTree: structuredClone(variant.pageTree),
   }));
 
@@ -564,11 +566,71 @@ export function createComposeDocument(variants: GeneratedVariant[]): ComposeDocu
     selectedNodeId: artboards[0]?.pageTree.children?.[0]?.id ?? artboards[0]?.pageTree.id ?? null,
     primaryArtboardId: artboards[0]?.id ?? null,
     breakpoint: "desktop",
-    pan: { x: 80, y: 80 },
-    zoom: 0.62,
+    pan: { x: 120, y: 120 },
+    zoom: 0.58,
     overlays: [],
     inspectorTab: "content",
     exportArtifact: null,
+  };
+}
+
+export function rehydrateComposeDocument(
+  base: ComposeDocument,
+  persisted: ComposeDocument | null
+): ComposeDocument {
+  if (!persisted) return base;
+
+  const persistedByVariantId = new Map(
+    persisted.artboards.map((artboard) => [artboard.variantId, artboard])
+  );
+  const persistedByName = new Map(
+    persisted.artboards.map((artboard) => [artboard.name, artboard])
+  );
+
+  const artboards = base.artboards.map((artboard) => {
+    const match =
+      persistedByVariantId.get(artboard.variantId) ??
+      persistedByName.get(artboard.name);
+
+    if (!match) return artboard;
+
+    return {
+      ...artboard,
+      x: match.x,
+      y: match.y,
+      pageTree: structuredClone(match.pageTree ?? artboard.pageTree),
+    };
+  });
+
+  function resolveArtboardId(persistedId: string | null): string | null {
+    if (!persistedId) return null;
+    const previous = persisted.artboards.find((artboard) => artboard.id === persistedId);
+    if (!previous) return null;
+    return (
+      artboards.find(
+        (artboard) =>
+          artboard.variantId === previous.variantId || artboard.name === previous.name
+      )?.id ?? null
+    );
+  }
+
+  return {
+    ...base,
+    artboards,
+    breakpoint: persisted.breakpoint ?? base.breakpoint,
+    pan: persisted.pan ?? base.pan,
+    zoom:
+      typeof persisted.zoom === "number"
+        ? Math.max(0.1, Math.min(5, persisted.zoom))
+        : base.zoom,
+    overlays: persisted.overlays ?? base.overlays,
+    inspectorTab: persisted.inspectorTab ?? base.inspectorTab,
+    selectedArtboardId:
+      resolveArtboardId(persisted.selectedArtboardId) ?? base.selectedArtboardId,
+    primaryArtboardId:
+      resolveArtboardId(persisted.primaryArtboardId) ?? base.primaryArtboardId,
+    selectedNodeId: persisted.selectedNodeId ?? base.selectedNodeId,
+    exportArtifact: persisted.exportArtifact ?? base.exportArtifact,
   };
 }
 

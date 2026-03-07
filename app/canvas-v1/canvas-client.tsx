@@ -24,6 +24,7 @@ import {
   getExportArtboard,
   getSelectedArtboard,
   inferSiteName,
+  rehydrateComposeDocument,
   updateArtboardTree,
   updateNodeContent,
   updateNodeStyleValue,
@@ -42,6 +43,7 @@ import {
   downloadHtml,
   downloadNextjsZip,
   downloadTSX,
+  generateStandaloneHtml,
   toFramerPasteReady,
   type ExportConfig,
 } from "@/lib/canvas/export-formats";
@@ -55,7 +57,6 @@ import {
 import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
 
 type StageMeta = { label: string; number: string; description: string };
-type ComposeLeftTab = "variants" | "layers" | "assets";
 
 const STAGE_META: Record<CanvasStage, StageMeta> = {
   moodboard: { label: "Moodboard", number: "01", description: "Upload and analyze references" },
@@ -225,6 +226,38 @@ function getExportConfig(
     siteType: siteType === "auto" ? "saas-landing" : siteType,
     sourceCode: code,
   };
+}
+
+const COMPOSE_WORKSPACE_KEY_PREFIX = "studio-os:compose-workspace:";
+
+function getComposeWorkspaceKey(projectId: string) {
+  return `${COMPOSE_WORKSPACE_KEY_PREFIX}${projectId}`;
+}
+
+function readComposeWorkspace(projectId: string): ComposeDocument | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getComposeWorkspaceKey(projectId));
+    if (!raw) return null;
+    return JSON.parse(raw) as ComposeDocument;
+  } catch {
+    return null;
+  }
+}
+
+function writeComposeWorkspace(projectId: string, document: ComposeDocument) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(getComposeWorkspaceKey(projectId), JSON.stringify(document));
+  } catch {
+    // Ignore quota/storage issues and keep the in-memory session alive.
+  }
+}
+
+function artboardPreviewHeight(breakpoint: Breakpoint) {
+  if (breakpoint === "mobile") return 1320;
+  if (breakpoint === "tablet") return 1540;
+  return 1780;
 }
 
 function formatNodeLabel(node: PageNode): string {
@@ -1106,11 +1139,11 @@ function ComposeStage({
   siteType: SiteType;
   onChange: (document: ComposeDocument) => void;
 }) {
-  const [leftTab, setLeftTab] = React.useState<ComposeLeftTab>("variants");
   const [aiPrompt, setAiPrompt] = React.useState("");
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiLoading, setAiLoading] = React.useState(false);
   const canvasRef = React.useRef<HTMLDivElement>(null);
+  const [viewportSize, setViewportSize] = React.useState({ width: 1, height: 1 });
   const stateRef = React.useRef({
     pan: document.pan,
     zoom: document.zoom,
@@ -1149,6 +1182,24 @@ function ComposeStage({
     };
   }, [document.pan, document.zoom]);
 
+  React.useEffect(() => {
+    const element = canvasRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+
+    const updateViewport = () => {
+      const rect = element.getBoundingClientRect();
+      setViewportSize({
+        width: Math.max(1, rect.width),
+        height: Math.max(1, rect.height),
+      });
+    };
+
+    updateViewport();
+    const observer = new ResizeObserver(updateViewport);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const selectedArtboard = React.useMemo(
     () => getSelectedArtboard(document),
     [document]
@@ -1178,6 +1229,69 @@ function ComposeStage({
         : null,
     [exportArtboard, tokens]
   );
+  const boardItems = React.useMemo(() => {
+    const artboardWidth = BREAKPOINT_WIDTHS[document.breakpoint];
+    const artboardHeight = artboardPreviewHeight(document.breakpoint);
+    return [
+      ...document.artboards.map((artboard) => ({
+        id: artboard.id,
+        type: "artboard" as const,
+        x: artboard.x,
+        y: artboard.y,
+        width: artboardWidth,
+        height: artboardHeight,
+      })),
+      ...document.overlays.map((overlay) => ({
+        id: overlay.id,
+        type: "overlay" as const,
+        x: overlay.x,
+        y: overlay.y,
+        width: overlay.width,
+        height: overlay.height,
+      })),
+    ];
+  }, [document.artboards, document.breakpoint, document.overlays]);
+  const minimap = React.useMemo(() => {
+    if (boardItems.length === 0) return null;
+
+    const padding = 140;
+    const minX = Math.min(...boardItems.map((item) => item.x)) - padding;
+    const minY = Math.min(...boardItems.map((item) => item.y)) - padding;
+    const maxX = Math.max(...boardItems.map((item) => item.x + item.width)) + padding;
+    const maxY = Math.max(...boardItems.map((item) => item.y + item.height)) + padding;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const frameWidth = 220;
+    const frameHeight = 148;
+    const scale = Math.min(frameWidth / width, frameHeight / height);
+    const viewportWorldX = -document.pan.x / document.zoom;
+    const viewportWorldY = -document.pan.y / document.zoom;
+
+    return {
+      frameWidth,
+      frameHeight,
+      items: boardItems.map((item) => ({
+        ...item,
+        left: (item.x - minX) * scale,
+        top: (item.y - minY) * scale,
+        width: Math.max(3, item.width * scale),
+        height: Math.max(3, item.height * scale),
+      })),
+      viewport: {
+        left: (viewportWorldX - minX) * scale,
+        top: (viewportWorldY - minY) * scale,
+        width: Math.max(10, (viewportSize.width / document.zoom) * scale),
+        height: Math.max(10, (viewportSize.height / document.zoom) * scale),
+      },
+    };
+  }, [
+    boardItems,
+    document.pan.x,
+    document.pan.y,
+    document.zoom,
+    viewportSize.height,
+    viewportSize.width,
+  ]);
 
   const updateDocument = React.useCallback(
     (next: Partial<ComposeDocument>) => {
@@ -1233,7 +1347,7 @@ function ComposeStage({
           ? event.deltaY * 400
           : event.deltaY;
       const factor = Math.pow(0.9984, rawDelta);
-      const nextZoom = Math.max(0.18, Math.min(1.35, curZoom * factor));
+      const nextZoom = Math.max(0.1, Math.min(5, curZoom * factor));
       const worldX = (mx - curPan.x) / curZoom;
       const worldY = (my - curPan.y) / curZoom;
       updateDocument({
@@ -1247,10 +1361,11 @@ function ComposeStage({
 
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [document, updateDocument]);
+  }, [updateDocument]);
 
   function onBackgroundMouseDown(event: React.MouseEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest("[data-artboard], [data-overlay]")) return;
+    updateDocument({ selectedNodeId: null });
     panStateRef.current = {
       active: true,
       startX: event.clientX,
@@ -1366,264 +1481,203 @@ function ComposeStage({
   const layers = React.useMemo(
     () =>
       selectedArtboard
-        ? flattenNodes(selectedArtboard.pageTree).filter(({ depth }) => depth > 0)
+        ? flattenNodes(selectedArtboard.pageTree)
         : [],
     [selectedArtboard]
   );
 
+  function handlePreview() {
+    if (!exportCode) return;
+    const html = generateStandaloneHtml(getExportConfig(exportCode, siteName, siteType));
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+    if (!popup) {
+      downloadHtml(getExportConfig(exportCode, siteName, siteType));
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
   return (
     <CanvasStageLayout
       stage="compose"
-      leftWidth="300px"
-      rightWidth="320px"
+      leftWidth="320px"
+      rightWidth="340px"
       leftPanel={
         <div className="flex h-full flex-col">
-          <div className="border-b border-border-subtle px-4 py-3">
-            <div className="flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
-              {(["variants", "layers", "assets"] as ComposeLeftTab[]).map((tab) => (
+          <div className="border-b border-border-subtle px-4 py-4">
+            <PanelSectionLabel
+              label="Layers Panel"
+              detail="Artboards and structured page layers for the current compose document."
+            />
+          </div>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                  Artboards
+                </p>
+                <span className="text-[10px] text-text-muted">{document.artboards.length}</span>
+              </div>
+              {document.artboards.map((artboard) => (
                 <button
-                  key={tab}
+                  key={artboard.id}
                   type="button"
-                  onClick={() => setLeftTab(tab)}
+                  onClick={() =>
+                    updateDocument({
+                      selectedArtboardId: artboard.id,
+                      selectedNodeId:
+                        document.selectedArtboardId === artboard.id
+                          ? document.selectedNodeId ?? artboard.pageTree.id
+                          : artboard.pageTree.id,
+                    })
+                  }
                   className={cn(
-                    "flex-1 rounded-md px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                    leftTab === tab
-                      ? "bg-accent text-white"
-                      : "text-text-muted hover:text-text-secondary"
+                    "w-full rounded-2xl border px-3 py-3 text-left transition-colors",
+                    document.selectedArtboardId === artboard.id
+                      ? "border-accent bg-accent/8"
+                      : "border-border-primary bg-bg-secondary hover:border-border-hover"
                   )}
                 >
-                  {tab}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
+                      <p className="mt-1 text-[10px] text-text-muted">
+                        {Math.round(artboard.x)} / {Math.round(artboard.y)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[9px] uppercase tracking-[0.12em]",
+                        document.primaryArtboardId === artboard.id
+                          ? "bg-emerald-500/12 text-emerald-400"
+                          : "bg-bg-primary text-text-muted"
+                      )}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        updateDocument({ primaryArtboardId: artboard.id });
+                      }}
+                    >
+                      {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
+                    </button>
+                  </div>
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="p-4 space-y-4">
-            {leftTab === "variants" ? (
-              <>
-                <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Artboards
-                  </p>
-                  {document.artboards.map((artboard) => (
-                    <button
-                      key={artboard.id}
-                      type="button"
-                      onClick={() =>
-                        updateDocument({
-                          selectedArtboardId: artboard.id,
-                          selectedNodeId: artboard.pageTree.id,
-                        })
-                      }
-                      className={cn(
-                        "w-full rounded-xl border px-3 py-3 text-left",
-                        document.selectedArtboardId === artboard.id
-                          ? "border-accent bg-accent/8"
-                          : "border-border-primary bg-bg-secondary"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
-                          <p className="mt-1 text-[10px] text-text-muted">
-                            {Math.round(artboard.x)} / {Math.round(artboard.y)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className={cn(
-                            "rounded-md px-2 py-1 text-[10px] uppercase tracking-[0.12em]",
-                            document.primaryArtboardId === artboard.id
-                              ? "bg-emerald-500/12 text-emerald-400"
-                              : "bg-bg-tertiary text-text-muted"
-                          )}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            updateDocument({ primaryArtboardId: artboard.id });
-                          }}
-                        >
-                          {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
-                        </button>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3">
-                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Export Source
-                  </p>
-                  <p className="mt-2 text-[12px] text-text-muted leading-relaxed">
-                    The primary artboard is the source of truth for export and deploy.
-                  </p>
-                </div>
-              </>
-            ) : null}
-
-            {leftTab === "layers" ? (
-              <>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Layers
-                  </p>
-                  <p className="mt-1 text-[11px] text-text-muted">
-                    Structured website nodes only. Overlays stay separate.
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  {layers.map(({ node, depth }) => (
-                    <button
-                      key={node.id}
-                      type="button"
-                      onClick={() =>
-                        updateDocument({
-                          selectedNodeId: node.id,
-                        })
-                      }
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px]",
-                        document.selectedNodeId === node.id
-                          ? "bg-accent/10 text-text-primary"
-                          : "text-text-muted hover:bg-bg-secondary hover:text-text-secondary"
-                      )}
-                      style={{ paddingLeft: 12 + depth * 14 }}
-                    >
-                      <span className="text-[10px] opacity-50">{node.type}</span>
-                      <span>{formatNodeLabel(node)}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : null}
-
-            {leftTab === "assets" ? (
-              <>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                      References
-                    </p>
-                    <span className="text-[10px] text-text-muted">{references.length}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {references.slice(0, 8).map((reference) => (
-                      <button
-                        key={reference.id}
-                        type="button"
-                        onClick={() =>
-                          updateDocument({
-                            overlays: [
-                              ...document.overlays,
-                              {
-                                id: `overlay-${reference.id}`,
-                                type: "reference",
-                                x: (selectedArtboard?.x ?? 0) - 360,
-                                y: (selectedArtboard?.y ?? 0) + 40,
-                                width: 220,
-                                height: 160,
-                                imageUrl: reference.url,
-                                label: reference.name,
-                              },
-                            ],
-                          })
-                        }
-                        className="overflow-hidden rounded-xl border border-border-primary bg-bg-secondary"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={reference.thumbnail || reference.url}
-                          alt={reference.name}
-                          className="h-28 w-full object-cover"
-                        />
-                        <div className="px-2 py-2 text-[11px] text-text-secondary truncate">
-                          {reference.name}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 space-y-3">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                      Freeform Overlays
-                    </p>
-                    <p className="mt-1 text-[11px] text-text-muted">
-                      These live on the board and never enter export.
-                    </p>
-                  </div>
-                  <Button
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                  Tree
+                </p>
+                {selectedArtboard ? (
+                  <span className="truncate text-[10px] text-text-muted">
+                    {selectedArtboard.name}
+                  </span>
+                ) : null}
+              </div>
+              <div className="space-y-1 rounded-[24px] border border-border-primary bg-bg-secondary p-2">
+                {layers.map(({ node, depth }) => (
+                  <button
+                    key={node.id}
                     type="button"
-                    variant="secondary"
-                    className="w-full h-9 text-[10px] uppercase tracking-[0.12em]"
-                    onClick={() =>
-                      updateDocument({
-                        overlays: [
-                          ...document.overlays,
-                          {
-                            id: `note-${Date.now()}`,
-                            type: "note",
-                            x: (selectedArtboard?.x ?? 0) - 280,
-                            y: (selectedArtboard?.y ?? 0) + 220,
-                            width: 240,
-                            height: 180,
-                            text: "Pin a thought, copy direction, or a change request here.",
-                            color: "#FBE67A",
-                          },
-                        ],
-                      })
-                    }
+                    onClick={() => updateDocument({ selectedNodeId: node.id })}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] transition-colors",
+                      document.selectedNodeId === node.id
+                        ? "bg-accent/10 text-text-primary"
+                        : "text-text-muted hover:bg-bg-primary hover:text-text-secondary"
+                    )}
+                    style={{ paddingLeft: 12 + depth * 14 }}
                   >
-                    Add note
-                  </Button>
-                </div>
-              </>
-            ) : null}
+                    <span className="text-[10px] uppercase tracking-[0.08em] opacity-50">
+                      {node.type}
+                    </span>
+                    <span className="truncate">{formatNodeLabel(node)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-border-primary bg-bg-secondary p-4">
+              <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                Canvas Status
+              </p>
+              <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                {references.length} project references are still attached to this canvas. Overlays and docked references arrive in Session 3.
+              </p>
+            </div>
           </div>
         </div>
       }
       centerPanel={
-        <div className="min-w-0 flex h-full flex-col bg-bg-secondary">
-          <div className="border-b border-border-primary px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
+        <div className="min-w-0 flex h-full flex-col bg-[#090b10]">
+          <div className="border-b border-border-primary bg-bg-primary px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1 rounded-full border border-border-primary bg-bg-secondary p-1">
                 {BREAKPOINT_OPTIONS.map((item) => (
                   <button
                     key={item.key}
                     type="button"
                     onClick={() => updateDocument({ breakpoint: item.key })}
                     className={cn(
-                      "rounded-md border px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
+                      "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
                       document.breakpoint === item.key
-                        ? "border-accent bg-accent/10 text-accent"
-                        : "border-border-primary text-text-muted hover:text-text-secondary"
+                        ? "bg-accent text-white"
+                        : "text-text-muted hover:text-text-secondary"
                     )}
                   >
                     {item.label}
                   </button>
                 ))}
               </div>
-              <div className="ml-2 flex items-center gap-2 text-[11px] text-text-muted">
-                {selectionPath.map((node, index) => (
-                  <React.Fragment key={node.id}>
-                    {index > 0 ? <span className="text-text-muted/40">/</span> : null}
-                    <button
-                      type="button"
-                      className={cn(
-                        "hover:text-text-secondary",
-                        document.selectedNodeId === node.id && "text-text-primary"
-                      )}
-                      onClick={() => updateDocument({ selectedNodeId: node.id })}
-                    >
-                      {node.name}
-                    </button>
-                  </React.Fragment>
-                ))}
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2 overflow-x-auto text-[11px] text-text-muted">
+                  {selectionPath.length > 0 ? (
+                    selectionPath.map((node, index) => (
+                      <React.Fragment key={node.id}>
+                        {index > 0 ? <span className="text-text-muted/40">/</span> : null}
+                        <button
+                          type="button"
+                          className={cn(
+                            "truncate whitespace-nowrap hover:text-text-secondary",
+                            document.selectedNodeId === node.id && "text-text-primary"
+                          )}
+                          onClick={() => updateDocument({ selectedNodeId: node.id })}
+                        >
+                          {node.name}
+                        </button>
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <span>No selection yet. Pick an artboard or block to inspect it.</span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-text-muted">
+                  Side-by-side generated variants are now artboards on a single infinite board.
+                </p>
               </div>
+
               <div className="ml-auto flex items-center gap-2">
                 <Button
                   type="button"
                   variant="secondary"
-                  className="h-8 text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => updateDocument({ zoom: Math.max(0.18, document.zoom / 1.15) })}
+                  className="h-8 rounded-full px-4 text-[10px] uppercase tracking-[0.12em]"
+                  onClick={handlePreview}
+                  disabled={!exportCode}
+                >
+                  Preview
+                </Button>
+                {exportCode ? (
+                  <ExportMenu code={exportCode} siteName={siteName} siteType={siteType} />
+                ) : null}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-8 rounded-full text-[10px] uppercase tracking-[0.12em]"
+                  onClick={() => updateDocument({ zoom: Math.max(0.1, document.zoom / 1.15) })}
                 >
                   −
                 </Button>
@@ -1633,18 +1687,12 @@ function ComposeStage({
                 <Button
                   type="button"
                   variant="secondary"
-                  className="h-8 text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => updateDocument({ zoom: Math.min(1.35, document.zoom * 1.15) })}
+                  className="h-8 rounded-full text-[10px] uppercase tracking-[0.12em]"
+                  onClick={() => updateDocument({ zoom: Math.min(5, document.zoom * 1.15) })}
                 >
                   +
                 </Button>
               </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-4">
-              <p className="text-[11px] text-text-muted">
-                Compose is the source of truth. Overlays are board-only and excluded from export.
-              </p>
-              <ExportMenu code={exportCode} siteName={siteName} siteType={siteType} />
             </div>
           </div>
 
@@ -1653,9 +1701,10 @@ function ComposeStage({
               ref={canvasRef}
               className="h-full w-full cursor-grab overflow-hidden"
               style={{
-                backgroundImage: "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
-                backgroundSize: `${Math.max(18, 28 * document.zoom)}px ${Math.max(18, 28 * document.zoom)}px`,
-                backgroundPosition: `${document.pan.x % 28}px ${document.pan.y % 28}px`,
+                backgroundImage:
+                  "radial-gradient(circle, rgba(126,141,170,0.22) 1px, transparent 1px), linear-gradient(180deg,rgba(255,255,255,0.02),transparent)",
+                backgroundSize: `${Math.max(18, 30 * document.zoom)}px ${Math.max(18, 30 * document.zoom)}px, 100% 100%`,
+                backgroundPosition: `${document.pan.x % 30}px ${document.pan.y % 30}px, 0 0`,
               }}
               onMouseDown={onBackgroundMouseDown}
               onMouseMove={onMouseMove}
@@ -1677,7 +1726,7 @@ function ComposeStage({
                     key={artboard.id}
                     data-artboard
                     className={cn(
-                      "absolute overflow-hidden rounded-[28px] border bg-bg-primary shadow-2xl",
+                      "absolute overflow-hidden rounded-[30px] border bg-bg-primary shadow-[0_32px_120px_rgba(0,0,0,0.48)]",
                       document.selectedArtboardId === artboard.id
                         ? "border-accent"
                         : "border-border-primary"
@@ -1687,13 +1736,13 @@ function ComposeStage({
                       top: artboard.y,
                       width: BREAKPOINT_WIDTHS[document.breakpoint] + 2,
                     }}
-                  >
-                    <div
-                      className="flex cursor-move items-center justify-between border-b border-border-subtle bg-bg-secondary px-4 py-3"
-                      onMouseDown={(event) => {
-                        event.stopPropagation();
-                        dragRef.current = {
-                          kind: "artboard",
+                    >
+                      <div
+                        className="flex cursor-move items-center justify-between border-b border-border-subtle bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] px-4 py-3"
+                        onMouseDown={(event) => {
+                          event.stopPropagation();
+                          dragRef.current = {
+                            kind: "artboard",
                           id: artboard.id,
                           startX: event.clientX,
                           startY: event.clientY,
@@ -1708,14 +1757,14 @@ function ComposeStage({
                               : artboard.pageTree.id,
                         });
                       }}
-                    >
-                      <div>
-                        <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
-                        <p className="text-[10px] text-text-muted">
-                          {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label}
-                        </p>
-                      </div>
-                      {document.primaryArtboardId === artboard.id ? (
+                      >
+                        <div>
+                          <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                            {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label} frame
+                          </p>
+                        </div>
+                        {document.primaryArtboardId === artboard.id ? (
                         <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-emerald-400">
                           Primary
                         </span>
@@ -1799,14 +1848,64 @@ function ComposeStage({
                 ))}
               </div>
             </div>
+
+            {minimap ? (
+              <div className="pointer-events-none absolute bottom-5 right-5 z-10 w-[244px] rounded-[22px] border border-white/10 bg-[#0d1016]/92 p-3 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/70">
+                    Minimap
+                  </p>
+                  <span className="text-[10px] font-mono text-white/45">
+                    {Math.round(document.zoom * 100)}%
+                  </span>
+                </div>
+                <div
+                  className="relative mt-3 overflow-hidden rounded-[16px] border border-white/10 bg-[#05070b]"
+                  style={{ width: minimap.frameWidth, height: minimap.frameHeight }}
+                >
+                  {minimap.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "absolute rounded-sm border",
+                        item.type === "artboard"
+                          ? item.id === document.selectedArtboardId
+                            ? "border-[#3B5EFC] bg-[#3B5EFC]/25"
+                            : "border-white/30 bg-white/10"
+                          : "border-amber-300/40 bg-amber-300/20"
+                      )}
+                      style={{
+                        left: item.left,
+                        top: item.top,
+                        width: item.width,
+                        height: item.height,
+                      }}
+                    />
+                  ))}
+                  <div
+                    className="absolute rounded border border-emerald-300/70 bg-emerald-300/10"
+                    style={{
+                      left: minimap.viewport.left,
+                      top: minimap.viewport.top,
+                      width: minimap.viewport.width,
+                      height: minimap.viewport.height,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       }
       rightPanel={
         <div className="flex h-full flex-col">
-          <div className="border-b border-border-subtle px-4 py-3">
-            <div className="flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
-              {(["content", "style", "layout", "ai"] as InspectorTab[]).map((tab) => (
+          <div className="border-b border-border-subtle px-4 py-4">
+            <PanelSectionLabel
+              label="Inspector"
+              detail="Context-aware editing shell for the current selection."
+            />
+            <div className="mt-3 flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
+              {(["content", "style", "layout", "effects", "ai"] as InspectorTab[]).map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -1824,22 +1923,25 @@ function ComposeStage({
             </div>
           </div>
 
-          <div className="p-4 space-y-5">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5">
             {!selectedNode ? (
               <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4 text-[12px] text-text-muted">
-                Select a page node to edit its content, style, layout, or AI refinements.
+                Select an artboard, section, or block to populate the inspector.
+              </div>
+            ) : null}
+
+            {selectedNode ? (
+              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                  Selection
+                </p>
+                <p className="mt-2 text-[13px] font-medium text-text-primary">{selectedNode.name}</p>
+                <p className="mt-1 text-[11px] text-text-muted">{selectedNode.type}</p>
               </div>
             ) : null}
 
             {selectedNode && document.inspectorTab === "content" ? (
               <div className="space-y-4">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Selection
-                  </p>
-                  <p className="mt-2 text-[13px] font-medium text-text-primary">{selectedNode.name}</p>
-                  <p className="text-[11px] text-text-muted">{selectedNode.type}</p>
-                </div>
                 {Object.entries(selectedNode.content ?? {})
                   .filter(([, value]) => typeof value === "string")
                   .map(([key, value]) => (
@@ -1982,9 +2084,19 @@ function ComposeStage({
                   </select>
                 </label>
                 <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 text-[11px] text-text-muted">
-                  You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides.
-                  Desktop writes to base style; Tablet and Mobile write to responsive overrides.
+                  You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides. Desktop writes to base style; Tablet and Mobile write to responsive overrides.
                 </div>
+              </div>
+            ) : null}
+
+            {selectedNode && document.inspectorTab === "effects" ? (
+              <div className="rounded-2xl border border-dashed border-border-primary bg-bg-secondary p-4">
+                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                  Effects
+                </p>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                  Opacity, blur, and richer surface treatments are reserved for Session 2. The tab is here now so the final compose workflow does not shift underneath users later.
+                </p>
               </div>
             ) : null}
 
@@ -2106,8 +2218,10 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     const refs = loadProjectRefs(linkedProjectId);
     const storedState = getProjectState(linkedProjectId);
     const meta = loadProjectMeta(linkedProjectId);
+    const persistedComposeWorkspace = readComposeWorkspace(linkedProjectId);
     const colorsCount = meta?.palette.length ?? storedState.palette?.length ?? 0;
     const fontsCount = [meta?.headingFont, meta?.bodyFont].filter(Boolean).length;
+    const storedVariants = normalizeVariants(storedState.canvas?.generatedVariants ?? []);
 
     if (meta) {
       setProjectName(meta.name);
@@ -2139,13 +2253,20 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
       setSitePrompt(storedState.canvas?.componentPrompt ?? inferSiteName(meta.name));
       setSiteType(storedState.canvas?.siteType ?? "auto");
-      setGeneratedVariants(normalizeVariants(storedState.canvas?.generatedVariants ?? []));
+      setGeneratedVariants(storedVariants);
       setSelectedVariantId(
         storedState.canvas?.selectedVariantId ??
           storedState.canvas?.generatedVariants?.[0]?.id ??
           null
       );
-      setComposeDocument(storedState.canvas?.composeDocument ?? null);
+      setComposeDocument(
+        storedState.canvas?.composeDocument
+          ? rehydrateComposeDocument(
+              storedState.canvas.composeDocument,
+              persistedComposeWorkspace
+            )
+          : null
+      );
 
       if (storedState.canvas?.composeDocument) {
         setStage(storedState.canvas.stage ?? "compose");
@@ -2160,6 +2281,11 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
       `${refs.length} references, ${colorsCount} colors, ${fontsCount} fonts loaded`
     );
   }, [linkedProjectId]);
+
+  React.useEffect(() => {
+    if (!linkedProjectId || !composeDocument) return;
+    writeComposeWorkspace(linkedProjectId, composeDocument);
+  }, [composeDocument, linkedProjectId]);
 
   React.useEffect(() => {
     if (!bootstrapToast) return;
@@ -2406,9 +2532,18 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
   function handleOpenCompose(preferredVariantId?: string) {
     if (generatedVariants.length === 0) return;
-    const nextDocument = createComposeDocument(generatedVariants);
+    const nextDocument = rehydrateComposeDocument(
+      createComposeDocument(generatedVariants),
+      linkedProjectId ? readComposeWorkspace(linkedProjectId) : null
+    );
     const preferredArtboard = preferredVariantId
-      ? nextDocument.artboards.find((artboard) => artboard.variantId === preferredVariantId)
+      ? nextDocument.artboards.find((artboard) => {
+          if (artboard.variantId === preferredVariantId) return true;
+          const preferredVariant = generatedVariants.find(
+            (variant) => variant.id === preferredVariantId
+          );
+          return preferredVariant ? artboard.name === preferredVariant.name : false;
+        })
       : nextDocument.artboards[0];
 
     setComposeDocument(

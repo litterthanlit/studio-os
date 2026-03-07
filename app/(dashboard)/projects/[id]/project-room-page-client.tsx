@@ -59,6 +59,25 @@ function storedToProject(sp: {
   };
 }
 
+function sameProjectSnapshot(a: Project | null, b: Project | null): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.client === b.client &&
+    a.phase === b.phase &&
+    a.progress === b.progress &&
+    a.leadImage === b.leadImage &&
+    a.lastActivity === b.lastActivity &&
+    a.references === b.references &&
+    a.fontsSelected === b.fontsSelected &&
+    a.daysActive === b.daysActive &&
+    a.headingFont?.family === b.headingFont?.family &&
+    a.bodyFont?.family === b.bodyFont?.family &&
+    a.palette.join("|") === b.palette.join("|")
+  );
+}
+
 export function ProjectRoomPageClient({
   id,
   staticProject,
@@ -69,11 +88,7 @@ export function ProjectRoomPageClient({
   const router = useRouter();
   const coverInputRef = React.useRef<HTMLInputElement>(null);
 
-  const [project, setProject] = React.useState<Project | null>(() => {
-    if (!staticProject) return null;
-    if (typeof window === "undefined") return staticProject;
-    return applyStoredProjectState(staticProject);
-  });
+  const [project, setProject] = React.useState<Project | null>(staticProject);
   const [checked, setChecked] = React.useState(staticProject !== null);
 
   // For localStorage-created projects, look them up on mount
@@ -102,7 +117,8 @@ export function ProjectRoomPageClient({
     const syncProjectState = () => {
       setProject((prev) => {
         if (!prev) return prev;
-        return applyStoredProjectState(prev);
+        const next = applyStoredProjectState(prev);
+        return sameProjectSnapshot(prev, next) ? prev : next;
       });
     };
 
@@ -113,6 +129,9 @@ export function ProjectRoomPageClient({
       window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncProjectState);
       window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, syncProjectState);
     };
+    // `syncProjectState` already reads the latest project snapshot from state.
+    // Re-subscribing on every derived field change would reintroduce noisy rerenders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id]);
 
   function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {

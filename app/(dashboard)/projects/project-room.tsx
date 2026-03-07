@@ -4,7 +4,6 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ColorPickerPanel } from "@/components/color-picker";
-import { DotSeparator } from "@/components/ui/dot-separator";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   ImportReferenceModal,
@@ -70,10 +69,6 @@ function OverviewTab({ project }: { project: Project }) {
     setNotes(getProjectState(project.id).notes ?? DEFAULT_NOTES);
   }, [project.id]);
 
-  React.useEffect(() => {
-    upsertProjectState(project.id, { notes });
-  }, [notes, project.id]);
-
   return (
     <div className="space-y-2">
       <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
@@ -81,7 +76,11 @@ function OverviewTab({ project }: { project: Project }) {
       </div>
       <textarea
         value={notes}
-        onChange={(e) => setNotes(e.target.value)}
+        onChange={(e) => {
+          const nextNotes = e.target.value;
+          setNotes(nextNotes);
+          upsertProjectState(project.id, { notes: nextNotes });
+        }}
         className="h-32 w-full border border-card-border bg-transparent px-3 py-2 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent rounded-md resize-none leading-relaxed placeholder:text-gray-600"
         placeholder="Capture the core constraints, success criteria, and non-negotiables here."
       />
@@ -121,7 +120,6 @@ function fileToDataUrl(file: File): Promise<string> {
 
 function BoardTab({ project }: { project: Project }) {
   const [references, setReferences] = React.useState<MoodboardReference[]>([]);
-  const [loadedProjectId, setLoadedProjectId] = React.useState<string | null>(null);
   const [isDragActive, setIsDragActive] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [initialImportMode, setInitialImportMode] = React.useState<
@@ -139,7 +137,6 @@ function BoardTab({ project }: { project: Project }) {
 
   React.useEffect(() => {
     setReferences(readProjectReferences(project.id));
-    setLoadedProjectId(project.id);
   }, [project.id]);
 
   React.useEffect(() => {
@@ -152,11 +149,6 @@ function BoardTab({ project }: { project: Project }) {
       window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncReferences);
     };
   }, [project.id]);
-
-  React.useEffect(() => {
-    if (loadedProjectId !== project.id) return;
-    writeProjectReferences(project.id, references);
-  }, [loadedProjectId, project.id, references]);
 
   React.useEffect(() => {
     function onDocumentPaste(e: ClipboardEvent) {
@@ -204,7 +196,11 @@ function BoardTab({ project }: { project: Project }) {
 
   function handleImport(payload: { references: MoodboardReference[]; notice?: string }) {
     if (payload.references.length === 0) return;
-    setReferences((prev) => [...payload.references, ...prev]);
+    setReferences((prev) => {
+      const next = [...payload.references, ...prev];
+      writeProjectReferences(project.id, next);
+      return next;
+    });
     setNotice(payload.notice ?? null);
   }
 
@@ -232,7 +228,11 @@ function BoardTab({ project }: { project: Project }) {
       setUploadProgress({ done: i + 1, total: validFiles.length });
     }
 
-    setReferences((prev) => [...next, ...prev]);
+    setReferences((prev) => {
+      const combined = [...next, ...prev];
+      writeProjectReferences(project.id, combined);
+      return combined;
+    });
     setNotice(`Added ${next.length} upload${next.length === 1 ? "" : "s"}.`);
     setTimeout(() => setUploadProgress(null), 600);
   }
@@ -264,7 +264,11 @@ function BoardTab({ project }: { project: Project }) {
   }
 
   function removeReference(id: string) {
-    setReferences((prev) => prev.filter((ref) => ref.id !== id));
+    setReferences((prev) => {
+      const next = prev.filter((ref) => ref.id !== id);
+      writeProjectReferences(project.id, next);
+      return next;
+    });
   }
 
   return (
@@ -796,7 +800,13 @@ function PaletteTab({ project }: { project: Project }) {
 
   function addSwatch() {
     const id = `swatch-${Date.now()}`;
-    setSwatches((prev) => [...prev, { id, color: "#2430AD", name: "" }]);
+    setSwatches((prev) => {
+      const next = [...prev, { id, color: "#2430AD", name: "" }];
+      upsertProjectState(project.id, {
+        palette: next.map((swatch) => swatch.color),
+      });
+      return next;
+    });
   }
 
   React.useEffect(() => {
@@ -808,24 +818,31 @@ function PaletteTab({ project }: { project: Project }) {
         name: getColorName(color),
       }))
     );
-  }, [project.id, project.palette]);
-
-  React.useEffect(() => {
-    upsertProjectState(project.id, {
-      palette: swatches.map((swatch) => swatch.color),
-    });
-  }, [project.id, swatches]);
+    // Palette edits are persisted immediately via user actions; re-running this
+    // on parent object churn would wipe in-progress local edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
 
   function updateColor(id: string, color: string) {
-    setSwatches((prev) =>
-      prev.map((s) =>
+    setSwatches((prev) => {
+      const next = prev.map((s) =>
         s.id === id ? { ...s, color, name: getColorName(color) } : s
-      )
-    );
+      );
+      upsertProjectState(project.id, {
+        palette: next.map((swatch) => swatch.color),
+      });
+      return next;
+    });
   }
 
   function removeSwatch(id: string) {
-    setSwatches((prev) => prev.filter((s) => s.id !== id));
+    setSwatches((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      upsertProjectState(project.id, {
+        palette: next.map((swatch) => swatch.color),
+      });
+      return next;
+    });
     if (openPickerId === id) setOpenPickerId(null);
   }
 
@@ -838,16 +855,6 @@ function PaletteTab({ project }: { project: Project }) {
     const left = Math.min(rect.left, window.innerWidth - PANEL_W - 8);
     setPickerPosition({ top, left });
     setOpenPickerId(swatchId);
-  }
-
-  // Helper to determine if a color is light or dark
-  function isLightColor(hex: string): boolean {
-    const normalized = hex.toLowerCase().replace("#", "");
-    const r = parseInt(normalized.slice(0, 2), 16);
-    const g = parseInt(normalized.slice(2, 4), 16);
-    const b = parseInt(normalized.slice(4, 6), 16);
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 128;
   }
 
   return (

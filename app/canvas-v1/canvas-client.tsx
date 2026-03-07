@@ -463,7 +463,7 @@ function ComposeStage({
   const selectionPath = React.useMemo(
     () =>
       selectedArtboard
-        ? findNodePath(selectedArtboard.pageTree, document.selectedNodeId)
+        ? (findNodePath(selectedArtboard.pageTree, document.selectedNodeId) ?? [])
         : [],
     [document.selectedNodeId, selectedArtboard]
   );
@@ -638,7 +638,7 @@ function ComposeStage({
         return;
       }
 
-      const path = findNodePath(selectedArtboard.pageTree, selectedNode.id);
+      const path = findNodePath(selectedArtboard.pageTree, selectedNode.id) ?? [];
       const heading = path.find((item) => item.type === "heading");
       const paragraph = path.find(
         (item) =>
@@ -1383,6 +1383,8 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   const [generateLoading, setGenerateLoading] = React.useState(false);
   const [generateError, setGenerateError] = React.useState<string | null>(null);
   const [composeDocument, setComposeDocument] = React.useState<ComposeDocument | null>(null);
+  // Guard against race conditions when the user triggers generation multiple times
+  const generateRequestIdRef = React.useRef(0);
 
   React.useEffect(() => {
     if (tokens) setMarkdown(tokensToMarkdown(tokens));
@@ -1622,6 +1624,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
   async function handleGenerateVariants() {
     if (!tokens || !sitePrompt.trim()) return;
+    const requestId = ++generateRequestIdRef.current;
     setGenerateLoading(true);
     setGenerateError(null);
 
@@ -1641,6 +1644,9 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Variant generation failed");
 
+      // Discard the response if a newer request has already been issued
+      if (requestId !== generateRequestIdRef.current) return;
+
       setGeneratedVariants(data.variants ?? []);
       setSelectedVariantId(data.variants?.[0]?.id ?? null);
       if (!setName.trim() && data.siteName) {
@@ -1648,9 +1654,12 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
       }
       setStage("generate");
     } catch (error) {
+      if (requestId !== generateRequestIdRef.current) return;
       setGenerateError(error instanceof Error ? error.message : "Variant generation failed");
     } finally {
-      setGenerateLoading(false);
+      if (requestId === generateRequestIdRef.current) {
+        setGenerateLoading(false);
+      }
     }
   }
 

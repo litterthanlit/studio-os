@@ -5,6 +5,39 @@ import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
 type ComposeAction = "rewrite-copy" | "regenerate-section" | "restyle-section";
 
+/** Validate and sanitize an AI-generated restyle object before it touches PageNodeStyle.
+ *  Only known numeric/string/enum fields are passed through; unknown or wrong-typed
+ *  values are silently dropped so a misbehaving model can never corrupt the style tree. */
+function sanitizeRestyleResult(raw: Record<string, unknown>): Partial<PageNodeStyle> {
+  const out: Partial<PageNodeStyle> = {};
+
+  // String hex color fields
+  for (const key of ["background", "foreground", "muted", "accent", "borderColor"] as const) {
+    const v = raw[key];
+    if (typeof v === "string" && v.length > 0) out[key] = v;
+  }
+
+  // Positive-number fields
+  for (const key of ["borderRadius", "paddingX", "paddingY", "gap", "columns", "maxWidth", "minHeight"] as const) {
+    const v = raw[key];
+    if (typeof v === "number" && isFinite(v) && v >= 0) out[key] = v;
+  }
+
+  // Enum fields
+  const align = raw["align"];
+  if (align === "left" || align === "center") out.align = align;
+
+  const shadow = raw["shadow"];
+  if (shadow === "none" || shadow === "soft" || shadow === "medium") out.shadow = shadow;
+
+  const badgeTone = raw["badgeTone"];
+  if (badgeTone === "surface" || badgeTone === "accent" || badgeTone === "outline") out.badgeTone = badgeTone;
+
+  if (typeof raw["emphasized"] === "boolean") out.emphasized = raw["emphasized"];
+
+  return out;
+}
+
 function localRewrite(node: PageNode, prompt: string): string {
   const base = prompt.trim() || node.content?.text || "Sharpen the message";
   if (node.type === "heading") {
@@ -124,11 +157,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const localStyle = localRestyle(tokens, prompt);
+    const aiStyle = ai ? sanitizeRestyleResult(ai) : {};
     return NextResponse.json({
-      style: {
-        ...localRestyle(tokens, prompt),
-        ...(ai ?? {}),
-      },
+      style: { ...localStyle, ...aiStyle },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Compose action failed";

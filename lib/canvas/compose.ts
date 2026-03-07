@@ -585,15 +585,15 @@ export function findNodeById(node: PageNode, targetId: string | null): PageNode 
   return null;
 }
 
-export function findNodePath(node: PageNode, targetId: string | null, path: PageNode[] = []): PageNode[] {
-  if (!targetId) return [];
+export function findNodePath(node: PageNode, targetId: string | null, path: PageNode[] = []): PageNode[] | null {
+  if (!targetId) return null;
   const nextPath = [...path, node];
   if (node.id === targetId) return nextPath;
   for (const child of node.children ?? []) {
     const childPath = findNodePath(child, targetId, nextPath);
-    if (childPath.length > 0) return childPath;
+    if (childPath !== null) return childPath;
   }
-  return [];
+  return null;
 }
 
 export function updateNodeInTree(
@@ -706,7 +706,9 @@ export function compilePageTreeToTSX(
   componentName = "ComposedPage"
 ): string {
   const safeName = componentName.replace(/[^a-zA-Z0-9]/g, "") || "ComposedPage";
-  return `import * as React from "react";
+  return `// @ts-nocheck
+/* eslint-disable */
+import * as React from "react";
 import { motion } from "framer-motion";
 
 const TOKENS = ${serializeTokens(tokens)} as const;

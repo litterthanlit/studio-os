@@ -22,6 +22,9 @@ export { PROJECTS, PHASE_STYLES } from "./projects-data";
 export function ProjectRoomSections({ project }: { project: Project }) {
   return (
     <div className="pb-16">
+      {/* Persistent tasks bar — always visible at the top */}
+      <TasksBar projectId={project.id} />
+
       <section id="board" className="py-8 border-b border-card-border">
         <BoardTab project={project} />
       </section>
@@ -34,13 +37,8 @@ export function ProjectRoomSections({ project }: { project: Project }) {
         <PaletteTab project={project} />
       </section>
 
-      {/* Canvas — generate a site from this project's references + palette */}
       <section id="canvas" className="py-8 border-b border-card-border">
         <CanvasLauncher project={project} />
-      </section>
-
-      <section id="tasks" className="py-8 border-b border-card-border">
-        <TasksTab projectId={project.id} />
       </section>
 
       <section id="overview" className="py-8">
@@ -1018,28 +1016,39 @@ function writeAllTasks(tasks: PersistedTask[]) {
   localStorage.setItem(TASKS_LS_KEY, JSON.stringify(tasks));
 }
 
-function TasksTab({ projectId }: { projectId: string }) {
+const TASKS_EXPAND_KEY = "studio-os:tasks-expanded";
+
+function TasksBar({ projectId }: { projectId: string }) {
   const [tasks, setTasks] = React.useState<PersistedTask[]>([]);
   const [draft, setDraft] = React.useState("");
+  const [expanded, setExpanded] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(`${TASKS_EXPAND_KEY}:${projectId}`) === "1";
+  });
 
-  // Load tasks for this project from localStorage on mount
   React.useEffect(() => {
     const all = readAllTasks();
     const projectTasks = all.filter((t) => t.projectId === projectId);
-    // Seed default tasks if none exist for this project
     if (projectTasks.length === 0) {
       const defaults: PersistedTask[] = [
         { id: `t-${projectId}-1`, text: "Define success criteria with client", projectId, createdAt: new Date().toISOString(), completed: false },
         { id: `t-${projectId}-2`, text: "First Vision pass for this room",      projectId, createdAt: new Date().toISOString(), completed: false },
         { id: `t-${projectId}-3`, text: "Lock heading/body pairing",             projectId, createdAt: new Date().toISOString(), completed: false },
       ];
-      const updated = [...defaults, ...all];
-      writeAllTasks(updated);
+      writeAllTasks([...defaults, ...all]);
       setTasks(defaults);
     } else {
       setTasks(projectTasks);
     }
   }, [projectId]);
+
+  function toggleExpanded() {
+    setExpanded((prev) => {
+      const next = !prev;
+      localStorage.setItem(`${TASKS_EXPAND_KEY}:${projectId}`, next ? "1" : "0");
+      return next;
+    });
+  }
 
   function toggleTask(id: string) {
     const all = readAllTasks();
@@ -1066,72 +1075,124 @@ function TasksTab({ projectId }: { projectId: string }) {
     setDraft("");
   }
 
+  const completed = tasks.filter((t) => t.completed).length;
+  const total = tasks.length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
   return (
-    <div className="space-y-3">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-        Tasks
-      </div>
+    <div className="border-b border-card-border">
+      {/* Collapsed header — always visible */}
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        className="flex w-full items-center gap-3 py-4 text-left group"
+      >
+        <motion.svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0 text-text-muted"
+          animate={{ rotate: expanded ? 90 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        >
+          <path d="M9 6l6 6-6 6" />
+        </motion.svg>
 
-      <div className="space-y-0.5">
-        {tasks.map((task) => (
-          <motion.div
-            key={task.id}
-            whileHover={{ x: 3 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            onClick={() => toggleTask(task.id)}
-            className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary cursor-pointer transition-colors duration-300 hover:bg-neutral-800/50 rounded-md"
-          >
-            <input
-              type="checkbox"
-              checked={task.completed}
-              onChange={() => toggleTask(task.id)}
-              onClick={(e) => e.stopPropagation()}
-              className="h-3 w-3 border border-gray-500 bg-transparent transition-colors duration-300"
+        <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors duration-300 group-hover:text-text-secondary">
+          Tasks
+        </span>
+
+        <span className="text-[11px] font-mono text-text-muted transition-colors duration-300">
+          {completed}/{total} complete
+        </span>
+
+        {/* Progress bar */}
+        <div className="flex-1 max-w-[120px] ml-1">
+          <div className="h-[3px] w-full bg-bg-tertiary rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-accent rounded-full"
+              initial={false}
+              animate={{ width: `${pct}%` }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
             />
-            <span className={cn(task.completed && "line-through text-gray-400 transition-colors duration-300")}>
-              {task.text}
-            </span>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2 pt-2">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Add task..."
-            className="w-full border border-card-border bg-transparent px-2 py-1.5 pr-8 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent rounded-md"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addTask();
-              }
-            }}
-          />
-          <button
-            type="button"
-            onClick={addTask}
-            disabled={!draft.trim()}
-            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 transition-colors duration-300 hover:text-text-primary disabled:opacity-30 disabled:hover:text-gray-500"
-            aria-label="Add task"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
+          </div>
         </div>
-      </div>
+      </button>
+
+      {/* Expandable task list */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            className="overflow-hidden"
+          >
+            <div className="pb-4 space-y-1">
+              {tasks.map((task) => (
+                <motion.div
+                  key={task.id}
+                  whileHover={{ x: 3 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  onClick={() => toggleTask(task.id)}
+                  className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary cursor-pointer transition-colors duration-300 hover:bg-sidebar-hover rounded-md"
+                >
+                  <input
+                    type="checkbox"
+                    checked={task.completed}
+                    onChange={() => toggleTask(task.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-3 w-3 shrink-0 border border-border-secondary bg-transparent accent-accent transition-colors duration-300"
+                  />
+                  <span className={cn(
+                    "transition-colors duration-200",
+                    task.completed && "line-through text-text-muted"
+                  )}>
+                    {task.text}
+                  </span>
+                </motion.div>
+              ))}
+
+              {/* Inline task creation */}
+              <div className="flex items-center gap-2 pt-1 pl-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder="Add task..."
+                    className="w-full border border-card-border bg-transparent px-2 py-1.5 pr-8 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent rounded-md"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addTask();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={addTask}
+                    disabled={!draft.trim()}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-text-muted transition-colors duration-300 hover:text-text-primary disabled:opacity-30"
+                    aria-label="Add task"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

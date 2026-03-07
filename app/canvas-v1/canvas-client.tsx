@@ -3174,14 +3174,16 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   }
 
   const selectedCount = selectedIds.size;
+  const hasReferences = images.length > 0;
+  const hasTokens = tokens !== null;
   const canAnalyze = selectedCount > 0 && !analysisLoading;
   const canGenerateSystem = analysis !== null && !systemLoading;
   const canGenerateVariants =
-    tokens !== null && sitePrompt.trim().length > 0 && !generateLoading;
+    hasTokens && sitePrompt.trim().length > 0 && !generateLoading;
 
   const completions: Partial<Record<CanvasStage, boolean>> = {
-    moodboard: images.length > 0,
-    system: tokens !== null,
+    moodboard: hasReferences,
+    system: hasTokens,
     generate: generatedVariants.length > 0,
     compose: false,
   };
@@ -3192,11 +3194,11 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   > = {
     moodboard: { available: true },
     system: {
-      available: images.length > 0,
+      available: hasReferences || hasTokens,
       tooltip: "Upload references first",
     },
     generate: {
-      available: tokens !== null,
+      available: hasTokens,
       tooltip: "Generate a design system first",
     },
     compose: {

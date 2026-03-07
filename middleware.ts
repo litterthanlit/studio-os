@@ -3,9 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Paths that don't require authentication
 const PUBLIC_PREFIXES = ["/auth", "/onboarding", "/share"];
+// The root "/" is always public (marketing site)
+const isRootPublic = (pathname: string) => pathname === "/";
 
 function isPublic(pathname: string): boolean {
-  return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+  return isRootPublic(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
 export async function middleware(request: NextRequest) {
@@ -58,14 +60,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected paths: redirect to login if not signed in
-  // TEMPORARY BYPASS (can be restored later):
-  // if (!user) {
-  //   const url = request.nextUrl.clone();
-  //   url.pathname = "/auth/login";
-  //   url.searchParams.set("next", pathname);
-  //   return NextResponse.redirect(url);
-  // }
-  if (!user) return response;
+  if (!user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
 
   return response;
 }

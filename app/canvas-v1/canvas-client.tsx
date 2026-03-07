@@ -16,6 +16,7 @@ import { SystemEditor } from "./components/SystemEditor";
 import { ComposeDocumentView } from "./components/ComposeDocumentView";
 import {
   BREAKPOINT_WIDTHS,
+  compileSectionNodeToTSX,
   compilePageTreeToTSX,
   createComposeDocument,
   findNodeById,
@@ -318,10 +319,14 @@ function ExportMenu({
   code,
   siteName,
   siteType,
+  sectionCode,
+  sectionName,
 }: {
   code: string | null;
   siteName: string;
   siteType: SiteType;
+  sectionCode?: string | null;
+  sectionName?: string | null;
 }) {
   const [copied, setCopied] = React.useState<string | null>(null);
   if (!code) return null;
@@ -369,7 +374,7 @@ function ExportMenu({
         className="h-8 text-[10px] uppercase tracking-[0.12em]"
         onClick={() => downloadHtml(cfg)}
       >
-        HTML
+        Download HTML
       </Button>
       <Button
         type="button"
@@ -377,14 +382,24 @@ function ExportMenu({
         className="h-8 text-[10px] uppercase tracking-[0.12em]"
         onClick={() => downloadNextjsZip(cfg)}
       >
-        Next.js ZIP
+        Download Next.js
       </Button>
+      {sectionCode && sectionName ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-8 text-[10px] uppercase tracking-[0.12em]"
+          onClick={() => downloadTSX(sectionCode, sectionName)}
+        >
+          Export Section
+        </Button>
+      ) : null}
       <Button
         type="button"
         className="h-8 text-[10px] uppercase tracking-[0.12em]"
         onClick={() => deployToVercel(cfg)}
       >
-        Deploy
+        Deploy to Vercel
       </Button>
     </div>
   );
@@ -1142,6 +1157,8 @@ function ComposeStage({
   const [aiPrompt, setAiPrompt] = React.useState("");
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiLoading, setAiLoading] = React.useState(false);
+  const [referencesDockOpen, setReferencesDockOpen] = React.useState(false);
+  const [systemDockOpen, setSystemDockOpen] = React.useState(false);
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = React.useState({ width: 1, height: 1 });
   const stateRef = React.useRef({
@@ -1218,6 +1235,11 @@ function ComposeStage({
         : [],
     [document.selectedNodeId, selectedArtboard]
   );
+  const selectedSection = React.useMemo(
+    () =>
+      [...selectionPath].reverse().find((node) => node.type === "section") ?? null,
+    [selectionPath]
+  );
   const exportArtboard = React.useMemo(
     () => getExportArtboard(document),
     [document]
@@ -1228,6 +1250,13 @@ function ComposeStage({
         ? compilePageTreeToTSX(exportArtboard.pageTree, tokens, exportArtboard.name)
         : null,
     [exportArtboard, tokens]
+  );
+  const sectionExportCode = React.useMemo(
+    () =>
+      selectedSection
+        ? compileSectionNodeToTSX(selectedSection, tokens, selectedSection.name)
+        : null,
+    [selectedSection, tokens]
   );
   const boardItems = React.useMemo(() => {
     const artboardWidth = BREAKPOINT_WIDTHS[document.breakpoint];
@@ -1418,7 +1447,14 @@ function ComposeStage({
     dragRef.current = null;
   }
 
-  async function applyAiAction(action: "rewrite-copy" | "regenerate-section" | "restyle-section") {
+  async function applyAiAction(
+    action:
+      | "rewrite-copy"
+      | "regenerate-section"
+      | "restyle-section"
+      | "regenerate-page"
+      | "change-style"
+  ) {
     if (!selectedArtboard || !selectedNode) return;
     setAiError(null);
     setAiLoading(true);
@@ -1442,7 +1478,7 @@ function ComposeStage({
         return;
       }
 
-      if (action === "restyle-section") {
+      if (action === "restyle-section" || action === "change-style") {
         const style = data.style as Partial<PageNodeStyle>;
         for (const [key, value] of Object.entries(style)) {
           updateSelectedStyle(
@@ -1453,7 +1489,9 @@ function ComposeStage({
         return;
       }
 
-      const path = findNodePath(selectedArtboard.pageTree, selectedNode.id) ?? [];
+      const targetNode =
+        action === "regenerate-page" ? selectedArtboard.pageTree : selectedNode;
+      const path = findNodePath(selectedArtboard.pageTree, targetNode.id) ?? [];
       const heading = path.find((item) => item.type === "heading");
       const paragraph = path.find(
         (item) =>
@@ -1497,6 +1535,33 @@ function ComposeStage({
     }
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
+
+  function addOverlay(
+    overlay:
+      | ComposeDocument["overlays"][number]
+  ) {
+    updateDocument({
+      overlays: [...document.overlays, overlay],
+    });
+  }
+
+  const activeAiActions = React.useMemo(() => {
+    if (!selectedNode) return [];
+    if (selectedNode.type === "page") {
+      return [{ label: "Regenerate Page", action: "regenerate-page" as const }];
+    }
+    if (selectedNode.type === "section") {
+      return [
+        { label: "Regenerate Section", action: "regenerate-section" as const },
+        { label: "Restyle", action: "restyle-section" as const },
+        { label: "Rewrite Copy", action: "rewrite-copy" as const },
+      ];
+    }
+    return [
+      { label: "Edit Content", action: "rewrite-copy" as const },
+      { label: "Change Style", action: "change-style" as const },
+    ];
+  }, [selectedNode]);
 
   return (
     <CanvasStageLayout
@@ -1671,7 +1736,13 @@ function ComposeStage({
                   Preview
                 </Button>
                 {exportCode ? (
-                  <ExportMenu code={exportCode} siteName={siteName} siteType={siteType} />
+                  <ExportMenu
+                    code={exportCode}
+                    siteName={siteName}
+                    siteType={siteType}
+                    sectionCode={sectionExportCode}
+                    sectionName={selectedSection?.name ?? null}
+                  />
                 ) : null}
                 <Button
                   type="button"
@@ -1711,6 +1782,150 @@ function ComposeStage({
               onMouseUp={clearPointerState}
               onMouseLeave={clearPointerState}
             >
+              <button
+                type="button"
+                onClick={() => setReferencesDockOpen((open) => !open)}
+                className="absolute left-4 top-4 z-20 rounded-full border border-white/10 bg-[#0d1016]/92 px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-white/80 backdrop-blur transition-colors hover:text-white"
+              >
+                {referencesDockOpen ? "Hide References" : "References"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSystemDockOpen((open) => !open)}
+                className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-[#0d1016]/92 px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-white/80 backdrop-blur transition-colors hover:text-white"
+              >
+                {systemDockOpen ? "Hide System" : "System"}
+              </button>
+              <AnimatePresence initial={false}>
+                {referencesDockOpen ? (
+                  <motion.div
+                    initial={{ x: -24, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: -24, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="absolute bottom-4 left-4 top-16 z-20 w-[290px] overflow-hidden rounded-[24px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
+                  >
+                    <div className="border-b border-white/10 px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/70">
+                        References Dock
+                      </p>
+                      <p className="mt-1 text-[11px] text-white/45">
+                        Pin references and overlays onto the board without leaving Compose.
+                      </p>
+                    </div>
+                    <div className="space-y-4 overflow-y-auto p-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="h-9 text-[10px] uppercase tracking-[0.12em]"
+                          onClick={() =>
+                            addOverlay({
+                              id: `note-${Date.now()}`,
+                              type: "note",
+                              x: (selectedArtboard?.x ?? 0) - 280,
+                              y: (selectedArtboard?.y ?? 0) + 120,
+                              width: 240,
+                              height: 180,
+                              text: "Pin a thought, content note, or feedback loop here.",
+                              color: "#FBE67A",
+                            })
+                          }
+                        >
+                          Add Note
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="h-9 text-[10px] uppercase tracking-[0.12em]"
+                          onClick={() =>
+                            addOverlay({
+                              id: `arrow-${Date.now()}`,
+                              type: "arrow",
+                              x: (selectedArtboard?.x ?? 0) - 160,
+                              y: (selectedArtboard?.y ?? 0) + 80,
+                              width: 180,
+                              height: 80,
+                              color: "#F97316",
+                            })
+                          }
+                        >
+                          Add Arrow
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {references.slice(0, 8).map((reference) => (
+                          <button
+                            key={reference.id}
+                            type="button"
+                            onClick={() =>
+                              addOverlay({
+                                id: `overlay-${reference.id}-${Date.now()}`,
+                                type: "reference",
+                                x: (selectedArtboard?.x ?? 0) - 340,
+                                y: (selectedArtboard?.y ?? 0) + 40,
+                                width: 220,
+                                height: 160,
+                                imageUrl: reference.url,
+                                label: reference.name,
+                              })
+                            }
+                            className="overflow-hidden rounded-xl border border-white/10 bg-white/5 text-left"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={reference.thumbnail || reference.url}
+                              alt={reference.name}
+                              className="h-24 w-full object-cover"
+                            />
+                            <div className="px-2 py-2 text-[11px] text-white/75 truncate">
+                              {reference.name}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+              <AnimatePresence initial={false}>
+                {systemDockOpen ? (
+                  <motion.div
+                    initial={{ x: 24, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 24, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="absolute bottom-4 right-4 top-16 z-20 w-[300px] overflow-hidden rounded-[24px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
+                  >
+                    <div className="border-b border-white/10 px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/70">
+                        System Dock
+                      </p>
+                      <p className="mt-1 text-[11px] text-white/45">
+                        Palette and typography stay visible while you compose.
+                      </p>
+                    </div>
+                    <div className="space-y-4 overflow-y-auto p-4">
+                      <div className="grid grid-cols-3 gap-2">
+                        {Object.entries(tokens.colors).map(([key, value]) => (
+                          <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                            <div className="h-10 rounded-lg" style={{ background: value }} />
+                            <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-white/45">
+                              {key}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.12em] text-white/45">
+                          Typography
+                        </p>
+                        <p className="mt-2 text-sm text-white/80">{tokens.typography.fontFamily}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
               <div
                 style={{
                   position: "absolute",
@@ -1831,7 +2046,7 @@ function ComposeStage({
                         }
                         className="h-full w-full resize-none bg-transparent px-4 py-3 text-[13px] leading-relaxed text-black outline-none"
                       />
-                    ) : (
+                    ) : overlay.type === "reference" ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -1843,6 +2058,37 @@ function ComposeStage({
                           {overlay.label || "Reference"}
                         </div>
                       </>
+                    ) : (
+                      <svg
+                        viewBox={`0 0 ${overlay.width} ${overlay.height}`}
+                        className="h-full w-full"
+                      >
+                        <defs>
+                          <marker
+                            id={`arrowhead-${overlay.id}`}
+                            markerWidth="10"
+                            markerHeight="7"
+                            refX="9"
+                            refY="3.5"
+                            orient="auto"
+                          >
+                            <polygon
+                              points="0 0, 10 3.5, 0 7"
+                              fill={overlay.color || "#F97316"}
+                            />
+                          </marker>
+                        </defs>
+                        <line
+                          x1="8"
+                          y1={overlay.height - 8}
+                          x2={overlay.width - 12}
+                          y2="12"
+                          stroke={overlay.color || "#F97316"}
+                          strokeWidth="4"
+                          markerEnd={`url(#arrowhead-${overlay.id})`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     )}
                   </div>
                 ))}
@@ -2327,6 +2573,18 @@ function ComposeStage({
 
             {selectedNode && document.inspectorTab === "ai" ? (
               <div className="space-y-4">
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                    Selection-Aware Actions
+                  </p>
+                  <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    {selectedNode.type === "page"
+                      ? "Page selected. Regenerate the whole direction while keeping it inside the current artboard."
+                      : selectedNode.type === "section"
+                      ? "Section selected. Rewrite, restyle, or regenerate this slice without leaving Compose."
+                      : "Block selected. Make targeted content or style changes directly from the inspector."}
+                  </p>
+                </div>
                 <label className="block space-y-1.5">
                   <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
                     AI Prompt
@@ -2340,33 +2598,18 @@ function ComposeStage({
                   />
                 </label>
                 <div className="grid grid-cols-1 gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                    onClick={() => applyAiAction("rewrite-copy")}
-                    disabled={aiLoading}
-                  >
-                    Rewrite selected copy
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                    onClick={() => applyAiAction("regenerate-section")}
-                    disabled={aiLoading}
-                  >
-                    Regenerate section direction
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                    onClick={() => applyAiAction("restyle-section")}
-                    disabled={aiLoading}
-                  >
-                    Restyle from system
-                  </Button>
+                  {activeAiActions.map((item) => (
+                    <Button
+                      key={item.label}
+                      type="button"
+                      variant="secondary"
+                      className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
+                      onClick={() => applyAiAction(item.action)}
+                      disabled={aiLoading}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
                 </div>
                 {aiError ? (
                   <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">

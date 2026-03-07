@@ -3,7 +3,12 @@ import OpenAI from "openai";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
-type ComposeAction = "rewrite-copy" | "regenerate-section" | "restyle-section";
+type ComposeAction =
+  | "rewrite-copy"
+  | "regenerate-section"
+  | "restyle-section"
+  | "regenerate-page"
+  | "change-style";
 
 /** Validate and sanitize an AI-generated restyle object before it touches PageNodeStyle.
  *  Only known numeric/string/enum fields are passed through; unknown or wrong-typed
@@ -12,20 +17,28 @@ function sanitizeRestyleResult(raw: Record<string, unknown>): Partial<PageNodeSt
   const out: Partial<PageNodeStyle> = {};
 
   // String hex color fields
-  for (const key of ["background", "foreground", "muted", "accent", "borderColor"] as const) {
+  for (const key of ["background", "foreground", "muted", "accent", "borderColor", "fontFamily"] as const) {
     const v = raw[key];
     if (typeof v === "string" && v.length > 0) out[key] = v;
   }
 
   // Positive-number fields
-  for (const key of ["borderRadius", "paddingX", "paddingY", "gap", "columns", "maxWidth", "minHeight"] as const) {
+  for (const key of ["borderRadius", "paddingX", "paddingY", "gap", "columns", "maxWidth", "minHeight", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "opacity", "blur"] as const) {
     const v = raw[key];
     if (typeof v === "number" && isFinite(v) && v >= 0) out[key] = v;
   }
 
   // Enum fields
   const align = raw["align"];
-  if (align === "left" || align === "center") out.align = align;
+  if (align === "left" || align === "center" || align === "right") out.align = align;
+
+  const direction = raw["direction"];
+  if (direction === "row" || direction === "column") out.direction = direction;
+
+  const justify = raw["justify"];
+  if (justify === "start" || justify === "center" || justify === "end" || justify === "between") {
+    out.justify = justify;
+  }
 
   const shadow = raw["shadow"];
   if (shadow === "none" || shadow === "soft" || shadow === "medium") out.shadow = shadow;
@@ -88,7 +101,7 @@ async function openAiEdit(
       {
         role: "system",
         content:
-          "Return compact JSON only. For rewrite-copy return {\"text\":\"...\"}. For regenerate-section return {\"heading\":\"...\",\"body\":\"...\"}. For restyle-section return {\"background\":\"#...\",\"borderRadius\":24,\"paddingY\":64,\"paddingX\":48,\"shadow\":\"soft\"}.",
+          "Return compact JSON only. For rewrite-copy return {\"text\":\"...\"}. For regenerate-section or regenerate-page return {\"heading\":\"...\",\"body\":\"...\"}. For restyle-section or change-style return {\"background\":\"#...\",\"borderRadius\":24,\"paddingY\":64,\"paddingX\":48,\"shadow\":\"soft\"}.",
       },
       {
         role: "user",
@@ -144,7 +157,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (action === "regenerate-section") {
+    if (action === "regenerate-section" || action === "regenerate-page") {
       return NextResponse.json({
         heading:
           typeof ai?.heading === "string"
@@ -167,4 +180,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

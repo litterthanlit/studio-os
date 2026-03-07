@@ -118,6 +118,15 @@ export type ComposeOverlay =
       height: number;
       imageUrl: string;
       label?: string;
+    }
+  | {
+      id: string;
+      type: "arrow";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      color?: string;
     };
 
 export type ComposeDocument = {
@@ -652,6 +661,10 @@ export function getNodeStyle(node: PageNode, breakpoint: Breakpoint): PageNodeSt
   };
 }
 
+export function cloneNode<T>(value: T): T {
+  return structuredClone(value);
+}
+
 export function findNodeById(node: PageNode, targetId: string | null): PageNode | null {
   if (!targetId) return null;
   if (node.id === targetId) return node;
@@ -775,6 +788,32 @@ function serializeTokens(tokens: DesignSystemTokens): string {
 
 function serializeTree(tree: PageNode): string {
   return JSON.stringify(tree, null, 2);
+}
+
+export function compileSectionNodeToTSX(
+  sectionNode: PageNode,
+  tokens: DesignSystemTokens,
+  componentName = "ComposedSection"
+): string {
+  const wrappedPage: PageNode = {
+    id: `page-export-${sectionNode.id}`,
+    type: "page",
+    name: `${sectionNode.name} Export`,
+    style: {
+      background: tokens.colors.background,
+      foreground: tokens.colors.text,
+      muted: tokens.colors.textMuted,
+      accent: tokens.colors.accent,
+      borderColor: tokens.colors.border,
+      gap: 18,
+      paddingX: 24,
+      paddingY: 24,
+      maxWidth: BREAKPOINT_WIDTHS.desktop,
+    },
+    children: [cloneNode(sectionNode)],
+  };
+
+  return compilePageTreeToTSX(wrappedPage, tokens, componentName);
 }
 
 export function compilePageTreeToTSX(

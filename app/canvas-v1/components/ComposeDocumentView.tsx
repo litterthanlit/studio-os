@@ -36,6 +36,82 @@ function nodeMutedColor(tokens: DesignSystemTokens, style: PageNodeStyle) {
   return style.muted || tokens.colors.textMuted;
 }
 
+function textAlignValue(align: PageNodeStyle["align"] = "left") {
+  if (align === "center") return "center";
+  if (align === "right") return "right";
+  return "left";
+}
+
+function alignItemsValue(align: PageNodeStyle["align"] = "left") {
+  if (align === "center") return "center";
+  if (align === "right") return "flex-end";
+  return "flex-start";
+}
+
+function justifyContentValue(justify: PageNodeStyle["justify"] = "start") {
+  if (justify === "center") return "center";
+  if (justify === "end") return "flex-end";
+  if (justify === "between") return "space-between";
+  return "flex-start";
+}
+
+function fontSizeValue(size: number | undefined, fallback: string) {
+  return typeof size === "number" ? `${size}px` : fallback;
+}
+
+function typographyStyles(style: PageNodeStyle, fallback: {
+  fontSize: string;
+  fontWeight: number;
+  lineHeight: number;
+  letterSpacing?: string;
+  fontFamily?: string;
+}) {
+  return {
+    fontFamily: style.fontFamily || fallback.fontFamily,
+    fontSize: fontSizeValue(style.fontSize, fallback.fontSize),
+    fontWeight: style.fontWeight ?? fallback.fontWeight,
+    lineHeight: style.lineHeight ?? fallback.lineHeight,
+    letterSpacing:
+      typeof style.letterSpacing === "number"
+        ? `${style.letterSpacing}px`
+        : fallback.letterSpacing,
+  };
+}
+
+function effectStyles(style: PageNodeStyle) {
+  return {
+    opacity: style.opacity ?? 1,
+    filter: style.blur ? `blur(${style.blur}px)` : undefined,
+  };
+}
+
+function MediaFrame({
+  src,
+  alt,
+}: {
+  src?: string;
+  alt?: string;
+}) {
+  if (!src) return null;
+  return (
+    <div
+      style={{
+        overflow: "hidden",
+        borderRadius: 22,
+        border: "1px solid rgba(255,255,255,0.08)",
+        minHeight: 220,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt || "Selected media"}
+        style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
+      />
+    </div>
+  );
+}
+
 function Selectable({
   node,
   selectedNodeId,
@@ -102,11 +178,15 @@ function renderNode(
               minHeight: "100%",
               padding: `${style.paddingY ?? 24}px ${style.paddingX ?? 24}px`,
               display: "flex",
-              flexDirection: "column",
+              flexDirection: style.direction ?? "column",
+              justifyContent: justifyContentValue(style.justify),
               gap: style.gap ?? 18,
-              fontFamily: tokens.typography.fontFamily,
+              fontFamily: style.fontFamily || tokens.typography.fontFamily,
+              textAlign: textAlignValue(style.align),
+              ...effectStyles(style),
             }}
           >
+            <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
             {children}
           </main>
         </Selectable>
@@ -128,6 +208,8 @@ function renderNode(
               borderRadius: style.borderRadius ?? 22,
               padding: `${style.paddingY ?? 48}px ${style.paddingX ?? 48}px`,
               minHeight: style.minHeight ?? "auto",
+              boxShadow: shadowValue(tokens, style.shadow),
+              ...effectStyles(style),
             }}
           >
             <div
@@ -135,12 +217,14 @@ function renderNode(
                 maxWidth: style.maxWidth ?? 1120,
                 margin: "0 auto",
                 display: "flex",
-                flexDirection: "column",
+                flexDirection: style.direction ?? "column",
+                justifyContent: justifyContentValue(style.justify),
                 gap: style.gap ?? 18,
-                alignItems: style.align === "center" ? "center" : "stretch",
-                textAlign: style.align === "center" ? "center" : "left",
+                alignItems: alignItemsValue(style.align),
+                textAlign: textAlignValue(style.align),
               }}
             >
+              <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
               {children}
             </div>
           </section>
@@ -162,12 +246,16 @@ function renderNode(
             transition={{ duration: 0.45 }}
             style={{
               margin: 0,
-              fontSize: breakpoint === "mobile" ? "1.9rem" : "clamp(2.3rem, 6vw, 4.75rem)",
-              lineHeight: 1,
-              letterSpacing: "-0.04em",
               color: nodeTextColor(tokens, style),
               maxWidth: 900,
-              fontWeight: 700,
+              ...typographyStyles(style, {
+                fontSize: breakpoint === "mobile" ? "1.9rem" : "clamp(2.3rem, 6vw, 4.75rem)",
+                fontWeight: 700,
+                lineHeight: 1,
+                letterSpacing: "-0.04em",
+                fontFamily: tokens.typography.fontFamily,
+              }),
+              ...effectStyles(style),
             }}
           >
             {node.content?.text}
@@ -191,12 +279,16 @@ function renderNode(
                 (node.name.toLowerCase().includes("kicker")
                   ? tokens.colors.accent
                   : nodeMutedColor(tokens, style)),
-              fontSize: node.name.toLowerCase().includes("kicker") ? "0.8rem" : "1rem",
-              lineHeight: 1.6,
               maxWidth: 720,
-              letterSpacing: node.name.toLowerCase().includes("kicker") ? "0.12em" : "normal",
               textTransform: node.name.toLowerCase().includes("kicker") ? "uppercase" : "none",
-              fontWeight: node.name.toLowerCase().includes("kicker") ? 600 : 400,
+              ...typographyStyles(style, {
+                fontSize: node.name.toLowerCase().includes("kicker") ? "0.8rem" : "1rem",
+                fontWeight: node.name.toLowerCase().includes("kicker") ? 600 : 400,
+                lineHeight: 1.6,
+                letterSpacing: node.name.toLowerCase().includes("kicker") ? "0.12em" : "normal",
+                fontFamily: tokens.typography.fontFamily,
+              }),
+              ...effectStyles(style),
             }}
           >
             {node.content?.text}
@@ -215,9 +307,12 @@ function renderNode(
           <div
             style={{
               display: "flex",
+              flexDirection: style.direction ?? "row",
               gap: style.gap ?? 12,
               flexWrap: "wrap",
-              justifyContent: style.align === "center" ? "center" : "flex-start",
+              justifyContent: justifyContentValue(style.justify ?? (style.align === "center" ? "center" : "start")),
+              alignItems: alignItemsValue(style.align),
+              ...effectStyles(style),
             }}
           >
             {children}
@@ -240,9 +335,15 @@ function renderNode(
               color: style.emphasized ? "#ffffff" : (style.foreground || tokens.colors.text),
               border: `1px solid ${style.borderColor || (style.emphasized ? "transparent" : tokens.colors.border)}`,
               borderRadius: style.borderRadius ?? 999,
-              padding: "12px 18px",
-              fontSize: "0.95rem",
+              padding: `${style.paddingY ?? 12}px ${style.paddingX ?? 18}px`,
               cursor: "pointer",
+              ...typographyStyles(style, {
+                fontSize: "0.95rem",
+                fontWeight: 500,
+                lineHeight: 1.1,
+                fontFamily: tokens.typography.fontFamily,
+              }),
+              ...effectStyles(style),
             }}
           >
             {node.content?.text}
@@ -267,6 +368,7 @@ function renderNode(
                 breakpoint === "mobile"
                   ? "1fr"
                   : `repeat(${children.length}, minmax(0, 1fr))`,
+              ...effectStyles(style),
             }}
           >
             {children}
@@ -284,16 +386,40 @@ function renderNode(
         >
           <div
             style={{
-              padding: "16px 18px",
-              borderRadius: 18,
-              border: `1px solid ${tokens.colors.border}`,
-              background: tokens.colors.surface,
+              padding: `${style.paddingY ?? 16}px ${style.paddingX ?? 18}px`,
+              borderRadius: style.borderRadius ?? 18,
+              border: `1px solid ${style.borderColor || tokens.colors.border}`,
+              background: style.background || tokens.colors.surface,
+              boxShadow: shadowValue(tokens, style.shadow),
+              ...effectStyles(style),
             }}
           >
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: tokens.colors.text }}>
+            <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
+            <div
+              style={{
+                color: nodeTextColor(tokens, style),
+                ...typographyStyles(style, {
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  lineHeight: 1.15,
+                  fontFamily: tokens.typography.fontFamily,
+                }),
+              }}
+            >
               {node.content?.text}
             </div>
-            <div style={{ marginTop: 6, fontSize: "0.9rem", color: tokens.colors.textMuted }}>
+            <div
+              style={{
+                marginTop: 6,
+                color: nodeMutedColor(tokens, style),
+                ...typographyStyles(style, {
+                  fontSize: "0.9rem",
+                  fontWeight: 400,
+                  lineHeight: 1.4,
+                  fontFamily: tokens.typography.fontFamily,
+                }),
+              }}
+            >
               {node.content?.subtext}
             </div>
           </div>
@@ -331,10 +457,17 @@ function renderNode(
         >
           <div
             style={{
-              padding: "10px 14px",
+              padding: `${style.paddingY ?? 10}px ${style.paddingX ?? 14}px`,
               borderRadius: 999,
-              border: `1px solid ${tokens.colors.border}`,
-              color: tokens.colors.textMuted,
+              border: `1px solid ${style.borderColor || tokens.colors.border}`,
+              color: style.foreground || tokens.colors.textMuted,
+              ...typographyStyles(style, {
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                lineHeight: 1.2,
+                fontFamily: tokens.typography.fontFamily,
+              }),
+              ...effectStyles(style),
             }}
           >
             {node.content?.text}
@@ -362,6 +495,7 @@ function renderNode(
                   : breakpoint === "tablet"
                   ? "repeat(2, minmax(0, 1fr))"
                   : `repeat(${style.columns || 3}, minmax(0, 1fr))`,
+              ...effectStyles(style),
             }}
           >
             {children}
@@ -381,17 +515,22 @@ function renderNode(
         >
           <div
             style={{
-              padding: "20px",
+              padding: `${style.paddingY ?? 20}px ${style.paddingX ?? 20}px`,
               borderRadius: style.borderRadius || 20,
               border: `1px solid ${style.borderColor || tokens.colors.border}`,
-              background: style.emphasized ? (style.accent || tokens.colors.accent) : tokens.colors.surface,
-              color: style.emphasized ? "#ffffff" : tokens.colors.text,
+              background:
+                style.background ||
+                (style.emphasized ? (style.accent || tokens.colors.accent) : tokens.colors.surface),
+              color: style.emphasized ? "#ffffff" : nodeTextColor(tokens, style),
               boxShadow: shadowValue(tokens, style.shadow || (style.emphasized ? "medium" : "soft")),
               minHeight: node.type === "pricing-tier" ? 280 : 220,
               display: "flex",
-              flexDirection: "column",
+              flexDirection: style.direction ?? "column",
+              justifyContent: justifyContentValue(style.justify),
+              ...effectStyles(style),
             }}
           >
+            <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
             {node.content?.icon ? (
               <div style={{ fontSize: "1.1rem", marginBottom: 12 }}>{node.content.icon}</div>
             ) : null}
@@ -410,18 +549,44 @@ function renderNode(
                 {node.content.badge}
               </div>
             ) : null}
-            <div style={{ fontSize: node.type === "pricing-tier" ? "1.05rem" : "1.1rem", fontWeight: 600, lineHeight: 1.2 }}>
+            <div
+              style={{
+                ...typographyStyles(style, {
+                  fontSize: node.type === "pricing-tier" ? "1.05rem" : "1.1rem",
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  fontFamily: tokens.typography.fontFamily,
+                }),
+              }}
+            >
               {node.content?.text}
             </div>
             {node.content?.price ? (
-              <div style={{ fontSize: "2.1rem", fontWeight: 700, marginTop: 14 }}>{node.content.price}</div>
+              <div
+                style={{
+                  marginTop: 14,
+                  ...typographyStyles(style, {
+                    fontSize: "2.1rem",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    fontFamily: tokens.typography.fontFamily,
+                  }),
+                }}
+              >
+                {node.content.price}
+              </div>
             ) : null}
             {node.content?.subtext ? (
               <p
                 style={{
                   margin: "12px 0 0",
                   color: style.emphasized ? "rgba(255,255,255,0.78)" : tokens.colors.textMuted,
-                  lineHeight: 1.6,
+                  ...typographyStyles(style, {
+                    fontSize: "0.95rem",
+                    fontWeight: 400,
+                    lineHeight: 1.6,
+                    fontFamily: tokens.typography.fontFamily,
+                  }),
                 }}
               >
                 {node.content.subtext}
@@ -432,7 +597,12 @@ function renderNode(
                 style={{
                   margin: "12px 0 0",
                   color: style.emphasized ? "rgba(255,255,255,0.68)" : tokens.colors.textMuted,
-                  lineHeight: 1.6,
+                  ...typographyStyles(style, {
+                    fontSize: "0.9rem",
+                    fontWeight: 400,
+                    lineHeight: 1.6,
+                    fontFamily: tokens.typography.fontFamily,
+                  }),
                 }}
               >
                 {node.content.meta}
@@ -469,4 +639,3 @@ export function ComposeDocumentView({
     </div>
   );
 }
-

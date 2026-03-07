@@ -29,6 +29,11 @@ export type PageNodeStyle = {
   muted?: string;
   accent?: string;
   borderColor?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  lineHeight?: number;
+  letterSpacing?: number;
   borderRadius?: number;
   paddingX?: number;
   paddingY?: number;
@@ -36,7 +41,11 @@ export type PageNodeStyle = {
   columns?: number;
   maxWidth?: number;
   minHeight?: number;
-  align?: "left" | "center";
+  align?: "left" | "center" | "right";
+  direction?: "row" | "column";
+  justify?: "start" | "center" | "end" | "between";
+  opacity?: number;
+  blur?: number;
   shadow?: "none" | "soft" | "medium";
   emphasized?: boolean;
   badgeTone?: "surface" | "accent" | "outline";
@@ -52,6 +61,8 @@ export type PageNodeContent = {
   badge?: string;
   meta?: string;
   icon?: string;
+  mediaUrl?: string;
+  mediaAlt?: string;
 };
 
 export type PageNode = {
@@ -127,9 +138,9 @@ export type ComposeDocument = {
 };
 
 export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
-  desktop: 1280,
-  tablet: 820,
-  mobile: 430,
+  desktop: 1440,
+  tablet: 768,
+  mobile: 375,
 };
 
 export const COMPOSE_ARTBOARD_GAP = 100;

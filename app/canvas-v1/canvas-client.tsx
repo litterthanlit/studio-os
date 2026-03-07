@@ -66,9 +66,9 @@ const STAGE_META: Record<CanvasStage, StageMeta> = {
 };
 
 const BREAKPOINT_OPTIONS: Array<{ key: Breakpoint; label: string; short: string }> = [
-  { key: "desktop", label: "Desktop", short: "D" },
-  { key: "tablet", label: "Tablet", short: "T" },
-  { key: "mobile", label: "Mobile", short: "M" },
+  { key: "desktop", label: "Desktop", short: "1440" },
+  { key: "tablet", label: "Tablet", short: "768" },
+  { key: "mobile", label: "Mobile", short: "375" },
 ];
 
 const STATIC_PALETTES: Record<string, { name: string; palette: string[] }> = {
@@ -1629,7 +1629,7 @@ function ComposeStage({
                         : "text-text-muted hover:text-text-secondary"
                     )}
                   >
-                    {item.label}
+                    {item.label} <span className="opacity-60">{item.short}</span>
                   </button>
                 ))}
               </div>
@@ -1761,7 +1761,7 @@ function ComposeStage({
                         <div>
                           <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
                           <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-                            {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label} frame
+                            {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label} {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.short}
                           </p>
                         </div>
                         {document.primaryArtboardId === artboard.id ? (
@@ -1943,6 +1943,7 @@ function ComposeStage({
             {selectedNode && document.inspectorTab === "content" ? (
               <div className="space-y-4">
                 {Object.entries(selectedNode.content ?? {})
+                  .filter(([key]) => !["mediaUrl", "mediaAlt"].includes(key))
                   .filter(([, value]) => typeof value === "string")
                   .map(([key, value]) => (
                     <label key={key} className="block space-y-1.5">
@@ -1975,44 +1976,329 @@ function ComposeStage({
                       )}
                     </label>
                   ))}
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Media
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Media URL
+                      </span>
+                      <Input
+                        value={selectedNode.content?.mediaUrl ?? ""}
+                        onChange={(event) =>
+                          updateSelectedContent("mediaUrl", event.target.value)
+                        }
+                        placeholder="https://..."
+                        className="h-10 text-sm"
+                      />
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Alt Text
+                      </span>
+                      <Input
+                        value={selectedNode.content?.mediaAlt ?? ""}
+                        onChange={(event) =>
+                          updateSelectedContent("mediaAlt", event.target.value)
+                        }
+                        placeholder="Describe the image"
+                        className="h-10 text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
             ) : null}
 
             {selectedNode && document.inspectorTab === "style" ? (
               <div className="space-y-4">
-                {(
-                  [
-                    ["background", "Background"],
-                    ["foreground", "Foreground"],
-                    ["borderColor", "Border"],
-                    ["accent", "Accent"],
-                  ] as Array<[keyof PageNodeStyle, string]>
-                ).map(([key, label]) => (
-                  <label key={String(key)} className="block space-y-1.5">
-                    <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                      {label}
-                    </span>
-                    <Input
-                      value={String((selectedNode.style ?? {})[key] ?? "")}
-                      onChange={(event) =>
-                        updateSelectedStyle(key, event.target.value)
-                      }
-                      className="h-10 text-sm"
-                    />
-                  </label>
-                ))}
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Typography
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Font Family
+                      </span>
+                      <Input
+                        value={selectedNode.style?.fontFamily ?? ""}
+                        onChange={(event) =>
+                          updateSelectedStyle("fontFamily", event.target.value)
+                        }
+                        placeholder="inherit"
+                        className="h-10 text-sm"
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          Font Size
+                        </span>
+                        <Input
+                          type="number"
+                          value={String(selectedNode.style?.fontSize ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(
+                              "fontSize",
+                              Number(event.target.value || 0)
+                            )
+                          }
+                          className="h-10 text-sm"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          Weight
+                        </span>
+                        <Input
+                          type="number"
+                          value={String(selectedNode.style?.fontWeight ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(
+                              "fontWeight",
+                              Number(event.target.value || 0)
+                            )
+                          }
+                          className="h-10 text-sm"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          Line Height
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.05"
+                          value={String(selectedNode.style?.lineHeight ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(
+                              "lineHeight",
+                              Number(event.target.value || 0)
+                            )
+                          }
+                          className="h-10 text-sm"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          Letter Spacing
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={String(selectedNode.style?.letterSpacing ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(
+                              "letterSpacing",
+                              Number(event.target.value || 0)
+                            )
+                          }
+                          className="h-10 text-sm"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Surface
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {(
+                      [
+                        ["background", "Background"],
+                        ["foreground", "Foreground"],
+                        ["borderColor", "Border"],
+                        ["accent", "Accent"],
+                      ] as Array<[keyof PageNodeStyle, string]>
+                    ).map(([key, label]) => (
+                      <label key={String(key)} className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          {label}
+                        </span>
+                        <Input
+                          value={String((selectedNode.style ?? {})[key] ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(key, event.target.value)
+                          }
+                          className="h-10 text-sm"
+                        />
+                      </label>
+                    ))}
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Radius
+                      </span>
+                      <Input
+                        type="number"
+                        value={String(selectedNode.style?.borderRadius ?? "")}
+                        onChange={(event) =>
+                          updateSelectedStyle(
+                            "borderRadius",
+                            Number(event.target.value || 0)
+                          )
+                        }
+                        className="h-10 text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {selectedNode && document.inspectorTab === "layout" ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Structure
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Direction
+                      </span>
+                      <select
+                        value={selectedNode.style?.direction ?? "column"}
+                        onChange={(event) =>
+                          updateSelectedStyle(
+                            "direction",
+                            event.target.value as PageNodeStyle["direction"]
+                          )
+                        }
+                        className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
+                      >
+                        <option value="column">Column</option>
+                        <option value="row">Row</option>
+                      </select>
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Justify
+                      </span>
+                      <select
+                        value={selectedNode.style?.justify ?? "start"}
+                        onChange={(event) =>
+                          updateSelectedStyle(
+                            "justify",
+                            event.target.value as PageNodeStyle["justify"]
+                          )
+                        }
+                        className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
+                      >
+                        <option value="start">Start</option>
+                        <option value="center">Center</option>
+                        <option value="end">End</option>
+                        <option value="between">Space Between</option>
+                      </select>
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Align
+                      </span>
+                      <select
+                        value={selectedNode.style?.align ?? "left"}
+                        onChange={(event) =>
+                          updateSelectedStyle(
+                            "align",
+                            event.target.value as PageNodeStyle["align"]
+                          )
+                        }
+                        className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
+                      >
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        Columns
+                      </span>
+                      <Input
+                        type="number"
+                        value={String(selectedNode.style?.columns ?? "")}
+                        onChange={(event) =>
+                          updateSelectedStyle("columns", Number(event.target.value || 0))
+                        }
+                        className="h-10 text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Spacing
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    {(
+                      [
+                        ["paddingX", "Padding X"],
+                        ["paddingY", "Padding Y"],
+                        ["gap", "Gap"],
+                        ["maxWidth", "Max Width"],
+                        ["minHeight", "Min Height"],
+                      ] as Array<[keyof PageNodeStyle, string]>
+                    ).map(([key, label]) => (
+                      <label key={String(key)} className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                          {label}
+                        </span>
+                        <Input
+                          type="number"
+                          value={String(selectedNode.style?.[key] ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(key, Number(event.target.value || 0))
+                          }
+                          className="h-10 text-sm"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 text-[11px] text-text-muted">
+                  You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides. Desktop writes to base style; Tablet and Mobile write to responsive overrides.
+                </div>
+              </div>
+            ) : null}
+
+            {selectedNode && document.inspectorTab === "effects" ? (
+              <div className="space-y-4 rounded-2xl border border-border-primary bg-bg-secondary p-4">
+                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                  Effects
+                </p>
                 <label className="block space-y-1.5">
                   <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Radius
+                    Opacity
                   </span>
                   <Input
                     type="number"
-                    value={String(selectedNode.style?.borderRadius ?? "")}
+                    step="0.05"
+                    min="0"
+                    max="1"
+                    value={String(selectedNode.style?.opacity ?? "")}
                     onChange={(event) =>
                       updateSelectedStyle(
-                        "borderRadius",
+                        "opacity",
                         Number(event.target.value || 0)
                       )
+                    }
+                    className="h-10 text-sm"
+                  />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Blur
+                  </span>
+                  <Input
+                    type="number"
+                    value={String(selectedNode.style?.blur ?? "")}
+                    onChange={(event) =>
+                      updateSelectedStyle("blur", Number(event.target.value || 0))
                     }
                     className="h-10 text-sm"
                   />
@@ -2029,74 +2315,13 @@ function ComposeStage({
                         event.target.value as PageNodeStyle["shadow"]
                       )
                     }
-                    className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
+                    className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
                   >
                     <option value="none">None</option>
                     <option value="soft">Soft</option>
                     <option value="medium">Medium</option>
                   </select>
                 </label>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "layout" ? (
-              <div className="space-y-4">
-                {(
-                  [
-                    ["paddingX", "Padding X"],
-                    ["paddingY", "Padding Y"],
-                    ["gap", "Gap"],
-                    ["columns", "Columns"],
-                    ["maxWidth", "Max Width"],
-                    ["minHeight", "Min Height"],
-                  ] as Array<[keyof PageNodeStyle, string]>
-                ).map(([key, label]) => (
-                  <label key={String(key)} className="block space-y-1.5">
-                    <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                      {label}
-                    </span>
-                    <Input
-                      type="number"
-                      value={String(selectedNode.style?.[key] ?? "")}
-                      onChange={(event) =>
-                        updateSelectedStyle(key, Number(event.target.value || 0))
-                      }
-                      className="h-10 text-sm"
-                    />
-                  </label>
-                ))}
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Align
-                  </span>
-                  <select
-                    value={selectedNode.style?.align ?? "left"}
-                    onChange={(event) =>
-                      updateSelectedStyle(
-                        "align",
-                        event.target.value as PageNodeStyle["align"]
-                      )
-                    }
-                    className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
-                  >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                  </select>
-                </label>
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 text-[11px] text-text-muted">
-                  You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides. Desktop writes to base style; Tablet and Mobile write to responsive overrides.
-                </div>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "effects" ? (
-              <div className="rounded-2xl border border-dashed border-border-primary bg-bg-secondary p-4">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Effects
-                </p>
-                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                  Opacity, blur, and richer surface treatments are reserved for Session 2. The tab is here now so the final compose workflow does not shift underneath users later.
-                </p>
               </div>
             ) : null}
 

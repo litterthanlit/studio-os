@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type IconName =
-  // ── Navigation (6) ──
+  // ── Navigation (7) ──
   | "home"
   | "brief"
   | "vision"
@@ -136,11 +136,9 @@ function renderContent(name: IconName): React.ReactNode {
     case "canvas":
       return (
         <>
-          <rect x="4" y="4" width="16" height="16" rx="2" opacity="0.3" />
-          <path d="M8 12l2-4 2 4" />
-          <path d="M14 8v8" opacity="0.7" />
-          <circle cx="17" cy="8" r="1.5" fill="currentColor" stroke="none" opacity="0.5" />
-          <path d="M8 16h8" opacity="0.4" />
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" opacity="0.6" />
+          <path d="M3 15l5-5 4 4 3-3 6 6" opacity="0.6" />
         </>
       );
 

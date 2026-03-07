@@ -10,7 +10,6 @@ import {
   SettingsIcon,
   PlusIcon,
   CloseIcon,
-  CanvasIcon,
 } from "@/components/ui/icon";
 import {
   getStoredProjects,
@@ -195,31 +194,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         </motion.div>
       </div>
 
-      {/* ── Section 3: Canvas ── */}
-      <div className="mt-4">
-        <div className="flex items-center px-3 mb-1">
-          <span className="text-[11px] font-sans text-section-label uppercase tracking-[0.1em] font-medium flex-1 transition-colors duration-300">
-            Workspace
-          </span>
-        </div>
-        <motion.div whileHover={{ x: 2, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
-          <Link
-            href="/canvas"
-            className={cn(
-              "flex items-center gap-3 h-9 px-3 cursor-pointer",
-              "transition-colors duration-150 ease-out",
-              pathname === "/canvas"
-                ? "bg-sidebar-active text-text-primary"
-                : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
-            )}
-          >
-            <CanvasIcon className="w-[18px] h-[18px] shrink-0" />
-            <span className="text-sm">Canvas</span>
-          </Link>
-        </motion.div>
-      </div>
-
-      {/* ── Section 4: Bottom ── */}
+      {/* ── Section 3: Bottom ── */}
       <div className="mt-auto">
         <div className="border-t border-[var(--border-primary)] mb-2" />
 

@@ -185,7 +185,7 @@ export function ProjectRoomPageClient({
 
         <div className="flex flex-1 flex-col justify-between gap-2">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold text-[var(--text-primary)] transition-colors duration-300">
                 {project.name}
               </h1>
@@ -194,6 +194,22 @@ export function ProjectRoomPageClient({
               >
                 {project.phase}
               </span>
+              <Link
+                href={`/canvas?project=${project.id}`}
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-[#3B5EFC] bg-[#3B5EFC] px-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors duration-200 hover:bg-[#2f4fe3]"
+              >
+                <span>Open Canvas</span>
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 8h8.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 3.5 13 8l-4.5 4.5" />
+                </svg>
+              </Link>
             </div>
             <div className="text-[12px] text-gray-400 transition-colors duration-300">{project.client}</div>
           </div>

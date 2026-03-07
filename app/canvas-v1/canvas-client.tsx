@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ import {
   getProjectState,
   listProjectReferences,
   upsertProjectState,
+  type StoredProjectFont,
 } from "@/lib/project-store";
 import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
 
@@ -85,7 +87,14 @@ function loadProjectRefs(projectId: string): ReferenceImage[] {
   }));
 }
 
-function loadProjectMeta(projectId: string): { name: string; palette: string[] } | null {
+function loadProjectMeta(
+  projectId: string
+): {
+  name: string;
+  palette: string[];
+  headingFont?: StoredProjectFont;
+  bodyFont?: StoredProjectFont;
+} | null {
   const state = getProjectState(projectId);
   const staticMatch = STATIC_PALETTES[projectId];
   const stored = getProjectById(projectId);
@@ -99,6 +108,36 @@ function loadProjectMeta(projectId: string): { name: string; palette: string[] }
         ? state.palette
         : staticMatch?.palette ??
           [stored?.color ?? "#2430AD", "#111111", "#222222", "#333333", "#999999"],
+    headingFont: state.typography?.headingFont,
+    bodyFont: state.typography?.bodyFont,
+  };
+}
+
+function fontFamilyValue(family: string) {
+  return `'${family.replace(/'/g, "\\'")}'`;
+}
+
+function applyProjectTypography(
+  nextTokens: DesignSystemTokens,
+  typography?: {
+    headingFont?: StoredProjectFont;
+    bodyFont?: StoredProjectFont;
+  }
+): DesignSystemTokens {
+  const families = [
+    typography?.headingFont?.family,
+    typography?.bodyFont?.family,
+  ].filter((family): family is string => Boolean(family));
+
+  if (families.length === 0) return nextTokens;
+
+  const uniqueFamilies = Array.from(new Set(families));
+  return {
+    ...nextTokens,
+    typography: {
+      ...nextTokens.typography,
+      fontFamily: `${uniqueFamilies.map(fontFamilyValue).join(", ")}, 'Inter', 'Helvetica Neue', sans-serif`,
+    },
   };
 }
 
@@ -1367,6 +1406,8 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [setName, setSetName] = React.useState("");
   const [linkedProjectId] = React.useState(projectId || null);
+  const [projectName, setProjectName] = React.useState("Project");
+  const [bootstrapToast, setBootstrapToast] = React.useState<string | null>(null);
 
   const [analysis, setAnalysis] = React.useState<ImageAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = React.useState(false);
@@ -1395,25 +1436,36 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
     const refs = loadProjectRefs(linkedProjectId);
     const storedState = getProjectState(linkedProjectId);
+    const meta = loadProjectMeta(linkedProjectId);
+    const colorsCount = meta?.palette.length ?? storedState.palette?.length ?? 0;
+    const fontsCount = [meta?.headingFont, meta?.bodyFont].filter(Boolean).length;
+
+    if (meta) {
+      setProjectName(meta.name);
+    }
+
     if (refs.length > 0) {
       setImages(refs);
       setSelectedIds(new Set(refs.map((r) => r.id)));
     }
 
-    const meta = loadProjectMeta(linkedProjectId);
     if (meta) {
       setSetName(storedState.canvas?.referenceSetName ?? meta.name);
 
       if (storedState.canvas?.analysis) setAnalysis(storedState.canvas.analysis);
 
-      if (storedState.canvas?.designTokens) {
-        setTokens(storedState.canvas.designTokens);
-        setMarkdown(
-          storedState.canvas.designSystemMarkdown ??
-            tokensToMarkdown(storedState.canvas.designTokens)
-        );
-      } else if (meta.palette.length > 0) {
-        setTokens(paletteToTokens(meta.palette));
+      const projectTokens = storedState.canvas?.designTokens
+        ? applyProjectTypography(storedState.canvas.designTokens, storedState.typography)
+        : meta.palette.length > 0
+        ? applyProjectTypography(paletteToTokens(meta.palette), storedState.typography)
+        : null;
+
+      if (storedState.canvas?.designTokens && projectTokens) {
+        setTokens(projectTokens);
+        setMarkdown(tokensToMarkdown(projectTokens));
+      } else if (projectTokens) {
+        setTokens(projectTokens);
+        setMarkdown(tokensToMarkdown(projectTokens));
       }
 
       setSitePrompt(storedState.canvas?.componentPrompt ?? inferSiteName(meta.name));
@@ -1434,7 +1486,17 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         setStage(storedState.canvas?.stage ?? "system");
       }
     }
+
+    setBootstrapToast(
+      `${refs.length} references, ${colorsCount} colors, ${fontsCount} fonts loaded`
+    );
   }, [linkedProjectId]);
+
+  React.useEffect(() => {
+    if (!bootstrapToast) return;
+    const timeout = window.setTimeout(() => setBootstrapToast(null), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [bootstrapToast]);
 
   const selectedVariant = React.useMemo(
     () =>
@@ -1683,38 +1745,52 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <div className="shrink-0 border-b border-border-primary bg-bg-primary px-6 py-4">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[8px] leading-none text-text-tertiary">■</span>
-            <span className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-              Canvas
-            </span>
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href={linkedProjectId ? `/projects/${linkedProjectId}` : "/projects"}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-bg-secondary text-text-secondary transition-colors duration-200 hover:border-border-hover hover:text-text-primary"
+              aria-label="Back to project"
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
+              </svg>
+            </Link>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] leading-none text-text-tertiary">■</span>
+                <span className="truncate text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                  {`CANVAS - ${projectName}`}
+                </span>
+              </div>
+              <p className="mt-1 truncate text-[11px] text-text-muted">
+                {setName || "Project-linked canvas workflow"}
+              </p>
+            </div>
           </div>
 
-          <StageStepper stage={stage} onSelect={setStage} completions={completions} />
-
-          {(setName || linkedProjectId) && (
-            <div className="ml-auto flex items-center gap-2 truncate">
-              {linkedProjectId ? (
-                <a
-                  href={`/projects/${linkedProjectId}`}
-                  className="flex items-center gap-1 text-[10px] text-accent hover:underline font-mono"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                  Project
-                </a>
-              ) : null}
-              {setName ? (
-                <span className="truncate text-[11px] text-text-muted font-mono">
-                  {setName}
-                </span>
-              ) : null}
-            </div>
-          )}
+          <div className="ml-auto">
+            <StageStepper stage={stage} onSelect={setStage} completions={completions} />
+          </div>
         </div>
       </div>
+
+      {bootstrapToast ? (
+        <div className="pointer-events-none absolute right-6 top-[5.25rem] z-20">
+          <div className="rounded-2xl border border-[#3B5EFC]/30 bg-[#3B5EFC] px-4 py-3 text-[11px] font-medium text-white shadow-[0_18px_48px_rgba(59,94,252,0.28)]">
+            {bootstrapToast}
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <motion.aside

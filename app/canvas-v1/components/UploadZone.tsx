@@ -9,9 +9,10 @@ import { springs, fadeIn } from "@/lib/animations";
 type UploadZoneProps = {
   onFilesAdded: (files: File[]) => void;
   disabled?: boolean;
+  className?: string;
 };
 
-export function UploadZone({ onFilesAdded, disabled }: UploadZoneProps) {
+export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       "image/png": [".png"],
@@ -37,7 +38,8 @@ export function UploadZone({ onFilesAdded, disabled }: UploadZoneProps) {
         isDragActive
           ? "border-accent bg-accent-subtle"
           : "border-border-primary bg-bg-secondary hover:border-border-hover",
-        disabled && "cursor-not-allowed opacity-50"
+        disabled && "cursor-not-allowed opacity-50",
+        className
       )}
     >
       <input {...getInputProps()} />

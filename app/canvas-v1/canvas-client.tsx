@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -430,6 +430,323 @@ function StageStepper({
   );
 }
 
+function PanelSectionLabel({
+  label,
+  detail,
+}: {
+  label: string;
+  detail?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+        {label}
+      </p>
+      {detail ? <p className="text-[11px] text-text-muted">{detail}</p> : null}
+    </div>
+  );
+}
+
+function CanvasStageLayout({
+  stage,
+  leftPanel,
+  centerPanel,
+  rightPanel,
+  leftWidth = "300px",
+  rightWidth = "300px",
+}: {
+  stage: CanvasStage;
+  leftPanel?: React.ReactNode;
+  centerPanel: React.ReactNode;
+  rightPanel?: React.ReactNode;
+  leftWidth?: string;
+  rightWidth?: string;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <AnimatePresence initial={false} mode="wait">
+        {leftPanel ? (
+          <motion.aside
+            key={`left-${stage}`}
+            initial={{ x: -18, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -18, opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="shrink-0 border-r border-border-primary bg-bg-primary overflow-y-auto"
+            style={{ width: leftWidth }}
+          >
+            {leftPanel}
+          </motion.aside>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div
+          key={`center-${stage}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.24, ease: "easeOut" }}
+          className="min-w-0 flex-1 overflow-hidden bg-bg-secondary"
+        >
+          {centerPanel}
+        </motion.div>
+      </AnimatePresence>
+
+      <AnimatePresence initial={false} mode="wait">
+        {rightPanel ? (
+          <motion.aside
+            key={`right-${stage}`}
+            initial={{ x: 18, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 18, opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="shrink-0 border-l border-border-primary bg-bg-primary overflow-y-auto"
+            style={{ width: rightWidth }}
+          >
+            {rightPanel}
+          </motion.aside>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ReferenceThumbnailStrip({
+  images,
+  selectedIds,
+  onToggleSelect,
+  onRemove,
+  readOnly = false,
+}: {
+  images: ReferenceImage[];
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onRemove?: (id: string) => void;
+  readOnly?: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border-subtle px-4 py-4">
+        <PanelSectionLabel
+          label="References"
+          detail={
+            readOnly
+              ? "Locked from project board for this stage."
+              : "Compact thumbnail strip. Use the main board to add more."
+          }
+        />
+      </div>
+      <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        {images.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border-primary bg-bg-secondary px-4 py-6 text-center text-[11px] text-text-muted">
+            Drop references into the board to start building the moodboard.
+          </div>
+        ) : (
+          images.map((image) => {
+            const active = selectedIds?.has(image.id) ?? false;
+            return (
+              <div
+                key={image.id}
+                className={cn(
+                  "group overflow-hidden rounded-2xl border bg-bg-secondary transition-colors",
+                  active ? "border-accent" : "border-border-primary"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => onToggleSelect?.(image.id)}
+                  disabled={readOnly || !onToggleSelect}
+                  className={cn(
+                    "block w-full text-left",
+                    readOnly || !onToggleSelect ? "cursor-default" : "cursor-pointer"
+                  )}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.thumbnail || image.url}
+                    alt={image.name}
+                    className="h-28 w-full object-cover"
+                  />
+                  <div className="flex items-center justify-between gap-2 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-medium text-text-primary">
+                        {image.name}
+                      </p>
+                      <p className="text-[10px] text-text-muted">
+                        {active ? "Selected for analysis" : readOnly ? "Reference" : "Tap to select"}
+                      </p>
+                    </div>
+                    {!readOnly && active ? (
+                      <span className="rounded-full bg-accent/12 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-accent">
+                        Active
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+                {!readOnly && onRemove ? (
+                  <div className="border-t border-border-subtle px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => onRemove(image.id)}
+                      className="text-[10px] uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SystemPreviewPanel({
+  tokens,
+  analysis,
+}: {
+  tokens: DesignSystemTokens | null;
+  analysis: ImageAnalysis | null;
+}) {
+  return (
+    <div className="flex h-full flex-col overflow-y-auto p-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <div className="space-y-2">
+          <PanelSectionLabel
+            label="System Preview"
+            detail="Your project references are now distilled into a working web system."
+          />
+          {analysis ? (
+            <p className="max-w-2xl text-sm leading-relaxed text-text-secondary">
+              {analysis.designDirection}
+            </p>
+          ) : null}
+        </div>
+
+        {tokens ? (
+          <div className="space-y-6">
+            <div className="rounded-[28px] border border-border-primary bg-bg-primary p-6">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+                Palette
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {Object.entries(tokens.colors).map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="overflow-hidden rounded-2xl border border-border-primary bg-bg-secondary"
+                  >
+                    <div className="h-24" style={{ backgroundColor: value }} />
+                    <div className="px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        {key}
+                      </p>
+                      <p className="mt-1 font-mono text-[12px] text-text-primary">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-border-primary bg-bg-primary p-8">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+                Typography
+              </p>
+              <div className="mt-5 rounded-[24px] border border-border-primary bg-bg-secondary p-8">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
+                  Heading / Body Stack
+                </p>
+                <h2
+                  className="mt-4 text-5xl tracking-tight text-text-primary"
+                  style={{ fontFamily: tokens.typography.fontFamily }}
+                >
+                  Taste becomes structure.
+                </h2>
+                <p
+                  className="mt-5 max-w-2xl text-base leading-relaxed text-text-secondary"
+                  style={{ fontFamily: tokens.typography.fontFamily }}
+                >
+                  Adjust the tokens on the right. The variants and final compose canvas will inherit the same system.
+                </p>
+              </div>
+            </div>
+
+            {analysis ? <AnalysisPanel analysis={analysis} loading={false} /> : null}
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-border-primary bg-bg-primary p-10 text-center text-sm text-text-muted">
+            Generate a system from the current references to preview tokens here.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SystemSummaryPanel({
+  tokens,
+  selectedVariant,
+}: {
+  tokens: DesignSystemTokens | null;
+  selectedVariant: GeneratedVariant | null;
+}) {
+  return (
+    <div className="space-y-4 p-4">
+      <PanelSectionLabel
+        label="System Summary"
+        detail="Generation is locked to the current project system."
+      />
+      {tokens ? (
+        <>
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+              Palette
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {Object.entries(tokens.colors).map(([key, value]) => (
+                <div key={key} className="rounded-xl border border-border-primary bg-bg-primary p-2">
+                  <div
+                    className="h-10 rounded-lg border border-border-primary"
+                    style={{ backgroundColor: value }}
+                  />
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                    {key}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+              Typography
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+              {tokens.typography.fontFamily}
+            </p>
+          </div>
+        </>
+      ) : null}
+
+      {selectedVariant ? (
+        <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+          <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+            Selected Variant
+          </p>
+          <p className="mt-3 text-[13px] font-medium text-text-primary">
+            {selectedVariant.name}
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-text-muted">
+            {selectedVariant.description}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ComposeStage({
   document,
   tokens,
@@ -711,692 +1028,699 @@ function ComposeStage({
   );
 
   return (
-    <div className="flex-1 flex min-h-0">
-      <aside className="w-[300px] shrink-0 border-r border-border-primary bg-bg-primary overflow-y-auto">
-        <div className="border-b border-border-subtle px-4 py-3">
-          <div className="flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
-            {(["variants", "layers", "assets"] as ComposeLeftTab[]).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setLeftTab(tab)}
-                className={cn(
-                  "flex-1 rounded-md px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                  leftTab === tab
-                    ? "bg-accent text-white"
-                    : "text-text-muted hover:text-text-secondary"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
+    <CanvasStageLayout
+      stage="compose"
+      leftWidth="300px"
+      rightWidth="320px"
+      leftPanel={
+        <div className="flex h-full flex-col">
+          <div className="border-b border-border-subtle px-4 py-3">
+            <div className="flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
+              {(["variants", "layers", "assets"] as ComposeLeftTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setLeftTab(tab)}
+                  className={cn(
+                    "flex-1 rounded-md px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
+                    leftTab === tab
+                      ? "bg-accent text-white"
+                      : "text-text-muted hover:text-text-secondary"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="p-4 space-y-4">
-          {leftTab === "variants" ? (
-            <>
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Artboards
-                </p>
-                {document.artboards.map((artboard) => (
-                  <button
-                    key={artboard.id}
-                    type="button"
-                    onClick={() =>
-                      updateDocument({
-                        selectedArtboardId: artboard.id,
-                        selectedNodeId: artboard.pageTree.id,
-                      })
-                    }
-                    className={cn(
-                      "w-full rounded-xl border px-3 py-3 text-left",
-                      document.selectedArtboardId === artboard.id
-                        ? "border-accent bg-accent/8"
-                        : "border-border-primary bg-bg-secondary"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
-                        <p className="mt-1 text-[10px] text-text-muted">
-                          {Math.round(artboard.x)} / {Math.round(artboard.y)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className={cn(
-                          "rounded-md px-2 py-1 text-[10px] uppercase tracking-[0.12em]",
-                          document.primaryArtboardId === artboard.id
-                            ? "bg-emerald-500/12 text-emerald-400"
-                            : "bg-bg-tertiary text-text-muted"
-                        )}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          updateDocument({ primaryArtboardId: artboard.id });
-                        }}
-                      >
-                        {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
-                      </button>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Export Source
-                </p>
-                <p className="mt-2 text-[12px] text-text-muted leading-relaxed">
-                  The primary artboard is the source of truth for export and deploy.
-                </p>
-              </div>
-            </>
-          ) : null}
-
-          {leftTab === "layers" ? (
-            <>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Layers
-                </p>
-                <p className="mt-1 text-[11px] text-text-muted">
-                  Structured website nodes only. Overlays stay separate.
-                </p>
-              </div>
-              <div className="space-y-1">
-                {layers.map(({ node, depth }) => (
-                  <button
-                    key={node.id}
-                    type="button"
-                    onClick={() =>
-                      updateDocument({
-                        selectedNodeId: node.id,
-                      })
-                    }
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px]",
-                      document.selectedNodeId === node.id
-                        ? "bg-accent/10 text-text-primary"
-                        : "text-text-muted hover:bg-bg-secondary hover:text-text-secondary"
-                    )}
-                    style={{ paddingLeft: 12 + depth * 14 }}
-                  >
-                    <span className="text-[10px] opacity-50">{node.type}</span>
-                    <span>{formatNodeLabel(node)}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : null}
-
-          {leftTab === "assets" ? (
-            <>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+          <div className="p-4 space-y-4">
+            {leftTab === "variants" ? (
+              <>
+                <div className="space-y-2">
                   <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    References
+                    Artboards
                   </p>
-                  <span className="text-[10px] text-text-muted">{references.length}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {references.slice(0, 8).map((reference) => (
+                  {document.artboards.map((artboard) => (
                     <button
-                      key={reference.id}
+                      key={artboard.id}
                       type="button"
                       onClick={() =>
                         updateDocument({
-                          overlays: [
-                            ...document.overlays,
-                            {
-                              id: `overlay-${reference.id}`,
-                              type: "reference",
-                              x: (selectedArtboard?.x ?? 0) - 360,
-                              y: (selectedArtboard?.y ?? 0) + 40,
-                              width: 220,
-                              height: 160,
-                              imageUrl: reference.url,
-                              label: reference.name,
-                            },
-                          ],
+                          selectedArtboardId: artboard.id,
+                          selectedNodeId: artboard.pageTree.id,
                         })
                       }
-                      className="overflow-hidden rounded-xl border border-border-primary bg-bg-secondary"
+                      className={cn(
+                        "w-full rounded-xl border px-3 py-3 text-left",
+                        document.selectedArtboardId === artboard.id
+                          ? "border-accent bg-accent/8"
+                          : "border-border-primary bg-bg-secondary"
+                      )}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={reference.thumbnail || reference.url}
-                        alt={reference.name}
-                        className="h-28 w-full object-cover"
-                      />
-                      <div className="px-2 py-2 text-[11px] text-text-secondary truncate">
-                        {reference.name}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
+                          <p className="mt-1 text-[10px] text-text-muted">
+                            {Math.round(artboard.x)} / {Math.round(artboard.y)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className={cn(
+                            "rounded-md px-2 py-1 text-[10px] uppercase tracking-[0.12em]",
+                            document.primaryArtboardId === artboard.id
+                              ? "bg-emerald-500/12 text-emerald-400"
+                              : "bg-bg-tertiary text-text-muted"
+                          )}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            updateDocument({ primaryArtboardId: artboard.id });
+                          }}
+                        >
+                          {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
+                        </button>
                       </div>
                     </button>
                   ))}
                 </div>
-              </div>
-              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 space-y-3">
-                <div>
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3">
                   <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Freeform Overlays
+                    Export Source
                   </p>
-                  <p className="mt-1 text-[11px] text-text-muted">
-                    These live on the board and never enter export.
+                  <p className="mt-2 text-[12px] text-text-muted leading-relaxed">
+                    The primary artboard is the source of truth for export and deploy.
                   </p>
                 </div>
+              </>
+            ) : null}
+
+            {leftTab === "layers" ? (
+              <>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                    Layers
+                  </p>
+                  <p className="mt-1 text-[11px] text-text-muted">
+                    Structured website nodes only. Overlays stay separate.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  {layers.map(({ node, depth }) => (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() =>
+                        updateDocument({
+                          selectedNodeId: node.id,
+                        })
+                      }
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px]",
+                        document.selectedNodeId === node.id
+                          ? "bg-accent/10 text-text-primary"
+                          : "text-text-muted hover:bg-bg-secondary hover:text-text-secondary"
+                      )}
+                      style={{ paddingLeft: 12 + depth * 14 }}
+                    >
+                      <span className="text-[10px] opacity-50">{node.type}</span>
+                      <span>{formatNodeLabel(node)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+
+            {leftTab === "assets" ? (
+              <>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                      References
+                    </p>
+                    <span className="text-[10px] text-text-muted">{references.length}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {references.slice(0, 8).map((reference) => (
+                      <button
+                        key={reference.id}
+                        type="button"
+                        onClick={() =>
+                          updateDocument({
+                            overlays: [
+                              ...document.overlays,
+                              {
+                                id: `overlay-${reference.id}`,
+                                type: "reference",
+                                x: (selectedArtboard?.x ?? 0) - 360,
+                                y: (selectedArtboard?.y ?? 0) + 40,
+                                width: 220,
+                                height: 160,
+                                imageUrl: reference.url,
+                                label: reference.name,
+                              },
+                            ],
+                          })
+                        }
+                        className="overflow-hidden rounded-xl border border-border-primary bg-bg-secondary"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={reference.thumbnail || reference.url}
+                          alt={reference.name}
+                          className="h-28 w-full object-cover"
+                        />
+                        <div className="px-2 py-2 text-[11px] text-text-secondary truncate">
+                          {reference.name}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 space-y-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                      Freeform Overlays
+                    </p>
+                    <p className="mt-1 text-[11px] text-text-muted">
+                      These live on the board and never enter export.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full h-9 text-[10px] uppercase tracking-[0.12em]"
+                    onClick={() =>
+                      updateDocument({
+                        overlays: [
+                          ...document.overlays,
+                          {
+                            id: `note-${Date.now()}`,
+                            type: "note",
+                            x: (selectedArtboard?.x ?? 0) - 280,
+                            y: (selectedArtboard?.y ?? 0) + 220,
+                            width: 240,
+                            height: 180,
+                            text: "Pin a thought, copy direction, or a change request here.",
+                            color: "#FBE67A",
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    Add note
+                  </Button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      }
+      centerPanel={
+        <div className="min-w-0 flex h-full flex-col bg-bg-secondary">
+          <div className="border-b border-border-primary px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                {BREAKPOINT_OPTIONS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => updateDocument({ breakpoint: item.key })}
+                    className={cn(
+                      "rounded-md border px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
+                      document.breakpoint === item.key
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border-primary text-text-muted hover:text-text-secondary"
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-2 flex items-center gap-2 text-[11px] text-text-muted">
+                {selectionPath.map((node, index) => (
+                  <React.Fragment key={node.id}>
+                    {index > 0 ? <span className="text-text-muted/40">/</span> : null}
+                    <button
+                      type="button"
+                      className={cn(
+                        "hover:text-text-secondary",
+                        document.selectedNodeId === node.id && "text-text-primary"
+                      )}
+                      onClick={() => updateDocument({ selectedNodeId: node.id })}
+                    >
+                      {node.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+              <div className="ml-auto flex items-center gap-2">
                 <Button
                   type="button"
                   variant="secondary"
-                  className="w-full h-9 text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() =>
-                    updateDocument({
-                      overlays: [
-                        ...document.overlays,
-                        {
-                          id: `note-${Date.now()}`,
-                          type: "note",
-                          x: (selectedArtboard?.x ?? 0) - 280,
-                          y: (selectedArtboard?.y ?? 0) + 220,
-                          width: 240,
-                          height: 180,
-                          text: "Pin a thought, copy direction, or a change request here.",
-                          color: "#FBE67A",
-                        },
-                      ],
-                    })
-                  }
+                  className="h-8 text-[10px] uppercase tracking-[0.12em]"
+                  onClick={() => updateDocument({ zoom: Math.max(0.18, document.zoom / 1.15) })}
                 >
-                  Add note
+                  −
+                </Button>
+                <span className="w-12 text-center font-mono text-[11px] text-text-muted">
+                  {Math.round(document.zoom * 100)}%
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-8 text-[10px] uppercase tracking-[0.12em]"
+                  onClick={() => updateDocument({ zoom: Math.min(1.35, document.zoom * 1.15) })}
+                >
+                  +
                 </Button>
               </div>
-            </>
-          ) : null}
-        </div>
-      </aside>
-
-      <div className="min-w-0 flex-1 flex flex-col bg-bg-secondary">
-        <div className="border-b border-border-primary px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              {BREAKPOINT_OPTIONS.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => updateDocument({ breakpoint: item.key })}
-                  className={cn(
-                    "rounded-md border px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                    document.breakpoint === item.key
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "border-border-primary text-text-muted hover:text-text-secondary"
-                  )}
-                >
-                  {item.label}
-                </button>
-              ))}
             </div>
-            <div className="ml-2 flex items-center gap-2 text-[11px] text-text-muted">
-              {selectionPath.map((node, index) => (
-                <React.Fragment key={node.id}>
-                  {index > 0 ? <span className="text-text-muted/40">/</span> : null}
-                  <button
-                    type="button"
-                    className={cn(
-                      "hover:text-text-secondary",
-                      document.selectedNodeId === node.id && "text-text-primary"
-                    )}
-                    onClick={() => updateDocument({ selectedNodeId: node.id })}
-                  >
-                    {node.name}
-                  </button>
-                </React.Fragment>
-              ))}
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-8 text-[10px] uppercase tracking-[0.12em]"
-                onClick={() => updateDocument({ zoom: Math.max(0.18, document.zoom / 1.15) })}
-              >
-                −
-              </Button>
-              <span className="w-12 text-center font-mono text-[11px] text-text-muted">
-                {Math.round(document.zoom * 100)}%
-              </span>
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-8 text-[10px] uppercase tracking-[0.12em]"
-                onClick={() => updateDocument({ zoom: Math.min(1.35, document.zoom * 1.15) })}
-              >
-                +
-              </Button>
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <p className="text-[11px] text-text-muted">
+                Compose is the source of truth. Overlays are board-only and excluded from export.
+              </p>
+              <ExportMenu code={exportCode} siteName={siteName} siteType={siteType} />
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between gap-4">
-            <p className="text-[11px] text-text-muted">
-              Compose is the source of truth. Overlays are board-only and excluded from export.
-            </p>
-            <ExportMenu code={exportCode} siteName={siteName} siteType={siteType} />
-          </div>
-        </div>
 
-        <div className="relative min-h-0 flex-1 overflow-hidden">
-          <div
-            ref={canvasRef}
-            className="h-full w-full cursor-grab overflow-hidden"
-            style={{
-              backgroundImage: "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
-              backgroundSize: `${Math.max(18, 28 * document.zoom)}px ${Math.max(18, 28 * document.zoom)}px`,
-              backgroundPosition: `${document.pan.x % 28}px ${document.pan.y % 28}px`,
-            }}
-            onMouseDown={onBackgroundMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={clearPointerState}
-            onMouseLeave={clearPointerState}
-          >
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <div
+              ref={canvasRef}
+              className="h-full w-full cursor-grab overflow-hidden"
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                transform: `translate(${document.pan.x}px, ${document.pan.y}px) scale(${document.zoom})`,
-                transformOrigin: "0 0",
-                willChange: "transform",
+                backgroundImage: "radial-gradient(circle, var(--dot-grid-color) 1px, transparent 1px)",
+                backgroundSize: `${Math.max(18, 28 * document.zoom)}px ${Math.max(18, 28 * document.zoom)}px`,
+                backgroundPosition: `${document.pan.x % 28}px ${document.pan.y % 28}px`,
               }}
+              onMouseDown={onBackgroundMouseDown}
+              onMouseMove={onMouseMove}
+              onMouseUp={clearPointerState}
+              onMouseLeave={clearPointerState}
             >
-              {document.artboards.map((artboard) => (
-                <div
-                  key={artboard.id}
-                  data-artboard
-                  className={cn(
-                    "absolute overflow-hidden rounded-[28px] border bg-bg-primary shadow-2xl",
-                    document.selectedArtboardId === artboard.id
-                      ? "border-accent"
-                      : "border-border-primary"
-                  )}
-                  style={{
-                    left: artboard.x,
-                    top: artboard.y,
-                    width: BREAKPOINT_WIDTHS[document.breakpoint] + 2,
-                  }}
-                >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  transform: `translate(${document.pan.x}px, ${document.pan.y}px) scale(${document.zoom})`,
+                  transformOrigin: "0 0",
+                  willChange: "transform",
+                }}
+              >
+                {document.artboards.map((artboard) => (
                   <div
-                    className="flex cursor-move items-center justify-between border-b border-border-subtle bg-bg-secondary px-4 py-3"
+                    key={artboard.id}
+                    data-artboard
+                    className={cn(
+                      "absolute overflow-hidden rounded-[28px] border bg-bg-primary shadow-2xl",
+                      document.selectedArtboardId === artboard.id
+                        ? "border-accent"
+                        : "border-border-primary"
+                    )}
+                    style={{
+                      left: artboard.x,
+                      top: artboard.y,
+                      width: BREAKPOINT_WIDTHS[document.breakpoint] + 2,
+                    }}
+                  >
+                    <div
+                      className="flex cursor-move items-center justify-between border-b border-border-subtle bg-bg-secondary px-4 py-3"
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                        dragRef.current = {
+                          kind: "artboard",
+                          id: artboard.id,
+                          startX: event.clientX,
+                          startY: event.clientY,
+                          x: artboard.x,
+                          y: artboard.y,
+                        };
+                        updateDocument({
+                          selectedArtboardId: artboard.id,
+                          selectedNodeId:
+                            document.selectedArtboardId === artboard.id
+                              ? document.selectedNodeId
+                              : artboard.pageTree.id,
+                        });
+                      }}
+                    >
+                      <div>
+                        <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
+                        <p className="text-[10px] text-text-muted">
+                          {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label}
+                        </p>
+                      </div>
+                      {document.primaryArtboardId === artboard.id ? (
+                        <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-emerald-400">
+                          Primary
+                        </span>
+                      ) : null}
+                    </div>
+                    <ComposeDocumentView
+                      pageTree={artboard.pageTree}
+                      tokens={tokens}
+                      breakpoint={document.breakpoint}
+                      selectedNodeId={
+                        document.selectedArtboardId === artboard.id
+                          ? document.selectedNodeId
+                          : null
+                      }
+                      onSelectNode={(nodeId) =>
+                        updateDocument({
+                          selectedArtboardId: artboard.id,
+                          selectedNodeId: nodeId,
+                        })
+                      }
+                      interactive={document.selectedArtboardId === artboard.id}
+                    />
+                  </div>
+                ))}
+
+                {document.overlays.map((overlay) => (
+                  <div
+                    key={overlay.id}
+                    data-overlay
+                    className="absolute overflow-hidden rounded-2xl border border-border-primary shadow-lg"
+                    style={{
+                      left: overlay.x,
+                      top: overlay.y,
+                      width: overlay.width,
+                      height: overlay.height,
+                      background:
+                        overlay.type === "note"
+                          ? overlay.color || "#FBE67A"
+                          : "var(--bg-primary)",
+                    }}
                     onMouseDown={(event) => {
                       event.stopPropagation();
                       dragRef.current = {
-                        kind: "artboard",
-                        id: artboard.id,
+                        kind: "overlay",
+                        id: overlay.id,
                         startX: event.clientX,
                         startY: event.clientY,
-                        x: artboard.x,
-                        y: artboard.y,
+                        x: overlay.x,
+                        y: overlay.y,
                       };
-                      updateDocument({
-                        selectedArtboardId: artboard.id,
-                        selectedNodeId:
-                          document.selectedArtboardId === artboard.id
-                            ? document.selectedNodeId
-                            : artboard.pageTree.id,
-                      });
                     }}
                   >
-                    <div>
-                      <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
-                      <p className="text-[10px] text-text-muted">
-                        {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label}
-                      </p>
-                    </div>
-                    {document.primaryArtboardId === artboard.id ? (
-                      <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-emerald-400">
-                        Primary
-                      </span>
-                    ) : null}
-                  </div>
-                  <ComposeDocumentView
-                    pageTree={artboard.pageTree}
-                    tokens={tokens}
-                    breakpoint={document.breakpoint}
-                    selectedNodeId={
-                      document.selectedArtboardId === artboard.id
-                        ? document.selectedNodeId
-                        : null
-                    }
-                    onSelectNode={(nodeId) =>
-                      updateDocument({
-                        selectedArtboardId: artboard.id,
-                        selectedNodeId: nodeId,
-                      })
-                    }
-                    interactive={document.selectedArtboardId === artboard.id}
-                  />
-                </div>
-              ))}
-
-              {document.overlays.map((overlay) => (
-                <div
-                  key={overlay.id}
-                  data-overlay
-                  className="absolute overflow-hidden rounded-2xl border border-border-primary shadow-lg"
-                  style={{
-                    left: overlay.x,
-                    top: overlay.y,
-                    width: overlay.width,
-                    height: overlay.height,
-                    background:
-                      overlay.type === "note"
-                        ? overlay.color || "#FBE67A"
-                        : "var(--bg-primary)",
-                  }}
-                  onMouseDown={(event) => {
-                    event.stopPropagation();
-                    dragRef.current = {
-                      kind: "overlay",
-                      id: overlay.id,
-                      startX: event.clientX,
-                      startY: event.clientY,
-                      x: overlay.x,
-                      y: overlay.y,
-                    };
-                  }}
-                >
-                  {overlay.type === "note" ? (
-                    <textarea
-                      value={overlay.text}
-                      onChange={(event) =>
-                        updateDocument({
-                          overlays: document.overlays.map((item) =>
-                            item.id === overlay.id
-                              ? { ...item, text: event.target.value }
-                              : item
-                          ),
-                        })
-                      }
-                      className="h-full w-full resize-none bg-transparent px-4 py-3 text-[13px] leading-relaxed text-black outline-none"
-                    />
-                  ) : (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={overlay.imageUrl}
-                        alt={overlay.label || "Reference"}
-                        className="h-[calc(100%-28px)] w-full object-cover"
-                      />
-                      <div className="px-3 py-2 text-[11px] text-text-secondary truncate">
-                        {overlay.label || "Reference"}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <aside className="w-[320px] shrink-0 border-l border-border-primary bg-bg-primary overflow-y-auto">
-        <div className="border-b border-border-subtle px-4 py-3">
-          <div className="flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
-            {(["content", "style", "layout", "ai"] as InspectorTab[]).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => updateDocument({ inspectorTab: tab })}
-                className={cn(
-                  "flex-1 rounded-md px-2 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                  document.inspectorTab === tab
-                    ? "bg-accent text-white"
-                    : "text-text-muted hover:text-text-secondary"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 space-y-5">
-          {!selectedNode ? (
-            <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4 text-[12px] text-text-muted">
-              Select a page node to edit its content, style, layout, or AI refinements.
-            </div>
-          ) : null}
-
-          {selectedNode && document.inspectorTab === "content" ? (
-            <div className="space-y-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Selection
-                </p>
-                <p className="mt-2 text-[13px] font-medium text-text-primary">{selectedNode.name}</p>
-                <p className="text-[11px] text-text-muted">{selectedNode.type}</p>
-              </div>
-              {Object.entries(selectedNode.content ?? {})
-                .filter(([, value]) => typeof value === "string")
-                .map(([key, value]) => (
-                  <label key={key} className="block space-y-1.5">
-                    <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                      {key}
-                    </span>
-                    {String(value).length > 80 ? (
+                    {overlay.type === "note" ? (
                       <textarea
-                        value={String(value)}
+                        value={overlay.text}
                         onChange={(event) =>
-                          updateSelectedContent(
-                            key as keyof PageNodeContent,
-                            event.target.value
-                          )
+                          updateDocument({
+                            overlays: document.overlays.map((item) =>
+                              item.id === overlay.id
+                                ? { ...item, text: event.target.value }
+                                : item
+                            ),
+                          })
                         }
-                        rows={4}
-                        className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
+                        className="h-full w-full resize-none bg-transparent px-4 py-3 text-[13px] leading-relaxed text-black outline-none"
                       />
                     ) : (
-                      <Input
-                        value={String(value)}
-                        onChange={(event) =>
-                          updateSelectedContent(
-                            key as keyof PageNodeContent,
-                            event.target.value
-                          )
-                        }
-                        className="h-10 text-sm"
-                      />
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={overlay.imageUrl}
+                          alt={overlay.label || "Reference"}
+                          className="h-[calc(100%-28px)] w-full object-cover"
+                        />
+                        <div className="px-3 py-2 text-[11px] text-text-secondary truncate">
+                          {overlay.label || "Reference"}
+                        </div>
+                      </>
                     )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+      rightPanel={
+        <div className="flex h-full flex-col">
+          <div className="border-b border-border-subtle px-4 py-3">
+            <div className="flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
+              {(["content", "style", "layout", "ai"] as InspectorTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => updateDocument({ inspectorTab: tab })}
+                  className={cn(
+                    "flex-1 rounded-md px-2 py-1.5 text-[10px] uppercase tracking-[0.12em]",
+                    document.inspectorTab === tab
+                      ? "bg-accent text-white"
+                      : "text-text-muted hover:text-text-secondary"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 space-y-5">
+            {!selectedNode ? (
+              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4 text-[12px] text-text-muted">
+                Select a page node to edit its content, style, layout, or AI refinements.
+              </div>
+            ) : null}
+
+            {selectedNode && document.inspectorTab === "content" ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                    Selection
+                  </p>
+                  <p className="mt-2 text-[13px] font-medium text-text-primary">{selectedNode.name}</p>
+                  <p className="text-[11px] text-text-muted">{selectedNode.type}</p>
+                </div>
+                {Object.entries(selectedNode.content ?? {})
+                  .filter(([, value]) => typeof value === "string")
+                  .map(([key, value]) => (
+                    <label key={key} className="block space-y-1.5">
+                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                        {key}
+                      </span>
+                      {String(value).length > 80 ? (
+                        <textarea
+                          value={String(value)}
+                          onChange={(event) =>
+                            updateSelectedContent(
+                              key as keyof PageNodeContent,
+                              event.target.value
+                            )
+                          }
+                          rows={4}
+                          className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
+                        />
+                      ) : (
+                        <Input
+                          value={String(value)}
+                          onChange={(event) =>
+                            updateSelectedContent(
+                              key as keyof PageNodeContent,
+                              event.target.value
+                            )
+                          }
+                          className="h-10 text-sm"
+                        />
+                      )}
+                    </label>
+                  ))}
+              </div>
+            ) : null}
+
+            {selectedNode && document.inspectorTab === "style" ? (
+              <div className="space-y-4">
+                {(
+                  [
+                    ["background", "Background"],
+                    ["foreground", "Foreground"],
+                    ["borderColor", "Border"],
+                    ["accent", "Accent"],
+                  ] as Array<[keyof PageNodeStyle, string]>
+                ).map(([key, label]) => (
+                  <label key={String(key)} className="block space-y-1.5">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                      {label}
+                    </span>
+                    <Input
+                      value={String((selectedNode.style ?? {})[key] ?? "")}
+                      onChange={(event) =>
+                        updateSelectedStyle(key, event.target.value)
+                      }
+                      className="h-10 text-sm"
+                    />
                   </label>
                 ))}
-            </div>
-          ) : null}
-
-          {selectedNode && document.inspectorTab === "style" ? (
-            <div className="space-y-4">
-              {(
-                [
-                  ["background", "Background"],
-                  ["foreground", "Foreground"],
-                  ["borderColor", "Border"],
-                  ["accent", "Accent"],
-                ] as Array<[keyof PageNodeStyle, string]>
-              ).map(([key, label]) => (
-                <label key={String(key)} className="block space-y-1.5">
+                <label className="block space-y-1.5">
                   <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    {label}
-                  </span>
-                  <Input
-                    value={String((selectedNode.style ?? {})[key] ?? "")}
-                    onChange={(event) =>
-                      updateSelectedStyle(key, event.target.value)
-                    }
-                    className="h-10 text-sm"
-                  />
-                </label>
-              ))}
-              <label className="block space-y-1.5">
-                <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                  Radius
-                </span>
-                <Input
-                  type="number"
-                  value={String(selectedNode.style?.borderRadius ?? "")}
-                  onChange={(event) =>
-                    updateSelectedStyle(
-                      "borderRadius",
-                      Number(event.target.value || 0)
-                    )
-                  }
-                  className="h-10 text-sm"
-                />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                  Shadow
-                </span>
-                <select
-                  value={selectedNode.style?.shadow ?? "none"}
-                  onChange={(event) =>
-                    updateSelectedStyle(
-                      "shadow",
-                      event.target.value as PageNodeStyle["shadow"]
-                    )
-                  }
-                  className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
-                >
-                  <option value="none">None</option>
-                  <option value="soft">Soft</option>
-                  <option value="medium">Medium</option>
-                </select>
-              </label>
-            </div>
-          ) : null}
-
-          {selectedNode && document.inspectorTab === "layout" ? (
-            <div className="space-y-4">
-              {(
-                [
-                  ["paddingX", "Padding X"],
-                  ["paddingY", "Padding Y"],
-                  ["gap", "Gap"],
-                  ["columns", "Columns"],
-                  ["maxWidth", "Max Width"],
-                  ["minHeight", "Min Height"],
-                ] as Array<[keyof PageNodeStyle, string]>
-              ).map(([key, label]) => (
-                <label key={String(key)} className="block space-y-1.5">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    {label}
+                    Radius
                   </span>
                   <Input
                     type="number"
-                    value={String(selectedNode.style?.[key] ?? "")}
+                    value={String(selectedNode.style?.borderRadius ?? "")}
                     onChange={(event) =>
-                      updateSelectedStyle(key, Number(event.target.value || 0))
+                      updateSelectedStyle(
+                        "borderRadius",
+                        Number(event.target.value || 0)
+                      )
                     }
                     className="h-10 text-sm"
                   />
                 </label>
-              ))}
-              <label className="block space-y-1.5">
-                <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                  Align
-                </span>
-                <select
-                  value={selectedNode.style?.align ?? "left"}
-                  onChange={(event) =>
-                    updateSelectedStyle(
-                      "align",
-                      event.target.value as PageNodeStyle["align"]
-                    )
-                  }
-                  className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
-                >
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                </select>
-              </label>
-              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 text-[11px] text-text-muted">
-                You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides.
-                Desktop writes to base style; Tablet and Mobile write to responsive overrides.
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Shadow
+                  </span>
+                  <select
+                    value={selectedNode.style?.shadow ?? "none"}
+                    onChange={(event) =>
+                      updateSelectedStyle(
+                        "shadow",
+                        event.target.value as PageNodeStyle["shadow"]
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
+                  >
+                    <option value="none">None</option>
+                    <option value="soft">Soft</option>
+                    <option value="medium">Medium</option>
+                  </select>
+                </label>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {selectedNode && document.inspectorTab === "ai" ? (
-            <div className="space-y-4">
-              <label className="block space-y-1.5">
-                <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                  AI Prompt
-                </span>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(event) => setAiPrompt(event.target.value)}
-                  rows={4}
-                  placeholder="Sharpen the message, make this section more confident, restyle it for a stronger editorial feel…"
-                  className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
-                />
-              </label>
-              <div className="grid grid-cols-1 gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => applyAiAction("rewrite-copy")}
-                  disabled={aiLoading}
-                >
-                  Rewrite selected copy
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => applyAiAction("regenerate-section")}
-                  disabled={aiLoading}
-                >
-                  Regenerate section direction
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => applyAiAction("restyle-section")}
-                  disabled={aiLoading}
-                >
-                  Restyle from system
-                </Button>
-              </div>
-              {aiError ? (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
-                  {aiError}
-                </div>
-              ) : null}
-              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3">
-                <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                  System Context
-                </p>
-                <div className="mt-3 flex gap-2">
-                  {[
-                    tokens.colors.primary,
-                    tokens.colors.secondary,
-                    tokens.colors.accent,
-                    tokens.colors.background,
-                    tokens.colors.surface,
-                  ].map((color) => (
-                    <div
-                      key={color}
-                      className="h-8 w-8 rounded-lg border border-border-primary"
-                      style={{ background: color }}
+            {selectedNode && document.inspectorTab === "layout" ? (
+              <div className="space-y-4">
+                {(
+                  [
+                    ["paddingX", "Padding X"],
+                    ["paddingY", "Padding Y"],
+                    ["gap", "Gap"],
+                    ["columns", "Columns"],
+                    ["maxWidth", "Max Width"],
+                    ["minHeight", "Min Height"],
+                  ] as Array<[keyof PageNodeStyle, string]>
+                ).map(([key, label]) => (
+                  <label key={String(key)} className="block space-y-1.5">
+                    <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                      {label}
+                    </span>
+                    <Input
+                      type="number"
+                      value={String(selectedNode.style?.[key] ?? "")}
+                      onChange={(event) =>
+                        updateSelectedStyle(key, Number(event.target.value || 0))
+                      }
+                      className="h-10 text-sm"
                     />
-                  ))}
+                  </label>
+                ))}
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    Align
+                  </span>
+                  <select
+                    value={selectedNode.style?.align ?? "left"}
+                    onChange={(event) =>
+                      updateSelectedStyle(
+                        "align",
+                        event.target.value as PageNodeStyle["align"]
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
+                  >
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                  </select>
+                </label>
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 text-[11px] text-text-muted">
+                  You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides.
+                  Desktop writes to base style; Tablet and Mobile write to responsive overrides.
                 </div>
-                <p className="mt-3 text-[11px] text-text-muted">
-                  {tokens.typography.fontFamily}
-                </p>
               </div>
-            </div>
-          ) : null}
+            ) : null}
+
+            {selectedNode && document.inspectorTab === "ai" ? (
+              <div className="space-y-4">
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    AI Prompt
+                  </span>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(event) => setAiPrompt(event.target.value)}
+                    rows={4}
+                    placeholder="Sharpen the message, make this section more confident, restyle it for a stronger editorial feel…"
+                    className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
+                    onClick={() => applyAiAction("rewrite-copy")}
+                    disabled={aiLoading}
+                  >
+                    Rewrite selected copy
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
+                    onClick={() => applyAiAction("regenerate-section")}
+                    disabled={aiLoading}
+                  >
+                    Regenerate section direction
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
+                    onClick={() => applyAiAction("restyle-section")}
+                    disabled={aiLoading}
+                  >
+                    Restyle from system
+                  </Button>
+                </div>
+                {aiError ? (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
+                    {aiError}
+                  </div>
+                ) : null}
+                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    System Context
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    {[
+                      tokens.colors.primary,
+                      tokens.colors.secondary,
+                      tokens.colors.accent,
+                      tokens.colors.background,
+                      tokens.colors.surface,
+                    ].map((color) => (
+                      <div
+                        key={color}
+                        className="h-8 w-8 rounded-lg border border-border-primary"
+                        style={{ background: color }}
+                      />
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[11px] text-text-muted">
+                    {tokens.typography.fontFamily}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </aside>
-    </div>
+      }
+    />
   );
 }
 
@@ -1792,340 +2116,223 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <motion.aside
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className="w-[300px] shrink-0 border-r border-border-primary bg-bg-primary overflow-y-auto"
-        >
-          <div className="p-4 space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                References
-              </h3>
-              <Input
-                value={setName}
-                onChange={(event) => setSetName(event.target.value)}
-                placeholder="Reference set name..."
-                className="h-8 text-xs"
+      {stage === "compose" && composeDocument && tokens ? (
+        <ComposeStage
+          document={composeDocument}
+          tokens={tokens}
+          references={images}
+          siteName={setName || inferSiteName(sitePrompt)}
+          siteType={siteType}
+          onChange={setComposeDocument}
+        />
+      ) : (
+        <CanvasStageLayout
+          stage={stage}
+          leftPanel={
+            stage === "moodboard" ? (
+              <ReferenceThumbnailStrip
+                images={images}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onRemove={handleRemoveImage}
               />
-            </div>
-
-            <UploadZone onFilesAdded={handleFilesAdded} disabled={analysisLoading} />
-
-            <ReferenceGrid
-              images={images}
-              selectedIds={selectedIds}
-              onToggleSelect={handleToggleSelect}
-              onRemove={handleRemoveImage}
-            />
-
-            {images.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted">
-                    {selectedCount} of {images.length} selected
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedIds(
-                        selectedCount === images.length
-                          ? new Set()
-                          : new Set(images.map((image) => image.id))
-                      );
-                    }}
-                    className="text-[10px] text-accent hover:underline"
-                  >
-                    {selectedCount === images.length ? "Deselect all" : "Select all"}
-                  </button>
-                </div>
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={!canAnalyze}
-                  className="w-full h-9 text-[11px] uppercase tracking-[0.12em]"
-                >
-                  {analysisLoading
-                    ? "Analyzing..."
-                    : `Analyze ${selectedCount} image${selectedCount !== 1 ? "s" : ""}`}
-                </Button>
-                {analysisError ? (
-                  <div className="border border-red-500/30 bg-red-500/5 px-3 py-2 text-[10px] text-red-400">
-                    {analysisError}
-                    <p className="mt-1 text-red-400/60">
-                      Make sure OPENAI_API_KEY is set in .env.local
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <AnalysisPanel analysis={analysis} loading={analysisLoading} />
-
-            {analysis ? (
-              <Button
-                onClick={handleGenerateSystem}
-                disabled={!canGenerateSystem}
-                className="w-full h-9 text-[11px] uppercase tracking-[0.12em]"
-              >
-                {systemLoading ? "Generating..." : "Generate Design System →"}
-              </Button>
-            ) : null}
-
-            {stage === "generate" || stage === "compose" ? (
-              <div className="space-y-3 border-t border-border-subtle pt-3">
-                <div className="space-y-1">
-                  <h3 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Generate
-                  </h3>
-                  <p className="text-[11px] text-text-muted">
-                    Create multiple full-page directions, then move into Compose.
-                  </p>
-                </div>
-                <select
-                  value={siteType}
-                  onChange={(event) => setSiteType(event.target.value as SiteType)}
-                  className="h-10 w-full rounded-xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
-                >
-                  {SITE_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <textarea
-                  value={sitePrompt}
-                  onChange={(event) => setSitePrompt(event.target.value)}
-                  rows={5}
-                  placeholder="Describe the site direction, audience, tone, and what the page should feel like."
-                  className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
-                />
-                <Button
-                  onClick={handleGenerateVariants}
-                  disabled={!canGenerateVariants}
-                  className="w-full h-10 text-[11px] uppercase tracking-[0.12em]"
-                >
-                  {generateLoading ? "Generating Variants..." : "Generate Variants"}
-                </Button>
-                {generatedVariants.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full h-9 text-[11px] uppercase tracking-[0.12em]"
-                    onClick={handleOpenCompose}
-                  >
-                    Open in Compose
-                  </Button>
-                ) : null}
-                {generateError ? (
-                  <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
-                    {generateError}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </motion.aside>
-
-        <div className="min-w-0 flex-1 flex flex-col overflow-hidden bg-bg-secondary">
-          {stage === "moodboard" ? (
-            <motion.div
-              key="moodboard-center"
-              className="flex-1 flex flex-col items-center justify-center p-8"
-            >
-              <div className="text-center space-y-4 max-w-md">
-                <div>
-                  <div className="font-mono text-text-muted/20 text-[80px] leading-none select-none mb-4">
-                    ◈
-                  </div>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-text-primary tracking-tight">
-                    Start with references
-                  </h2>
-                </div>
-                <div>
-                  <p className="text-sm text-text-secondary leading-relaxed">
-                    Bring in moodboard images, analyze the taste signal, and turn it into a reusable web system.
-                  </p>
-                </div>
-                <div className="pt-2">
-                  <div className="flex items-center justify-center gap-6 text-[10px] text-text-muted font-mono">
-                    <span>01 References</span>
-                    <span className="text-text-muted/30">→</span>
-                    <span>02 System</span>
-                    <span className="text-text-muted/30">→</span>
-                    <span>03 Generate</span>
-                    <span className="text-text-muted/30">→</span>
-                    <span>04 Compose</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ) : null}
-
-          {stage === "system" ? (
-            <motion.div
-              key="system-center"
-              className="flex-1 flex flex-col p-6 overflow-y-auto"
-            >
-              <div className="max-w-2xl mx-auto w-full space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-text-primary tracking-tight">
-                    Design System Preview
-                  </h3>
-                  <p className="text-xs text-text-tertiary mt-1">
-                    Tune the extracted system before generating page variants.
-                  </p>
-                </div>
-
-                {tokens ? (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary mb-3">
-                        Palette
-                      </h4>
-                      <div className="flex gap-1">
-                        {Object.entries(tokens.colors).map(([key, value]) => (
-                          <div key={key} className="flex-1 group">
-                            <div
-                              className="h-14 border border-border-primary transition-transform group-hover:scale-105"
-                              style={{ backgroundColor: value }}
-                            />
-                            <p className="mt-1 truncate text-center font-mono text-[9px] text-text-muted">
-                              {key}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
+            ) : stage === "system" ? (
+              <ReferenceThumbnailStrip images={images} selectedIds={selectedIds} readOnly />
+            ) : undefined
+          }
+          centerPanel={
+            stage === "moodboard" ? (
+              <div className="flex h-full flex-col overflow-y-auto p-6">
+                <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div className="space-y-2">
+                      <PanelSectionLabel
+                        label="Moodboard"
+                        detail="Drop a full reference set into the board. This is the primary ingest surface for Canvas."
+                      />
+                      <Input
+                        value={setName}
+                        onChange={(event) => setSetName(event.target.value)}
+                        placeholder="Reference set name..."
+                        className="h-10 max-w-sm text-sm"
+                      />
                     </div>
-
-                    <div>
-                      <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary mb-3">
-                        Typography
-                      </h4>
-                      <div className="rounded-2xl border border-border-primary bg-bg-primary p-6">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-text-muted">
-                          Heading
-                        </p>
-                        <h2
-                          className="mt-3 text-4xl text-text-primary"
-                          style={{ fontFamily: tokens.typography.fontFamily }}
-                        >
-                          From taste to site.
-                        </h2>
-                        <p
-                          className="mt-4 max-w-xl text-sm leading-relaxed text-text-muted"
-                          style={{ fontFamily: tokens.typography.fontFamily }}
-                        >
-                          The same tokens feed generation, compose, preview, and export. Adjust them here and the whole workflow stays coherent.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Button
-                        onClick={() => setStage("generate")}
-                        className="w-full h-10 text-[11px] uppercase tracking-[0.12em]"
-                      >
-                        Continue to Generate →
-                      </Button>
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                      <span>{images.length} references</span>
+                      <span>•</span>
+                      <span>{selectedCount} selected</span>
                     </div>
                   </div>
-                ) : null}
-              </div>
-            </motion.div>
-          ) : null}
 
-          {stage === "generate" ? (
-            <div className="flex-1 min-h-0 overflow-y-auto p-6">
-              <div className="mx-auto max-w-[1400px] space-y-6">
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-text-primary tracking-tight">
-                      Generated Variants
-                    </h3>
-                    <p className="mt-1 text-xs text-text-tertiary">
-                      Compare full-page directions, favorite the strongest ones, and open them in Compose.
-                    </p>
-                  </div>
-                  {selectedVariant?.compiledCode ? (
-                    <ExportMenu
-                      code={selectedVariant.compiledCode}
-                      siteName={setName || inferSiteName(sitePrompt)}
-                      siteType={siteType}
-                    />
-                  ) : null}
-                </div>
+                  <UploadZone
+                    onFilesAdded={handleFilesAdded}
+                    disabled={analysisLoading}
+                    className="min-h-[320px] rounded-[32px] border-[1.5px] bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]"
+                  />
 
-                {generatedVariants.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-border-primary bg-bg-primary p-10 text-center">
-                    <p className="text-sm text-text-tertiary">
-                      Generate 2–4 full-page variants from the left panel to move into Compose.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_360px]">
-                    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                      {generatedVariants.map((variant) =>
-                        tokens ? (
-                          <VariantCard
-                            key={variant.id}
-                            variant={variant}
-                            tokens={tokens}
-                            active={selectedVariantId === variant.id}
-                            onSelect={() => setSelectedVariantId(variant.id)}
-                            onFavorite={() =>
-                              setGeneratedVariants((prev) =>
-                                setVariantFavorite(prev, variant.id)
-                              )
-                            }
-                          />
-                        ) : null
-                      )}
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="rounded-3xl border border-border-primary bg-bg-primary p-5">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[12px] font-medium text-text-primary">
-                              {selectedVariant?.name || "Variant"}
-                            </p>
-                            <p className="mt-1 text-[11px] text-text-muted leading-relaxed">
-                              {selectedVariant?.description}
-                            </p>
-                          </div>
-                          {selectedVariant?.favorite ? (
-                            <span className="rounded-md bg-accent/12 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-accent">
-                              Favorite
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button
+                  {images.length > 0 ? (
+                    <div className="rounded-[28px] border border-border-primary bg-bg-primary p-5">
+                      <div className="flex flex-col gap-3 border-b border-border-subtle pb-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[11px] text-text-muted">
+                          <span>{selectedCount} of {images.length} selected</span>
+                          <button
                             type="button"
-                            className="h-9 text-[10px] uppercase tracking-[0.12em]"
-                            onClick={handleOpenCompose}
+                            onClick={() => {
+                              setSelectedIds(
+                                selectedCount === images.length
+                                  ? new Set()
+                                  : new Set(images.map((image) => image.id))
+                              );
+                            }}
+                            className="text-accent hover:underline"
                           >
-                            Open in Compose
+                            {selectedCount === images.length ? "Deselect all" : "Select all"}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={handleAnalyze}
+                            disabled={!canAnalyze}
+                            className="h-10 text-[11px] uppercase tracking-[0.12em]"
+                          >
+                            {analysisLoading
+                              ? "Analyzing..."
+                              : `Analyze ${selectedCount} image${selectedCount !== 1 ? "s" : ""}`}
                           </Button>
-                          {selectedVariant?.compiledCode ? (
+                          {analysis ? (
                             <Button
-                              type="button"
+                              onClick={handleGenerateSystem}
+                              disabled={!canGenerateSystem}
                               variant="secondary"
-                              className="h-9 text-[10px] uppercase tracking-[0.12em]"
-                              onClick={() =>
-                                downloadTSX(
-                                  selectedVariant.compiledCode!,
-                                  selectedVariant.name
-                                )
-                              }
+                              className="h-10 text-[11px] uppercase tracking-[0.12em]"
                             >
-                              Download TSX
+                              {systemLoading ? "Generating..." : "Generate System"}
                             </Button>
                           ) : null}
                         </div>
+                      </div>
+
+                      {analysisError ? (
+                        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[10px] text-red-400">
+                          {analysisError}
+                          <p className="mt-1 text-red-400/60">
+                            Make sure OPENAI_API_KEY is set in .env.local
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <div className="mt-5">
+                        <ReferenceGrid
+                          images={images}
+                          selectedIds={selectedIds}
+                          onToggleSelect={handleToggleSelect}
+                          onRemove={handleRemoveImage}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <AnalysisPanel analysis={analysis} loading={analysisLoading} />
+                </div>
+              </div>
+            ) : stage === "system" ? (
+              <SystemPreviewPanel tokens={tokens} analysis={analysis} />
+            ) : (
+              <div className="flex h-full flex-col overflow-y-auto p-6">
+                <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-6">
+                  <div className="rounded-[30px] border border-border-primary bg-bg-primary px-6 py-5">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold tracking-tight text-text-primary">
+                            Generated Variants
+                          </h3>
+                          <p className="mt-1 text-xs text-text-tertiary">
+                            Prompt and generate full-page directions here. The left rail stays out of the way in this stage.
+                          </p>
+                        </div>
+                        {selectedVariant?.compiledCode ? (
+                          <ExportMenu
+                            code={selectedVariant.compiledCode}
+                            siteName={setName || inferSiteName(sitePrompt)}
+                            siteType={siteType}
+                          />
+                        ) : null}
+                      </div>
+
+                      <div className="grid gap-3 xl:grid-cols-[180px_minmax(0,1fr)_180px]">
+                        <select
+                          value={siteType}
+                          onChange={(event) => setSiteType(event.target.value as SiteType)}
+                          className="h-11 w-full rounded-2xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
+                        >
+                          {SITE_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <textarea
+                          value={sitePrompt}
+                          onChange={(event) => setSitePrompt(event.target.value)}
+                          rows={3}
+                          placeholder="Describe the site direction, audience, tone, and what the page should feel like."
+                          className="min-h-[84px] w-full rounded-2xl border border-border-primary bg-bg-secondary px-4 py-3 text-sm text-text-primary outline-none"
+                        />
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            onClick={handleGenerateVariants}
+                            disabled={!canGenerateVariants}
+                            className="h-11 text-[11px] uppercase tracking-[0.12em]"
+                          >
+                            {generateLoading ? "Generating..." : "Generate Variants"}
+                          </Button>
+                          {generatedVariants.length > 0 ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="h-11 text-[11px] uppercase tracking-[0.12em]"
+                              onClick={handleOpenCompose}
+                            >
+                              Open in Compose
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {generateError ? (
+                        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
+                          {generateError}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {generatedVariants.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-border-primary bg-bg-primary p-10 text-center">
+                      <p className="text-sm text-text-tertiary">
+                        Generate 2–4 full-page variants from the toolbar above.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        {generatedVariants.map((variant) =>
+                          tokens ? (
+                            <VariantCard
+                              key={variant.id}
+                              variant={variant}
+                              tokens={tokens}
+                              active={selectedVariantId === variant.id}
+                              onSelect={() => setSelectedVariantId(variant.id)}
+                              onFavorite={() =>
+                                setGeneratedVariants((prev) =>
+                                  setVariantFavorite(prev, variant.id)
+                                )
+                              }
+                            />
+                          ) : null
+                        )}
                       </div>
 
                       <div className="min-h-[420px] rounded-3xl border border-border-primary bg-bg-primary overflow-hidden">
@@ -2141,83 +2348,47 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
                         )}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : null}
-
-          {stage === "compose" && composeDocument && tokens ? (
-            <ComposeStage
-              document={composeDocument}
-              tokens={tokens}
-              references={images}
-              siteName={setName || inferSiteName(sitePrompt)}
-              siteType={siteType}
-              onChange={setComposeDocument}
-            />
-          ) : null}
-        </div>
-
-        {stage !== "compose" ? (
-          <motion.aside
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            className="w-[300px] shrink-0 border-l border-border-primary bg-bg-primary overflow-y-auto"
-          >
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Design System
-                </h3>
-                {tokens ? (
-                  <span className="text-[9px] text-emerald-400 font-mono">Active</span>
-                ) : null}
-              </div>
-
-              <SystemEditor
-                markdown={markdown}
-                tokens={tokens}
-                onMarkdownChange={setMarkdown}
-                onTokensChange={setTokens}
-                loading={systemLoading}
-              />
-
-              {stage === "generate" && selectedVariant ? (
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4 space-y-3">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                      Variant Focus
-                    </p>
-                    <p className="mt-2 text-[13px] font-medium text-text-primary">
-                      {selectedVariant.name}
-                    </p>
-                    <p className="mt-1 text-[11px] text-text-muted leading-relaxed">
-                      {selectedVariant.description}
-                    </p>
-                  </div>
-                  <div className="space-y-2 text-[11px] text-text-muted">
-                    <div className="flex items-center justify-between">
-                      <span>Site type</span>
-                      <span className="text-text-secondary">
-                        {SITE_TYPE_OPTIONS.find((option) => option.value === selectedVariant.siteType)?.label ?? selectedVariant.siteType}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Source</span>
-                      <span className="text-text-secondary">Structured page tree</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Export</span>
-                      <span className="text-text-secondary">Compose will own final export</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ) : null}
-            </div>
-          </motion.aside>
-        ) : null}
-      </div>
+              </div>
+            )
+          }
+          rightPanel={
+            stage === "system" ? (
+              <div className="space-y-4 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                    Token Editor
+                  </h3>
+                  {tokens ? (
+                    <span className="text-[9px] text-emerald-400 font-mono">Active</span>
+                  ) : null}
+                </div>
+
+                <SystemEditor
+                  markdown={markdown}
+                  tokens={tokens}
+                  onMarkdownChange={setMarkdown}
+                  onTokensChange={setTokens}
+                  loading={systemLoading}
+                />
+
+                <Button
+                  onClick={() => setStage("generate")}
+                  disabled={!tokens}
+                  className="w-full h-10 text-[11px] uppercase tracking-[0.12em]"
+                >
+                  Continue to Generate →
+                </Button>
+              </div>
+            ) : stage === "generate" ? (
+              <SystemSummaryPanel tokens={tokens} selectedVariant={selectedVariant} />
+            ) : undefined
+          }
+          leftWidth={stage === "system" ? "260px" : "240px"}
+          rightWidth={stage === "system" ? "320px" : "300px"}
+        />
+      )}
     </div>
   );
 }

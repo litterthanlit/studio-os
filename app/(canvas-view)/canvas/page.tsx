@@ -10,7 +10,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ project?: string }>;
 }) {
-  const params = await searchParams;
+  const params = await Promise.resolve(searchParams);
   if (!params.project) {
     redirect("/home");
   }

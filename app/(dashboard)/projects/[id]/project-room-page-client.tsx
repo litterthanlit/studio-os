@@ -194,8 +194,11 @@ export function ProjectRoomPageClient({
               >
                 {project.phase}
               </span>
-              <Link
-                href={`/canvas?project=${project.id}`}
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(`/canvas?project=${encodeURIComponent(project.id)}`)
+                }
                 className="inline-flex h-9 items-center gap-2 rounded-full border border-[#3B5EFC] bg-[#3B5EFC] px-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition-colors duration-200 hover:bg-[#2f4fe3]"
               >
                 <span>Open Canvas</span>
@@ -209,7 +212,7 @@ export function ProjectRoomPageClient({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 8h8.5" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 3.5 13 8l-4.5 4.5" />
                 </svg>
-              </Link>
+              </button>
             </div>
             <div className="text-[12px] text-gray-400 transition-colors duration-300">{project.client}</div>
           </div>

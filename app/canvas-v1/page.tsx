@@ -11,6 +11,6 @@ export default async function Page({
 }: {
   searchParams: Promise<{ project?: string }>;
 }) {
-  const params = await searchParams;
+  const params = await Promise.resolve(searchParams);
   return <CanvasPage projectId={params.project} />;
 }

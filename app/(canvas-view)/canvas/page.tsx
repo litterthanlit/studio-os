@@ -1,4 +1,4 @@
-import { CanvasPage } from "@/app/canvas-v1/canvas-client";
+import { CanvasClient } from "./canvas-client";
 
 export const metadata = {
   title: "Canvas — Studio OS",
@@ -7,8 +7,8 @@ export const metadata = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = await searchParams;
-  return <CanvasPage projectId={params.project} />;
+  await searchParams;
+  return <CanvasClient />;
 }

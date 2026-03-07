@@ -861,7 +861,7 @@ function Testimonials() {
                     flex: 1,
                   }}
                 >
-                  "{q.text}"
+                  &ldquo;{q.text}&rdquo;
                 </p>
                 <div>
                   <p

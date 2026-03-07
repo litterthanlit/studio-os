@@ -18,10 +18,10 @@ import {
   useNewProjectModal,
   getStoredProjects,
 } from "@/components/new-project-modal";
+import { PROJECTS_UPDATED_EVENT, getProjectState } from "@/lib/project-store";
 import {
   DEMO_PROJECT,
   DEMO_PROJECT_ID,
-  DEMO_DISMISSED_KEY,
   isDemoDismissed,
   dismissDemo,
 } from "@/lib/demo-project";
@@ -33,17 +33,26 @@ function storedToProject(sp: {
   color: string;
   createdAt: string;
 }): Project {
+  const state = getProjectState(sp.id);
+  const palette =
+    state.palette && state.palette.length > 0
+      ? state.palette
+      : ["#111111", sp.color, "#222222", "#333333", "#999999"];
+
   return {
     id: sp.id,
     name: sp.name,
     client: "—",
     phase: "Discovery",
     progress: 0,
-    leadImage: `https://picsum.photos/seed/${sp.id}/400/300`,
-    palette: ["#111111", sp.color, "#222222", "#333333", "#999999"],
+    leadImage: state.coverImage ?? `https://picsum.photos/seed/${sp.id}/400/300`,
+    palette,
     lastActivity: "Just created",
     references: 0,
-    fontsSelected: 0,
+    fontsSelected: [
+      state.typography?.headingFont,
+      state.typography?.bodyFont,
+    ].filter(Boolean).length,
     daysActive: 0,
   };
 }
@@ -144,6 +153,16 @@ export function ProjectsPage() {
   React.useEffect(() => {
     setLocalProjects(getStoredProjects().map(storedToProject));
     setShowDemo(!isDemoDismissed());
+    function syncProjects() {
+      setLocalProjects(getStoredProjects().map(storedToProject));
+    }
+
+    window.addEventListener(PROJECTS_UPDATED_EVENT, syncProjects);
+    window.addEventListener("storage", syncProjects);
+    return () => {
+      window.removeEventListener(PROJECTS_UPDATED_EVENT, syncProjects);
+      window.removeEventListener("storage", syncProjects);
+    };
   }, []);
 
   function handleDismissDemo() {

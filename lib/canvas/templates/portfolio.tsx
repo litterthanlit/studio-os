@@ -208,7 +208,7 @@ function Hero() {
             fontWeight: 400,
           }}
         >
-          I'm a product designer based in London, helping startups and established brands build
+          I&rsquo;m a product designer based in London, helping startups and established brands build
           compelling digital products. 8 years of experience across fintech, SaaS, and consumer.
         </motion.p>
 
@@ -611,7 +611,7 @@ function About() {
               marginBottom: 32,
             }}
           >
-            When I'm not pushing pixels, I write about design systems, run workshops on design
+            When I&rsquo;m not pushing pixels, I write about design systems, run workshops on design
             thinking, and occasionally speak at conferences.
           </p>
           <a
@@ -854,7 +854,7 @@ function Contact() {
                   margin: "0 0 24px",
                 }}
               >
-                Let's build something{" "}
+                Let&rsquo;s build something{" "}
                 <em style={{ fontStyle: "italic", color: T.accentWarm }}>great</em> together.
               </h2>
               <p
@@ -865,8 +865,8 @@ function Contact() {
                   marginBottom: 36,
                 }}
               >
-                I'm currently open to freelance projects and full-time roles. Tell me about your
-                project and let's talk.
+                I&rsquo;m currently open to freelance projects and full-time roles. Tell me about your
+                project and let&rsquo;s talk.
               </p>
               <a
                 href="mailto:hello@jharlow.design"

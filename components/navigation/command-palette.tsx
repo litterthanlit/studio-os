@@ -18,6 +18,7 @@ import { useNewProjectModal, getStoredProjects } from "@/components/new-project-
 import { PROJECTS as STATIC_PROJECTS, type Phase } from "@/app/(dashboard)/projects/projects-data";
 import type { SearchResult } from "@/app/api/search/route";
 import { springs, staggerContainer, staggerItem } from "@/lib/animations";
+import { PROJECTS_UPDATED_EVENT } from "@/lib/project-store";
 
 type ItemCategory = "recent" | "projects" | "sections" | "actions" | "references";
 
@@ -252,7 +253,11 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
     }
     loadProjects();
     window.addEventListener("storage", loadProjects);
-    return () => window.removeEventListener("storage", loadProjects);
+    window.addEventListener(PROJECTS_UPDATED_EVENT, loadProjects);
+    return () => {
+      window.removeEventListener("storage", loadProjects);
+      window.removeEventListener(PROJECTS_UPDATED_EVENT, loadProjects);
+    };
   }, []);
 
   React.useEffect(() => {

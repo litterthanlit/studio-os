@@ -347,7 +347,7 @@ export default function AdminInspirationPage() {
           <div className="text-center py-16 text-text-tertiary text-sm">Loading...</div>
         ) : images.length === 0 ? (
           <div className="text-center py-16 text-text-tertiary text-sm">
-            No images yet — try "Search & Score" above to pull from Pinterest
+            No images yet — try &quot;Search &amp; Score&quot; above to pull from Pinterest
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

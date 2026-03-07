@@ -1,24 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 const DURATION = 1800; // ms before the overlay exits
 
 export function Preloader() {
-  const [visible, setVisible] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem("sos-preloader") !== "1";
+  });
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   useEffect(() => {
-    setMounted(true);
-
-    // Show only once per session
-    const shown = sessionStorage.getItem("sos-preloader");
-    if (shown) {
-      setVisible(false);
-      return;
-    }
+    if (!visible) return;
 
     const t = setTimeout(() => {
       setVisible(false);
@@ -26,7 +26,7 @@ export function Preloader() {
     }, DURATION);
 
     return () => clearTimeout(t);
-  }, []);
+  }, [visible]);
 
   // Avoid SSR mismatch — don't render until mounted
   if (!mounted) return null;

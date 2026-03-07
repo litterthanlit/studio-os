@@ -20,6 +20,13 @@ import {
 import { slideUp, staggerContainer, staggerItem, springs } from "@/lib/animations";
 import { useCuratedInspiration } from "@/hooks/use-curated-inspiration";
 import { cn } from "@/lib/utils";
+import {
+  appendProjectTask,
+  listProjectReferences,
+  PROJECTS_UPDATED_EVENT,
+  setProjectReferences,
+  type StoredReference,
+} from "@/lib/project-store";
 
 type ProjectTask = {
   id: string;
@@ -38,8 +45,6 @@ type ProjectDropdownOption =
   | { kind: "project"; project: HomeProject }
   | { kind: "create"; name: string };
 
-
-const TASKS_STORAGE_KEY = "studio-os-tasks";
 const ASCII_CHARS = [
   "■",
   "□",
@@ -143,12 +148,6 @@ function getPhaseBadgeClass(phase: Phase): string {
   return `${colors.bg} ${colors.text} transition-colors duration-300`;
 }
 
-function saveTask(task: ProjectTask) {
-  const stored = localStorage.getItem(TASKS_STORAGE_KEY);
-  const allTasks: ProjectTask[] = stored ? JSON.parse(stored) : [];
-  localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify([...allTasks, task]));
-}
-
 function ProjectSearchRow({
   option,
   active,
@@ -189,14 +188,7 @@ function ProjectSearchRow({
 
 // ─── Image drop helpers ──────────────────────────────────────────────────────
 
-type ReferenceForStorage = {
-  id: string;
-  imageUrl: string;
-  source: "upload";
-  title: string;
-  addedAt: string;
-  projectId: string;
-};
+type ReferenceForStorage = StoredReference;
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -208,15 +200,11 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 function readProjectRefs(projectId: string): ReferenceForStorage[] {
-  try {
-    const raw = localStorage.getItem(`studio-os:references:${projectId}`);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  return listProjectReferences(projectId);
 }
 
 function writeProjectRefs(projectId: string, refs: ReferenceForStorage[]) {
-  localStorage.setItem(`studio-os:references:${projectId}`, JSON.stringify(refs));
-  window.dispatchEvent(new Event("project-references-updated"));
+  setProjectReferences(projectId, refs);
 }
 
 type DropTarget = { id: string; name: string; color: string };
@@ -499,7 +487,11 @@ export function HomeClient() {
     }
     load();
     window.addEventListener("storage", load);
-    return () => window.removeEventListener("storage", load);
+    window.addEventListener(PROJECTS_UPDATED_EVENT, load);
+    return () => {
+      window.removeEventListener("storage", load);
+      window.removeEventListener(PROJECTS_UPDATED_EVENT, load);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -593,7 +585,7 @@ export function HomeClient() {
     if (!selectedProject) return;
     const text = inputValue.trim();
     if (!text) return;
-    saveTask({
+    appendProjectTask({
       id: crypto.randomUUID(),
       text,
       projectId: selectedProject.id,

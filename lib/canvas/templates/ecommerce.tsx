@@ -707,7 +707,7 @@ function BrandStory() {
                   marginBottom: 16,
                 }}
               >
-                Founded in 2020, we believe that sustainable and beautiful aren't opposites. Our
+                Founded in 2020, we believe that sustainable and beautiful aren&rsquo;t opposites. Our
                 team of designers obsesses over materials, construction, and fit — so every piece
                 we make earns its place in your wardrobe.
               </p>
@@ -835,7 +835,7 @@ function Reviews() {
                   ))}
                 </div>
                 <p style={{ fontSize: 14, lineHeight: 1.7, color: T.inkLight, margin: 0, flex: 1 }}>
-                  "{r.text}"
+                  &ldquo;{r.text}&rdquo;
                 </p>
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, margin: "0 0 2px" }}>{r.name}</p>

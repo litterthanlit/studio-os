@@ -8,16 +8,33 @@ import { PHASE_STYLES } from "../projects-data";
 import type { Project } from "../projects-data";
 import { ProjectRoomSections } from "../project-room";
 import { getStoredProjects, getProjectCover, setProjectCover } from "@/components/new-project-modal";
+import {
+  getProjectState,
+  listProjectReferences,
+  PROJECT_REFERENCES_UPDATED_EVENT,
+  PROJECT_STATE_UPDATED_EVENT,
+} from "@/lib/project-store";
 
 function getStoredReferenceCount(projectId: string): number {
-  try {
-    const raw = localStorage.getItem(`studio-os:references:${projectId}`);
-    if (!raw) return 0;
-    const refs = JSON.parse(raw);
-    return Array.isArray(refs) ? refs.length : 0;
-  } catch {
-    return 0;
-  }
+  return listProjectReferences(projectId).length;
+}
+
+function applyStoredProjectState(project: Project): Project {
+  const state = getProjectState(project.id);
+  const palette =
+    state.palette && state.palette.length > 0 ? state.palette : project.palette;
+  const headingFont = state.typography?.headingFont;
+  const bodyFont = state.typography?.bodyFont;
+
+  return {
+    ...project,
+    leadImage: state.coverImage ?? project.leadImage,
+    palette,
+    headingFont,
+    bodyFont,
+    fontsSelected: [headingFont, bodyFont].filter(Boolean).length,
+    references: getStoredReferenceCount(project.id),
+  };
 }
 
 function storedToProject(sp: {
@@ -54,22 +71,21 @@ export function ProjectRoomPageClient({
 
   const [project, setProject] = React.useState<Project | null>(() => {
     if (!staticProject) return null;
-    const cover = typeof window !== "undefined" ? getProjectCover(id) : null;
-    return cover ? { ...staticProject, leadImage: cover } : staticProject;
+    if (typeof window === "undefined") return staticProject;
+    return applyStoredProjectState(staticProject);
   });
   const [checked, setChecked] = React.useState(staticProject !== null);
 
   // For localStorage-created projects, look them up on mount
   React.useEffect(() => {
     if (staticProject) {
-      const cover = getProjectCover(id);
-      if (cover) setProject((prev) => prev ? { ...prev, leadImage: cover } : prev);
+      setProject(applyStoredProjectState(staticProject));
       return;
     }
     const stored = getStoredProjects();
     const found = stored.find((p) => p.id === id);
     if (found) {
-      setProject(storedToProject(found));
+      setProject(applyStoredProjectState(storedToProject(found)));
     }
     setChecked(true);
   }, [id, staticProject]);
@@ -83,22 +99,19 @@ export function ProjectRoomPageClient({
 
   React.useEffect(() => {
     if (!project) return;
-    const syncReferenceCount = () => {
+    const syncProjectState = () => {
       setProject((prev) => {
         if (!prev) return prev;
-        const nextCount = getStoredReferenceCount(prev.id);
-        if (prev.references === nextCount) return prev;
-        return {
-          ...prev,
-          references: nextCount,
-        };
+        return applyStoredProjectState(prev);
       });
     };
 
-    syncReferenceCount();
-    window.addEventListener("project-references-updated", syncReferenceCount);
+    syncProjectState();
+    window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncProjectState);
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, syncProjectState);
     return () => {
-      window.removeEventListener("project-references-updated", syncReferenceCount);
+      window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncProjectState);
+      window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, syncProjectState);
     };
   }, [project?.id]);
 

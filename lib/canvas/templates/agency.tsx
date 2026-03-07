@@ -847,7 +847,7 @@ function ContactFooter() {
               margin: "0 0 60px",
             }}
           >
-            Let's make
+            Let&rsquo;s make
             <br />
             something
             <br />

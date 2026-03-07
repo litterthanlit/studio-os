@@ -947,7 +947,7 @@ function GeneratePanel({
               <span className="text-[var(--text-secondary)] font-medium">
                 {selectedSiteType?.label}
               </span>{" "}
-              template has been prepared. Click "Add to canvas" to place it as a new frame.
+              template has been prepared. Click &quot;Add to canvas&quot; to place it as a new frame.
             </p>
             <button
               type="button"
@@ -1000,6 +1000,7 @@ export function CanvasClient() {
   const [pan, setPan] = React.useState<{ x: number; y: number }>({ x: 60, y: 60 });
   const [zoom, setZoom] = React.useState(1);
   const [frames, setFrames] = React.useState<CanvasFrame[]>(DEFAULT_FRAMES);
+  const [isPanning, setIsPanning] = React.useState(false);
   const [tab, setTab] = React.useState<TabId>("moodboard");
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [showGeneratePanel, setShowGeneratePanel] = React.useState(false);
@@ -1009,7 +1010,6 @@ export function CanvasClient() {
 
   // ── Refs (for event handlers to avoid stale closure issues) ──
   const stateRef = React.useRef({ pan, zoom });
-  stateRef.current = { pan, zoom };
 
   const isPanningRef = React.useRef(false);
   const panStartMouseRef = React.useRef({ x: 0, y: 0 });
@@ -1019,9 +1019,16 @@ export function CanvasClient() {
   const frameDragStartRef = React.useRef({ mx: 0, my: 0, fx: 0, fy: 0 });
   // Need frames ref to avoid stale closures in mousemove
   const framesRef = React.useRef(frames);
-  framesRef.current = frames;
 
   const canvasRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    stateRef.current = { pan, zoom };
+  }, [pan, zoom]);
+
+  React.useEffect(() => {
+    framesRef.current = frames;
+  }, [frames]);
 
   // ── Load from localStorage on mount ──
   React.useEffect(() => {
@@ -1158,6 +1165,7 @@ export function CanvasClient() {
     const target = e.target as HTMLElement;
     if (target.closest("[data-frame]")) return;
     isPanningRef.current = true;
+    setIsPanning(true);
     panStartMouseRef.current = { x: e.clientX, y: e.clientY };
     panStartPanRef.current = { ...stateRef.current.pan };
     setSelected(new Set());
@@ -1190,6 +1198,7 @@ export function CanvasClient() {
 
   function onMouseUp() {
     isPanningRef.current = false;
+    setIsPanning(false);
     draggingFrameIdRef.current = null;
   }
 
@@ -1286,7 +1295,7 @@ export function CanvasClient() {
       ? frames.filter((f) => f.type === "palette" || f.type === "typography" || f.type === "note")
       : frames; // generate shows all
 
-  const cursorClass = isPanningRef.current ? "cursor-grabbing" : "cursor-grab";
+  const cursorClass = isPanning ? "cursor-grabbing" : "cursor-grab";
 
   // Background dot grid moves with pan/zoom
   const dotSpacing = Math.max(4, 28 * zoom);

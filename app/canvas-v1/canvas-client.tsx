@@ -16,6 +16,12 @@ import { SystemEditor } from "./components/SystemEditor";
 import { ComponentPreview } from "./components/ComponentPreview";
 import { CodeViewer } from "./components/CodeViewer";
 import { ExportActions } from "./components/ExportActions";
+import {
+  getProjectById,
+  getProjectState,
+  listProjectReferences,
+  upsertProjectState,
+} from "@/lib/project-store";
 
 type Stage = "moodboard" | "system" | "generate";
 
@@ -35,22 +41,12 @@ type StoredRef = {
 };
 
 function loadProjectRefs(projectId: string): ReferenceImage[] {
-  try {
-    const raw = localStorage.getItem(`studio-os:references:${projectId}`);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredRef[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((r) => r && r.imageUrl)
-      .map((r) => ({
-        id: r.id || `ref-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        url: r.imageUrl,
-        thumbnail: r.imageUrl,
-        name: r.title || "Reference",
-      }));
-  } catch {
-    return [];
-  }
+  return listProjectReferences(projectId).map((reference) => ({
+    id: reference.id || `ref-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    url: reference.imageUrl,
+    thumbnail: reference.imageUrl,
+    name: reference.title || "Reference",
+  }));
 }
 
 type StoredProject = { id: string; name: string; color: string };
@@ -63,22 +59,20 @@ const STATIC_PALETTES: Record<string, { name: string; palette: string[] }> = {
 };
 
 function loadProjectMeta(projectId: string): { name: string; palette: string[] } | null {
-  try {
-    const staticMatch = STATIC_PALETTES[projectId];
-    if (staticMatch) return staticMatch;
+  const state = getProjectState(projectId);
+  const staticMatch = STATIC_PALETTES[projectId];
+  const stored = getProjectById(projectId);
 
-    const raw = localStorage.getItem("studio-os:projects");
-    if (!raw) return null;
-    const stored = JSON.parse(raw) as StoredProject[];
-    const match = stored.find((p) => p.id === projectId);
-    if (!match) return null;
-    return {
-      name: match.name,
-      palette: [match.color, "#111111", "#222222", "#333333", "#999999"],
-    };
-  } catch {
-    return null;
-  }
+  if (!staticMatch && !stored) return null;
+
+  return {
+    name: stored?.name ?? staticMatch?.name ?? "Project",
+    palette:
+      state.palette && state.palette.length > 0
+        ? state.palette
+        : staticMatch?.palette ??
+          [stored?.color ?? "#2430AD", "#111111", "#222222", "#333333", "#999999"],
+  };
 }
 
 function paletteToTokens(palette: string[]): DesignSystemTokens {
@@ -160,6 +154,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     if (!linkedProjectId) return;
 
     const refs = loadProjectRefs(linkedProjectId);
+    const storedState = getProjectState(linkedProjectId);
     if (refs.length > 0) {
       setImages(refs);
       setSelectedIds(new Set(refs.map((r) => r.id)));
@@ -167,16 +162,67 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
     const meta = loadProjectMeta(linkedProjectId);
     if (meta) {
-      setSetName(meta.name);
-      if (meta.palette.length > 0) {
+      setSetName(storedState.canvas?.referenceSetName ?? meta.name);
+      if (storedState.canvas?.analysis) setAnalysis(storedState.canvas.analysis);
+
+      if (storedState.canvas?.designTokens) {
+        setTokens(storedState.canvas.designTokens);
+        setMarkdown(
+          storedState.canvas.designSystemMarkdown ??
+            tokensToMarkdown(storedState.canvas.designTokens)
+        );
+      } else if (meta.palette.length > 0) {
         const projectTokens = paletteToTokens(meta.palette);
         setTokens(projectTokens);
-        if (refs.length > 0) {
-          setStage("system");
-        }
+      }
+
+      if (storedState.canvas?.componentPrompt) {
+        setComponentPrompt(storedState.canvas.componentPrompt);
+      }
+
+      if (storedState.canvas?.generatedSite) {
+        setGeneratedCode(storedState.canvas.generatedSite.code);
+        setComponentName(storedState.canvas.generatedSite.name);
+        setStage(storedState.canvas.stage ?? "generate");
+        setViewMode("preview");
+      } else if (refs.length > 0) {
+        setStage(storedState.canvas?.stage ?? "system");
       }
     }
   }, [linkedProjectId]);
+
+  React.useEffect(() => {
+    if (!linkedProjectId) return;
+    upsertProjectState(linkedProjectId, {
+      canvas: {
+        stage,
+        referenceSetName: setName,
+        analysis,
+        designTokens: tokens,
+        designSystemMarkdown: markdown,
+        componentPrompt,
+        generatedSite:
+          generatedCode && componentName
+            ? {
+                code: generatedCode,
+                name: componentName,
+                prompt: componentPrompt,
+                updatedAt: new Date().toISOString(),
+              }
+            : null,
+      },
+    });
+  }, [
+    analysis,
+    componentName,
+    componentPrompt,
+    generatedCode,
+    linkedProjectId,
+    markdown,
+    setName,
+    stage,
+    tokens,
+  ]);
 
   function handleFilesAdded(files: File[]) {
     const newImages: ReferenceImage[] = files.map((file, i) => {
@@ -308,6 +354,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
       const data = await res.json();
       setGeneratedCode(data.code);
       setComponentName(data.name || "Component");
+      setStage("generate");
       setViewMode("preview");
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "Generation failed");
@@ -811,15 +858,21 @@ function SyncToProjectButton({
   const [synced, setSynced] = React.useState(false);
 
   function handleSync() {
-    try {
-      const key = `studio-os:canvas-system:${projectId}`;
-      localStorage.setItem(key, JSON.stringify(tokens));
-      window.dispatchEvent(new Event("canvas-system-synced"));
-      setSynced(true);
-      setTimeout(() => setSynced(false), 2500);
-    } catch {
-      // storage full or unavailable
-    }
+    upsertProjectState(projectId, {
+      palette: [
+        tokens.colors.primary,
+        tokens.colors.secondary,
+        tokens.colors.accent,
+        tokens.colors.background,
+        tokens.colors.surface,
+      ],
+      canvas: {
+        designTokens: tokens,
+        designSystemMarkdown: tokensToMarkdown(tokens),
+      },
+    });
+    setSynced(true);
+    setTimeout(() => setSynced(false), 2500);
   }
 
   return (

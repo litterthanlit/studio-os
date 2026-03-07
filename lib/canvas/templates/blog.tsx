@@ -246,7 +246,7 @@ function FeaturedPost() {
               margin: "0 0 28px",
             }}
           >
-            A great design system doesn't announce itself. It just makes everything feel right. Here's
+            A great design system doesn&rsquo;t announce itself. It just makes everything feel right. Here&rsquo;s
             what separates systems that get adopted from ones that gather dust.
           </motion.p>
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { slugify } from "@/components/new-project-modal";
+import { slugify } from "@/lib/project-store";
 import {
   TEMPLATES,
   TEMPLATE_LIST,

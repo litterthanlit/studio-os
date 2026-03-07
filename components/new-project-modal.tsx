@@ -8,16 +8,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { ColorPicker } from "@/components/color-picker";
+import {
+  getProjects,
+  saveProject,
+  getProjectCover as readProjectCover,
+  setProjectCover as writeProjectCover,
+  uniqueProjectSlug,
+  type StoredProject,
+} from "@/lib/project-store";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Re-exports for existing callers ─────────────────────────────────────────
 
-export type StoredProject = {
-  id: string;
-  name: string;
-  brief: string;
-  color: string;
-  createdAt: string;
-};
+export type { StoredProject } from "@/lib/project-store";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -34,49 +36,16 @@ export const ACCENT_COLORS = [
 
 export type AccentColor = (typeof ACCENT_COLORS)[number];
 
-const LS_KEY = "studio-os:projects";
-
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
 export function getStoredProjects(): StoredProject[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveProject(project: StoredProject): void {
-  const existing = getStoredProjects();
-  localStorage.setItem(LS_KEY, JSON.stringify([project, ...existing]));
+  return getProjects();
 }
 
 export function getProjectCover(projectId: string): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(`studio-os:cover:${projectId}`);
+  return readProjectCover(projectId);
 }
 
 export function setProjectCover(projectId: string, imageUrl: string): void {
-  localStorage.setItem(`studio-os:cover:${projectId}`, imageUrl);
-  window.dispatchEvent(new Event("projects-updated"));
-}
-
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function uniqueSlug(name: string): string {
-  const base = slugify(name);
-  const existing = getStoredProjects().map((p) => p.id);
-  if (!existing.includes(base)) return base;
-  let i = 2;
-  while (existing.includes(`${base}-${i}`)) i++;
-  return `${base}-${i}`;
+  writeProjectCover(projectId, imageUrl);
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -226,7 +195,7 @@ function NewProjectModalInner({
 
   async function handleCreate() {
     if (!name.trim()) return;
-    const id = uniqueSlug(name);
+    const id = uniqueProjectSlug(name);
     const project: StoredProject = {
       id,
       name: name.trim(),

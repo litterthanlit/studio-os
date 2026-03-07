@@ -541,7 +541,7 @@ function MainContent() {
             Prerequisites
           </p>
           <p style={{ fontSize: 13, color: T.inkLight, margin: 0, lineHeight: 1.55 }}>
-            You'll need Node.js 18+, a Vessel account, and your API key from the{" "}
+            You&rsquo;ll need Node.js 18+, a Vessel account, and your API key from the{" "}
             <a href="#" style={{ color: T.accent }}>
               dashboard
             </a>
@@ -650,7 +650,7 @@ vessel tokens pull
           margin: "40px 0 16px",
         }}
       >
-        What's next
+        What&rsquo;s next
       </h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {[

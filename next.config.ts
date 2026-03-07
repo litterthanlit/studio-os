@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
+const distDir = process.env.NEXT_DIST_DIR?.trim();
+
 const nextConfig: NextConfig = {
+  distDir: distDir || ".next",
   // @react-pdf/renderer requires transpilation in Next.js App Router
   transpilePackages: ["@react-pdf/renderer"],
   typescript: {

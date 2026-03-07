@@ -36,6 +36,7 @@ html {
 :root {
   --font-geist-sans: "Geist", system-ui, sans-serif;
   --font-geist-mono: "Geist Mono", SFMono-Regular, monospace;
+  --font-instrument-sans: var(--font-geist-sans);
 
   /* Global Radius Scale - Sharp like Linear/Cursor */
   --radius-none: 0px;

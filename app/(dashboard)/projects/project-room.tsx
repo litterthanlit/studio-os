@@ -13,6 +13,20 @@ import {
 import { FontPicker } from "@/components/font-picker";
 import { getFontCssFamily } from "@/lib/fonts/load-font";
 import type { Project, ProjectFont } from "./projects-data";
+import {
+  getProjectState,
+  getProjectTasks,
+  getProjectTaskPanelExpanded,
+  listProjectReferences,
+  PROJECT_REFERENCES_UPDATED_EVENT,
+  PROJECT_STATE_UPDATED_EVENT,
+  PROJECT_TASKS_UPDATED_EVENT,
+  setProjectReferences,
+  setProjectTaskPanelExpanded,
+  setProjectTasks,
+  upsertProjectState,
+  type StoredTask,
+} from "@/lib/project-store";
 
 export type { Phase, Project } from "./projects-data";
 export { PROJECTS, PHASE_STYLES } from "./projects-data";
@@ -89,10 +103,21 @@ function CanvasLauncher({ project }: { project: Project }) {
   );
 }
 
-function OverviewTab({ project: _project }: { project: Project }) {
-  const [notes, setNotes] = React.useState(
-    "Capture the core constraints, success criteria, and non-negotiables here."
-  );
+const DEFAULT_NOTES =
+  "Capture the core constraints, success criteria, and non-negotiables here.";
+
+function OverviewTab({ project }: { project: Project }) {
+  const [notes, setNotes] = React.useState(() => {
+    return getProjectState(project.id).notes ?? DEFAULT_NOTES;
+  });
+
+  React.useEffect(() => {
+    setNotes(getProjectState(project.id).notes ?? DEFAULT_NOTES);
+  }, [project.id]);
+
+  React.useEffect(() => {
+    upsertProjectState(project.id, { notes });
+  }, [notes, project.id]);
 
   return (
     <div className="space-y-2">
@@ -109,12 +134,6 @@ function OverviewTab({ project: _project }: { project: Project }) {
   );
 }
 
-type LegacyStoredReference = { imageUrl: string; title?: string; tags?: string[] };
-
-function referencesStorageKey(projectId: string) {
-  return `studio-os:references:${projectId}`;
-}
-
 function isImageUrl(value: string): boolean {
   try {
     const url = new URL(value.trim());
@@ -125,72 +144,12 @@ function isImageUrl(value: string): boolean {
   }
 }
 
-function toSafeReference(
-  value: unknown,
-  projectId: string
-): MoodboardReference | null {
-  if (!value || typeof value !== "object") return null;
-  const ref = value as Partial<MoodboardReference> & LegacyStoredReference;
-  if (!ref.imageUrl) return null;
-
-  const allowedSources: MoodboardReference["source"][] = [
-    "upload",
-    "arena",
-    "pinterest",
-    "url",
-  ];
-  const safeSource =
-    typeof ref.source === "string" &&
-    allowedSources.includes(ref.source as MoodboardReference["source"])
-      ? (ref.source as MoodboardReference["source"])
-      : null;
-
-  if (
-    typeof ref.id === "string" &&
-    safeSource &&
-    typeof ref.addedAt === "string" &&
-    typeof ref.projectId === "string"
-  ) {
-    return {
-      id: ref.id,
-      imageUrl: ref.imageUrl,
-      source: safeSource,
-      sourceUrl: ref.sourceUrl,
-      title: ref.title,
-      addedAt: ref.addedAt,
-      projectId: ref.projectId,
-    };
-  }
-
-  return {
-    id: `legacy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    imageUrl: ref.imageUrl,
-    source: "url",
-    sourceUrl: ref.imageUrl,
-    title: ref.title ?? "Reference",
-    addedAt: new Date().toISOString(),
-    projectId,
-  };
-}
-
 function readProjectReferences(projectId: string): MoodboardReference[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(referencesStorageKey(projectId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => toSafeReference(item, projectId))
-      .filter((item): item is MoodboardReference => item !== null);
-  } catch {
-    return [];
-  }
+  return listProjectReferences(projectId);
 }
 
 function writeProjectReferences(projectId: string, references: MoodboardReference[]) {
-  localStorage.setItem(referencesStorageKey(projectId), JSON.stringify(references));
-  window.dispatchEvent(new Event("project-references-updated"));
+  setProjectReferences(projectId, references);
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -226,6 +185,17 @@ function BoardTab({ project }: { project: Project }) {
   React.useEffect(() => {
     setReferences(readProjectReferences(project.id));
     setLoadedProjectId(project.id);
+  }, [project.id]);
+
+  React.useEffect(() => {
+    function syncReferences() {
+      setReferences(readProjectReferences(project.id));
+    }
+
+    window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncReferences);
+    return () => {
+      window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncReferences);
+    };
   }, [project.id]);
 
   React.useEffect(() => {
@@ -663,18 +633,28 @@ function BoardTab({ project }: { project: Project }) {
 
 function TypeTab({ project }: { project: Project }) {
   const [isPickerOpen, setIsPickerOpen] = React.useState(false);
-  const [headingFont, setHeadingFont] = React.useState<ProjectFont | undefined>(
-    project.headingFont
+  const [headingFont, setHeadingFont] = React.useState<ProjectFont | undefined>(() =>
+    getProjectState(project.id).typography?.headingFont ?? project.headingFont
   );
-  const [bodyFont, setBodyFont] = React.useState<ProjectFont | undefined>(
-    project.bodyFont
+  const [bodyFont, setBodyFont] = React.useState<ProjectFont | undefined>(() =>
+    getProjectState(project.id).typography?.bodyFont ?? project.bodyFont
   );
+
+  React.useEffect(() => {
+    const state = getProjectState(project.id);
+    setHeadingFont(state.typography?.headingFont ?? project.headingFont);
+    setBodyFont(state.typography?.bodyFont ?? project.bodyFont);
+  }, [project.headingFont, project.bodyFont, project.id]);
 
   const handleFontSelect = (newHeading: ProjectFont, newBody: ProjectFont) => {
     setHeadingFont(newHeading);
     setBodyFont(newBody);
-    // Here you would typically save to your backend/state management
-    // For now, we'll just update local state
+    upsertProjectState(project.id, {
+      typography: {
+        headingFont: newHeading,
+        bodyFont: newBody,
+      },
+    });
   };
 
   const headingStyle = headingFont
@@ -850,7 +830,7 @@ function getColorName(hex: string): string {
 
 function PaletteTab({ project }: { project: Project }) {
   const [swatches, setSwatches] = React.useState<Swatch[]>(() =>
-    project.palette.map((color, i) => ({
+    (getProjectState(project.id).palette ?? project.palette).map((color, i) => ({
       id: `swatch-${i}`,
       color,
       name: getColorName(color),
@@ -863,6 +843,23 @@ function PaletteTab({ project }: { project: Project }) {
     const id = `swatch-${Date.now()}`;
     setSwatches((prev) => [...prev, { id, color: "#2430AD", name: "" }]);
   }
+
+  React.useEffect(() => {
+    const palette = getProjectState(project.id).palette ?? project.palette;
+    setSwatches(
+      palette.map((color, i) => ({
+        id: `swatch-${i}`,
+        color,
+        name: getColorName(color),
+      }))
+    );
+  }, [project.id, project.palette]);
+
+  React.useEffect(() => {
+    upsertProjectState(project.id, {
+      palette: swatches.map((swatch) => swatch.color),
+    });
+  }, [project.id, swatches]);
 
   function updateColor(id: string, color: string) {
     setSwatches((prev) =>
@@ -993,84 +990,69 @@ function PaletteTab({ project }: { project: Project }) {
   );
 }
 
-const TASKS_LS_KEY = "studio-os-tasks";
-
-type PersistedTask = {
-  id: string;
-  text: string;
-  projectId: string;
-  createdAt: string;
-  completed: boolean;
-};
-
-function readAllTasks(): PersistedTask[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(TASKS_LS_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function writeAllTasks(tasks: PersistedTask[]) {
-  localStorage.setItem(TASKS_LS_KEY, JSON.stringify(tasks));
-}
-
-const TASKS_EXPAND_KEY = "studio-os:tasks-expanded";
-
 function TasksBar({ projectId }: { projectId: string }) {
-  const [tasks, setTasks] = React.useState<PersistedTask[]>([]);
+  const [tasks, setTasks] = React.useState<StoredTask[]>([]);
   const [draft, setDraft] = React.useState("");
-  const [expanded, setExpanded] = React.useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(`${TASKS_EXPAND_KEY}:${projectId}`) === "1";
-  });
+  const [expanded, setExpanded] = React.useState(() =>
+    getProjectTaskPanelExpanded(projectId)
+  );
 
   React.useEffect(() => {
-    const all = readAllTasks();
-    const projectTasks = all.filter((t) => t.projectId === projectId);
+    const projectTasks = getProjectTasks(projectId);
     if (projectTasks.length === 0) {
-      const defaults: PersistedTask[] = [
+      const defaults: StoredTask[] = [
         { id: `t-${projectId}-1`, text: "Define success criteria with client", projectId, createdAt: new Date().toISOString(), completed: false },
         { id: `t-${projectId}-2`, text: "First Vision pass for this room",      projectId, createdAt: new Date().toISOString(), completed: false },
         { id: `t-${projectId}-3`, text: "Lock heading/body pairing",             projectId, createdAt: new Date().toISOString(), completed: false },
       ];
-      writeAllTasks([...defaults, ...all]);
+      setProjectTasks(projectId, defaults);
       setTasks(defaults);
     } else {
       setTasks(projectTasks);
     }
   }, [projectId]);
 
+  React.useEffect(() => {
+    function syncTasks() {
+      setTasks(getProjectTasks(projectId));
+      setExpanded(getProjectTaskPanelExpanded(projectId));
+    }
+
+    window.addEventListener(PROJECT_TASKS_UPDATED_EVENT, syncTasks);
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, syncTasks);
+    return () => {
+      window.removeEventListener(PROJECT_TASKS_UPDATED_EVENT, syncTasks);
+      window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, syncTasks);
+    };
+  }, [projectId]);
+
   function toggleExpanded() {
     setExpanded((prev) => {
       const next = !prev;
-      localStorage.setItem(`${TASKS_EXPAND_KEY}:${projectId}`, next ? "1" : "0");
+      setProjectTaskPanelExpanded(projectId, next);
       return next;
     });
   }
 
   function toggleTask(id: string) {
-    const all = readAllTasks();
-    const updated = all.map((t) =>
-      t.id === id ? { ...t, completed: !t.completed } : t
+    const updated = getProjectTasks(projectId).map((task) =>
+      task.id === id ? { ...task, completed: !task.completed } : task
     );
-    writeAllTasks(updated);
-    setTasks(updated.filter((t) => t.projectId === projectId));
+    setProjectTasks(projectId, updated);
+    setTasks(updated);
   }
 
   function addTask() {
     const text = draft.trim();
     if (!text) return;
-    const newTask: PersistedTask = {
+    const newTask: StoredTask = {
       id: `t-${Date.now()}`,
       text,
       projectId,
       createdAt: new Date().toISOString(),
       completed: false,
     };
-    const all = readAllTasks();
-    writeAllTasks([...all, newTask]);
+    setProjectTasks(projectId, [...getProjectTasks(projectId), newTask]);
     setTasks((prev) => [...prev, newTask]);
     setDraft("");
   }

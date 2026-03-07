@@ -2,15 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { buildSitePrompt, type SectionId } from "@/lib/canvas/generate-site";
+import {
+  compilePageTreeToTSX,
+  createVariantSet,
+  inferSiteName,
+} from "@/lib/canvas/compose";
+import type { SiteType } from "@/lib/canvas/templates";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, tokens, sectionId, existingSections } = body as {
+    const {
+      prompt,
+      tokens,
+      sectionId,
+      existingSections,
+      mode,
+      siteType,
+      siteName,
+    } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
       sectionId?: SectionId;
       existingSections?: string;
+      mode?: "single" | "variants";
+      siteType?: SiteType;
+      siteName?: string;
     };
 
     if (!prompt || !tokens) {
@@ -18,6 +35,28 @@ export async function POST(req: NextRequest) {
         { error: "Prompt and design tokens are required" },
         { status: 400 }
       );
+    }
+
+    if (mode === "variants") {
+      const resolvedSiteName = siteName || inferSiteName(prompt);
+      const variants = createVariantSet(
+        prompt,
+        tokens,
+        siteType ?? "auto",
+        resolvedSiteName
+      ).map((variant) => ({
+        ...variant,
+        compiledCode: compilePageTreeToTSX(
+          variant.pageTree,
+          tokens,
+          variant.name.replace(/\s+/g, "")
+        ),
+      }));
+
+      return NextResponse.json({
+        siteName: resolvedSiteName,
+        variants,
+      });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;

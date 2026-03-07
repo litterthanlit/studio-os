@@ -79,7 +79,7 @@ function CanvasLauncher({ project }: { project: Project }) {
           </p>
         </div>
         <a
-          href={`/canvas-v1?project=${encodeURIComponent(project.id)}`}
+          href={`/canvas?project=${encodeURIComponent(project.id)}`}
           className="inline-flex items-center gap-2 border border-accent bg-accent/10 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.12em] text-accent transition-colors duration-200 hover:bg-accent/20"
         >
           Open Canvas

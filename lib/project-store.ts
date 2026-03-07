@@ -2,6 +2,12 @@
 
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { ImageAnalysis } from "@/lib/canvas/analyze-images";
+import type {
+  CanvasStage,
+  ComposeDocument,
+  GeneratedVariant,
+} from "@/lib/canvas/compose";
+import type { SiteType } from "@/lib/canvas/templates";
 
 export type StoredProject = {
   id: string;
@@ -49,12 +55,16 @@ export type StoredGeneratedSite = {
 };
 
 export type ProjectCanvasState = {
-  stage?: "moodboard" | "system" | "generate";
+  stage?: CanvasStage;
   referenceSetName?: string;
   analysis?: ImageAnalysis | null;
   designTokens?: DesignSystemTokens | null;
   designSystemMarkdown?: string;
   componentPrompt?: string;
+  siteType?: SiteType;
+  generatedVariants?: GeneratedVariant[];
+  selectedVariantId?: string | null;
+  composeDocument?: ComposeDocument | null;
   generatedSite?: StoredGeneratedSite | null;
 };
 

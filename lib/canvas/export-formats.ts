@@ -889,7 +889,11 @@ function genFooterSection(cfg: ExportConfig): string {
 `;
 }
 
-function genPageTsx(): string {
+function genPageTsx(sourceCode?: string): string {
+  if (sourceCode?.trim()) {
+    return sourceCode.trim();
+  }
+
   return `import Nav from "@/components/sections/Nav";
 import Hero from "@/components/sections/Hero";
 import Features from "@/components/sections/Features";
@@ -966,11 +970,26 @@ function triggerDownload(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+function prepareSourceForRuntime(code: string): string {
+  let cleaned = code.replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, "");
+  const match = cleaned.match(/export\s+default\s+function\s+(\w+)/);
+  if (match) {
+    cleaned = cleaned.replace(/export\s+default\s+function\s+(\w+)/, "function $1");
+    cleaned += `\nwindow.__PREVIEW_COMPONENT__ = ${match[1]};`;
+  } else {
+    cleaned = cleaned.replace(/export\s+default\s+(\w+)\s*;?/g, "window.__PREVIEW_COMPONENT__ = $1;");
+    cleaned = cleaned.replace(/^export\s+/gm, "");
+  }
+  return cleaned;
+}
+
 // ---------------------------------------------------------------------------
 // Public API — Next.js ZIP export
 // ---------------------------------------------------------------------------
 
 export function generateNextjsProject(cfg: ExportConfig): VirtualFile[] {
+  const hasSourceCode = Boolean(cfg.sourceCode?.trim());
+
   return [
     { path: "package.json", content: genPackageJson(cfg) },
     { path: "tsconfig.json", content: genTsConfig() },
@@ -978,13 +997,19 @@ export function generateNextjsProject(cfg: ExportConfig): VirtualFile[] {
     { path: "vercel.json", content: genVercelJson(cfg) },
     { path: "app/globals.css", content: genGlobalsCSS(cfg) },
     { path: "app/layout.tsx", content: genRootLayout(cfg) },
-    { path: "app/page.tsx", content: genPageTsx() },
-    { path: "components/sections/Nav.tsx", content: genNavSection(cfg) },
-    { path: "components/sections/Hero.tsx", content: genHeroSection(cfg) },
-    { path: "components/sections/Features.tsx", content: genFeaturesSection() },
-    { path: "components/sections/Pricing.tsx", content: genPricingSection() },
-    { path: "components/sections/CTA.tsx", content: genCTASection(cfg) },
-    { path: "components/sections/Footer.tsx", content: genFooterSection(cfg) },
+    { path: "app/page.tsx", content: genPageTsx(cfg.sourceCode) },
+    ...(
+      hasSourceCode
+        ? []
+        : [
+            { path: "components/sections/Nav.tsx", content: genNavSection(cfg) },
+            { path: "components/sections/Hero.tsx", content: genHeroSection(cfg) },
+            { path: "components/sections/Features.tsx", content: genFeaturesSection() },
+            { path: "components/sections/Pricing.tsx", content: genPricingSection() },
+            { path: "components/sections/CTA.tsx", content: genCTASection(cfg) },
+            { path: "components/sections/Footer.tsx", content: genFooterSection(cfg) },
+          ]
+    ),
     { path: "README.md", content: genReadme(cfg) },
   ];
 }
@@ -1001,8 +1026,50 @@ export function downloadNextjsZip(cfg: ExportConfig): void {
 // ---------------------------------------------------------------------------
 
 export function generateStandaloneHtml(cfg: ExportConfig): string {
+  if (cfg.sourceCode?.trim()) {
+    const escaped = JSON.stringify(prepareSourceForRuntime(cfg.sourceCode.trim()));
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${cfg.siteName}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { min-height: 100%; }
+    body { background: #0b0d10; color: white; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    var __loaded=0,__need=4;
+    function __done(){ __loaded++; if(__loaded < __need) return; __run(); }
+    function __fail(name){ document.body.innerHTML = "<pre style='padding:24px;font-family:monospace;color:#fca5a5'>Failed to load " + name + "</pre>"; }
+    function __run(){
+      try {
+        var code = ${escaped};
+        var transformed = Babel.transform(code, { presets: ["react", "typescript"], filename: "page.tsx" }).code;
+        var fm = window["framer-motion"] || {};
+        var header = "var motion=this.motion,AnimatePresence=this.AP,useAnimation=this.uA,useInView=this.uIV,useScroll=this.uS,useTransform=this.uT;\\n";
+        var fn = new Function(header + transformed);
+        fn.call({ motion: fm.motion, AP: fm.AnimatePresence, uA: fm.useAnimation, uIV: fm.useInView, uS: fm.useScroll, uT: fm.useTransform });
+        var Comp = window.__PREVIEW_COMPONENT__;
+        ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Comp));
+      } catch (error) {
+        document.body.innerHTML = "<pre style='padding:24px;font-family:monospace;color:#fca5a5'>" + (error.message || error) + "</pre>";
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" onload="__done()" onerror="__fail('React')"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" onload="__done()" onerror="__fail('ReactDOM')"></script>
+  <script src="https://unpkg.com/framer-motion@11/dist/framer-motion.js" onload="__done()" onerror="__fail('Framer Motion')"></script>
+  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js" onload="__done()" onerror="__fail('Babel')"></script>
+</body>
+</html>`;
+  }
+
   const t = getTokens(cfg);
-  const slug = cfg.siteName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
   return `<!DOCTYPE html>
 <html lang="en">

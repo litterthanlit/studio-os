@@ -223,23 +223,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       <div className="mt-auto">
         <div className="border-t border-[var(--border-primary)] mb-2" />
 
-        {/* Canvas */}
-        <motion.div whileHover={{ x: 2, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
-          <Link
-            href="/canvas"
-            className={cn(
-              "flex items-center gap-3 h-9 px-3 cursor-pointer",
-              "transition-colors duration-150 ease-out",
-              pathname === "/canvas"
-                ? "bg-sidebar-active text-text-primary"
-                : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
-            )}
-          >
-            <CanvasIcon className="w-[18px] h-[18px] shrink-0" />
-            <span className="text-sm">Canvas</span>
-          </Link>
-        </motion.div>
-
         {/* Search / ⌘K */}
         <motion.button
           type="button"

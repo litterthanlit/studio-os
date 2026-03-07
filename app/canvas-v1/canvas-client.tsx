@@ -230,9 +230,35 @@ function getExportConfig(
 }
 
 const COMPOSE_WORKSPACE_KEY_PREFIX = "studio-os:compose-workspace:";
+const CANVAS_SESSION_KEY_PREFIX = "studio-os:canvas-session:";
+
+type PersistedCanvasSession = {
+  stage?: CanvasStage;
+  referenceSetName?: string;
+  analysis?: ImageAnalysis | null;
+  designTokens?: DesignSystemTokens | null;
+  designSystemMarkdown?: string;
+  componentPrompt?: string;
+  siteType?: SiteType;
+  variants?: GeneratedVariant[];
+  selectedVariantId?: string | null;
+  composeDocument?: ComposeDocument | null;
+  generatedSite?: {
+    code: string;
+    name: string;
+    prompt: string;
+    siteType?: string;
+    updatedAt: string;
+  } | null;
+  updatedAt?: string;
+};
 
 function getComposeWorkspaceKey(projectId: string) {
   return `${COMPOSE_WORKSPACE_KEY_PREFIX}${projectId}`;
+}
+
+function getCanvasSessionKey(projectId: string) {
+  return `${CANVAS_SESSION_KEY_PREFIX}${projectId}`;
 }
 
 function readComposeWorkspace(projectId: string): ComposeDocument | null {
@@ -250,6 +276,35 @@ function writeComposeWorkspace(projectId: string, document: ComposeDocument) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(getComposeWorkspaceKey(projectId), JSON.stringify(document));
+  } catch {
+    // Ignore quota/storage issues and keep the in-memory session alive.
+  }
+}
+
+function clearComposeWorkspace(projectId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(getComposeWorkspaceKey(projectId));
+  } catch {
+    // Ignore storage issues and keep the in-memory session alive.
+  }
+}
+
+function readCanvasSession(projectId: string): PersistedCanvasSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getCanvasSessionKey(projectId));
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedCanvasSession;
+  } catch {
+    return null;
+  }
+}
+
+function writeCanvasSession(projectId: string, session: PersistedCanvasSession) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(getCanvasSessionKey(projectId), JSON.stringify(session));
   } catch {
     // Ignore quota/storage issues and keep the in-memory session alive.
   }
@@ -436,10 +491,17 @@ function VariantCard({
           : "border-border-primary hover:border-border-hover"
       )}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onSelect}
-        className="block w-full text-left"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className="block w-full cursor-pointer text-left"
       >
         <div className="border-b border-border-subtle px-5 py-4">
           <div className="flex items-start justify-between gap-3">
@@ -474,7 +536,7 @@ function VariantCard({
             </div>
           </div>
         </div>
-      </button>
+      </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle px-4 py-3">
         <button
           type="button"
@@ -1586,9 +1648,10 @@ function ComposeStage({
                 <span className="text-[10px] text-text-muted">{document.artboards.length}</span>
               </div>
               {document.artboards.map((artboard) => (
-                <button
+                <div
                   key={artboard.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() =>
                     updateDocument({
                       selectedArtboardId: artboard.id,
@@ -1598,8 +1661,21 @@ function ComposeStage({
                           : artboard.pageTree.id,
                     })
                   }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") {
+                      return;
+                    }
+                    event.preventDefault();
+                    updateDocument({
+                      selectedArtboardId: artboard.id,
+                      selectedNodeId:
+                        document.selectedArtboardId === artboard.id
+                          ? document.selectedNodeId ?? artboard.pageTree.id
+                          : artboard.pageTree.id,
+                    });
+                  }}
                   className={cn(
-                    "w-full rounded-2xl border px-3 py-3 text-left transition-colors",
+                    "w-full rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
                     document.selectedArtboardId === artboard.id
                       ? "border-accent bg-accent/8"
                       : "border-border-primary bg-bg-secondary hover:border-border-hover"
@@ -1628,7 +1704,7 @@ function ComposeStage({
                       {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
                     </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
 
@@ -2675,6 +2751,8 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   const [composeDocument, setComposeDocument] = React.useState<ComposeDocument | null>(null);
   // Guard against race conditions when the user triggers generation multiple times
   const generateRequestIdRef = React.useRef(0);
+  const hydratedCanvasRef = React.useRef(false);
+  const persistTimeoutRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (tokens) setMarkdown(tokensToMarkdown(tokens));
@@ -2682,14 +2760,49 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
   React.useEffect(() => {
     if (!linkedProjectId) return;
+    hydratedCanvasRef.current = false;
 
     const refs = loadProjectRefs(linkedProjectId);
     const storedState = getProjectState(linkedProjectId);
     const meta = loadProjectMeta(linkedProjectId);
+    const persistedSession = readCanvasSession(linkedProjectId);
     const persistedComposeWorkspace = readComposeWorkspace(linkedProjectId);
     const colorsCount = meta?.palette.length ?? storedState.palette?.length ?? 0;
     const fontsCount = [meta?.headingFont, meta?.bodyFont].filter(Boolean).length;
-    const storedVariants = normalizeVariants(storedState.canvas?.generatedVariants ?? []);
+    const restoredCanvas = {
+      ...storedState.canvas,
+      stage: persistedSession?.stage ?? storedState.canvas?.stage,
+      referenceSetName:
+        persistedSession?.referenceSetName ?? storedState.canvas?.referenceSetName,
+      analysis: persistedSession?.analysis ?? storedState.canvas?.analysis ?? null,
+      designTokens:
+        persistedSession?.designTokens ?? storedState.canvas?.designTokens ?? null,
+      designSystemMarkdown:
+        persistedSession?.designSystemMarkdown ??
+        storedState.canvas?.designSystemMarkdown ??
+        "",
+      componentPrompt:
+        persistedSession?.componentPrompt ?? storedState.canvas?.componentPrompt ?? "",
+      siteType: persistedSession?.siteType ?? storedState.canvas?.siteType ?? "auto",
+      generatedVariants: normalizeVariants(
+        persistedSession?.variants ?? storedState.canvas?.generatedVariants ?? []
+      ),
+      selectedVariantId:
+        persistedSession?.selectedVariantId ?? storedState.canvas?.selectedVariantId ?? null,
+      composeDocument:
+        persistedSession?.composeDocument ?? storedState.canvas?.composeDocument ?? null,
+      generatedSite:
+        persistedSession?.generatedSite ?? storedState.canvas?.generatedSite ?? null,
+    };
+    const restoredVariants = restoredCanvas.generatedVariants;
+    const restoredComposeDocument =
+      restoredVariants.length > 0 &&
+      (restoredCanvas.composeDocument || persistedComposeWorkspace)
+        ? rehydrateComposeDocument(
+            createComposeDocument(restoredVariants),
+            restoredCanvas.composeDocument ?? persistedComposeWorkspace
+          )
+        : null;
 
     if (meta) {
       setProjectName(meta.name);
@@ -2701,17 +2814,17 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     }
 
     if (meta) {
-      setSetName(storedState.canvas?.referenceSetName ?? meta.name);
+      setSetName(restoredCanvas.referenceSetName ?? meta.name);
 
-      if (storedState.canvas?.analysis) setAnalysis(storedState.canvas.analysis);
+      if (restoredCanvas.analysis) setAnalysis(restoredCanvas.analysis);
 
-      const projectTokens = storedState.canvas?.designTokens
-        ? applyProjectTypography(storedState.canvas.designTokens, storedState.typography)
+      const projectTokens = restoredCanvas.designTokens
+        ? applyProjectTypography(restoredCanvas.designTokens, storedState.typography)
         : meta.palette.length > 0
         ? applyProjectTypography(paletteToTokens(meta.palette), storedState.typography)
         : null;
 
-      if (storedState.canvas?.designTokens && projectTokens) {
+      if (restoredCanvas.designTokens && projectTokens) {
         setTokens(projectTokens);
         setMarkdown(tokensToMarkdown(projectTokens));
       } else if (projectTokens) {
@@ -2719,41 +2832,34 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         setMarkdown(tokensToMarkdown(projectTokens));
       }
 
-      setSitePrompt(storedState.canvas?.componentPrompt ?? inferSiteName(meta.name));
-      setSiteType(storedState.canvas?.siteType ?? "auto");
-      setGeneratedVariants(storedVariants);
+      setSitePrompt(restoredCanvas.componentPrompt ?? inferSiteName(meta.name));
+      setSiteType(restoredCanvas.siteType ?? "auto");
+      setGeneratedVariants(restoredVariants);
       setSelectedVariantId(
-        storedState.canvas?.selectedVariantId ??
-          storedState.canvas?.generatedVariants?.[0]?.id ??
-          null
+        restoredCanvas.selectedVariantId ?? restoredVariants[0]?.id ?? null
       );
-      setComposeDocument(
-        storedState.canvas?.composeDocument
-          ? rehydrateComposeDocument(
-              storedState.canvas.composeDocument,
-              persistedComposeWorkspace
-            )
-          : null
-      );
+      setComposeDocument(restoredComposeDocument);
 
-      if (storedState.canvas?.composeDocument) {
-        setStage(storedState.canvas.stage ?? "compose");
-      } else if ((storedState.canvas?.generatedVariants?.length ?? 0) > 0) {
-        setStage(storedState.canvas?.stage ?? "generate");
+      if (restoredComposeDocument) {
+        setStage("compose");
+      } else if (restoredVariants.length > 0) {
+        setStage("generate");
+      } else if (projectTokens) {
+        setStage(restoredCanvas.stage === "moodboard" ? "moodboard" : "system");
       } else if (refs.length > 0) {
-        setStage(storedState.canvas?.stage ?? "system");
+        setStage(restoredCanvas.stage ?? "system");
       }
     }
 
-    setBootstrapToast(
-      `${refs.length} references, ${colorsCount} colors, ${fontsCount} fonts loaded`
-    );
+    hydratedCanvasRef.current = true;
+    if (persistedSession?.variants?.length || persistedSession?.composeDocument) {
+      setBootstrapToast("Session restored");
+    } else {
+      setBootstrapToast(
+        `${refs.length} references, ${colorsCount} colors, ${fontsCount} fonts loaded`
+      );
+    }
   }, [linkedProjectId]);
-
-  React.useEffect(() => {
-    if (!linkedProjectId || !composeDocument) return;
-    writeComposeWorkspace(linkedProjectId, composeDocument);
-  }, [composeDocument, linkedProjectId]);
 
   React.useEffect(() => {
     if (!bootstrapToast) return;
@@ -2791,10 +2897,37 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   );
 
   React.useEffect(() => {
-    if (!linkedProjectId) return;
+    if (!linkedProjectId || !hydratedCanvasRef.current) return;
 
-    upsertProjectState(linkedProjectId, {
-      canvas: {
+    const persistedComposeDocument =
+      composeDocument && exportCode && exportArtboard
+        ? {
+            ...composeDocument,
+            exportArtifact: {
+              code: exportCode,
+              name: exportArtboard.name,
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        : composeDocument;
+
+    const persistedGeneratedSite =
+      exportCode && exportArtboard
+        ? {
+            code: exportCode,
+            name: exportArtboard.name,
+            prompt: sitePrompt,
+            siteType,
+            updatedAt: new Date().toISOString(),
+          }
+        : null;
+
+    if (persistTimeoutRef.current) {
+      window.clearTimeout(persistTimeoutRef.current);
+    }
+
+    persistTimeoutRef.current = window.setTimeout(() => {
+      const session: PersistedCanvasSession = {
         stage,
         referenceSetName: setName,
         analysis,
@@ -2802,31 +2935,41 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         designSystemMarkdown: markdown,
         componentPrompt: sitePrompt,
         siteType,
-        generatedVariants,
+        variants: generatedVariants,
         selectedVariantId,
-        composeDocument:
-          composeDocument && exportCode && exportArtboard
-            ? {
-                ...composeDocument,
-                exportArtifact: {
-                  code: exportCode,
-                  name: exportArtboard.name,
-                  updatedAt: new Date().toISOString(),
-                },
-              }
-            : composeDocument,
-        generatedSite:
-          exportCode && exportArtboard
-            ? {
-                code: exportCode,
-                name: exportArtboard.name,
-                prompt: sitePrompt,
-                siteType,
-                updatedAt: new Date().toISOString(),
-              }
-            : null,
-      },
-    });
+        composeDocument: persistedComposeDocument,
+        generatedSite: persistedGeneratedSite,
+        updatedAt: new Date().toISOString(),
+      };
+
+      writeCanvasSession(linkedProjectId, session);
+      if (persistedComposeDocument) {
+        writeComposeWorkspace(linkedProjectId, persistedComposeDocument);
+      } else {
+        clearComposeWorkspace(linkedProjectId);
+      }
+      upsertProjectState(linkedProjectId, {
+        canvas: {
+          stage,
+          referenceSetName: setName,
+          analysis,
+          designTokens: tokens,
+          designSystemMarkdown: markdown,
+          componentPrompt: sitePrompt,
+          siteType,
+          generatedVariants,
+          selectedVariantId,
+          composeDocument: persistedComposeDocument,
+          generatedSite: persistedGeneratedSite,
+        },
+      });
+    }, 300);
+
+    return () => {
+      if (persistTimeoutRef.current) {
+        window.clearTimeout(persistTimeoutRef.current);
+      }
+    };
   }, [
     analysis,
     composeDocument,

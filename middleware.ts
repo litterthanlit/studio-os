@@ -59,13 +59,13 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Protected paths: redirect to login if not signed in
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
+  // TEMPORARY BYPASS: route protection disabled — re-enable when auth is ready
+  // if (!user) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = "/auth/login";
+  //   url.searchParams.set("next", pathname);
+  //   return NextResponse.redirect(url);
+  // }
 
   return response;
 }

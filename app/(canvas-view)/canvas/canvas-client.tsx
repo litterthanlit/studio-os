@@ -2,6 +2,17 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import {
+  downloadNextjsZip,
+  downloadHtml,
+  downloadSection,
+  deployToVercel,
+  toFramerPasteReady,
+  copyToClipboard,
+  SECTION_NAMES,
+  type ExportConfig,
+  type SiteType as ExportSiteType,
+} from "@/lib/canvas/export-formats";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -424,6 +435,184 @@ function Minimap({
   );
 }
 
+// ─── Export dropdown ──────────────────────────────────────────────────────────
+
+type ExportAction =
+  | "deploy-vercel"
+  | "download-nextjs"
+  | "download-html"
+  | "export-section"
+  | "copy-framer";
+
+const EXPORT_ACTIONS: { id: ExportAction; label: string; icon: string; description: string }[] = [
+  { id: "deploy-vercel",   label: "Deploy to Vercel",   icon: "▲", description: "Download ZIP + open Vercel import" },
+  { id: "download-nextjs", label: "Download Next.js",   icon: "⬇", description: "Zero-config Next.js 14 project" },
+  { id: "download-html",   label: "Download HTML",      icon: "◻", description: "Single file, no build step" },
+  { id: "export-section",  label: "Export Section…",    icon: "◈", description: "Individual TSX component" },
+  { id: "copy-framer",     label: "Copy to Framer",     icon: "⬡", description: "Clipboard-ready JSX layer" },
+];
+
+function ExportDropdown({ siteName, siteType }: { siteName: string; siteType: ExportSiteType }) {
+  const [open, setOpen] = React.useState(false);
+  const [showSectionPicker, setShowSectionPicker] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const [toast, setToast] = React.useState<string | null>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  React.useEffect(() => {
+    if (!open && !showSectionPicker) return;
+    function handler(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setShowSectionPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open, showSectionPicker]);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2200);
+  }
+
+  const cfg: ExportConfig = {
+    siteType: siteType === "auto" ? "saas-landing" : (siteType as ExportSiteType),
+    siteName: siteName || "My Site",
+  };
+
+  async function handleAction(id: ExportAction) {
+    setOpen(false);
+    setShowSectionPicker(false);
+    switch (id) {
+      case "deploy-vercel":
+        deployToVercel(cfg);
+        showToast("ZIP downloaded — drag it into Vercel to deploy");
+        break;
+      case "download-nextjs":
+        downloadNextjsZip(cfg);
+        showToast("Next.js project ZIP downloaded");
+        break;
+      case "download-html":
+        downloadHtml(cfg);
+        showToast("HTML file downloaded");
+        break;
+      case "export-section":
+        setShowSectionPicker(true);
+        return;
+      case "copy-framer":
+        // Copy a minimal Framer-ready wrapper to clipboard
+        const frameCopy = toFramerPasteReady(
+          `import { motion } from "framer-motion"\n\nexport default function Component() {\n  return (\n    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>\n      {/* Paste your section here */}\n    </motion.div>\n  )\n}`
+        );
+        const ok = await copyToClipboard(frameCopy);
+        showToast(ok ? "Copied to clipboard — paste into Framer" : "Copy failed — try again");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        break;
+    }
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); setShowSectionPicker(false); }}
+        className={cn(
+          "ml-1 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 border",
+          open
+            ? "bg-[var(--accent)] text-white border-transparent"
+            : "text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] bg-transparent"
+        )}
+      >
+        <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M1.5 10.5h9" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Export
+        <svg viewBox="0 0 8 8" className="w-2 h-2 opacity-60" fill="currentColor">
+          <path d="M4 5.5L1 2.5h6L4 5.5z"/>
+        </svg>
+      </button>
+
+      {/* Dropdown menu */}
+      {open && !showSectionPicker && (
+        <div className="absolute right-0 top-full mt-1.5 w-56 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl shadow-xl z-50 overflow-hidden py-1">
+          {EXPORT_ACTIONS.map((action, i) => (
+            <React.Fragment key={action.id}>
+              {i === 3 && (
+                <div className="my-1 border-t border-[var(--border-subtle)]" />
+              )}
+              <button
+                type="button"
+                onClick={() => handleAction(action.id)}
+                className="w-full flex items-start gap-3 px-3.5 py-2.5 text-left hover:bg-[var(--sidebar-hover)] transition-colors group"
+              >
+                <span className="text-[13px] opacity-60 mt-px w-4 shrink-0 text-center">
+                  {action.id === "copy-framer" && copied ? "✓" : action.icon}
+                </span>
+                <div>
+                  <p className="text-[12px] font-medium text-[var(--text-primary)]">
+                    {action.label}
+                    {action.id === "deploy-vercel" && (
+                      <span className="ml-1.5 text-[10px] font-normal px-1 py-0.5 rounded bg-[var(--accent)]/15 text-[var(--accent)]">
+                        ✦ new
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{action.description}</p>
+                </div>
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {/* Section picker sub-menu */}
+      {showSectionPicker && (
+        <div className="absolute right-0 top-full mt-1.5 w-52 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl shadow-xl z-50 overflow-hidden py-1">
+          <div className="px-3.5 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
+            <span className="text-[11px] font-medium text-[var(--text-muted)] uppercase tracking-wider">Export section</span>
+            <button
+              type="button"
+              onClick={() => { setShowSectionPicker(false); setOpen(true); }}
+              className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors text-xs"
+            >
+              ←
+            </button>
+          </div>
+          {SECTION_NAMES.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => {
+                downloadSection(name, cfg);
+                setShowSectionPicker(false);
+                showToast(`${name} downloaded`);
+              }}
+              className="w-full flex items-center gap-3 px-3.5 py-2 text-left hover:bg-[var(--sidebar-hover)] transition-colors"
+            >
+              <span className="text-[11px] text-[var(--text-muted)] w-4 text-center">◈</span>
+              <span className="text-[12px] text-[var(--text-primary)]">{name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="absolute right-0 top-full mt-1.5 z-50 pointer-events-none">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl shadow-xl text-[11px] text-[var(--text-primary)] whitespace-nowrap animate-in fade-in slide-in-from-top-2 duration-200">
+            <span className="text-[var(--accent)]">✓</span>
+            {toast}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Toolbar ──────────────────────────────────────────────────────────────────
 
 function CanvasToolbar({
@@ -435,6 +624,8 @@ function CanvasToolbar({
   onResetView,
   onResetLayout,
   frameCount,
+  siteName,
+  siteType,
 }: {
   tab: TabId;
   onTabChange: (t: TabId) => void;
@@ -444,6 +635,8 @@ function CanvasToolbar({
   onResetView: () => void;
   onResetLayout: () => void;
   frameCount: number;
+  siteName: string;
+  siteType: ExportSiteType;
 }) {
   const tabs: { id: TabId; label: string }[] = [
     { id: "moodboard", label: "Moodboard" },
@@ -519,6 +712,12 @@ function CanvasToolbar({
         >
           Reset
         </button>
+
+        {/* Divider */}
+        <div className="w-px h-4 bg-[var(--border-subtle)] mx-1" />
+
+        {/* Export dropdown */}
+        <ExportDropdown siteName={siteName} siteType={siteType} />
       </div>
     </div>
   );
@@ -554,7 +753,13 @@ const STYLE_PRESETS: { label: string; tokens: string }[] = [
 
 // ─── Generate panel (sidebar overlay) ────────────────────────────────────────
 
-function GeneratePanel({ onClose }: { onClose: () => void }) {
+function GeneratePanel({
+  onClose,
+  onSiteTypeChange,
+}: {
+  onClose: () => void;
+  onSiteTypeChange?: (t: ExportSiteType) => void;
+}) {
   const [prompt, setPrompt] = React.useState("");
   const [siteType, setSiteType] = React.useState<SiteType>("auto");
   const [stylePreset, setStylePreset] = React.useState<string | null>(null);
@@ -626,7 +831,7 @@ function GeneratePanel({ onClose }: { onClose: () => void }) {
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setSiteType(opt.value)}
+                onClick={() => { setSiteType(opt.value); onSiteTypeChange?.(opt.value); }}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md text-left transition-all duration-100 w-full",
                   siteType === opt.value
@@ -799,6 +1004,8 @@ export function CanvasClient() {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [showGeneratePanel, setShowGeneratePanel] = React.useState(false);
   const [viewportSize, setViewportSize] = React.useState({ w: 800, h: 600 });
+  const [canvasSiteName, setCanvasSiteName] = React.useState("My Site");
+  const [canvasSiteType, setCanvasSiteType] = React.useState<ExportSiteType>("auto");
 
   // ── Refs (for event handlers to avoid stale closure issues) ──
   const stateRef = React.useRef({ pan, zoom });
@@ -1098,6 +1305,8 @@ export function CanvasClient() {
         onResetView={handleResetView}
         onResetLayout={handleResetLayout}
         frameCount={visibleFrames.length}
+        siteName={canvasSiteName}
+        siteType={canvasSiteType}
       />
 
       {/* ── Canvas area ── */}
@@ -1160,7 +1369,10 @@ export function CanvasClient() {
 
         {/* ── Generate panel (slides in from right) ── */}
         {showGeneratePanel && (
-          <GeneratePanel onClose={() => setShowGeneratePanel(false)} />
+          <GeneratePanel
+            onClose={() => setShowGeneratePanel(false)}
+            onSiteTypeChange={(t) => setCanvasSiteType(t)}
+          />
         )}
       </div>
     </div>

@@ -4,7 +4,8 @@ import * as React from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useDropzone } from "react-dropzone";
 import { AsciiSeparator } from "@/components/ui/ascii-separator";
 import { SectionLabel } from "@/components/ui/section-label";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/app/(dashboard)/projects/projects-data";
 import { slideUp, staggerContainer, staggerItem, springs } from "@/lib/animations";
 import { useCuratedInspiration } from "@/hooks/use-curated-inspiration";
+import { cn } from "@/lib/utils";
 
 type ProjectTask = {
   id: string;
@@ -185,6 +187,139 @@ function ProjectSearchRow({
   );
 }
 
+// ─── Image drop helpers ──────────────────────────────────────────────────────
+
+type ReferenceForStorage = {
+  id: string;
+  imageUrl: string;
+  source: "upload";
+  title: string;
+  addedAt: string;
+  projectId: string;
+};
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readProjectRefs(projectId: string): ReferenceForStorage[] {
+  try {
+    const raw = localStorage.getItem(`studio-os:references:${projectId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function writeProjectRefs(projectId: string, refs: ReferenceForStorage[]) {
+  localStorage.setItem(`studio-os:references:${projectId}`, JSON.stringify(refs));
+  window.dispatchEvent(new Event("project-references-updated"));
+}
+
+type DropTarget = { id: string; name: string; color: string };
+
+function getAllDropTargets(): DropTarget[] {
+  const stored = getStoredProjects().map((p) => ({
+    id: p.id,
+    name: p.name,
+    color: p.color,
+  }));
+  const staticTargets = STATIC_PROJECTS.map((p) => ({
+    id: p.id,
+    name: p.name,
+    color: p.palette[1] || p.palette[0],
+  }));
+  const seenIds = new Set(stored.map((p) => p.id));
+  return [...stored, ...staticTargets.filter((p) => !seenIds.has(p.id))];
+}
+
+// ─── Project picker modal for image drops ────────────────────────────────────
+
+function DropProjectPicker({
+  files,
+  onSelect,
+  onClose,
+}: {
+  files: File[];
+  onSelect: (projectId: string, projectName: string) => void;
+  onClose: () => void;
+}) {
+  const targets = React.useMemo(() => getAllDropTargets(), []);
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className="fixed inset-0 z-[61] flex items-center justify-center px-4"
+        onClick={onClose}
+      >
+        <div
+          className="w-full max-w-sm border border-card-border bg-card-bg rounded-xl shadow-2xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-3 border-b border-card-border">
+            <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-accent">
+              Add to project
+            </p>
+            <p className="text-xs text-text-muted mt-0.5">
+              {files.length} image{files.length !== 1 ? "s" : ""} ready to import
+            </p>
+          </div>
+
+          <div className="max-h-[300px] overflow-y-auto py-1">
+            {targets.length === 0 ? (
+              <p className="px-4 py-6 text-center text-xs text-text-muted">
+                No projects yet. Create one first.
+              </p>
+            ) : (
+              targets.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onSelect(t.id, t.name)}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-left transition-colors duration-100 hover:bg-sidebar-hover"
+                >
+                  <span
+                    className="w-3 h-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: t.color }}
+                  />
+                  <span className="text-sm text-text-primary truncate">{t.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="px-4 py-2.5 border-t border-card-border">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[10px] text-text-muted hover:text-text-secondary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// ─── Home page ───────────────────────────────────────────────────────────────
+
 export function HomeClient() {
   const router = useRouter();
   const { openModal: openNewProject } = useNewProjectModal();
@@ -202,6 +337,41 @@ export function HomeClient() {
     null
   );
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Image drop state
+  const [droppedFiles, setDroppedFiles] = React.useState<File[] | null>(null);
+  const [dropToast, setDropToast] = React.useState<string | null>(null);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { "image/png": [], "image/jpeg": [], "image/webp": [], "image/gif": [] },
+    noClick: true,
+    noKeyboard: true,
+    onDrop: (accepted) => {
+      if (accepted.length > 0) setDroppedFiles(accepted);
+    },
+  });
+
+  async function handleDropToProject(projectId: string, projectName: string) {
+    if (!droppedFiles || droppedFiles.length === 0) return;
+    const existingRefs = readProjectRefs(projectId);
+    const newRefs: ReferenceForStorage[] = [];
+    for (const file of droppedFiles) {
+      const dataUrl = await fileToDataUrl(file);
+      newRefs.push({
+        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        imageUrl: dataUrl,
+        source: "upload",
+        title: file.name,
+        addedAt: new Date().toISOString(),
+        projectId,
+      });
+    }
+    writeProjectRefs(projectId, [...newRefs, ...existingRefs]);
+    const count = droppedFiles.length;
+    setDroppedFiles(null);
+    setDropToast(`Added ${count} image${count !== 1 ? "s" : ""} to ${projectName}`);
+    setTimeout(() => setDropToast(null), 3000);
+  }
 
   React.useEffect(() => {
     if (!window.matchMedia("(hover: hover)").matches) return;
@@ -484,6 +654,7 @@ export function HomeClient() {
 
   return (
     <div
+      {...(getRootProps() as React.HTMLAttributes<HTMLDivElement>)}
       className="relative min-h-screen px-8 pb-20"
       style={{
         backgroundImage:
@@ -491,6 +662,65 @@ export function HomeClient() {
         backgroundSize: "28px 28px",
       }}
     >
+      <input {...getInputProps()} />
+
+      {/* Drag overlay */}
+      <AnimatePresence>
+        {isDragActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-primary/90 backdrop-blur-sm border-2 border-dashed border-accent"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="text-center space-y-2"
+            >
+              <div className="text-3xl mb-2">↓</div>
+              <p className="text-sm font-medium text-accent uppercase tracking-[0.12em]">
+                Drop to add to a project
+              </p>
+              <p className="text-xs text-text-muted">
+                PNG, JPG, WebP, GIF
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Project selection modal after drop */}
+      <AnimatePresence>
+        {droppedFiles && (
+          <DropProjectPicker
+            files={droppedFiles}
+            onSelect={handleDropToProject}
+            onClose={() => setDroppedFiles(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Success toast */}
+      <AnimatePresence>
+        {dropToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="pointer-events-none fixed bottom-8 left-1/2 z-[200] -translate-x-1/2"
+          >
+            <div className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium shadow-xl bg-card-bg text-text-primary border border-border-primary rounded-lg">
+              <span className="text-[11px] text-green-400">✓</span>
+              {dropToast}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <canvas
         ref={canvasRef}
         className="pointer-events-none fixed inset-0 z-0"

@@ -9,10 +9,7 @@ import { Input } from "@/components/ui/input";
 import type { ImageAnalysis, ReferenceImage } from "@/lib/canvas/analyze-images";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { analysisToTokens, tokensToMarkdown } from "@/lib/canvas/generate-system";
-import { UploadZone } from "./components/UploadZone";
-import { ReferenceGrid } from "./components/ReferenceGrid";
-import { AnalysisPanel } from "./components/AnalysisPanel";
-import { SystemEditor } from "./components/SystemEditor";
+import { CollectView } from "./components/CollectView";
 import { ComposeDocumentView } from "./components/ComposeDocumentView";
 import {
   BREAKPOINT_WIDTHS,
@@ -50,11 +47,14 @@ import {
   type ExportConfig,
 } from "@/lib/canvas/export-formats";
 import {
+  appendProjectReferences,
   getProjectById,
   getProjectState,
   listProjectReferences,
+  setProjectReferences,
   upsertProjectState,
   type StoredProjectFont,
+  type StoredReference,
 } from "@/lib/project-store";
 import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
 
@@ -112,13 +112,17 @@ const STATIC_PALETTES: Record<string, { name: string; palette: string[] }> = {
   "personal-portfolio": { name: "Personal Portfolio", palette: ["#020617", "#f9fafb", "#64748b", "#e5e7eb", "#0f172a"] },
 };
 
-function loadProjectRefs(projectId: string): ReferenceImage[] {
-  return listProjectReferences(projectId).map((reference) => ({
+function toReferenceImage(reference: StoredReference): ReferenceImage {
+  return {
     id: reference.id || `ref-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     url: reference.imageUrl,
     thumbnail: reference.imageUrl,
     name: reference.title || "Reference",
-  }));
+  };
+}
+
+function loadProjectRefs(projectId: string): ReferenceImage[] {
+  return listProjectReferences(projectId).map(toReferenceImage);
 }
 
 function loadProjectMeta(
@@ -292,6 +296,18 @@ function getComposeWorkspaceKey(projectId: string) {
 
 function getCanvasSessionKey(projectId: string) {
   return `${CANVAS_SESSION_KEY_PREFIX}${projectId}`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Failed to read file"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function readComposeWorkspace(projectId: string): ComposeDocument | null {
@@ -995,98 +1011,6 @@ function CanvasStageLayout({
           </motion.aside>
         ) : null}
       </AnimatePresence>
-    </div>
-  );
-}
-
-function ReferenceThumbnailStrip({
-  images,
-  selectedIds,
-  onToggleSelect,
-  onRemove,
-  readOnly = false,
-}: {
-  images: ReferenceImage[];
-  selectedIds?: Set<string>;
-  onToggleSelect?: (id: string) => void;
-  onRemove?: (id: string) => void;
-  readOnly?: boolean;
-}) {
-  return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-border-subtle px-4 py-4">
-        <PanelSectionLabel
-          label="References"
-          detail={
-            readOnly
-              ? "Locked from project board for this stage."
-              : "Compact thumbnail strip. Use the main board to add more."
-          }
-        />
-      </div>
-      <div className="flex-1 space-y-2 overflow-y-auto p-3">
-        {images.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border-primary bg-bg-secondary px-4 py-6 text-center text-[11px] text-text-muted">
-            Drop references into the board to start building the moodboard.
-          </div>
-        ) : (
-          images.map((image) => {
-            const active = selectedIds?.has(image.id) ?? false;
-            return (
-              <div
-                key={image.id}
-                className={cn(
-                  "group overflow-hidden rounded-2xl border bg-bg-secondary transition-colors",
-                  active ? "border-accent" : "border-border-primary"
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => onToggleSelect?.(image.id)}
-                  disabled={readOnly || !onToggleSelect}
-                  className={cn(
-                    "block w-full text-left",
-                    readOnly || !onToggleSelect ? "cursor-default" : "cursor-pointer"
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.thumbnail || image.url}
-                    alt={image.name}
-                    className="h-28 w-full object-cover"
-                  />
-                  <div className="flex items-center justify-between gap-2 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-[11px] font-medium text-text-primary">
-                        {image.name}
-                      </p>
-                      <p className="text-[10px] text-text-muted">
-                        {active ? "Selected for analysis" : readOnly ? "Reference" : "Tap to select"}
-                      </p>
-                    </div>
-                    {!readOnly && active ? (
-                      <span className="rounded-full bg-accent/12 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-accent">
-                        Active
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
-                {!readOnly && onRemove ? (
-                  <div className="border-t border-border-subtle px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => onRemove(image.id)}
-                      className="text-[10px] uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-red-400"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })
-        )}
-      </div>
     </div>
   );
 }
@@ -2709,8 +2633,12 @@ export function CanvasPage({
   const [composeDocument, setComposeDocument] = React.useState<ComposeDocument | null>(null);
   // Guard against race conditions when the user triggers generation multiple times
   const generateRequestIdRef = React.useRef(0);
+  const collectRequestIdRef = React.useRef(0);
   const hydratedCanvasRef = React.useRef(false);
   const persistTimeoutRef = React.useRef<number | null>(null);
+  const collectDebounceRef = React.useRef<number | null>(null);
+  const collectHydrationPrimedRef = React.useRef(false);
+  const skipInitialCollectRefreshRef = React.useRef(false);
 
   React.useEffect(() => {
     if (tokens) setMarkdown(tokensToMarkdown(tokens));
@@ -2719,6 +2647,7 @@ export function CanvasPage({
   React.useEffect(() => {
     if (!linkedProjectId) return;
     hydratedCanvasRef.current = false;
+    collectHydrationPrimedRef.current = false;
 
     const refs = loadProjectRefs(linkedProjectId);
     const storedState = getProjectState(linkedProjectId);
@@ -2763,6 +2692,9 @@ export function CanvasPage({
             restoredCanvas.composeDocument ?? persistedComposeWorkspace
           )
         : null;
+    skipInitialCollectRefreshRef.current = Boolean(
+      restoredCanvas.analysis || restoredCanvas.designTokens
+    );
 
     if (meta) {
       setProjectName(meta.name);
@@ -2829,6 +2761,33 @@ export function CanvasPage({
     const timeout = window.setTimeout(() => setBootstrapToast(null), 3200);
     return () => window.clearTimeout(timeout);
   }, [bootstrapToast]);
+
+  React.useEffect(() => {
+    if (!hydratedCanvasRef.current) return;
+    if (selectedIds.size === 0 || images.length === 0) return;
+
+    if (!collectHydrationPrimedRef.current) {
+      collectHydrationPrimedRef.current = true;
+      if (skipInitialCollectRefreshRef.current) {
+        skipInitialCollectRefreshRef.current = false;
+        return;
+      }
+    }
+
+    if (collectDebounceRef.current) {
+      window.clearTimeout(collectDebounceRef.current);
+    }
+
+    collectDebounceRef.current = window.setTimeout(() => {
+      void refreshCollectTaste();
+    }, 500);
+
+    return () => {
+      if (collectDebounceRef.current) {
+        window.clearTimeout(collectDebounceRef.current);
+      }
+    };
+  }, [images, linkedProjectId, refreshCollectTaste, selectedIds]);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !linkedProjectId) return;
@@ -2958,24 +2917,34 @@ export function CanvasPage({
     tokens,
   ]);
 
-  function handleFilesAdded(files: File[]) {
-    const newImages: ReferenceImage[] = files.map((file, index) => {
-      const url = URL.createObjectURL(file);
-      return {
-        id: `img-${Date.now()}-${index}`,
-        file,
-        url,
-        thumbnail: url,
-        name: file.name,
-      };
-    });
+  async function handleFilesAdded(files: File[]) {
+    if (files.length === 0) return;
+    const now = new Date().toISOString();
+    const persistedReferences = await Promise.all(
+      files.map(async (file, index) => ({
+        id: `upload-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        imageUrl: await fileToDataUrl(file),
+        source: "upload" as const,
+        title: file.name,
+        addedAt: now,
+        projectId: linkedProjectId ?? "canvas",
+      }))
+    );
+    const newImages = persistedReferences.map(toReferenceImage);
 
-    setImages((prev) => [...prev, ...newImages]);
+    if (linkedProjectId) {
+      appendProjectReferences(linkedProjectId, persistedReferences);
+    }
+
+    setImages((prev) => [...newImages, ...prev]);
     setSelectedIds((prev) => {
       const next = new Set(prev);
       newImages.forEach((img) => next.add(img.id));
       return next;
     });
+    setBootstrapToast(
+      `Added ${newImages.length} reference${newImages.length === 1 ? "" : "s"}`
+    );
   }
 
   function handleToggleSelect(id: string) {
@@ -2988,6 +2957,12 @@ export function CanvasPage({
   }
 
   function handleRemoveImage(id: string) {
+    if (linkedProjectId) {
+      setProjectReferences(
+        linkedProjectId,
+        listProjectReferences(linkedProjectId).filter((reference) => reference.id !== id)
+      );
+    }
     setImages((prev) => {
       const image = prev.find((item) => item.id === id);
       if (image?.file) URL.revokeObjectURL(image.url);
@@ -3000,55 +2975,65 @@ export function CanvasPage({
     });
   }
 
-  async function handleAnalyze() {
-    const selected = images.filter((img) => selectedIds.has(img.id));
-    if (selected.length === 0) return;
-
-    setAnalysisLoading(true);
-    setAnalysisError(null);
-
-    try {
-      const base64Images = await Promise.all(
-        selected.slice(0, 6).map(async (img) => {
-          if (img.file) {
-            return new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.readAsDataURL(img.file!);
-            });
-          }
-          return img.url;
-        })
-      );
-
-      const response = await fetch("/api/canvas/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: base64Images }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `Analysis failed (${response.status})`);
-      }
-
-      const data = await response.json();
-      setAnalysis(data.analysis);
-    } catch (error) {
-      setAnalysisError(error instanceof Error ? error.message : "Analysis failed");
-    } finally {
-      setAnalysisLoading(false);
+  function handleImportReferences(payload: {
+    references: Array<{
+      id: string;
+      imageUrl: string;
+      source: "upload" | "arena" | "pinterest" | "url";
+      sourceUrl?: string;
+      title?: string;
+      addedAt: string;
+      projectId: string;
+    }>;
+    notice?: string;
+  }) {
+    if (payload.references.length === 0) return;
+    if (linkedProjectId) {
+      appendProjectReferences(linkedProjectId, payload.references);
+    }
+    const nextImages = payload.references.map(toReferenceImage);
+    setImages((prev) => [...nextImages, ...prev]);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      nextImages.forEach((image) => next.add(image.id));
+      return next;
+    });
+    if (payload.notice) {
+      setBootstrapToast(payload.notice);
     }
   }
 
-  async function handleGenerateSystem() {
-    if (!analysis) return;
-    setSystemLoading(true);
+  const requestAnalysisForImages = React.useCallback(async (
+    selected: ReferenceImage[]
+  ): Promise<ImageAnalysis> => {
+    const base64Images = await Promise.all(
+      selected.slice(0, 6).map(async (img) => {
+        if (img.file) return fileToDataUrl(img.file);
+        return img.url;
+      })
+    );
+
+    const response = await fetch("/api/canvas/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ images: base64Images }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Analysis failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.analysis as ImageAnalysis;
+  }, []);
+
+  const requestSystemForAnalysis = React.useCallback(async (nextAnalysis: ImageAnalysis) => {
     try {
       const response = await fetch("/api/canvas/generate-system", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis, mode: "auto" }),
+        body: JSON.stringify({ analysis: nextAnalysis, mode: "auto" }),
       });
 
       if (!response.ok) {
@@ -3057,18 +3042,47 @@ export function CanvasPage({
       }
 
       const data = await response.json();
-      setTokens(data.tokens);
-      setMarkdown(data.markdown);
-      setStage("collect");
+      return {
+        tokens: data.tokens as DesignSystemTokens,
+        markdown: data.markdown as string,
+      };
     } catch {
-      const localTokens = analysisToTokens(analysis);
-      setTokens(localTokens);
-      setMarkdown(tokensToMarkdown(localTokens));
-      setStage("collect");
-    } finally {
-      setSystemLoading(false);
+      const localTokens = analysisToTokens(nextAnalysis);
+      return {
+        tokens: localTokens,
+        markdown: tokensToMarkdown(localTokens),
+      };
     }
-  }
+  }, []);
+
+  const refreshCollectTaste = React.useCallback(async () => {
+    const selected = images.filter((img) => selectedIds.has(img.id));
+    if (selected.length === 0) return;
+    const requestId = ++collectRequestIdRef.current;
+
+    setAnalysisLoading(true);
+    setSystemLoading(true);
+    setAnalysisError(null);
+
+    try {
+      const nextAnalysis = await requestAnalysisForImages(selected);
+      if (requestId !== collectRequestIdRef.current) return;
+      setAnalysis(nextAnalysis);
+
+      const nextSystem = await requestSystemForAnalysis(nextAnalysis);
+      if (requestId !== collectRequestIdRef.current) return;
+      setTokens(nextSystem.tokens);
+      setMarkdown(nextSystem.markdown);
+    } catch (error) {
+      if (requestId !== collectRequestIdRef.current) return;
+      setAnalysisError(error instanceof Error ? error.message : "Analysis failed");
+    } finally {
+      if (requestId === collectRequestIdRef.current) {
+        setAnalysisLoading(false);
+        setSystemLoading(false);
+      }
+    }
+  }, [images, requestAnalysisForImages, requestSystemForAnalysis, selectedIds]);
 
   async function handleGenerateVariants() {
     if (!tokens || !sitePrompt.trim()) return;
@@ -3145,12 +3159,9 @@ export function CanvasPage({
     setStage("compose");
   }
 
-  const selectedCount = selectedIds.size;
   const hasReferences = images.length > 0;
   const hasTokens = tokens !== null;
   const tokenCount = tokens ? Object.keys(tokens.colors).length : 0;
-  const canAnalyze = selectedCount > 0 && !analysisLoading;
-  const canGenerateSystem = analysis !== null && !systemLoading;
   const canGenerateVariants =
     hasTokens && sitePrompt.trim().length > 0 && !generateLoading;
   const collectCount =
@@ -3254,111 +3265,29 @@ export function CanvasPage({
       ) : (
         <CanvasStageLayout
           stage={stage}
-          leftPanel={
-            stage === "collect" ? (
-              <ReferenceThumbnailStrip
-                images={images}
-                selectedIds={selectedIds}
-                onToggleSelect={handleToggleSelect}
-                onRemove={handleRemoveImage}
-              />
-            ) : undefined
-          }
           centerPanel={
             stage === "collect" ? (
-              <div className="flex h-full flex-col overflow-y-auto p-6">
-                <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <div className="space-y-2">
-                      <PanelSectionLabel
-                        label="Collect"
-                        detail="Drop references into the board, analyze them, and shape the project system in one place."
-                      />
-                      <Input
-                        value={setName}
-                        onChange={(event) => setSetName(event.target.value)}
-                        placeholder="Reference set name..."
-                        className="h-10 max-w-sm text-sm"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-text-muted">
-                      <span>{images.length} references</span>
-                      <span>•</span>
-                      <span>{selectedCount} selected</span>
-                    </div>
-                  </div>
-
-                  <UploadZone
-                    onFilesAdded={handleFilesAdded}
-                    disabled={analysisLoading}
-                    className="min-h-[320px] rounded-[32px] border-[1.5px] bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]"
-                  />
-
-                  {images.length > 0 ? (
-                    <div className="rounded-[28px] border border-border-primary bg-bg-primary p-5">
-                      <div className="flex flex-col gap-3 border-b border-border-subtle pb-4 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-3 text-[11px] text-text-muted">
-                          <span>{selectedCount} of {images.length} selected</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedIds(
-                                selectedCount === images.length
-                                  ? new Set()
-                                  : new Set(images.map((image) => image.id))
-                              );
-                            }}
-                            className="text-accent hover:underline"
-                          >
-                            {selectedCount === images.length ? "Deselect all" : "Select all"}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={handleAnalyze}
-                            disabled={!canAnalyze}
-                            className="h-10 text-[11px] uppercase tracking-[0.12em]"
-                          >
-                            {analysisLoading
-                              ? "Analyzing..."
-                              : `Analyze ${selectedCount} image${selectedCount !== 1 ? "s" : ""}`}
-                          </Button>
-                          {analysis ? (
-                            <Button
-                              onClick={handleGenerateSystem}
-                              disabled={!canGenerateSystem}
-                              variant="secondary"
-                              className="h-10 text-[11px] uppercase tracking-[0.12em]"
-                            >
-                              {systemLoading ? "Generating..." : "Generate System"}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {analysisError ? (
-                        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[10px] text-red-400">
-                          {analysisError}
-                          <p className="mt-1 text-red-400/60">
-                            Make sure OPENAI_API_KEY is set in .env.local
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <div className="mt-5">
-                        <ReferenceGrid
-                          images={images}
-                          selectedIds={selectedIds}
-                          onToggleSelect={handleToggleSelect}
-                          onRemove={handleRemoveImage}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <AnalysisPanel analysis={analysis} loading={analysisLoading} />
+              linkedProjectId ? (
+                <CollectView
+                  projectId={linkedProjectId}
+                  referenceSetName={setName}
+                  onReferenceSetNameChange={setSetName}
+                  images={images}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onRemove={handleRemoveImage}
+                  onFilesAdded={handleFilesAdded}
+                  onImport={handleImportReferences}
+                  analysis={analysis}
+                  tokens={tokens}
+                  processing={analysisLoading || systemLoading}
+                  error={analysisError}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center p-6 text-sm text-text-muted">
+                  Open Canvas from a project to collect references and extract taste.
                 </div>
-              </div>
+              )
             ) : (
               <div className="flex h-full flex-col overflow-y-auto p-6">
                 <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-6">
@@ -3445,39 +3374,11 @@ export function CanvasPage({
             )
           }
           rightPanel={
-            stage === "collect" ? (
-              <div className="space-y-4 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    System
-                  </h3>
-                  {tokens ? (
-                    <span className="text-[9px] text-emerald-400 font-mono">Active</span>
-                  ) : null}
-                </div>
-
-                <SystemEditor
-                  markdown={markdown}
-                  tokens={tokens}
-                  onMarkdownChange={setMarkdown}
-                  onTokensChange={setTokens}
-                  loading={systemLoading}
-                />
-
-                <Button
-                  onClick={() => setStage("generate")}
-                  disabled={!availability.generate.available}
-                  className="w-full h-10 text-[11px] uppercase tracking-[0.12em]"
-                >
-                  Continue to Generate →
-                </Button>
-              </div>
-            ) : stage === "generate" ? (
+            stage === "generate" ? (
               <SystemSummaryPanel tokens={tokens} selectedVariant={selectedVariant} />
             ) : undefined
           }
-          leftWidth="240px"
-          rightWidth={stage === "collect" ? "320px" : "300px"}
+          rightWidth="300px"
         />
       )}
     </div>

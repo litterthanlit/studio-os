@@ -3494,33 +3494,6 @@ export function CanvasPage({
   );
 
   React.useEffect(() => {
-    if (!hydratedCanvasRef.current) return;
-    if (images.length === 0) return;
-
-    if (!collectHydrationPrimedRef.current) {
-      collectHydrationPrimedRef.current = true;
-      if (skipInitialCollectRefreshRef.current) {
-        skipInitialCollectRefreshRef.current = false;
-        return;
-      }
-    }
-
-    if (collectDebounceRef.current) {
-      window.clearTimeout(collectDebounceRef.current);
-    }
-
-    collectDebounceRef.current = window.setTimeout(() => {
-      void refreshCollectTaste();
-    }, 1000);
-
-    return () => {
-      if (collectDebounceRef.current) {
-        window.clearTimeout(collectDebounceRef.current);
-      }
-    };
-  }, [linkedProjectId, referenceSignature, refreshCollectTaste, images.length]);
-
-  React.useEffect(() => {
     if (typeof window === "undefined" || !linkedProjectId) return;
     const params = new URLSearchParams(window.location.search);
     params.set("project", linkedProjectId);
@@ -3875,6 +3848,33 @@ export function CanvasPage({
     requestAnalysisForImages,
     requestSystemForAnalysis,
   ]);
+
+  React.useEffect(() => {
+    if (!hydratedCanvasRef.current) return;
+    if (images.length === 0) return;
+
+    if (!collectHydrationPrimedRef.current) {
+      collectHydrationPrimedRef.current = true;
+      if (skipInitialCollectRefreshRef.current) {
+        skipInitialCollectRefreshRef.current = false;
+        return;
+      }
+    }
+
+    if (collectDebounceRef.current) {
+      window.clearTimeout(collectDebounceRef.current);
+    }
+
+    collectDebounceRef.current = window.setTimeout(() => {
+      void refreshCollectTaste();
+    }, 1000);
+
+    return () => {
+      if (collectDebounceRef.current) {
+        window.clearTimeout(collectDebounceRef.current);
+      }
+    };
+  }, [linkedProjectId, referenceSignature, refreshCollectTaste, images.length]);
 
   async function handleGenerateVariants() {
     if (!tokens || !sitePrompt.trim()) return;

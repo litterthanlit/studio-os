@@ -10,6 +10,7 @@ import { fadeIn, springs } from "@/lib/animations";
 import type { ImageAnalysis, ReferenceImage } from "@/lib/canvas/analyze-images";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { ImportReferenceModal, type Reference } from "@/components/modals/import-reference-modal";
+import type { TasteProfile } from "@/types/taste-profile";
 
 type ImportMode = "upload" | "arena" | "pinterest" | "url";
 
@@ -25,6 +26,7 @@ type CollectViewProps = {
   onImport: (payload: { references: Reference[]; notice?: string }) => void;
   analysis: ImageAnalysis | null;
   tokens: DesignSystemTokens | null;
+  tasteProfile: TasteProfile | null;
   processing: boolean;
   error?: string | null;
 };
@@ -65,13 +67,20 @@ function TasteSkeletonSection() {
 function TastePanel({
   analysis,
   tokens,
+  tasteProfile,
   processing,
 }: {
   analysis: ImageAnalysis | null;
   tokens: DesignSystemTokens | null;
+  tasteProfile: TasteProfile | null;
   processing: boolean;
 }) {
   const paletteEntries = React.useMemo(() => {
+    if (tasteProfile?.colorBehavior.palette?.length) {
+      return tasteProfile.colorBehavior.palette
+        .slice(0, 6)
+        .map((color, index) => [`taste ${index + 1}`, color] as const);
+    }
     if (tokens) {
       return Object.entries(tokens.colors).slice(0, 6);
     }
@@ -84,9 +93,16 @@ function TastePanel({
       return colors.slice(0, 6);
     }
     return [];
-  }, [analysis, tokens]);
+  }, [analysis, tasteProfile, tokens]);
 
   const typographyLines = React.useMemo(() => {
+    if (tasteProfile) {
+      return [
+        `${tasteProfile.typographyTraits.headingMood} headings`,
+        `${tasteProfile.typographyTraits.bodyMood} body`,
+        ...tasteProfile.typographyTraits.suggestedPairings,
+      ].slice(0, 3);
+    }
     const lines: string[] = [];
     if (tokens?.typography.fontFamily) {
       lines.push(tokens.typography.fontFamily.replace(/['"]/g, ""));
@@ -98,9 +114,10 @@ function TastePanel({
       lines.push(analysis.typography.hierarchy);
     }
     return lines.slice(0, 3);
-  }, [analysis, tokens]);
+  }, [analysis, tasteProfile, tokens]);
 
   const moodKeywords = React.useMemo(() => {
+    if (tasteProfile) return tasteProfile.adjectives;
     if (!analysis) return [];
     return [
       analysis.quality.dominantVibe.label,
@@ -110,13 +127,15 @@ function TastePanel({
       analysis.spacing.density,
       analysis.typography.category,
     ].filter(Boolean);
-  }, [analysis]);
+  }, [analysis, tasteProfile]);
 
   const summary =
+    tasteProfile?.summary ??
     analysis?.summary ??
     (tokens
       ? "A project system already exists. Colors and typography are ready to drive generation while new references refine the direction."
       : null);
+  const avoidList = tasteProfile?.avoid ?? [];
 
   return (
     <AnimatePresence mode="wait">
@@ -212,6 +231,26 @@ function TastePanel({
               Studio OS will summarize the visual direction after analyzing your references.
             </p>
           )}
+          {tasteProfile ? (
+            <div className="space-y-2 border-t border-border-subtle pt-3">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                <span>Confidence</span>
+                <span>{Math.round(tasteProfile.confidence * 100)}%</span>
+              </div>
+              {avoidList.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {avoidList.slice(0, 4).map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-border-primary bg-bg-primary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted"
+                    >
+                      Avoid: {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </PanelSection>
       </motion.div>
     </AnimatePresence>
@@ -230,6 +269,7 @@ export function CollectView({
   onImport,
   analysis,
   tokens,
+  tasteProfile,
   processing,
   error,
 }: CollectViewProps) {
@@ -446,7 +486,12 @@ export function CollectView({
                 </div>
               ) : (
                 <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-4">
-                  <TastePanel analysis={analysis} tokens={tokens} processing={processing} />
+                  <TastePanel
+                    analysis={analysis}
+                    tokens={tokens}
+                    tasteProfile={tasteProfile}
+                    processing={processing}
+                  />
                 </div>
               )}
             </motion.aside>

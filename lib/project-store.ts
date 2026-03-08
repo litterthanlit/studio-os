@@ -2,6 +2,7 @@
 
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { ImageAnalysis } from "@/lib/canvas/analyze-images";
+import type { TasteProfile } from "@/types/taste-profile";
 import type {
   CanvasStage,
   ComposeDocument,
@@ -58,6 +59,7 @@ export type ProjectCanvasState = {
   stage?: CanvasStage;
   referenceSetName?: string;
   analysis?: ImageAnalysis | null;
+  tasteProfile?: TasteProfile | null;
   designTokens?: DesignSystemTokens | null;
   designSystemMarkdown?: string;
   componentPrompt?: string;

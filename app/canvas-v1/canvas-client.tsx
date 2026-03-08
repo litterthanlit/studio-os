@@ -56,6 +56,7 @@ import {
   type StoredProjectFont,
   type StoredReference,
 } from "@/lib/project-store";
+import type { TasteProfile } from "@/types/taste-profile";
 import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
 
 type StageMeta = {
@@ -273,6 +274,7 @@ type PersistedCanvasSession = {
   stage?: CanvasStage;
   referenceSetName?: string;
   analysis?: ImageAnalysis | null;
+  tasteProfile?: TasteProfile | null;
   designTokens?: DesignSystemTokens | null;
   designSystemMarkdown?: string;
   componentPrompt?: string;
@@ -2616,6 +2618,7 @@ export function CanvasPage({
   const [bootstrapToast, setBootstrapToast] = React.useState<string | null>(null);
 
   const [analysis, setAnalysis] = React.useState<ImageAnalysis | null>(null);
+  const [tasteProfile, setTasteProfile] = React.useState<TasteProfile | null>(null);
   const [analysisLoading, setAnalysisLoading] = React.useState(false);
   const [analysisError, setAnalysisError] = React.useState<string | null>(null);
 
@@ -2664,6 +2667,8 @@ export function CanvasPage({
       referenceSetName:
         persistedSession?.referenceSetName ?? storedState.canvas?.referenceSetName,
       analysis: persistedSession?.analysis ?? storedState.canvas?.analysis ?? null,
+      tasteProfile:
+        persistedSession?.tasteProfile ?? storedState.canvas?.tasteProfile ?? null,
       designTokens:
         persistedSession?.designTokens ?? storedState.canvas?.designTokens ?? null,
       designSystemMarkdown:
@@ -2708,7 +2713,8 @@ export function CanvasPage({
     if (meta) {
       setSetName(restoredCanvas.referenceSetName ?? meta.name);
 
-      if (restoredCanvas.analysis) setAnalysis(restoredCanvas.analysis);
+      setAnalysis(restoredCanvas.analysis ?? null);
+      setTasteProfile(restoredCanvas.tasteProfile ?? null);
 
       const projectTokens = restoredCanvas.designTokens
         ? applyProjectTypography(restoredCanvas.designTokens, storedState.typography)
@@ -2716,13 +2722,8 @@ export function CanvasPage({
         ? applyProjectTypography(paletteToTokens(meta.palette), storedState.typography)
         : null;
 
-      if (restoredCanvas.designTokens && projectTokens) {
-        setTokens(projectTokens);
-        setMarkdown(tokensToMarkdown(projectTokens));
-      } else if (projectTokens) {
-        setTokens(projectTokens);
-        setMarkdown(tokensToMarkdown(projectTokens));
-      }
+      setTokens(projectTokens);
+      setMarkdown(projectTokens ? tokensToMarkdown(projectTokens) : "");
 
       setSitePrompt(restoredCanvas.componentPrompt ?? inferSiteName(meta.name));
       setSiteType(restoredCanvas.siteType ?? "auto");
@@ -2862,6 +2863,7 @@ export function CanvasPage({
         stage,
         referenceSetName: setName,
         analysis,
+        tasteProfile,
         designTokens: tokens,
         designSystemMarkdown: markdown,
         componentPrompt: sitePrompt,
@@ -2884,6 +2886,7 @@ export function CanvasPage({
           stage,
           referenceSetName: setName,
           analysis,
+          tasteProfile,
           designTokens: tokens,
           designSystemMarkdown: markdown,
           componentPrompt: sitePrompt,
@@ -2914,6 +2917,7 @@ export function CanvasPage({
     sitePrompt,
     siteType,
     stage,
+    tasteProfile,
     tokens,
   ]);
 
@@ -3055,6 +3059,33 @@ export function CanvasPage({
     }
   }, []);
 
+  const generateTasteProfile = React.useCallback(async (
+    selected: ReferenceImage[],
+    nextTokens: DesignSystemTokens | null
+  ): Promise<TasteProfile> => {
+    const base64Images = await Promise.all(
+      selected.slice(0, 8).map(async (img) => {
+        if (img.file) return fileToDataUrl(img.file);
+        return img.url;
+      })
+    );
+
+    const response = await fetch("/api/canvas/taste-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        images: base64Images,
+        tokens: nextTokens,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Taste profile generation failed");
+    }
+    return data.tasteProfile as TasteProfile;
+  }, []);
+
   const refreshCollectTaste = React.useCallback(async () => {
     const selected = images.filter((img) => selectedIds.has(img.id));
     if (selected.length === 0) return;
@@ -3073,6 +3104,10 @@ export function CanvasPage({
       if (requestId !== collectRequestIdRef.current) return;
       setTokens(nextSystem.tokens);
       setMarkdown(nextSystem.markdown);
+
+      const nextTasteProfile = await generateTasteProfile(selected, nextSystem.tokens);
+      if (requestId !== collectRequestIdRef.current) return;
+      setTasteProfile(nextTasteProfile);
     } catch (error) {
       if (requestId !== collectRequestIdRef.current) return;
       setAnalysisError(error instanceof Error ? error.message : "Analysis failed");
@@ -3082,7 +3117,13 @@ export function CanvasPage({
         setSystemLoading(false);
       }
     }
-  }, [images, requestAnalysisForImages, requestSystemForAnalysis, selectedIds]);
+  }, [
+    generateTasteProfile,
+    images,
+    requestAnalysisForImages,
+    requestSystemForAnalysis,
+    selectedIds,
+  ]);
 
   async function handleGenerateVariants() {
     if (!tokens || !sitePrompt.trim()) return;
@@ -3280,6 +3321,7 @@ export function CanvasPage({
                   onImport={handleImportReferences}
                   analysis={analysis}
                   tokens={tokens}
+                  tasteProfile={tasteProfile}
                   processing={analysisLoading || systemLoading}
                   error={analysisError}
                 />

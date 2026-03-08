@@ -6,62 +6,13 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-  SearchIcon,
+  HomeIcon,
+  ProjectsIcon,
+  VisionIcon,
   SettingsIcon,
-  PlusIcon,
   CloseIcon,
 } from "@/components/ui/icon";
-import {
-  getStoredProjects,
-  type StoredProject,
-} from "@/components/new-project-modal";
-import { useNewProjectModal } from "@/components/new-project-modal";
-import { PROJECTS as STATIC_PROJECTS } from "@/app/(dashboard)/projects/projects-data";
-import { ThemeToggleAscii } from "@/components/navigation/theme-toggle-ascii";
-import { springs, staggerContainer, staggerItem } from "@/lib/animations";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function openCommandPalette() {
-  window.dispatchEvent(
-    new KeyboardEvent("keydown", { metaKey: true, key: "k", bubbles: true })
-  );
-}
-
-// ─── ProjectDot ───────────────────────────────────────────────────────────────
-
-function ProjectDot({
-  project,
-  active,
-}: {
-  project: StoredProject;
-  active: boolean;
-}) {
-  return (
-    <motion.div
-      whileHover={{ x: 2, transition: springs.smooth }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <Link
-        href={`/projects/${project.id}`}
-        className={cn(
-          "flex items-center gap-3 h-9 cursor-pointer",
-          "transition-colors duration-150 ease-out",
-          "border-l-2 pl-[10px] pr-3",
-          active
-            ? "bg-sidebar-active text-text-primary border-l-[var(--accent)]"
-            : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover border-l-transparent"
-        )}
-      >
-        <span
-          className="w-2 h-2 shrink-0 rounded-full"
-          style={{ backgroundColor: project.color }}
-        />
-        <span className="text-sm truncate transition-colors duration-300">{project.name}</span>
-      </Link>
-    </motion.div>
-  );
-}
+import { springs } from "@/lib/animations";
 
 // ─── Sidebar inner content ────────────────────────────────────────────────────
 
@@ -76,47 +27,21 @@ const sidebarSlideIn = {
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
-  const { openModal: openNewProject } = useNewProjectModal();
-  const [projects, setProjects] = React.useState<StoredProject[]>([]);
-
-  React.useEffect(() => {
-    function refresh() {
-      const stored = getStoredProjects();
-      if (stored.length > 0) {
-        setProjects(stored);
-      } else {
-        // Fall back to static demo projects (same source as home screen)
-        setProjects(
-          STATIC_PROJECTS.map((p) => ({
-            id: p.id,
-            name: p.name,
-            brief: p.client,
-            color: p.palette[2] || p.palette[1] || "#2430AD",
-            createdAt: new Date(
-              Date.now() - p.daysActive * 24 * 60 * 60 * 1000
-            ).toISOString(),
-          }))
-        );
-      }
-    }
-    refresh();
-    window.addEventListener("storage", refresh);
-    window.addEventListener("projects-updated", refresh);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("projects-updated", refresh);
-    };
-  }, []);
+  const items = [
+    { href: "/home", label: "Home", Icon: HomeIcon },
+    { href: "/projects", label: "Projects", Icon: ProjectsIcon },
+    { href: "/explore", label: "Explore", Icon: VisionIcon },
+    { href: "/settings", label: "Settings", Icon: SettingsIcon },
+  ] as const;
 
   return (
     <motion.div
       initial="hidden"
       animate="visible"
       variants={sidebarSlideIn}
-      className="flex flex-col h-full px-3 py-4"
+      className="flex h-full flex-col px-3 py-4"
     >
-      {/* ── Section 1: Logo ── */}
-      <div className="flex items-center gap-2.5 px-3 mb-4 h-10">
+      <div className="mb-8 flex h-10 items-center gap-2.5 px-3">
         <motion.div whileHover={{ scale: 1.02, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
           <Link
             href="/home"
@@ -139,7 +64,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           </Link>
         </motion.div>
 
-        {/* Close button — mobile only */}
         {onClose && (
           <motion.button
             type="button"
@@ -154,106 +78,35 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         )}
       </div>
 
-      {/* ── Section 2: Projects ── */}
-      <div>
-        <div className="flex items-center px-3 mb-1">
-          <span className="text-[11px] font-sans text-section-label uppercase tracking-[0.1em] font-medium flex-1 transition-colors duration-300">
-            Projects
-          </span>
-          <button
-            type="button"
-            onClick={() => openNewProject()}
-            aria-label="New project"
-            className="flex items-center justify-center w-6 h-6 rounded-md text-text-muted hover:text-text-secondary hover:bg-sidebar-hover transition-colors duration-150"
-          >
-            <PlusIcon className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <nav className="flex flex-col gap-1">
+        {items.map(({ href, label, Icon }) => {
+          const active =
+            href === "/home"
+              ? pathname === "/home"
+              : pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <motion.div
+              key={href}
+              whileHover={{ x: 2, transition: springs.smooth }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Link
+                href={href}
+                className={cn(
+                  "flex h-11 items-center gap-3 rounded-2xl px-3 transition-colors duration-150 ease-out",
+                  active
+                    ? "bg-sidebar-active text-text-primary"
+                    : "text-text-tertiary hover:bg-sidebar-hover hover:text-text-secondary"
+                )}
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" bare />
+                <span className="text-sm">{label}</span>
+              </Link>
+            </motion.div>
+          );
+        })}
+      </nav>
 
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className={cn(
-            "flex flex-col gap-0.5",
-            projects.length > 7 && "overflow-y-auto max-h-[260px]"
-          )}
-        >
-          {projects.length === 0 ? (
-            <p className="px-3 text-[11px] text-text-muted py-1 transition-colors duration-300">No projects yet</p>
-          ) : (
-            projects.map((p) => (
-              <motion.div key={p.id} variants={staggerItem}>
-                <ProjectDot
-                  project={p}
-                  active={pathname === `/projects/${p.id}`}
-                />
-              </motion.div>
-            ))
-          )}
-        </motion.div>
-      </div>
-
-      {/* ── Section 3: Bottom ── */}
-      <div className="mt-auto">
-        <div className="border-t border-[var(--border-primary)] mb-2" />
-
-        {/* Search / ⌘K */}
-        <motion.button
-          type="button"
-          onClick={openCommandPalette}
-          whileHover={{ x: 2, transition: springs.smooth }}
-          whileTap={{ scale: 0.98 }}
-          className={cn(
-            "flex items-center gap-3 w-full h-9 px-3 cursor-pointer",
-            "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover",
-            "transition-colors duration-150 ease-out"
-          )}
-        >
-          <SearchIcon className="w-[18px] h-[18px] shrink-0" bare />
-          <span className="text-sm flex-1 text-left">Search</span>
-          <span className="font-mono text-[11px] text-text-placeholder bg-bg-tertiary px-1.5 py-0.5 border border-border-primary rounded-sm">
-            ⌘K
-          </span>
-        </motion.button>
-
-        {/* Theme toggle */}
-        <ThemeToggleAscii />
-
-        {/* Settings */}
-        <motion.div whileHover={{ x: 2, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
-          <Link
-            href="/settings"
-            className={cn(
-              "flex items-center gap-3 h-9 px-3 cursor-pointer",
-              "transition-colors duration-150 ease-out",
-              pathname === "/settings"
-                ? "bg-sidebar-active text-text-primary"
-                : "text-text-tertiary hover:text-text-secondary hover:bg-sidebar-hover"
-            )}
-          >
-            <SettingsIcon className="w-[18px] h-[18px] shrink-0" />
-            <span className="text-sm">Settings</span>
-          </Link>
-        </motion.div>
-
-        <div className="border-t border-[var(--border-primary)] my-2" />
-
-        {/* User row */}
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-          <div
-            className={cn(
-              "w-7 h-7 shrink-0 rounded-lg",
-              "bg-bg-tertiary border border-border-primary",
-              "flex items-center justify-center",
-              "text-[11px] font-medium text-text-tertiary"
-            )}
-          >
-            N
-          </div>
-          <span className="text-sm text-text-tertiary">Nick</span>
-        </div>
-      </div>
     </motion.div>
   );
 }

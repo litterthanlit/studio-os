@@ -204,6 +204,17 @@ function BoardTab({ project }: { project: Project }) {
     setNotice(payload.notice ?? null);
   }
 
+  function pinReference(referenceId: string) {
+    setReferences((prev) => {
+      const target = prev.find((reference) => reference.id === referenceId);
+      if (!target) return prev;
+      const next = [target, ...prev.filter((reference) => reference.id !== referenceId)];
+      writeProjectReferences(project.id, next);
+      return next;
+    });
+    setNotice("Pinned reference to the top of the board.");
+  }
+
   async function importFiles(files: File[]) {
     const validFiles = files.filter((file) =>
       ["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)
@@ -347,7 +358,7 @@ function BoardTab({ project }: { project: Project }) {
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
             onClick={() => fileInputRef.current?.click()}
             className={cn(
-              "relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-8 py-16 text-center transition-colors duration-200",
+              "relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed px-8 py-16 text-center transition-colors duration-200",
               isDragActive
                 ? "border-[var(--accent)] bg-[var(--accent)]/5"
                 : "border-[var(--border-secondary)] bg-[var(--bg-secondary)] hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]"
@@ -376,7 +387,7 @@ function BoardTab({ project }: { project: Project }) {
                 "text-sm font-medium transition-colors duration-200",
                 isDragActive ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
               )}>
-                {isDragActive ? "Release to drop" : "Drop images here"}
+                {isDragActive ? "Release to drop" : "Drop references here"}
               </p>
               <p className="text-[11px] text-[var(--text-tertiary)]">
                 PNG, JPG, WEBP, GIF · or click to browse
@@ -441,38 +452,52 @@ function BoardTab({ project }: { project: Project }) {
             )}
             </AnimatePresence>
 
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+            <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
               {references.map((ref) => (
-                <article
+                <motion.article
                   key={ref.id}
-                  className="group relative overflow-hidden border border-card-border bg-card-bg transition-colors duration-300 rounded-xl"
+                  layout
+                  className="group relative mb-4 break-inside-avoid overflow-hidden rounded-lg border border-card-border/80 bg-card-bg transition-colors duration-300"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setActiveLightboxRef(ref)}
-                    className="block w-full"
-                  >
+                  <div className="relative overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={ref.imageUrl}
                       alt={ref.title ?? "Reference"}
-                      className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      className="h-auto w-full origin-center object-contain transition-transform duration-200 group-hover:scale-[1.02]"
                       loading="lazy"
                     />
-                  </button>
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
-                  <div className="pointer-events-none absolute left-2 top-2 rounded border border-white/20 bg-black/70 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-white backdrop-blur-sm">
-                    {ref.source}
+                    <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/20 bg-black/70 px-2.5 py-1 text-[9px] uppercase tracking-[0.1em] text-white backdrop-blur-sm">
+                      {ref.source}
+                    </div>
+
+                    <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => pinReference(ref.id)}
+                        className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur"
+                      >
+                        Pin
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLightboxRef(ref)}
+                        className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur"
+                      >
+                        Full-screen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeReference(ref.id)}
+                        aria-label="Delete reference"
+                        className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeReference(ref.id)}
-                    aria-label="Delete reference"
-                    className="absolute right-2 top-2 rounded border border-red-500/40 bg-black/80 px-1.5 py-0.5 text-[10px] text-red-300 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
-                  >
-                    ×
-                  </button>
 
                   <div className="space-y-1 p-2">
                     <p className="truncate text-[11px] text-[var(--text-secondary)] transition-colors duration-300">
@@ -489,26 +514,8 @@ function BoardTab({ project }: { project: Project }) {
                       </a>
                     )}
                   </div>
-                </article>
+                </motion.article>
               ))}
-
-              {/* ── Add more tile ── */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="group flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--border-secondary)] bg-[var(--bg-secondary)] transition-colors duration-200 hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-tertiary)] transition-colors duration-200 group-hover:border-[var(--accent)]/40 group-hover:text-[var(--accent)]">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M7 2v10M2 7h10" />
-                  </svg>
-                </div>
-                <span className="text-[10px] font-sans uppercase tracking-[0.1em] text-[var(--text-tertiary)] transition-colors duration-200 group-hover:text-[var(--text-secondary)]">
-                  Add more
-                </span>
-              </motion.div>
             </div>
 
             {/* Import from source buttons when board has content */}

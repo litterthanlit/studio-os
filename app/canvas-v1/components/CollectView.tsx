@@ -323,21 +323,21 @@ export function CollectView({
               </div>
 
               {images.length > 0 ? (
-                <div className="columns-1 gap-4 md:columns-2 xl:columns-3 2xl:columns-4">
+                <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
                   {images.map((image) => {
                     const pinned = selectedIds.has(image.id);
                     return (
                       <motion.div
                         key={image.id}
                         layout
-                        className="group relative mb-4 break-inside-avoid overflow-hidden rounded-[24px] border border-border-primary bg-bg-primary shadow-[0_18px_48px_rgba(0,0,0,0.14)]"
+                        className="group relative mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border-primary/80 bg-bg-primary shadow-[0_18px_48px_rgba(0,0,0,0.14)]"
                       >
                         <div className="relative">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={image.thumbnail || image.url}
                             alt={image.name}
-                            className="h-auto w-full object-cover"
+                            className="h-auto w-full origin-center object-contain transition-transform duration-200 group-hover:scale-[1.02]"
                           />
                           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                           <div className="absolute left-3 top-3">
@@ -386,12 +386,18 @@ export function CollectView({
                   })}
                 </div>
               ) : (
-                <div className="rounded-[28px] border border-dashed border-border-primary bg-bg-primary p-10 text-center shadow-[0_18px_48px_rgba(0,0,0,0.08)]">
+                <div className="rounded-lg border-2 border-dashed border-border-primary bg-bg-primary p-10 text-center shadow-[0_18px_48px_rgba(0,0,0,0.08)]">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-border-primary bg-bg-secondary text-text-muted">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13V4M10 4L7 7M10 4L13 7" />
+                      <path d="M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
+                    </svg>
+                  </div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-text-tertiary">
                     Reference board
                   </p>
                   <h3 className="mt-3 text-2xl font-semibold tracking-tight text-text-primary">
-                    Start with a dense visual board, not a blank prompt.
+                    Drop references here
                   </h3>
                   <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-text-secondary">
                     Bring in 6 to 20 references that genuinely share a taste direction. Studio OS will extract palette, typography, mood, and a concise creative reading from that cluster.

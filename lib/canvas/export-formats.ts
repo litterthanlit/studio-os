@@ -1,3 +1,10 @@
+import type { DesignSystemTokens } from "./generate-system";
+import type {
+  Breakpoint,
+  PageNode,
+  PageNodeStyle,
+} from "./compose";
+
 /**
  * Canvas Export Formats
  *
@@ -39,12 +46,22 @@ export interface ExportConfig {
   /** Source TSX string of the full page component */
   sourceCode?: string;
   tokens?: Partial<DesignTokens>;
+  pageTree?: PageNode;
+  composeTokens?: DesignSystemTokens;
 }
 
 export interface VirtualFile {
   path: string;
-  content: string;
+  content: string | Uint8Array;
 }
+
+export type ComposeExportFramework = "html" | "react" | "nextjs";
+
+export type ComposeExportOptions = {
+  framework: ComposeExportFramework;
+  includeAnimations: boolean;
+  imageHandling: "embedded" | "external";
+};
 
 // ---------------------------------------------------------------------------
 // Default design tokens per site type
@@ -183,6 +200,10 @@ function enc(s: string): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
+function toBytes(content: string | Uint8Array): Uint8Array {
+  return typeof content === "string" ? enc(content) : content;
+}
+
 function buildZip(files: VirtualFile[]): Blob {
   const localHeaders: Uint8Array[] = [];
   const centralDir: Uint8Array[] = [];
@@ -191,7 +212,7 @@ function buildZip(files: VirtualFile[]): Blob {
 
   for (const file of files) {
     const nameBytes = enc(file.path);
-    const dataBytes = enc(file.content);
+    const dataBytes = toBytes(file.content);
     const crc = crc32(dataBytes);
     const size = dataBytes.length;
 
@@ -1019,6 +1040,384 @@ export function downloadNextjsZip(cfg: ExportConfig): void {
   const zip = buildZip(files);
   const slug = cfg.siteName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   triggerDownload(zip, `${slug}-nextjs.zip`);
+}
+
+type ImageAsset = {
+  originalUrl: string;
+  outputPath: string;
+  mimeType: string;
+};
+
+const SYSTEM_FONT_NAMES = new Set([
+  "inter",
+  "helvetica neue",
+  "helvetica",
+  "arial",
+  "sans-serif",
+  "serif",
+  "georgia",
+  "times new roman",
+  "monospace",
+  "jetbrains mono",
+  "fira code",
+]);
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function slugifyFilename(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function sanitizeArbitrary(value: string): string {
+  return value.replace(/\s+/g, "_");
+}
+
+function quotedFontFamilies(fontFamily: string): string[] {
+  return fontFamily
+    .split(",")
+    .map((family) => family.trim().replace(/^['"]|['"]$/g, ""))
+    .filter(Boolean);
+}
+
+function googleFontsHref(fontFamily: string): string | null {
+  const families = quotedFontFamilies(fontFamily).filter(
+    (family) => !SYSTEM_FONT_NAMES.has(family.toLowerCase())
+  );
+  if (families.length === 0) return null;
+  const params = families
+    .map((family) => `family=${family.trim().replace(/\s+/g, "+")}:wght@400;500;600;700`)
+    .join("&");
+  return `https://fonts.googleapis.com/css2?${params}&display=swap`;
+}
+
+function mediaNodes(node: PageNode): PageNode[] {
+  const items = node.content?.mediaUrl ? [node] : [];
+  for (const child of node.children ?? []) {
+    items.push(...mediaNodes(child));
+  }
+  return items;
+}
+
+function inferImageExtension(url: string, mimeType: string): string {
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("webp")) return "webp";
+  if (mimeType.includes("gif")) return "gif";
+  if (mimeType.includes("svg")) return "svg";
+  if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
+  const clean = url.split("?")[0];
+  const ext = clean.split(".").pop();
+  return ext && ext.length <= 5 ? ext : "png";
+}
+
+function buildImageManifest(
+  pageTree: PageNode,
+  handling: ComposeExportOptions["imageHandling"]
+): {
+  map: Map<string, string>;
+  assets: ImageAsset[];
+} {
+  const map = new Map<string, string>();
+  const assets: ImageAsset[] = [];
+  const urls = Array.from(
+    new Set(
+      mediaNodes(pageTree)
+        .map((node) => node.content?.mediaUrl)
+        .filter((url): url is string => typeof url === "string" && url.length > 0)
+    )
+  );
+
+  urls.forEach((url, index) => {
+    if (handling === "embedded" || url.startsWith("data:")) {
+      map.set(url, url);
+      return;
+    }
+    const mimeMatch = url.match(/^data:([^;]+);/);
+    const mimeType = mimeMatch?.[1] ?? "image/png";
+    const outputPath = `images/asset-${index + 1}.${inferImageExtension(url, mimeType)}`;
+    map.set(url, outputPath);
+    assets.push({ originalUrl: url, outputPath, mimeType });
+  });
+
+  return { map, assets };
+}
+
+async function imageAssetToBytes(asset: ImageAsset): Promise<Uint8Array | null> {
+  if (asset.originalUrl.startsWith("data:")) {
+    const [, meta, base64 = ""] =
+      asset.originalUrl.match(/^data:([^;]+);base64,(.*)$/) ?? [];
+    if (!meta) return null;
+    const binary = atob(base64);
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  }
+
+  try {
+    const response = await fetch(asset.originalUrl);
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  } catch {
+    return null;
+  }
+}
+
+function classForColor(prefix: string, value?: string) {
+  return value ? `${prefix}-[${sanitizeArbitrary(value)}]` : "";
+}
+
+function classForSize(prefix: string, value?: number) {
+  return typeof value === "number" ? `${prefix}-[${value}px]` : "";
+}
+
+function classForStyle(style: Partial<PageNodeStyle>, tokens: DesignSystemTokens): string[] {
+  return [
+    classForColor("bg", style.background),
+    classForColor("text", style.foreground),
+    classForColor("border", style.borderColor),
+    classForSize("rounded", style.borderRadius),
+    classForSize("px", style.paddingX),
+    classForSize("py", style.paddingY),
+    classForSize("gap", style.gap),
+    classForSize("max-w", style.maxWidth),
+    classForSize("min-h", style.minHeight),
+    typeof style.fontSize === "number" ? `text-[${style.fontSize}px]` : "",
+    typeof style.fontWeight === "number" ? `font-[${style.fontWeight}]` : "",
+    typeof style.lineHeight === "number" ? `leading-[${style.lineHeight}]` : "",
+    typeof style.letterSpacing === "number"
+      ? `tracking-[${style.letterSpacing}em]`
+      : "",
+    typeof style.opacity === "number" ? `opacity-[${style.opacity}]` : "",
+    typeof style.blur === "number" && style.blur > 0 ? `backdrop-blur-[${style.blur}px]` : "",
+    style.align === "center" ? "text-center items-center" : style.align === "right" ? "text-right items-end" : "text-left items-start",
+    style.direction === "row" ? "flex-row" : "flex-col",
+    style.justify === "center"
+      ? "justify-center"
+      : style.justify === "end"
+      ? "justify-end"
+      : style.justify === "between"
+      ? "justify-between"
+      : "justify-start",
+    style.shadow === "medium"
+      ? "shadow-xl"
+      : style.shadow === "soft"
+      ? "shadow-md"
+      : "",
+    style.background ? "" : classForColor("bg", tokens.colors.background),
+  ].filter(Boolean);
+}
+
+function responsiveClasses(node: PageNode, tokens: DesignSystemTokens): string[] {
+  const classes: string[] = [];
+  const prefixes: Partial<Record<Breakpoint, string>> = {
+    tablet: "md",
+    mobile: "sm",
+  };
+  (["tablet", "mobile"] as Breakpoint[]).forEach((breakpoint) => {
+    const prefix = prefixes[breakpoint];
+    if (!prefix) return;
+    const style = node.responsiveOverrides?.[breakpoint];
+    if (!style) return;
+    classForStyle(style, tokens).forEach((item) => {
+      classes.push(`${prefix}:${item}`);
+    });
+  });
+  return classes;
+}
+
+function semanticWrapperTag(index: number, total: number) {
+  if (index === 0) return "header";
+  if (index === total - 1) return "footer";
+  return "section";
+}
+
+function renderMedia(node: PageNode, imageMap: Map<string, string>) {
+  const src = node.content?.mediaUrl;
+  if (!src) return "";
+  return `<img src="${escapeHtml(imageMap.get(src) ?? src)}" alt="${escapeHtml(
+    node.content?.mediaAlt ?? node.name
+  )}" class="w-full rounded-[inherit] object-cover" />`;
+}
+
+function renderNodeToTailwind(
+  node: PageNode,
+  tokens: DesignSystemTokens,
+  imageMap: Map<string, string>
+): string {
+  const classes = [...classForStyle(node.style ?? {}, tokens), ...responsiveClasses(node, tokens)]
+    .filter(Boolean)
+    .join(" ");
+  const children = (node.children ?? [])
+    .map((child) => renderNodeToTailwind(child, tokens, imageMap))
+    .join("");
+
+  switch (node.type) {
+    case "heading":
+      return `<h2 class="${classes || "text-4xl font-semibold tracking-tight"}">${escapeHtml(
+        node.content?.text ?? node.name
+      )}</h2>`;
+    case "paragraph":
+      return `<p class="${classes || "text-base text-slate-500"}">${escapeHtml(
+        node.content?.text ?? ""
+      )}</p>`;
+    case "button":
+      return `<a href="${escapeHtml(
+        node.content?.href ?? "#"
+      )}" class="${classes || "inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"}">${escapeHtml(
+        node.content?.text ?? node.content?.label ?? "Open"
+      )}</a>`;
+    case "button-row":
+    case "metric-row":
+    case "logo-row":
+      return `<div class="flex flex-wrap ${classes || "gap-3"}">${renderMedia(
+        node,
+        imageMap
+      )}${children}</div>`;
+    case "metric-item":
+    case "logo-item":
+    case "feature-card":
+    case "testimonial-card":
+    case "pricing-tier":
+      return `<article class="${classes || "rounded-3xl border border-slate-200 p-5"}">${renderMedia(
+        node,
+        imageMap
+      )}${node.content?.kicker ? `<p class="text-[10px] uppercase tracking-[0.14em] text-slate-400">${escapeHtml(node.content.kicker)}</p>` : ""}${node.content?.text ? `<h3 class="mt-2 text-lg font-semibold text-slate-950">${escapeHtml(node.content.text)}</h3>` : ""}${node.content?.price ? `<p class="mt-2 text-3xl font-semibold text-slate-950">${escapeHtml(node.content.price)}</p>` : ""}${node.content?.subtext ? `<p class="mt-2 text-sm text-slate-500">${escapeHtml(node.content.subtext)}</p>` : ""}${node.content?.meta ? `<p class="mt-3 text-xs uppercase tracking-[0.12em] text-slate-400">${escapeHtml(node.content.meta)}</p>` : ""}${children}</article>`;
+    case "feature-grid":
+    case "testimonial-grid":
+    case "pricing-grid": {
+      const columns = node.style?.columns ?? 3;
+      const columnClass =
+        columns === 2
+          ? "grid-cols-1 md:grid-cols-2"
+          : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
+      return `<div class="grid ${columnClass} ${classes || "gap-5"}">${children}</div>`;
+    }
+    case "section":
+      return `<section id="${escapeHtml(
+        node.id
+      )}" class="rounded-[28px] border ${classes || "border-slate-200 px-10 py-14"}"><div class="mx-auto flex w-full max-w-[1120px] flex-col gap-5">${renderMedia(
+        node,
+        imageMap
+      )}${children}</div></section>`;
+    case "page":
+      return children;
+    default:
+      return `<div class="${classes}">${renderMedia(node, imageMap)}${children}</div>`;
+  }
+}
+
+function composeHtmlDocument(args: {
+  pageTree: PageNode;
+  tokens: DesignSystemTokens;
+  siteName: string;
+  options: ComposeExportOptions;
+  imageMap: Map<string, string>;
+}) {
+  const { pageTree, tokens, siteName, options, imageMap } = args;
+  const fontHref = googleFontsHref(tokens.typography.fontFamily);
+  const sections = pageTree.children ?? [];
+  const wrappers = sections
+    .map((section, index) => {
+      const tag = semanticWrapperTag(index, sections.length);
+      return `<${tag} class="contents">${renderNodeToTailwind(
+        section,
+        tokens,
+        imageMap
+      )}</${tag}>`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(siteName)}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            screens: { sm: "375px", md: "768px", lg: "1440px" }
+          }
+        }
+      }
+    </script>
+    ${fontHref ? `<link rel="preconnect" href="https://fonts.googleapis.com" />` : ""}
+    ${fontHref ? `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />` : ""}
+    ${fontHref ? `<link href="${fontHref}" rel="stylesheet" />` : ""}
+  </head>
+  <body class="min-h-screen bg-[${sanitizeArbitrary(
+    tokens.colors.background
+  )}] text-[${sanitizeArbitrary(tokens.colors.text)}]">
+    <main class="mx-auto flex min-h-screen w-full flex-col gap-[18px] px-[24px] py-[24px]" style="font-family:${escapeHtml(
+      tokens.typography.fontFamily
+    )}">
+      ${renderMedia(pageTree, imageMap)}
+      ${wrappers}
+    </main>
+    ${
+      options.includeAnimations
+        ? `<script>document.querySelectorAll('section').forEach((section, index) => { section.classList.add('transition-all','duration-500'); section.style.opacity = '0'; section.style.transform = 'translateY(18px)'; requestAnimationFrame(() => { setTimeout(() => { section.style.opacity = '1'; section.style.transform = 'translateY(0)'; }, index * 80); }); });</script>`
+        : ""
+    }
+  </body>
+</html>`;
+}
+
+export function generateComposeExportPreview(
+  pageTree: PageNode,
+  tokens: DesignSystemTokens,
+  siteName: string,
+  options: ComposeExportOptions
+): string {
+  const { map } = buildImageManifest(pageTree, options.imageHandling);
+  return composeHtmlDocument({ pageTree, tokens, siteName, options, imageMap: map });
+}
+
+export async function downloadComposeHtmlZip(
+  pageTree: PageNode,
+  tokens: DesignSystemTokens,
+  siteName: string,
+  options: ComposeExportOptions
+): Promise<void> {
+  const { map, assets } = buildImageManifest(pageTree, options.imageHandling);
+  const files: VirtualFile[] = [
+    {
+      path: "index.html",
+      content: composeHtmlDocument({ pageTree, tokens, siteName, options, imageMap: map }),
+    },
+  ];
+
+  if (options.imageHandling === "external") {
+    const resolvedAssets: Array<VirtualFile | null> = await Promise.all(
+      assets.map(async (asset) => {
+        const bytes = await imageAssetToBytes(asset);
+        return bytes ? { path: asset.outputPath, content: bytes } : null;
+      })
+    );
+    files.push(...resolvedAssets.filter((asset): asset is VirtualFile => asset !== null));
+  }
+
+  const zip = buildZip(files);
+  triggerDownload(zip, `${slugifyFilename(siteName) || "studio-site"}-html.zip`);
+}
+
+export async function deployComposeHtmlToVercel(
+  pageTree: PageNode,
+  tokens: DesignSystemTokens,
+  siteName: string,
+  options: ComposeExportOptions
+): Promise<void> {
+  await downloadComposeHtmlZip(pageTree, tokens, siteName, options);
+  setTimeout(() => {
+    window.open("https://vercel.com/new", "_blank", "noopener,noreferrer");
+  }, 800);
 }
 
 // ---------------------------------------------------------------------------

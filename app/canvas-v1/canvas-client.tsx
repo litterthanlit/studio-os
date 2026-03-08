@@ -5,6 +5,13 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { ImageAnalysis, ReferenceImage } from "@/lib/canvas/analyze-images";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
@@ -38,12 +45,17 @@ import {
 } from "@/lib/canvas/compose";
 import {
   copyToClipboard,
+  deployComposeHtmlToVercel,
   deployToVercel,
+  downloadComposeHtmlZip,
   downloadHtml,
   downloadNextjsZip,
   downloadTSX,
+  generateComposeExportPreview,
   generateStandaloneHtml,
   toFramerPasteReady,
+  type ComposeExportFramework,
+  type ComposeExportOptions,
   type ExportConfig,
 } from "@/lib/canvas/export-formats";
 import {
@@ -872,20 +884,40 @@ function ExportMenu({
   code,
   siteName,
   siteType,
+  pageTree,
+  tokens,
   sectionCode,
   sectionName,
 }: {
   code: string | null;
   siteName: string;
   siteType: SiteType;
+  pageTree?: PageNode | null;
+  tokens?: DesignSystemTokens | null;
   sectionCode?: string | null;
   sectionName?: string | null;
 }) {
   const [copied, setCopied] = React.useState<string | null>(null);
-  if (!code) return null;
-  const sourceCode = code;
+  const [open, setOpen] = React.useState(false);
+  const [exporting, setExporting] = React.useState<string | null>(null);
+  const [options, setOptions] = React.useState<ComposeExportOptions>({
+    framework: "html",
+    includeAnimations: true,
+    imageHandling: "external",
+  });
+  const sourceCode = code ?? "";
 
   const cfg = getExportConfig(sourceCode, siteName, siteType);
+  const htmlPreview = React.useMemo(() => {
+    if (!pageTree || !tokens) return null;
+    return generateComposeExportPreview(pageTree, tokens, siteName, options);
+  }, [options, pageTree, siteName, tokens]);
+  const previewCode =
+    options.framework === "html"
+      ? htmlPreview
+      : sourceCode;
+  const canExportHtml = Boolean(pageTree && tokens);
+  if (!code) return null;
 
   async function handleCopy(format: "tsx" | "framer") {
     const text = format === "framer" ? toFramerPasteReady(sourceCode) : sourceCode;
@@ -895,66 +927,254 @@ function ExportMenu({
     setTimeout(() => setCopied(null), 1800);
   }
 
+  async function handleDownload() {
+    setExporting("download");
+    try {
+      if (options.framework === "html") {
+        if (!pageTree || !tokens) return;
+        await downloadComposeHtmlZip(pageTree, tokens, siteName, options);
+        return;
+      }
+      if (options.framework === "react") {
+        downloadTSX(sourceCode, siteName);
+        return;
+      }
+      downloadNextjsZip(cfg);
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleDeploy() {
+    setExporting("deploy");
+    try {
+      if (options.framework === "html") {
+        if (!pageTree || !tokens) return;
+        await deployComposeHtmlToVercel(pageTree, tokens, siteName, options);
+        return;
+      }
+      deployToVercel(cfg);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <>
       <Button
         type="button"
-        variant="secondary"
-        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-        onClick={() => handleCopy("tsx")}
+        className="h-9 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#4a69fc]"
+        onClick={() => setOpen(true)}
       >
-        {copied === "tsx" ? "Copied" : "Copy TSX"}
+        Export
       </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-        onClick={() => handleCopy("framer")}
-      >
-        {copied === "framer" ? "Copied" : "Framer"}
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-        onClick={() => downloadTSX(sourceCode, siteName)}
-      >
-        Download TSX
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-        onClick={() => downloadHtml(cfg)}
-      >
-        Download HTML
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-        onClick={() => downloadNextjsZip(cfg)}
-      >
-        Download Next.js
-      </Button>
-      {sectionCode && sectionName ? (
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-8 text-[10px] uppercase tracking-[0.12em]"
-          onClick={() => downloadTSX(sectionCode, sectionName)}
-        >
-          Export Section
-        </Button>
-      ) : null}
-      <Button
-        type="button"
-        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-        onClick={() => deployToVercel(cfg)}
-      >
-        Deploy to Vercel
-      </Button>
-    </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-[980px] border border-white/10 bg-[#0d1016] px-0 py-0 text-white shadow-[0_30px_80px_rgba(0,0,0,0.45)]">
+          <div className="grid min-h-[620px] grid-cols-[320px_minmax(0,1fr)]">
+            <div className="border-r border-white/10 px-5 py-5">
+              <DialogHeader className="mb-5">
+                <DialogTitle className="text-base text-white">Export</DialogTitle>
+                <DialogDescription className="text-xs text-white/45">
+                  Turn the current compose selection into deployable output.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/42">
+                    Framework
+                  </p>
+                  <div className="grid gap-2">
+                    {(
+                      [
+                        ["html", "HTML", "Single-page HTML with Tailwind CDN and image folder."],
+                        ["react", "React", "Export the composed page as a TSX component."],
+                        ["nextjs", "Next.js", "Starter project ZIP for Vercel deployment."],
+                      ] as Array<[ComposeExportFramework, string, string]>
+                    ).map(([value, label, description]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() =>
+                          setOptions((current) => ({ ...current, framework: value }))
+                        }
+                        className={cn(
+                          "rounded-2xl border px-4 py-3 text-left transition-colors",
+                          options.framework === value
+                            ? "border-[#3B5EFC]/40 bg-[#3B5EFC]/12"
+                            : "border-white/10 bg-white/5 hover:border-white/20"
+                        )}
+                      >
+                        <p className="text-sm font-medium text-white">{label}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-white/45">
+                          {description}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-[22px] border border-white/10 bg-white/5 p-4">
+                  <label className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/42">
+                        Include animations
+                      </p>
+                      <p className="mt-1 text-xs text-white/45">
+                        Adds lightweight entrance transitions to HTML export.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={options.includeAnimations}
+                      onChange={(event) =>
+                        setOptions((current) => ({
+                          ...current,
+                          includeAnimations: event.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 accent-[#3B5EFC]"
+                    />
+                  </label>
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-white/42">
+                      Image handling
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["external", "embedded"] as Array<ComposeExportOptions["imageHandling"]>).map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() =>
+                            setOptions((current) => ({ ...current, imageHandling: value }))
+                          }
+                          className={cn(
+                            "rounded-xl border px-3 py-2 text-[11px] uppercase tracking-[0.12em] transition-colors",
+                            options.imageHandling === value
+                              ? "border-[#3B5EFC]/35 bg-[#3B5EFC]/12 text-white"
+                              : "border-white/10 bg-white/5 text-white/55 hover:text-white"
+                          )}
+                        >
+                          {value === "external" ? "Image files" : "Base64 embed"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-[22px] border border-white/10 bg-white/5 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-white/42">
+                    Quick actions
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
+                      onClick={() => handleCopy("tsx")}
+                    >
+                      {copied === "tsx" ? "Copied" : "Copy TSX"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
+                      onClick={() => handleCopy("framer")}
+                    >
+                      {copied === "framer" ? "Copied" : "Copy Framer"}
+                    </Button>
+                    {sectionCode && sectionName ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
+                        onClick={() => downloadTSX(sectionCode, sectionName)}
+                      >
+                        Export Section
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-white/45">
+                  {options.framework === "html"
+                    ? "HTML export bundles index.html plus an images folder and respects Compose breakpoint overrides."
+                    : options.framework === "react"
+                    ? "React export uses the compiled TSX structure from the selected artboard."
+                    : "Next.js export packages the selected artboard into a deployable starter project ZIP."}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-col">
+              <div className="border-b border-white/10 px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-white/42">
+                      Preview
+                    </p>
+                    <p className="mt-1 text-sm text-white/72">
+                      {options.framework === "html"
+                        ? "Tailwind HTML output"
+                        : options.framework === "react"
+                        ? "TSX component output"
+                        : "Next.js page source"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {options.framework !== "react" ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-9 rounded-full px-4 text-[10px] uppercase tracking-[0.12em]"
+                        disabled={exporting !== null || (options.framework === "html" && !canExportHtml)}
+                        onClick={handleDeploy}
+                      >
+                        {exporting === "deploy" ? "Deploying..." : "Deploy to Vercel"}
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      className="h-9 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#4a69fc]"
+                      disabled={exporting !== null || (options.framework === "html" && !canExportHtml)}
+                      onClick={handleDownload}
+                    >
+                      {exporting === "download"
+                        ? "Preparing..."
+                        : options.framework === "html"
+                        ? "Download .zip"
+                        : options.framework === "react"
+                        ? "Download TSX"
+                        : "Download Next.js"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 px-5 py-5">
+                {options.framework === "html" && !canExportHtml ? (
+                  <div className="flex h-full items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] px-8 text-center">
+                    <div>
+                      <p className="text-sm font-medium text-white">HTML export needs a composed artboard.</p>
+                      <p className="mt-2 text-xs leading-relaxed text-white/45">
+                        Select or create an artboard in Compose to generate semantic HTML and Tailwind output.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full overflow-hidden rounded-[24px] border border-white/10 bg-[#090b10]">
+                    <pre className="h-full overflow-auto whitespace-pre-wrap break-words p-5 text-[12px] leading-6 text-white/78">
+                      <code>{previewCode}</code>
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -2229,6 +2449,8 @@ function ComposeStage({
                 code={exportCode}
                 siteName={siteName}
                 siteType={siteType}
+                pageTree={exportArtboard?.pageTree ?? null}
+                tokens={tokens}
                 sectionCode={sectionExportCode}
                 sectionName={selectedSection?.name ?? null}
               />
@@ -4190,6 +4412,8 @@ export function CanvasPage({
                             code={selectedVariant.compiledCode}
                             siteName={setName || inferSiteName(sitePrompt)}
                             siteType={siteType}
+                            pageTree={selectedVariant.pageTree}
+                            tokens={tokens}
                           />
                         ) : null}
                       </div>

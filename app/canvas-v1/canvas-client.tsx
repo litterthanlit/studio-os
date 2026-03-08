@@ -113,6 +113,8 @@ const STATIC_PALETTES: Record<string, { name: string; palette: string[] }> = {
   "personal-portfolio": { name: "Personal Portfolio", palette: ["#020617", "#f9fafb", "#64748b", "#e5e7eb", "#0f172a"] },
 };
 
+const COMPOSE_UI_PREFERENCES_KEY = "studio-os:compose-ui-preferences";
+
 function toReferenceImage(reference: StoredReference): ReferenceImage {
   return {
     id: reference.id || `ref-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -1083,6 +1085,8 @@ function ComposeStage({
   document,
   tokens,
   references,
+  projectId,
+  projectName,
   siteName,
   siteType,
   onChange,
@@ -1090,6 +1094,8 @@ function ComposeStage({
   document: ComposeDocument;
   tokens: DesignSystemTokens;
   references: ReferenceImage[];
+  projectId?: string | null;
+  projectName: string;
   siteName: string;
   siteType: SiteType;
   onChange: (document: ComposeDocument) => void;
@@ -1097,6 +1103,9 @@ function ComposeStage({
   const [aiPrompt, setAiPrompt] = React.useState("");
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiLoading, setAiLoading] = React.useState(false);
+  const [showLayers, setShowLayers] = React.useState(false);
+  const [showMinimap, setShowMinimap] = React.useState(false);
+  const [showShortcuts, setShowShortcuts] = React.useState(false);
   const [referencesDockOpen, setReferencesDockOpen] = React.useState(false);
   const [systemDockOpen, setSystemDockOpen] = React.useState(false);
   const canvasRef = React.useRef<HTMLDivElement>(null);
@@ -1138,6 +1147,67 @@ function ComposeStage({
       zoom: document.zoom,
     };
   }, [document.pan, document.zoom]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(COMPOSE_UI_PREFERENCES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        showLayers?: boolean;
+        showMinimap?: boolean;
+      };
+      setShowLayers(Boolean(parsed.showLayers));
+      setShowMinimap(Boolean(parsed.showMinimap));
+    } catch {
+      // Ignore malformed UI preference payloads
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      COMPOSE_UI_PREFERENCES_KEY,
+      JSON.stringify({ showLayers, showMinimap })
+    );
+  }, [showLayers, showMinimap]);
+
+  React.useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isTypingTarget =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean(target?.isContentEditable);
+
+      if ((event.key === "?" || (event.shiftKey && event.key === "/")) && !isTypingTarget) {
+        event.preventDefault();
+        setShowShortcuts((current) => !current);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setShowShortcuts(false);
+        return;
+      }
+
+      if (isTypingTarget) return;
+
+      if (event.key.toLowerCase() === "l") {
+        event.preventDefault();
+        setShowLayers((current) => !current);
+      }
+
+      if (event.key.toLowerCase() === "m") {
+        event.preventDefault();
+        setShowMinimap((current) => !current);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   React.useEffect(() => {
     const element = canvasRef.current;
@@ -1503,225 +1573,800 @@ function ComposeStage({
     ];
   }, [selectedNode]);
 
+  const projectHref = projectId ? `/projects/${projectId}` : "/projects";
+  const inspectorVisible = Boolean(selectedNode);
+
   return (
-    <CanvasStageLayout
-      stage="compose"
-      leftWidth="320px"
-      rightWidth="340px"
-      leftPanel={
-        <div className="flex h-full flex-col">
-          <div className="border-b border-border-subtle px-4 py-4">
-            <PanelSectionLabel
-              label="Layers Panel"
-              detail="Artboards and structured page layers for the current compose document."
-            />
+    <div className="relative flex min-h-0 flex-1 flex-col bg-[#090b10]">
+      <div className="border-b border-border-primary bg-[#0d1016]/92 px-4 py-3 backdrop-blur">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href={projectHref}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/78 transition-colors hover:border-white/18 hover:text-white"
+              aria-label="Back to project"
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
+              </svg>
+            </Link>
+            <div className="min-w-0">
+              <p className="truncate text-[12px] font-medium uppercase tracking-[0.14em] text-white/88">
+                {projectName}
+              </p>
+              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/38">
+                Compose
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowLayers((current) => !current)}
+              className={cn(
+                "ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
+                showLayers
+                  ? "border-[#3B5EFC]/30 bg-[#3B5EFC]/14 text-white"
+                  : "border-white/10 bg-white/5 text-white/60 hover:text-white"
+              )}
+              aria-label="Toggle layers panel"
+              title="Layers (L)"
+            >
+              <StepIcon icon="layout" />
+            </button>
           </div>
 
-          <div className="flex-1 space-y-5 overflow-y-auto p-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Artboards
-                </p>
-                <span className="text-[10px] text-text-muted">{document.artboards.length}</span>
-              </div>
-              {document.artboards.map((artboard) => (
-                <div
-                  key={artboard.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() =>
-                    updateDocument({
-                      selectedArtboardId: artboard.id,
-                      selectedNodeId:
-                        document.selectedArtboardId === artboard.id
-                          ? document.selectedNodeId ?? artboard.pageTree.id
-                          : artboard.pageTree.id,
-                    })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter" && event.key !== " ") {
-                      return;
-                    }
-                    event.preventDefault();
-                    updateDocument({
-                      selectedArtboardId: artboard.id,
-                      selectedNodeId:
-                        document.selectedArtboardId === artboard.id
-                          ? document.selectedNodeId ?? artboard.pageTree.id
-                          : artboard.pageTree.id,
-                    });
-                  }}
-                  className={cn(
-                    "w-full rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
-                    document.selectedArtboardId === artboard.id
-                      ? "border-accent bg-accent/8"
-                      : "border-border-primary bg-bg-secondary hover:border-border-hover"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
-                      <p className="mt-1 text-[10px] text-text-muted">
-                        {Math.round(artboard.x)} / {Math.round(artboard.y)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-[9px] uppercase tracking-[0.12em]",
-                        document.primaryArtboardId === artboard.id
-                          ? "bg-emerald-500/12 text-emerald-400"
-                          : "bg-bg-primary text-text-muted"
-                      )}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        updateDocument({ primaryArtboardId: artboard.id });
-                      }}
-                    >
-                      {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+            {BREAKPOINT_OPTIONS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => updateDocument({ breakpoint: item.key })}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
+                  document.breakpoint === item.key
+                    ? "bg-white text-[#0b0e14]"
+                    : "text-white/55 hover:text-white"
+                )}
+              >
+                {item.short}
+              </button>
+            ))}
+          </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Tree
-                </p>
-                {selectedArtboard ? (
-                  <span className="truncate text-[10px] text-text-muted">
-                    {selectedArtboard.name}
-                  </span>
-                ) : null}
-              </div>
-              <div className="space-y-1 rounded-[24px] border border-border-primary bg-bg-secondary p-2">
-                {layers.map(({ node, depth }) => (
-                  <button
-                    key={node.id}
-                    type="button"
-                    onClick={() => updateDocument({ selectedNodeId: node.id })}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] transition-colors",
-                      document.selectedNodeId === node.id
-                        ? "bg-accent/10 text-text-primary"
-                        : "text-text-muted hover:bg-bg-primary hover:text-text-secondary"
-                    )}
-                    style={{ paddingLeft: 12 + depth * 14 }}
-                  >
-                    <span className="text-[10px] uppercase tracking-[0.08em] opacity-50">
-                      {node.type}
-                    </span>
-                    <span className="truncate">{formatNodeLabel(node)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] border border-border-primary bg-bg-secondary p-4">
-              <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                Canvas Status
-              </p>
-              <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                {references.length} project references are still attached to this canvas. Overlays and docked references arrive in Session 3.
-              </p>
-            </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowMinimap((current) => !current)}
+              className={cn(
+                "inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors",
+                showMinimap
+                  ? "border-[#3B5EFC]/30 bg-[#3B5EFC]/14 text-white"
+                  : "border-white/10 bg-white/5 text-white/60 hover:text-white"
+              )}
+              aria-label="Toggle minimap"
+              title="Minimap (M)"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.6" />
+                <path d="M6 6.25h4M6 9.5h2.5" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowShortcuts(true)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition-colors hover:text-white"
+              aria-label="Show shortcuts"
+              title="Shortcuts (?)"
+            >
+              ?
+            </button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-9 rounded-full px-4 text-[10px] uppercase tracking-[0.12em]"
+              onClick={handlePreview}
+              disabled={!exportCode}
+            >
+              Preview
+            </Button>
+            {exportCode ? (
+              <ExportMenu
+                code={exportCode}
+                siteName={siteName}
+                siteType={siteType}
+                sectionCode={sectionExportCode}
+                sectionName={selectedSection?.name ?? null}
+              />
+            ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-9 rounded-full text-[10px] uppercase tracking-[0.12em]"
+              onClick={() => updateDocument({ zoom: Math.max(0.1, document.zoom / 1.15) })}
+            >
+              −
+            </Button>
+            <span className="w-12 text-center font-mono text-[11px] text-white/55">
+              {Math.round(document.zoom * 100)}%
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-9 rounded-full text-[10px] uppercase tracking-[0.12em]"
+              onClick={() => updateDocument({ zoom: Math.min(5, document.zoom * 1.15) })}
+            >
+              +
+            </Button>
           </div>
         </div>
-      }
-      centerPanel={
-        <div className="min-w-0 flex h-full flex-col bg-[#090b10]">
-          <div className="border-b border-border-primary bg-bg-primary px-5 py-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1 rounded-full border border-border-primary bg-bg-secondary p-1">
-                {BREAKPOINT_OPTIONS.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => updateDocument({ breakpoint: item.key })}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                      document.breakpoint === item.key
-                        ? "bg-accent text-white"
-                        : "text-text-muted hover:text-text-secondary"
-                    )}
-                  >
-                    {item.label} <span className="opacity-60">{item.short}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-2 overflow-x-auto text-[11px] text-text-muted">
-                  {selectionPath.length > 0 ? (
-                    selectionPath.map((node, index) => (
-                      <React.Fragment key={node.id}>
-                        {index > 0 ? <span className="text-text-muted/40">/</span> : null}
-                        <button
-                          type="button"
-                          className={cn(
-                            "truncate whitespace-nowrap hover:text-text-secondary",
-                            document.selectedNodeId === node.id && "text-text-primary"
-                          )}
-                          onClick={() => updateDocument({ selectedNodeId: node.id })}
-                        >
-                          {node.name}
-                        </button>
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    <span>No selection yet. Pick an artboard or block to inspect it.</span>
-                  )}
-                </div>
-                <p className="mt-1 text-[11px] text-text-muted">
-                  Side-by-side generated variants are now artboards on a single infinite board.
-                </p>
-              </div>
+      </div>
 
-              <div className="ml-auto flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-8 rounded-full px-4 text-[10px] uppercase tracking-[0.12em]"
-                  onClick={handlePreview}
-                  disabled={!exportCode}
-                >
-                  Preview
-                </Button>
-                {exportCode ? (
-                  <ExportMenu
-                    code={exportCode}
-                    siteName={siteName}
-                    siteType={siteType}
-                    sectionCode={sectionExportCode}
-                    sectionName={selectedSection?.name ?? null}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <AnimatePresence initial={false}>
+          {showLayers ? (
+            <motion.aside
+              initial={{ x: -18, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -18, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute bottom-4 left-4 top-4 z-20 w-[320px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
+            >
+              <div className="flex h-full flex-col">
+                <div className="border-b border-white/10 px-4 py-4">
+                  <PanelSectionLabel
+                    label="Layers"
+                    detail="Structured pages, sections, and blocks for the current site."
                   />
-                ) : null}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-8 rounded-full text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => updateDocument({ zoom: Math.max(0.1, document.zoom / 1.15) })}
-                >
-                  −
-                </Button>
-                <span className="w-12 text-center font-mono text-[11px] text-text-muted">
-                  {Math.round(document.zoom * 100)}%
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-8 rounded-full text-[10px] uppercase tracking-[0.12em]"
-                  onClick={() => updateDocument({ zoom: Math.min(5, document.zoom * 1.15) })}
-                >
-                  +
-                </Button>
-              </div>
-            </div>
-          </div>
+                </div>
 
-          <div className="relative min-h-0 flex-1 overflow-hidden">
+                <div className="flex-1 space-y-5 overflow-y-auto p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/70">
+                        Artboards
+                      </p>
+                      <span className="text-[10px] text-white/40">{document.artboards.length}</span>
+                    </div>
+                    {document.artboards.map((artboard) => (
+                      <div
+                        key={artboard.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          updateDocument({
+                            selectedArtboardId: artboard.id,
+                            selectedNodeId:
+                              document.selectedArtboardId === artboard.id
+                                ? document.selectedNodeId ?? artboard.pageTree.id
+                                : artboard.pageTree.id,
+                          })
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                          }
+                          event.preventDefault();
+                          updateDocument({
+                            selectedArtboardId: artboard.id,
+                            selectedNodeId:
+                              document.selectedArtboardId === artboard.id
+                                ? document.selectedNodeId ?? artboard.pageTree.id
+                                : artboard.pageTree.id,
+                          });
+                        }}
+                        className={cn(
+                          "w-full rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+                          document.selectedArtboardId === artboard.id
+                            ? "border-[#3B5EFC]/35 bg-[#3B5EFC]/10"
+                            : "border-white/10 bg-white/5 hover:border-white/20"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[12px] font-medium text-white">{artboard.name}</p>
+                            <p className="mt-1 text-[10px] text-white/42">
+                              {Math.round(artboard.x)} / {Math.round(artboard.y)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-[9px] uppercase tracking-[0.12em]",
+                              document.primaryArtboardId === artboard.id
+                                ? "bg-emerald-500/12 text-emerald-300"
+                                : "bg-white/5 text-white/45"
+                            )}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              updateDocument({ primaryArtboardId: artboard.id });
+                            }}
+                          >
+                            {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/70">
+                        Tree
+                      </p>
+                      {selectedArtboard ? (
+                        <span className="truncate text-[10px] text-white/40">
+                          {selectedArtboard.name}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="space-y-1 rounded-[24px] border border-white/10 bg-white/5 p-2">
+                      {layers.map(({ node, depth }) => (
+                        <button
+                          key={node.id}
+                          type="button"
+                          onClick={() => updateDocument({ selectedNodeId: node.id })}
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] transition-colors",
+                            document.selectedNodeId === node.id
+                              ? "bg-white/12 text-white"
+                              : "text-white/45 hover:bg-white/6 hover:text-white/82"
+                          )}
+                          style={{ paddingLeft: 12 + depth * 14 }}
+                        >
+                          <span className="text-[10px] uppercase tracking-[0.08em] opacity-50">
+                            {node.type}
+                          </span>
+                          <span className="truncate">{formatNodeLabel(node)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-[24px] border border-white/10 bg-white/5 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/70">
+                      Canvas Tools
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-9 text-[10px] uppercase tracking-[0.12em]"
+                        onClick={() => setReferencesDockOpen((open) => !open)}
+                      >
+                        {referencesDockOpen ? "Hide refs" : "References"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-9 text-[10px] uppercase tracking-[0.12em]"
+                        onClick={() => setSystemDockOpen((open) => !open)}
+                      >
+                        {systemDockOpen ? "Hide system" : "System"}
+                      </Button>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-white/42">
+                      Press <span className="font-mono text-white/70">L</span> to toggle this panel and <span className="font-mono text-white/70">M</span> to show the minimap.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.aside>
+          ) : null}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {inspectorVisible ? (
+            <motion.aside
+              initial={{ x: 18, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 18, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute bottom-4 right-4 top-4 z-20 w-[340px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
+            >
+              <div className="flex h-full flex-col">
+                <div className="border-b border-white/10 px-4 py-4">
+                  <PanelSectionLabel
+                    label="Inspector"
+                    detail="Appears only when something is selected."
+                  />
+                  <div className="mt-3 flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+                    {(["content", "style", "layout", "effects", "ai"] as InspectorTab[]).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => updateDocument({ inspectorTab: tab })}
+                        className={cn(
+                          "flex-1 rounded-md px-2 py-1.5 text-[10px] uppercase tracking-[0.12em]",
+                          document.inspectorTab === tab
+                            ? "bg-white text-[#0b0e14]"
+                            : "text-white/45 hover:text-white/82"
+                        )}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                  {selectedNode ? (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/55">
+                        Selection
+                      </p>
+                      <p className="mt-2 text-[13px] font-medium text-white">{selectedNode.name}</p>
+                      <p className="mt-1 text-[11px] text-white/45">{selectedNode.type}</p>
+                    </div>
+                  ) : null}
+
+                  {selectedNode && document.inspectorTab === "content" ? (
+                    <div className="space-y-4">
+                      {Object.entries(selectedNode.content ?? {})
+                        .filter(([key]) => !["mediaUrl", "mediaAlt"].includes(key))
+                        .filter(([, value]) => typeof value === "string")
+                        .map(([key, value]) => (
+                          <label key={key} className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              {key}
+                            </span>
+                            {String(value).length > 80 ? (
+                              <textarea
+                                value={String(value)}
+                                onChange={(event) =>
+                                  updateSelectedContent(
+                                    key as keyof PageNodeContent,
+                                    event.target.value
+                                  )
+                                }
+                                rows={4}
+                                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                              />
+                            ) : (
+                              <Input
+                                value={String(value)}
+                                onChange={(event) =>
+                                  updateSelectedContent(
+                                    key as keyof PageNodeContent,
+                                    event.target.value
+                                  )
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            )}
+                          </label>
+                        ))}
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Media
+                        </p>
+                        <div className="mt-3 space-y-3">
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Media URL
+                            </span>
+                            <Input
+                              value={selectedNode.content?.mediaUrl ?? ""}
+                              onChange={(event) =>
+                                updateSelectedContent("mediaUrl", event.target.value)
+                              }
+                              placeholder="https://..."
+                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                            />
+                          </label>
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Alt Text
+                            </span>
+                            <Input
+                              value={selectedNode.content?.mediaAlt ?? ""}
+                              onChange={(event) =>
+                                updateSelectedContent("mediaAlt", event.target.value)
+                              }
+                              placeholder="Describe the image"
+                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedNode && document.inspectorTab === "style" ? (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Typography
+                        </p>
+                        <div className="mt-3 space-y-3">
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Font Family
+                            </span>
+                            <Input
+                              value={selectedNode.style?.fontFamily ?? ""}
+                              onChange={(event) =>
+                                updateSelectedStyle("fontFamily", event.target.value)
+                              }
+                              placeholder="inherit"
+                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                            />
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <label className="block space-y-1.5">
+                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                                Font Size
+                              </span>
+                              <Input
+                                type="number"
+                                value={String(selectedNode.style?.fontSize ?? "")}
+                                onChange={(event) =>
+                                  updateSelectedStyle(
+                                    "fontSize",
+                                    Number(event.target.value || 0)
+                                  )
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            </label>
+                            <label className="block space-y-1.5">
+                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                                Weight
+                              </span>
+                              <Input
+                                type="number"
+                                value={String(selectedNode.style?.fontWeight ?? "")}
+                                onChange={(event) =>
+                                  updateSelectedStyle(
+                                    "fontWeight",
+                                    Number(event.target.value || 0)
+                                  )
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            </label>
+                            <label className="block space-y-1.5">
+                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                                Line Height
+                              </span>
+                              <Input
+                                type="number"
+                                step="0.05"
+                                value={String(selectedNode.style?.lineHeight ?? "")}
+                                onChange={(event) =>
+                                  updateSelectedStyle(
+                                    "lineHeight",
+                                    Number(event.target.value || 0)
+                                  )
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            </label>
+                            <label className="block space-y-1.5">
+                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                                Letter Spacing
+                              </span>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={String(selectedNode.style?.letterSpacing ?? "")}
+                                onChange={(event) =>
+                                  updateSelectedStyle(
+                                    "letterSpacing",
+                                    Number(event.target.value || 0)
+                                  )
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Surface
+                        </p>
+                        <div className="mt-3 space-y-3">
+                          {(
+                            [
+                              ["background", "Background"],
+                              ["foreground", "Foreground"],
+                              ["borderColor", "Border"],
+                              ["accent", "Accent"],
+                            ] as Array<[keyof PageNodeStyle, string]>
+                          ).map(([key, label]) => (
+                            <label key={String(key)} className="block space-y-1.5">
+                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                                {label}
+                              </span>
+                              <Input
+                                value={String((selectedNode.style ?? {})[key] ?? "")}
+                                onChange={(event) =>
+                                  updateSelectedStyle(key, event.target.value)
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            </label>
+                          ))}
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Radius
+                            </span>
+                            <Input
+                              type="number"
+                              value={String(selectedNode.style?.borderRadius ?? "")}
+                              onChange={(event) =>
+                                updateSelectedStyle(
+                                  "borderRadius",
+                                  Number(event.target.value || 0)
+                                )
+                              }
+                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedNode && document.inspectorTab === "layout" ? (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Structure
+                        </p>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Direction
+                            </span>
+                            <select
+                              value={selectedNode.style?.direction ?? "column"}
+                              onChange={(event) =>
+                                updateSelectedStyle(
+                                  "direction",
+                                  event.target.value as PageNodeStyle["direction"]
+                                )
+                              }
+                              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+                            >
+                              <option value="column">Column</option>
+                              <option value="row">Row</option>
+                            </select>
+                          </label>
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Justify
+                            </span>
+                            <select
+                              value={selectedNode.style?.justify ?? "start"}
+                              onChange={(event) =>
+                                updateSelectedStyle(
+                                  "justify",
+                                  event.target.value as PageNodeStyle["justify"]
+                                )
+                              }
+                              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+                            >
+                              <option value="start">Start</option>
+                              <option value="center">Center</option>
+                              <option value="end">End</option>
+                              <option value="between">Space Between</option>
+                            </select>
+                          </label>
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Align
+                            </span>
+                            <select
+                              value={selectedNode.style?.align ?? "left"}
+                              onChange={(event) =>
+                                updateSelectedStyle(
+                                  "align",
+                                  event.target.value as PageNodeStyle["align"]
+                                )
+                              }
+                              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+                            >
+                              <option value="left">Left</option>
+                              <option value="center">Center</option>
+                              <option value="right">Right</option>
+                            </select>
+                          </label>
+                          <label className="block space-y-1.5">
+                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                              Columns
+                            </span>
+                            <Input
+                              type="number"
+                              value={String(selectedNode.style?.columns ?? "")}
+                              onChange={(event) =>
+                                updateSelectedStyle("columns", Number(event.target.value || 0))
+                              }
+                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Spacing
+                        </p>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          {(
+                            [
+                              ["paddingX", "Padding X"],
+                              ["paddingY", "Padding Y"],
+                              ["gap", "Gap"],
+                              ["maxWidth", "Max Width"],
+                              ["minHeight", "Min Height"],
+                            ] as Array<[keyof PageNodeStyle, string]>
+                          ).map(([key, label]) => (
+                            <label key={String(key)} className="block space-y-1.5">
+                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                                {label}
+                              </span>
+                              <Input
+                                type="number"
+                                value={String(selectedNode.style?.[key] ?? "")}
+                                onChange={(event) =>
+                                  updateSelectedStyle(key, Number(event.target.value || 0))
+                                }
+                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-[11px] text-white/45">
+                        You are editing <strong className="text-white/80">{document.breakpoint}</strong> overrides. Desktop writes to base style; Tablet and Mobile write to responsive overrides.
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedNode && document.inspectorTab === "effects" ? (
+                    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/45">
+                        Effects
+                      </p>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Opacity
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.05"
+                          min="0"
+                          max="1"
+                          value={String(selectedNode.style?.opacity ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle(
+                              "opacity",
+                              Number(event.target.value || 0)
+                            )
+                          }
+                          className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Blur
+                        </span>
+                        <Input
+                          type="number"
+                          value={String(selectedNode.style?.blur ?? "")}
+                          onChange={(event) =>
+                            updateSelectedStyle("blur", Number(event.target.value || 0))
+                          }
+                          className="h-10 border-white/10 bg-white/5 text-sm text-white"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          Shadow
+                        </span>
+                        <select
+                          value={selectedNode.style?.shadow ?? "none"}
+                          onChange={(event) =>
+                            updateSelectedStyle(
+                              "shadow",
+                              event.target.value as PageNodeStyle["shadow"]
+                            )
+                          }
+                          className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+                        >
+                          <option value="none">None</option>
+                          <option value="soft">Soft</option>
+                          <option value="medium">Medium</option>
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
+
+                  {selectedNode && document.inspectorTab === "ai" ? (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/45">
+                          Selection-Aware Actions
+                        </p>
+                        <p className="mt-2 text-[12px] leading-relaxed text-white/45">
+                          {selectedNode.type === "page"
+                            ? "Page selected. Regenerate the whole direction while keeping it inside the current artboard."
+                            : selectedNode.type === "section"
+                            ? "Section selected. Rewrite, restyle, or regenerate this slice without leaving Compose."
+                            : "Block selected. Make targeted content or style changes directly from the inspector."}
+                        </p>
+                      </div>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          AI Prompt
+                        </span>
+                        <textarea
+                          value={aiPrompt}
+                          onChange={(event) => setAiPrompt(event.target.value)}
+                          rows={4}
+                          placeholder="Sharpen the message, make this section more confident, restyle it for a stronger editorial feel…"
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                        />
+                      </label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {activeAiActions.map((item) => (
+                          <Button
+                            key={item.label}
+                            type="button"
+                            variant="secondary"
+                            className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
+                            onClick={() => applyAiAction(item.action)}
+                            disabled={aiLoading}
+                          >
+                            {item.label}
+                          </Button>
+                        ))}
+                      </div>
+                      {aiError ? (
+                        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
+                          {aiError}
+                        </div>
+                      ) : null}
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
+                          System Context
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          {[
+                            tokens.colors.primary,
+                            tokens.colors.secondary,
+                            tokens.colors.accent,
+                            tokens.colors.background,
+                            tokens.colors.surface,
+                          ].map((color) => (
+                            <div
+                              key={color}
+                              className="h-8 w-8 rounded-lg border border-white/10"
+                              style={{ background: color }}
+                            />
+                          ))}
+                        </div>
+                        <p className="mt-3 text-[11px] text-white/45">
+                          {tokens.typography.fontFamily}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </motion.aside>
+          ) : null}
+        </AnimatePresence>
+
+        <div className="absolute inset-0">
             <div
               ref={canvasRef}
               className="h-full w-full cursor-grab overflow-hidden"
@@ -1736,20 +2381,6 @@ function ComposeStage({
               onMouseUp={clearPointerState}
               onMouseLeave={clearPointerState}
             >
-              <button
-                type="button"
-                onClick={() => setReferencesDockOpen((open) => !open)}
-                className="absolute left-4 top-4 z-20 rounded-full border border-white/10 bg-[#0d1016]/92 px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-white/80 backdrop-blur transition-colors hover:text-white"
-              >
-                {referencesDockOpen ? "Hide References" : "References"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSystemDockOpen((open) => !open)}
-                className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-[#0d1016]/92 px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-white/80 backdrop-blur transition-colors hover:text-white"
-              >
-                {systemDockOpen ? "Hide System" : "System"}
-              </button>
               <AnimatePresence initial={false}>
                 {referencesDockOpen ? (
                   <motion.div
@@ -2048,9 +2679,17 @@ function ComposeStage({
                 ))}
               </div>
             </div>
+        </div>
 
-            {minimap ? (
-              <div className="pointer-events-none absolute bottom-5 right-5 z-10 w-[244px] rounded-[22px] border border-white/10 bg-[#0d1016]/92 p-3 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur">
+        <AnimatePresence initial={false}>
+          {showMinimap && minimap ? (
+            <motion.div
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 16, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="pointer-events-none absolute bottom-5 right-5 z-10 w-[244px] rounded-[22px] border border-white/10 bg-[#0d1016]/92 p-3 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
+            >
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-white/70">
                     Minimap
@@ -2092,513 +2731,70 @@ function ComposeStage({
                     }}
                   />
                 </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      }
-      rightPanel={
-        <div className="flex h-full flex-col">
-          <div className="border-b border-border-subtle px-4 py-4">
-            <PanelSectionLabel
-              label="Inspector"
-              detail="Context-aware editing shell for the current selection."
-            />
-            <div className="mt-3 flex gap-1 rounded-lg border border-border-primary bg-bg-secondary p-1">
-              {(["content", "style", "layout", "effects", "ai"] as InspectorTab[]).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => updateDocument({ inspectorTab: tab })}
-                  className={cn(
-                    "flex-1 rounded-md px-2 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                    document.inspectorTab === tab
-                      ? "bg-accent text-white"
-                      : "text-text-muted hover:text-text-secondary"
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-          </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {!selectedNode ? (
-              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4 text-[12px] text-text-muted">
-                Select an artboard, section, or block to populate the inspector.
-              </div>
-            ) : null}
-
-            {selectedNode ? (
-              <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Selection
-                </p>
-                <p className="mt-2 text-[13px] font-medium text-text-primary">{selectedNode.name}</p>
-                <p className="mt-1 text-[11px] text-text-muted">{selectedNode.type}</p>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "content" ? (
-              <div className="space-y-4">
-                {Object.entries(selectedNode.content ?? {})
-                  .filter(([key]) => !["mediaUrl", "mediaAlt"].includes(key))
-                  .filter(([, value]) => typeof value === "string")
-                  .map(([key, value]) => (
-                    <label key={key} className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        {key}
-                      </span>
-                      {String(value).length > 80 ? (
-                        <textarea
-                          value={String(value)}
-                          onChange={(event) =>
-                            updateSelectedContent(
-                              key as keyof PageNodeContent,
-                              event.target.value
-                            )
-                          }
-                          rows={4}
-                          className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
-                        />
-                      ) : (
-                        <Input
-                          value={String(value)}
-                          onChange={(event) =>
-                            updateSelectedContent(
-                              key as keyof PageNodeContent,
-                              event.target.value
-                            )
-                          }
-                          className="h-10 text-sm"
-                        />
-                      )}
-                    </label>
-                  ))}
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Media
-                  </p>
-                  <div className="mt-3 space-y-3">
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Media URL
-                      </span>
-                      <Input
-                        value={selectedNode.content?.mediaUrl ?? ""}
-                        onChange={(event) =>
-                          updateSelectedContent("mediaUrl", event.target.value)
-                        }
-                        placeholder="https://..."
-                        className="h-10 text-sm"
-                      />
-                    </label>
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Alt Text
-                      </span>
-                      <Input
-                        value={selectedNode.content?.mediaAlt ?? ""}
-                        onChange={(event) =>
-                          updateSelectedContent("mediaAlt", event.target.value)
-                        }
-                        placeholder="Describe the image"
-                        className="h-10 text-sm"
-                      />
-                    </label>
+        <AnimatePresence>
+          {showShortcuts ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm"
+              onClick={() => setShowShortcuts(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 10 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#0d1016]/96 p-5 shadow-[0_32px_96px_rgba(0,0,0,0.55)]"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
+                      Keyboard Shortcuts
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-white">
+                      Compose is panel-light by default
+                    </h3>
                   </div>
-                </div>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "style" ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Typography
-                  </p>
-                  <div className="mt-3 space-y-3">
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Font Family
-                      </span>
-                      <Input
-                        value={selectedNode.style?.fontFamily ?? ""}
-                        onChange={(event) =>
-                          updateSelectedStyle("fontFamily", event.target.value)
-                        }
-                        placeholder="inherit"
-                        className="h-10 text-sm"
-                      />
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                          Font Size
-                        </span>
-                        <Input
-                          type="number"
-                          value={String(selectedNode.style?.fontSize ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(
-                              "fontSize",
-                              Number(event.target.value || 0)
-                            )
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                          Weight
-                        </span>
-                        <Input
-                          type="number"
-                          value={String(selectedNode.style?.fontWeight ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(
-                              "fontWeight",
-                              Number(event.target.value || 0)
-                            )
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                          Line Height
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.05"
-                          value={String(selectedNode.style?.lineHeight ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(
-                              "lineHeight",
-                              Number(event.target.value || 0)
-                            )
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                          Letter Spacing
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={String(selectedNode.style?.letterSpacing ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(
-                              "letterSpacing",
-                              Number(event.target.value || 0)
-                            )
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Surface
-                  </p>
-                  <div className="mt-3 space-y-3">
-                    {(
-                      [
-                        ["background", "Background"],
-                        ["foreground", "Foreground"],
-                        ["borderColor", "Border"],
-                        ["accent", "Accent"],
-                      ] as Array<[keyof PageNodeStyle, string]>
-                    ).map(([key, label]) => (
-                      <label key={String(key)} className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                          {label}
-                        </span>
-                        <Input
-                          value={String((selectedNode.style ?? {})[key] ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(key, event.target.value)
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </label>
-                    ))}
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Radius
-                      </span>
-                      <Input
-                        type="number"
-                        value={String(selectedNode.style?.borderRadius ?? "")}
-                        onChange={(event) =>
-                          updateSelectedStyle(
-                            "borderRadius",
-                            Number(event.target.value || 0)
-                          )
-                        }
-                        className="h-10 text-sm"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "layout" ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Structure
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Direction
-                      </span>
-                      <select
-                        value={selectedNode.style?.direction ?? "column"}
-                        onChange={(event) =>
-                          updateSelectedStyle(
-                            "direction",
-                            event.target.value as PageNodeStyle["direction"]
-                          )
-                        }
-                        className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
-                      >
-                        <option value="column">Column</option>
-                        <option value="row">Row</option>
-                      </select>
-                    </label>
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Justify
-                      </span>
-                      <select
-                        value={selectedNode.style?.justify ?? "start"}
-                        onChange={(event) =>
-                          updateSelectedStyle(
-                            "justify",
-                            event.target.value as PageNodeStyle["justify"]
-                          )
-                        }
-                        className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
-                      >
-                        <option value="start">Start</option>
-                        <option value="center">Center</option>
-                        <option value="end">End</option>
-                        <option value="between">Space Between</option>
-                      </select>
-                    </label>
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Align
-                      </span>
-                      <select
-                        value={selectedNode.style?.align ?? "left"}
-                        onChange={(event) =>
-                          updateSelectedStyle(
-                            "align",
-                            event.target.value as PageNodeStyle["align"]
-                          )
-                        }
-                        className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
-                      >
-                        <option value="left">Left</option>
-                        <option value="center">Center</option>
-                        <option value="right">Right</option>
-                      </select>
-                    </label>
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        Columns
-                      </span>
-                      <Input
-                        type="number"
-                        value={String(selectedNode.style?.columns ?? "")}
-                        onChange={(event) =>
-                          updateSelectedStyle("columns", Number(event.target.value || 0))
-                        }
-                        className="h-10 text-sm"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Spacing
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    {(
-                      [
-                        ["paddingX", "Padding X"],
-                        ["paddingY", "Padding Y"],
-                        ["gap", "Gap"],
-                        ["maxWidth", "Max Width"],
-                        ["minHeight", "Min Height"],
-                      ] as Array<[keyof PageNodeStyle, string]>
-                    ).map(([key, label]) => (
-                      <label key={String(key)} className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                          {label}
-                        </span>
-                        <Input
-                          type="number"
-                          value={String(selectedNode.style?.[key] ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(key, Number(event.target.value || 0))
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3 text-[11px] text-text-muted">
-                  You are editing <strong className="text-text-secondary">{document.breakpoint}</strong> overrides. Desktop writes to base style; Tablet and Mobile write to responsive overrides.
-                </div>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "effects" ? (
-              <div className="space-y-4 rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  Effects
-                </p>
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Opacity
-                  </span>
-                  <Input
-                    type="number"
-                    step="0.05"
-                    min="0"
-                    max="1"
-                    value={String(selectedNode.style?.opacity ?? "")}
-                    onChange={(event) =>
-                      updateSelectedStyle(
-                        "opacity",
-                        Number(event.target.value || 0)
-                      )
-                    }
-                    className="h-10 text-sm"
-                  />
-                </label>
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Blur
-                  </span>
-                  <Input
-                    type="number"
-                    value={String(selectedNode.style?.blur ?? "")}
-                    onChange={(event) =>
-                      updateSelectedStyle("blur", Number(event.target.value || 0))
-                    }
-                    className="h-10 text-sm"
-                  />
-                </label>
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    Shadow
-                  </span>
-                  <select
-                    value={selectedNode.style?.shadow ?? "none"}
-                    onChange={(event) =>
-                      updateSelectedStyle(
-                        "shadow",
-                        event.target.value as PageNodeStyle["shadow"]
-                      )
-                    }
-                    className="h-10 w-full rounded-xl border border-border-primary bg-bg-primary px-3 text-sm text-text-primary"
+                  <button
+                    type="button"
+                    onClick={() => setShowShortcuts(false)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition-colors hover:text-white"
+                    aria-label="Close shortcuts"
                   >
-                    <option value="none">None</option>
-                    <option value="soft">Soft</option>
-                    <option value="medium">Medium</option>
-                  </select>
-                </label>
-              </div>
-            ) : null}
-
-            {selectedNode && document.inspectorTab === "ai" ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
-                  <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Selection-Aware Actions
-                  </p>
-                  <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    {selectedNode.type === "page"
-                      ? "Page selected. Regenerate the whole direction while keeping it inside the current artboard."
-                      : selectedNode.type === "section"
-                      ? "Section selected. Rewrite, restyle, or regenerate this slice without leaving Compose."
-                      : "Block selected. Make targeted content or style changes directly from the inspector."}
-                  </p>
+                    ×
+                  </button>
                 </div>
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    AI Prompt
-                  </span>
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(event) => setAiPrompt(event.target.value)}
-                    rows={4}
-                    placeholder="Sharpen the message, make this section more confident, restyle it for a stronger editorial feel…"
-                    className="w-full rounded-xl border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary outline-none"
-                  />
-                </label>
-                <div className="grid grid-cols-1 gap-2">
-                  {activeAiActions.map((item) => (
-                    <Button
-                      key={item.label}
-                      type="button"
-                      variant="secondary"
-                      className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                      onClick={() => applyAiAction(item.action)}
-                      disabled={aiLoading}
+                <div className="mt-5 space-y-3">
+                  {[
+                    ["L", "Toggle layers panel"],
+                    ["M", "Toggle minimap"],
+                    ["?", "Show this shortcuts sheet"],
+                    ["⌘\\", "Toggle the canvas sidebar"],
+                  ].map(([shortcut, label]) => (
+                    <div
+                      key={shortcut}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                     >
-                      {item.label}
-                    </Button>
+                      <span className="text-sm text-white/82">{label}</span>
+                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 font-mono text-[11px] text-white/72">
+                        {shortcut}
+                      </span>
+                    </div>
                   ))}
                 </div>
-                {aiError ? (
-                  <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
-                    {aiError}
-                  </div>
-                ) : null}
-                <div className="rounded-2xl border border-border-primary bg-bg-secondary p-3">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                    System Context
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    {[
-                      tokens.colors.primary,
-                      tokens.colors.secondary,
-                      tokens.colors.accent,
-                      tokens.colors.background,
-                      tokens.colors.surface,
-                    ].map((color) => (
-                      <div
-                        key={color}
-                        className="h-8 w-8 rounded-lg border border-border-primary"
-                        style={{ background: color }}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-3 text-[11px] text-text-muted">
-                    {tokens.typography.fontFamily}
-                  </p>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      }
-    />
+              </motion.div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 }
 
@@ -3251,55 +3447,63 @@ export function CanvasPage({
     collect: collectCount,
     generate: `${generatedVariants.length} variant${generatedVariants.length === 1 ? "" : "s"}`,
   };
+  const composeActive = stage === "compose" && Boolean(composeDocument && tokens);
 
   return (
     <div className="relative flex h-full flex-col">
-      <div className="shrink-0 border-b border-border-primary bg-bg-primary px-6 py-4">
-        <div className="flex items-center gap-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              href={linkedProjectId ? `/projects/${linkedProjectId}` : "/projects"}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-bg-secondary text-text-secondary transition-colors duration-200 hover:border-border-hover hover:text-text-primary"
-              aria-label="Back to project"
-            >
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
+      {!composeActive ? (
+        <div className="shrink-0 border-b border-border-primary bg-bg-primary px-6 py-4">
+          <div className="flex items-center gap-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <Link
+                href={linkedProjectId ? `/projects/${linkedProjectId}` : "/projects"}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-bg-secondary text-text-secondary transition-colors duration-200 hover:border-border-hover hover:text-text-primary"
+                aria-label="Back to project"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
-              </svg>
-            </Link>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[8px] leading-none text-text-tertiary">■</span>
-                <span className="truncate text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                  {`CANVAS - ${projectName}`}
-                </span>
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
+                </svg>
+              </Link>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] leading-none text-text-tertiary">■</span>
+                  <span className="truncate text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+                    {`CANVAS - ${projectName}`}
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-[11px] text-text-muted">
+                  {setName || "Project-linked canvas workflow"}
+                </p>
               </div>
-              <p className="mt-1 truncate text-[11px] text-text-muted">
-                {setName || "Project-linked canvas workflow"}
-              </p>
+            </div>
+
+            <div className="ml-auto">
+              <StageStepper
+                stage={stage}
+                onSelect={setStage}
+                completions={completions}
+                availability={availability}
+                counts={stepCounts}
+              />
             </div>
           </div>
-
-          <div className="ml-auto">
-            <StageStepper
-              stage={stage}
-              onSelect={setStage}
-              completions={completions}
-              availability={availability}
-              counts={stepCounts}
-            />
-          </div>
         </div>
-      </div>
+      ) : null}
 
       {bootstrapToast ? (
-        <div className="pointer-events-none absolute right-6 top-[5.25rem] z-20">
+        <div
+          className={cn(
+            "pointer-events-none absolute right-6 z-20",
+            composeActive ? "top-4" : "top-[5.25rem]"
+          )}
+        >
           <div className="rounded-2xl border border-[#3B5EFC]/30 bg-[#3B5EFC] px-4 py-3 text-[11px] font-medium text-white shadow-[0_18px_48px_rgba(59,94,252,0.28)]">
             {bootstrapToast}
           </div>
@@ -3311,6 +3515,8 @@ export function CanvasPage({
           document={composeDocument}
           tokens={tokens}
           references={images}
+          projectId={linkedProjectId}
+          projectName={projectName}
           siteName={setName || inferSiteName(sitePrompt)}
           siteType={siteType}
           onChange={setComposeDocument}

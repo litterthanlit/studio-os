@@ -1,1149 +1,600 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { ColorPickerPanel } from "@/components/color-picker";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
-  ImportReferenceModal,
-  type Reference as MoodboardReference,
-} from "@/components/modals/import-reference-modal";
-import { FontPicker } from "@/components/font-picker";
-import { getFontCssFamily } from "@/lib/fonts/load-font";
-import type { Project, ProjectFont } from "./projects-data";
+import { ComposeDocumentView } from "@/app/canvas-v1/components/ComposeDocumentView";
+import { getExportArtboard, type GeneratedVariant } from "@/lib/canvas/compose";
+import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import {
   getProjectState,
-  getProjectTasks,
-  getProjectTaskPanelExpanded,
   listProjectReferences,
   PROJECT_REFERENCES_UPDATED_EVENT,
   PROJECT_STATE_UPDATED_EVENT,
-  PROJECT_TASKS_UPDATED_EVENT,
-  setProjectReferences,
-  setProjectTaskPanelExpanded,
-  setProjectTasks,
-  upsertProjectState,
-  type StoredTask,
 } from "@/lib/project-store";
+import type { TasteProfile } from "@/types/taste-profile";
+import type { Project } from "./projects-data";
 
 export type { Phase, Project } from "./projects-data";
 export { PROJECTS, PHASE_STYLES } from "./projects-data";
 
-// ─── Project room sections ───────────────────────────────────────────────────
+type ProjectOverviewTab = "board" | "system" | "site";
 
-export function ProjectRoomSections({ project }: { project: Project }) {
+const TABS: Array<{ id: ProjectOverviewTab; label: string; subtitle: string }> = [
+  { id: "board", label: "Board", subtitle: "References and pinned inspiration" },
+  { id: "system", label: "System", subtitle: "Palette, type, and taste direction" },
+  { id: "site", label: "Site", subtitle: "Generated directions and compose state" },
+];
+
+function formatRelativeTime(value: string | undefined) {
+  if (!value) return "Just now";
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return "Just now";
+  const diff = Date.now() - timestamp;
+  const minute = 60_000;
+  const hour = minute * 60;
+  const day = hour * 24;
+  if (diff < hour) return `${Math.max(1, Math.round(diff / minute))} min ago`;
+  if (diff < day) return `${Math.round(diff / hour)}h ago`;
+  if (diff < day * 7) return `${Math.round(diff / day)}d ago`;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
+    new Date(timestamp)
+  );
+}
+
+function tokenCount(tokens: DesignSystemTokens | null | undefined) {
+  if (!tokens) return 0;
+  return Object.keys(tokens.colors).length;
+}
+
+function fontLabel(font?: { family: string; category?: string }) {
+  if (!font) return "Not selected";
+  return font.category ? `${font.family} · ${font.category}` : font.family;
+}
+
+function StatPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="pb-16">
-      {/* Persistent tasks bar — always visible at the top */}
-      <TasksBar projectId={project.id} />
-
-      <section id="board" className="py-8 border-b border-card-border">
-        <BoardTab project={project} />
-      </section>
-
-      <section id="type" className="py-8 border-b border-card-border">
-        <TypeTab project={project} />
-      </section>
-
-      <section id="palette" className="py-8 border-b border-card-border">
-        <PaletteTab project={project} />
-      </section>
-
-      <section id="overview" className="py-8">
-        <OverviewTab project={project} />
-      </section>
+    <div className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary">
+      <span className="text-text-primary">{value}</span> {label}
     </div>
   );
 }
 
-const DEFAULT_NOTES =
-  "Capture the core constraints, success criteria, and non-negotiables here.";
-
-function OverviewTab({ project }: { project: Project }) {
-  const [notes, setNotes] = React.useState(() => {
-    return getProjectState(project.id).notes ?? DEFAULT_NOTES;
-  });
-
-  React.useEffect(() => {
-    setNotes(getProjectState(project.id).notes ?? DEFAULT_NOTES);
-  }, [project.id]);
-
+function EmptyOverviewState({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-        Brief
-      </div>
-      <textarea
-        value={notes}
-        onChange={(e) => {
-          const nextNotes = e.target.value;
-          setNotes(nextNotes);
-          upsertProjectState(project.id, { notes: nextNotes });
-        }}
-        className="h-32 w-full border border-card-border bg-transparent px-3 py-2 text-sm text-text-primary outline-none transition-[border-color,background-color,color] duration-300 ease-out focus:border-accent rounded-md resize-none leading-relaxed placeholder:text-gray-600"
-        placeholder="Capture the core constraints, success criteria, and non-negotiables here."
-      />
+    <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[28px] border border-dashed border-border-primary bg-bg-secondary px-8 py-16 text-center">
+      <div className="mb-5 h-12 w-12 rounded-2xl border border-border-primary bg-card-bg" />
+      <p className="text-lg font-medium text-text-primary">{title}</p>
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-text-secondary">
+        {body}
+      </p>
     </div>
   );
 }
 
-function isImageUrl(value: string): boolean {
-  try {
-    const url = new URL(value.trim());
-    if (!["http:", "https:"].includes(url.protocol)) return false;
-    return /\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i.test(url.pathname + url.search);
-  } catch {
-    return false;
-  }
-}
-
-function readProjectReferences(projectId: string): MoodboardReference[] {
-  return listProjectReferences(projectId);
-}
-
-function writeProjectReferences(projectId: string, references: MoodboardReference[]) {
-  setProjectReferences(projectId, references);
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Failed to read image"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read image"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function BoardTab({ project }: { project: Project }) {
-  const [references, setReferences] = React.useState<MoodboardReference[]>([]);
-  const [isDragActive, setIsDragActive] = React.useState(false);
-  const [isImportOpen, setIsImportOpen] = React.useState(false);
-  const [initialImportMode, setInitialImportMode] = React.useState<
-    "upload" | "arena" | "pinterest" | "url"
-  >("upload");
-  const [initialImportUrl, setInitialImportUrl] = React.useState("");
-  const [notice, setNotice] = React.useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = React.useState<{
-    done: number;
-    total: number;
-  } | null>(null);
-  const [activeLightboxRef, setActiveLightboxRef] =
-    React.useState<MoodboardReference | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+function BoardOverview({ projectId }: { projectId: string }) {
+  const [references, setReferences] = React.useState(() => listProjectReferences(projectId));
 
   React.useEffect(() => {
-    setReferences(readProjectReferences(project.id));
-  }, [project.id]);
+    setReferences(listProjectReferences(projectId));
+  }, [projectId]);
 
   React.useEffect(() => {
-    function syncReferences() {
-      setReferences(readProjectReferences(project.id));
-    }
-
-    window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncReferences);
+    const sync = () => setReferences(listProjectReferences(projectId));
+    window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, sync);
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
     return () => {
-      window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncReferences);
+      window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, sync);
+      window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
     };
-  }, [project.id]);
+  }, [projectId]);
 
-  React.useEffect(() => {
-    function onDocumentPaste(e: ClipboardEvent) {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (!e.clipboardData) return;
-
-      const items = Array.from(e.clipboardData.items);
-      const imageFiles = items
-        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
-        .map((item) => item.getAsFile())
-        .filter((f): f is File => f !== null);
-
-      if (imageFiles.length > 0) {
-        e.preventDefault();
-        void importFiles(imageFiles);
-        return;
-      }
-
-      const text = e.clipboardData.getData("text");
-      if (text && isImageUrl(text)) {
-        e.preventDefault();
-        openImport("url", text);
-      }
-    }
-
-    document.addEventListener("paste", onDocumentPaste);
-    return () => document.removeEventListener("paste", onDocumentPaste);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
-
-  function openImport(mode: "upload" | "arena" | "pinterest" | "url", initialUrl = "") {
-    setInitialImportMode(mode);
-    setInitialImportUrl(initialUrl);
-    setIsImportOpen(true);
-  }
-
-  function handleImport(payload: { references: MoodboardReference[]; notice?: string }) {
-    if (payload.references.length === 0) return;
-    setReferences((prev) => {
-      const next = [...payload.references, ...prev];
-      writeProjectReferences(project.id, next);
-      return next;
-    });
-    setNotice(payload.notice ?? null);
-  }
-
-  function pinReference(referenceId: string) {
-    setReferences((prev) => {
-      const target = prev.find((reference) => reference.id === referenceId);
-      if (!target) return prev;
-      const next = [target, ...prev.filter((reference) => reference.id !== referenceId)];
-      writeProjectReferences(project.id, next);
-      return next;
-    });
-    setNotice("Pinned reference to the top of the board.");
-  }
-
-  async function importFiles(files: File[]) {
-    const validFiles = files.filter((file) =>
-      ["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)
+  if (references.length === 0) {
+    return (
+      <EmptyOverviewState
+        title="No references yet"
+        body="Enter Canvas to build the board, import references, and start shaping the project taste."
+      />
     );
-    if (validFiles.length === 0) return;
-
-    setUploadProgress({ done: 0, total: validFiles.length });
-    const now = new Date().toISOString();
-    const next: MoodboardReference[] = [];
-
-    for (let i = 0; i < validFiles.length; i += 1) {
-      const file = validFiles[i];
-      const dataUrl = await fileToDataUrl(file);
-      next.push({
-        id: `upload-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-        imageUrl: dataUrl,
-        source: "upload",
-        title: file.name,
-        addedAt: now,
-        projectId: project.id,
-      });
-      setUploadProgress({ done: i + 1, total: validFiles.length });
-    }
-
-    setReferences((prev) => {
-      const combined = [...next, ...prev];
-      writeProjectReferences(project.id, combined);
-      return combined;
-    });
-    setNotice(`Added ${next.length} upload${next.length === 1 ? "" : "s"}.`);
-    setTimeout(() => setUploadProgress(null), 600);
-  }
-
-  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setIsDragActive(false);
-    const files = Array.from(event.dataTransfer.files);
-    if (files.length > 0) void importFiles(files);
-  }
-
-  function handlePaste(event: React.ClipboardEvent<HTMLDivElement>) {
-    const items = Array.from(event.clipboardData.items);
-    const imageFiles = items
-      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
-      .map((item) => item.getAsFile())
-      .filter((f): f is File => f !== null);
-
-    if (imageFiles.length > 0) {
-      event.preventDefault();
-      void importFiles(imageFiles);
-      return;
-    }
-
-    const text = event.clipboardData.getData("text");
-    if (!text || !isImageUrl(text)) return;
-    event.preventDefault();
-    openImport("url", text);
-  }
-
-  function removeReference(id: string) {
-    setReferences((prev) => {
-      const next = prev.filter((ref) => ref.id !== id);
-      writeProjectReferences(project.id, next);
-      return next;
-    });
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-          References
-        </div>
-        {references.length > 0 && (
-          <button
-            type="button"
-            onClick={() => openImport("upload")}
-            aria-label="Quick add references"
-            className="border border-card-border bg-bg-secondary px-2 py-1 text-xs text-text-secondary transition-colors duration-300 hover:border-white/30 hover:text-white rounded-lg"
-          >
-            +
-          </button>
-        )}
-      </div>
-
-      {notice && (
-        <p className="text-xs text-gray-500 transition-colors duration-300">{notice}</p>
-      )}
-
-      {uploadProgress && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px] text-gray-500 transition-colors duration-300">
-            <span>Processing uploads</span>
-            <span>
-              {uploadProgress.done}/{uploadProgress.total}
-            </span>
-          </div>
-          <div className="h-1 bg-sidebar-active transition-colors duration-300">
-            <div
-              className="h-full bg-accent transition-[width] duration-200"
-              style={{
-                width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%`,
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-        className="hidden"
-        onChange={(event) => {
-          const files = Array.from(event.target.files ?? []);
-          if (files.length > 0) void importFiles(files);
-          event.currentTarget.value = "";
-        }}
-      />
-
-      {/* ── Drop zone wrapper ─────────────────────────────────────────── */}
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          if (!isDragActive) setIsDragActive(true);
-        }}
-        onDragLeave={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-            setIsDragActive(false);
-          }
-        }}
-        onDrop={handleDrop}
-        onPaste={handlePaste}
-        className="relative"
-      >
-        {references.length === 0 ? (
-          /* ── Empty state: large Notion-style drop zone ── */
-          <motion.div
-            animate={isDragActive ? { scale: 1.01 } : { scale: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed px-8 py-16 text-center transition-colors duration-200",
-              isDragActive
-                ? "border-[var(--accent)] bg-[var(--accent)]/5"
-                : "border-[var(--border-secondary)] bg-[var(--bg-secondary)] hover:border-[var(--accent)]/50 hover:bg-[var(--bg-tertiary)]"
-            )}
-          >
-            {/* Upload icon */}
-            <motion.div
-              animate={isDragActive ? { y: -6 } : { y: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 20 }}
-              className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-xl border transition-colors duration-200",
-                isDragActive
-                  ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]"
-                  : "border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-tertiary)]"
-              )}
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 13V4M10 4L7 7M10 4L13 7" />
-                <path d="M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
-              </svg>
-            </motion.div>
-
-            {/* Text */}
-            <div className="space-y-1">
-              <p className={cn(
-                "text-sm font-medium transition-colors duration-200",
-                isDragActive ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
-              )}>
-                {isDragActive ? "Release to drop" : "Drop references here"}
-              </p>
-              <p className="text-[11px] text-[var(--text-tertiary)]">
-                PNG, JPG, WEBP, GIF · or click to browse
-              </p>
-            </div>
-
-            {/* Divider */}
-            <div className="flex w-full max-w-[240px] items-center gap-3">
-              <div className="h-px flex-1 bg-[var(--border-primary)]" />
-              <span className="text-[10px] font-sans uppercase tracking-[0.1em] text-[var(--text-tertiary)]">or import from</span>
-              <div className="h-px flex-1 bg-[var(--border-primary)]" />
-            </div>
-
-            {/* Source buttons */}
-            <div
-              className="flex flex-wrap items-center justify-center gap-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {[
-                { label: "Are.na", mode: "arena" as const },
-                { label: "Pinterest", mode: "pinterest" as const },
-                { label: "URL", mode: "url" as const },
-              ].map(({ label, mode }) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); openImport(mode); }}
-                  className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] px-3 py-1.5 text-[11px] font-sans uppercase tracking-[0.08em] text-[var(--text-secondary)] transition-colors duration-150 hover:border-[var(--accent)]/50 hover:text-[var(--text-primary)]"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        ) : (
-          /* ── Has content: grid + drag overlay ── */
-          <div className="relative">
-            {/* Drag overlay */}
-            <AnimatePresence>
-            {isDragActive && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[var(--accent)] bg-[var(--accent)]/8 backdrop-blur-[2px]"
-              >
-                <motion.div
-                  animate={{ y: [-4, 0, -4] }}
-                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/15 text-[var(--accent)]"
-                >
-                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10 13V4M10 4L7 7M10 4L13 7" />
-                    <path d="M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
-                  </svg>
-                </motion.div>
-                <p className="text-xs font-sans font-medium uppercase tracking-[0.1em] text-[var(--accent)]">
-                  Release to add
-                </p>
-              </motion.div>
-            )}
-            </AnimatePresence>
-
-            <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
-              {references.map((ref) => (
-                <motion.article
-                  key={ref.id}
-                  layout
-                  className="group relative mb-4 break-inside-avoid overflow-hidden rounded-lg border border-card-border/80 bg-card-bg transition-colors duration-300"
-                >
-                  <div className="relative overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={ref.imageUrl}
-                      alt={ref.title ?? "Reference"}
-                      className="h-auto w-full origin-center object-contain transition-transform duration-200 group-hover:scale-[1.02]"
-                      loading="lazy"
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-
-                    <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/20 bg-black/70 px-2.5 py-1 text-[9px] uppercase tracking-[0.1em] text-white backdrop-blur-sm">
-                      {ref.source}
-                    </div>
-
-                    <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => pinReference(ref.id)}
-                        className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur"
-                      >
-                        Pin
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveLightboxRef(ref)}
-                        className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur"
-                      >
-                        Full-screen
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeReference(ref.id)}
-                        aria-label="Delete reference"
-                        className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 p-2">
-                    <p className="truncate text-[11px] text-[var(--text-secondary)] transition-colors duration-300">
-                      {ref.title || "Untitled"}
-                    </p>
-                    {ref.sourceUrl && (
-                      <a
-                        href={ref.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] text-[var(--accent)] transition-opacity hover:opacity-80"
-                      >
-                        Open source
-                      </a>
-                    )}
-                  </div>
-                </motion.article>
-              ))}
-            </div>
-
-            {/* Import from source buttons when board has content */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                { label: "Are.na", mode: "arena" as const },
-                { label: "Pinterest", mode: "pinterest" as const },
-                { label: "URL", mode: "url" as const },
-              ].map(({ label, mode }) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => openImport(mode)}
-                  className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-1.5 text-[11px] font-sans uppercase tracking-[0.08em] text-[var(--text-tertiary)] transition-colors duration-150 hover:border-[var(--accent)]/50 hover:text-[var(--text-primary)]"
-                >
-                  + {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <ImportReferenceModal
-        open={isImportOpen}
-        onOpenChange={setIsImportOpen}
-        projectId={project.id}
-        onImport={handleImport}
-        initialMode={initialImportMode}
-        initialUrl={initialImportUrl}
-      />
-
-      <Dialog open={Boolean(activeLightboxRef)} onOpenChange={(open) => !open && setActiveLightboxRef(null)}>
-        <DialogContent className="max-w-[900px] transition-colors duration-300">
-          <div className="space-y-3">
-            <DialogTitle className="text-sm uppercase tracking-[0.12em] text-text-tertiary transition-colors duration-300">
-              Reference preview
-            </DialogTitle>
-            {activeLightboxRef && (
-              <>
-                <div className="border border-card-border bg-bg-secondary p-2 transition-colors duration-300 rounded-xl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={activeLightboxRef.imageUrl}
-                    alt={activeLightboxRef.title ?? "Reference"}
-                    className="max-h-[72vh] w-full object-contain"
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs text-text-secondary transition-colors duration-300">
-                  <span className="truncate pr-4 transition-colors duration-300">
-                    {activeLightboxRef.title || "Untitled"} · {activeLightboxRef.source}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {activeLightboxRef.sourceUrl && (
-                      <a
-                        href={activeLightboxRef.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white rounded-lg"
-                      >
-                        Open source
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setActiveLightboxRef(null)}
-                      className="border border-card-border bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary transition-colors duration-300 hover:text-white rounded-lg"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function TypeTab({ project }: { project: Project }) {
-  const [isPickerOpen, setIsPickerOpen] = React.useState(false);
-  const [headingFont, setHeadingFont] = React.useState<ProjectFont | undefined>(() =>
-    getProjectState(project.id).typography?.headingFont ?? project.headingFont
-  );
-  const [bodyFont, setBodyFont] = React.useState<ProjectFont | undefined>(() =>
-    getProjectState(project.id).typography?.bodyFont ?? project.bodyFont
-  );
-
-  React.useEffect(() => {
-    const state = getProjectState(project.id);
-    setHeadingFont(state.typography?.headingFont ?? project.headingFont);
-    setBodyFont(state.typography?.bodyFont ?? project.bodyFont);
-  }, [project.headingFont, project.bodyFont, project.id]);
-
-  const handleFontSelect = (newHeading: ProjectFont, newBody: ProjectFont) => {
-    setHeadingFont(newHeading);
-    setBodyFont(newBody);
-    upsertProjectState(project.id, {
-      typography: {
-        headingFont: newHeading,
-        bodyFont: newBody,
-      },
-    });
-  };
-
-  const headingStyle = headingFont
-    ? { fontFamily: getFontCssFamily({ family: headingFont.family, source: headingFont.source, category: headingFont.category, variants: ["400", "700"] }) }
-    : {};
-  const bodyStyle = bodyFont
-    ? { fontFamily: getFontCssFamily({ family: bodyFont.family, source: bodyFont.source, category: bodyFont.category, variants: ["400"] }) }
-    : {};
-
-  return (
-    <div className="space-y-3">
-      <div className="text-[11px] font-medium uppercase tracking-[0.15em] text-gray-400 transition-colors duration-300">
-        Typography
-      </div>
-      <div className="border border-card-border bg-bg-secondary p-3 transition-colors duration-300 rounded-lg">
-        <div className="flex items-start gap-6">
-          {/* Left: Preview text */}
-          <div className="flex-1 space-y-1 text-sm text-text-primary transition-colors duration-300">
-            <div className="text-lg font-bold transition-colors duration-300" style={headingStyle}>
-              Studio OS project spine
-            </div>
-            <div className="text-xs transition-colors duration-300" style={bodyStyle}>
-              The quick brown fox jumps over the lazy dog.
-            </div>
-          </div>
-          {/* Right: Labels */}
-          <div className="flex flex-col items-end gap-0.5 text-[11px] font-light text-gray-500 transition-colors duration-300 text-right">
-            <span className="transition-colors duration-300">Heading: {headingFont?.family || "Not selected"}</span>
-            <span className="transition-colors duration-300">Body: {bodyFont?.family || "Not selected"}</span>
-          </div>
-        </div>
-        {/* Button on the left */}
-        <div className="mt-4 flex justify-start">
-          <button
-            type="button"
-            onClick={() => setIsPickerOpen(true)}
-            className="border border-card-border bg-transparent px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.07em] text-gray-400 transition-[border-color,color,background-color] duration-300 ease-out hover:border-white/20 hover:text-text-primary rounded-md"
-          >
-            Change Font
-          </button>
-        </div>
-      </div>
-
-      <FontPicker
-        isOpen={isPickerOpen}
-        onClose={() => setIsPickerOpen(false)}
-        onSelect={handleFontSelect}
-        initialHeadingFont={headingFont}
-        initialBodyFont={bodyFont}
-      />
-    </div>
-  );
-}
-
-// ─── Palette Types ────────────────────────────────────────────────────────────
-
-type Swatch = { id: string; color: string; name: string };
-
-// Auto-name colors based on hex value
-function getColorName(hex: string): string {
-  const normalized = hex.toLowerCase().replace('#', '');
-  
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  
-  // Grays (where R, G, B are very similar)
-  const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b));
-  
-  if (maxDiff < 20) {
-    const avg = Math.round((r + g + b) / 3);
-    if (avg < 30) return "Black";
-    if (avg < 80) return "Near Black";
-    if (avg < 140) return "Dark Gray";
-    if (avg < 200) return "Medium Gray";
-    if (avg < 240) return "Light Gray";
-    return "White";
-  }
-  
-  // Convert to HSL for better color naming
-  const rNorm = r / 255;
-  const gNorm = g / 255;
-  const bNorm = b / 255;
-  
-  const max = Math.max(rNorm, gNorm, bNorm);
-  const min = Math.min(rNorm, gNorm, bNorm);
-  const delta = max - min;
-  
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-  
-  if (delta !== 0) {
-    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-    
-    switch (max) {
-      case rNorm:
-        h = ((gNorm - bNorm) / delta + (gNorm < bNorm ? 6 : 0)) / 6;
-        break;
-      case gNorm:
-        h = ((bNorm - rNorm) / delta + 2) / 6;
-        break;
-      case bNorm:
-        h = ((rNorm - gNorm) / delta + 4) / 6;
-        break;
-    }
-  }
-  
-  const hue = h * 360;
-  const saturation = s;
-  const lightness = l;
-  
-  // Determine lightness modifier
-  let modifier = "";
-  if (lightness > 0.85) modifier = "Light ";
-  else if (lightness > 0.65) modifier = "";
-  else if (lightness > 0.45) modifier = "Medium ";
-  else if (lightness > 0.25) modifier = "Dark ";
-  else modifier = "Deep ";
-  
-  // Very low saturation - treat as grayish
-  if (saturation < 0.1) {
-    return modifier.trim() + " Gray";
-  }
-  
-  // Determine base color from hue
-  let baseColor = "";
-  
-  if (hue >= 355 || hue < 10) {
-    baseColor = "Red";
-  } else if (hue >= 10 && hue < 20) {
-    baseColor = "Red-Orange";
-  } else if (hue >= 20 && hue < 38) {
-    baseColor = "Orange";
-  } else if (hue >= 38 && hue < 50) {
-    baseColor = "Amber";
-  } else if (hue >= 50 && hue < 60) {
-    baseColor = "Gold";
-  } else if (hue >= 60 && hue < 75) {
-    baseColor = "Yellow";
-  } else if (hue >= 75 && hue < 90) {
-    baseColor = "Lime";
-  } else if (hue >= 90 && hue < 140) {
-    baseColor = "Green";
-  } else if (hue >= 140 && hue < 165) {
-    baseColor = "Emerald";
-  } else if (hue >= 165 && hue < 185) {
-    baseColor = "Teal";
-  } else if (hue >= 185 && hue < 200) {
-    baseColor = "Cyan";
-  } else if (hue >= 200 && hue < 220) {
-    baseColor = "Sky";
-  } else if (hue >= 220 && hue < 240) {
-    baseColor = "Blue";
-  } else if (hue >= 240 && hue < 260) {
-    baseColor = "Indigo";
-  } else if (hue >= 260 && hue < 280) {
-    baseColor = "Violet";
-  } else if (hue >= 280 && hue < 300) {
-    baseColor = "Purple";
-  } else if (hue >= 300 && hue < 315) {
-    baseColor = "Magenta";
-  } else if (hue >= 315 && hue < 330) {
-    baseColor = "Pink";
-  } else if (hue >= 330 && hue < 345) {
-    baseColor = "Rose";
-  } else {
-    baseColor = "Red";
-  }
-  
-  return (modifier + baseColor).trim();
-}
-
-function PaletteTab({ project }: { project: Project }) {
-  const [swatches, setSwatches] = React.useState<Swatch[]>(() =>
-    (getProjectState(project.id).palette ?? project.palette).map((color, i) => ({
-      id: `swatch-${i}`,
-      color,
-      name: getColorName(color),
-    }))
-  );
-  const [openPickerId, setOpenPickerId] = React.useState<string | null>(null);
-  const [pickerPosition, setPickerPosition] = React.useState({ top: 0, left: 0 });
-
-  function addSwatch() {
-    const id = `swatch-${Date.now()}`;
-    setSwatches((prev) => {
-      const next = [...prev, { id, color: "#2430AD", name: "" }];
-      upsertProjectState(project.id, {
-        palette: next.map((swatch) => swatch.color),
-      });
-      return next;
-    });
-  }
-
-  React.useEffect(() => {
-    const palette = getProjectState(project.id).palette ?? project.palette;
-    setSwatches(
-      palette.map((color, i) => ({
-        id: `swatch-${i}`,
-        color,
-        name: getColorName(color),
-      }))
-    );
-    // Palette edits are persisted immediately via user actions; re-running this
-    // on parent object churn would wipe in-progress local edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
-
-  function updateColor(id: string, color: string) {
-    setSwatches((prev) => {
-      const next = prev.map((s) =>
-        s.id === id ? { ...s, color, name: getColorName(color) } : s
-      );
-      upsertProjectState(project.id, {
-        palette: next.map((swatch) => swatch.color),
-      });
-      return next;
-    });
-  }
-
-  function removeSwatch(id: string) {
-    setSwatches((prev) => {
-      const next = prev.filter((s) => s.id !== id);
-      upsertProjectState(project.id, {
-        palette: next.map((swatch) => swatch.color),
-      });
-      return next;
-    });
-    if (openPickerId === id) setOpenPickerId(null);
-  }
-
-  function openPicker(swatchId: string, triggerEl: HTMLElement) {
-    const rect = triggerEl.getBoundingClientRect();
-    const PANEL_H = 360;
-    const PANEL_W = 248;
-    const spaceBelow = window.innerHeight - rect.bottom - 8;
-    const top = spaceBelow >= PANEL_H ? rect.bottom + 8 : rect.top - PANEL_H - 8;
-    const left = Math.min(rect.left, window.innerWidth - PANEL_W - 8);
-    setPickerPosition({ top, left });
-    setOpenPickerId(swatchId);
   }
 
   return (
     <div className="space-y-5">
-      {/* ── Color tokens ── */}
-      <div>
-        <div className="mb-2.5 font-mono text-[9px] uppercase tracking-widest text-[var(--text-tertiary)] transition-colors duration-300">
-          Color tokens
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+            Project board
+          </p>
+          <h3 className="mt-2 text-xl font-semibold tracking-tight text-text-primary">
+            References at a glance
+          </h3>
         </div>
-
-        {/* Horizontal swatch row */}
-        <div className="flex gap-1.5">
-          {swatches.map((swatch) => (
-            <motion.div
-              key={swatch.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="group relative flex flex-1 cursor-pointer flex-col gap-1.5"
-              onClick={(e) => openPicker(swatch.id, e.currentTarget as HTMLElement)}
-            >
-              {/* Swatch tile */}
-              <div
-                className="h-12 rounded-md border border-[var(--border-primary)] transition-[border-color,opacity] duration-150 group-hover:border-[var(--border-secondary)]"
-                style={{ backgroundColor: swatch.color }}
-              />
-              {/* Hex label */}
-              <div className="font-mono text-[9px] leading-none text-[var(--text-tertiary)] transition-colors duration-150 group-hover:text-[var(--text-secondary)]">
-                {swatch.color.toUpperCase()}
-              </div>
-              {/* Name label */}
-              {swatch.name && (
-                <div className="truncate text-[9px] leading-none text-[var(--text-tertiary)] opacity-60">
-                  {swatch.name}
-                </div>
-              )}
-              {/* Remove overlay — appears on hover */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); removeSwatch(swatch.id); }}
-                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded bg-black/60 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100"
-                aria-label="Remove colour"
-              >
-                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </motion.div>
-          ))}
-
-          {/* Add colour tile */}
-          <button
-            type="button"
-            onClick={addSwatch}
-            className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border-secondary)] transition-colors duration-150 hover:border-[var(--border-tertiary)] hover:bg-[var(--bg-tertiary)]"
-            style={{ minHeight: 48 }}
+        <p className="text-sm text-text-secondary">
+          Editing lives in Canvas. This page is a read-only overview.
+        </p>
+      </div>
+      <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
+        {references.map((reference) => (
+          <div
+            key={reference.id}
+            className="group mb-4 break-inside-avoid overflow-hidden rounded-[22px] border border-border-primary bg-card-bg"
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[var(--text-tertiary)]">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
+            <div className="relative overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={reference.imageUrl}
+                alt={reference.title || "Reference"}
+                className="h-auto w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-4 py-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                  {reference.source}
+                </span>
+                <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                  View in Canvas
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2 px-4 py-4">
+              <p className="truncate text-sm font-medium text-text-primary">
+                {reference.title || "Untitled reference"}
+              </p>
+              <p className="text-xs text-text-tertiary">
+                Added {formatRelativeTime(reference.addedAt)}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
-
-      {/* ── Export row ── */}
-      <div className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-2 transition-colors duration-300">
-        <span className="font-mono text-[10px] text-[var(--text-tertiary)] transition-colors duration-300">
-          design-system.md
-        </span>
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded bg-[var(--accent)]/15 px-2 py-0.5 transition-colors duration-150 hover:bg-[var(--accent)]/25"
-        >
-          <svg viewBox="0 0 10 10" fill="none" className="h-2 w-2 text-[var(--accent)]">
-            <path d="M5 1v6M2 5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="font-mono text-[9px] text-[var(--accent)]">Export</span>
-        </button>
-      </div>
-
-      {/* Portal-mounted color picker panel */}
-      {openPickerId && typeof document !== "undefined" && (
-        <>
-          {React.createElement(
-            ColorPickerPanel,
-            {
-              value: swatches.find((s) => s.id === openPickerId)?.color ?? "#2430AD",
-              position: pickerPosition,
-              onChange: (c: string) => updateColor(openPickerId, c),
-              onClose: () => setOpenPickerId(null),
-            }
-          )}
-        </>
-      )}
     </div>
   );
 }
 
-function TasksBar({ projectId }: { projectId: string }) {
-  const [tasks, setTasks] = React.useState<StoredTask[]>([]);
-  const [draft, setDraft] = React.useState("");
-  const [expanded, setExpanded] = React.useState(() =>
-    getProjectTaskPanelExpanded(projectId)
+function TasteSnapshot({
+  tasteProfile,
+}: {
+  tasteProfile: TasteProfile;
+}) {
+  return (
+    <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+      <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+        Taste profile
+      </p>
+      <p className="mt-3 text-sm leading-relaxed text-text-primary">
+        {tasteProfile.summary}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {tasteProfile.adjectives.map((adjective) => (
+          <span
+            key={adjective}
+            className="rounded-full border border-[#3B5EFC]/20 bg-[#3B5EFC]/8 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#3B5EFC]"
+          >
+            {adjective}
+          </span>
+        ))}
+      </div>
+      <div className="mt-5 rounded-full bg-bg-secondary p-1">
+        <div
+          className="h-2 rounded-full bg-[#3B5EFC]"
+          style={{ width: `${Math.round((tasteProfile.confidence ?? 0) * 100)}%` }}
+        />
+      </div>
+      <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-text-tertiary">
+        Confidence {Math.round((tasteProfile.confidence ?? 0) * 100)}%
+      </p>
+    </div>
   );
+}
+
+function SystemOverview({
+  project,
+}: {
+  project: Project;
+}) {
+  const [state, setState] = React.useState(() => getProjectState(project.id));
 
   React.useEffect(() => {
-    const projectTasks = getProjectTasks(projectId);
-    if (projectTasks.length === 0) {
-      const defaults: StoredTask[] = [
-        { id: `t-${projectId}-1`, text: "Define success criteria with client", projectId, createdAt: new Date().toISOString(), completed: false },
-        { id: `t-${projectId}-2`, text: "First Vision pass for this room",      projectId, createdAt: new Date().toISOString(), completed: false },
-        { id: `t-${projectId}-3`, text: "Lock heading/body pairing",             projectId, createdAt: new Date().toISOString(), completed: false },
-      ];
-      setProjectTasks(projectId, defaults);
-      setTasks(defaults);
-    } else {
-      setTasks(projectTasks);
-    }
-  }, [projectId]);
+    setState(getProjectState(project.id));
+  }, [project.id]);
 
   React.useEffect(() => {
-    function syncTasks() {
-      setTasks(getProjectTasks(projectId));
-      setExpanded(getProjectTaskPanelExpanded(projectId));
-    }
-
-    window.addEventListener(PROJECT_TASKS_UPDATED_EVENT, syncTasks);
-    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, syncTasks);
+    const sync = () => setState(getProjectState(project.id));
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
+    window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, sync);
     return () => {
-      window.removeEventListener(PROJECT_TASKS_UPDATED_EVENT, syncTasks);
-      window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, syncTasks);
+      window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
+      window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, sync);
     };
-  }, [projectId]);
+  }, [project.id]);
 
-  function toggleExpanded() {
-    setExpanded((prev) => {
-      const next = !prev;
-      setProjectTaskPanelExpanded(projectId, next);
-      return next;
-    });
-  }
+  const tokens = state.canvas?.designTokens ?? null;
+  const palette = state.palette?.length ? state.palette : project.palette;
+  const tasteProfile = state.canvas?.tasteProfile ?? null;
+  const headingFont = state.typography?.headingFont ?? project.headingFont;
+  const bodyFont = state.typography?.bodyFont ?? project.bodyFont;
 
-  function toggleTask(id: string) {
-    const updated = getProjectTasks(projectId).map((task) =>
-      task.id === id ? { ...task, completed: !task.completed } : task
+  if (!tokens && !tasteProfile && palette.length === 0) {
+    return (
+      <EmptyOverviewState
+        title="No system extracted yet"
+        body="Enter Canvas to extract palette, typography, and a taste profile from the reference board."
+      />
     );
-    setProjectTasks(projectId, updated);
-    setTasks(updated);
   }
-
-  function addTask() {
-    const text = draft.trim();
-    if (!text) return;
-    const newTask: StoredTask = {
-      id: `t-${Date.now()}`,
-      text,
-      projectId,
-      createdAt: new Date().toISOString(),
-      completed: false,
-    };
-    setProjectTasks(projectId, [...getProjectTasks(projectId), newTask]);
-    setTasks((prev) => [...prev, newTask]);
-    setDraft("");
-  }
-
-  const completed = tasks.filter((t) => t.completed).length;
-  const total = tasks.length;
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
-    <div className="border-b border-card-border">
-      {/* Collapsed header — always visible */}
-      <button
-        type="button"
-        onClick={toggleExpanded}
-        className="flex w-full items-center gap-3 py-4 text-left group"
-      >
-        <motion.svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="shrink-0 text-text-muted"
-          animate={{ rotate: expanded ? 90 : 0 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        >
-          <path d="M9 6l6 6-6 6" />
-        </motion.svg>
-
-        <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors duration-300 group-hover:text-text-secondary">
-          Tasks
-        </span>
-
-        <span className="text-[11px] font-mono text-text-muted transition-colors duration-300">
-          {completed}/{total} complete
-        </span>
-
-        {/* Progress bar */}
-        <div className="flex-1 max-w-[120px] ml-1">
-          <div className="h-[3px] w-full bg-bg-tertiary rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-accent rounded-full"
-              initial={false}
-              animate={{ width: `${pct}%` }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            />
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="space-y-5">
+        <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+            Color palette
+          </p>
+          <div className="mt-4 grid grid-cols-5 gap-3">
+            {palette.slice(0, 10).map((color, index) => (
+              <div key={`${color}-${index}`} className="space-y-2">
+                <div
+                  className="aspect-square rounded-2xl border border-border-primary"
+                  style={{ backgroundColor: color }}
+                />
+                <p className="truncate text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+                  {color}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </button>
 
-      {/* Expandable task list */}
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 35 }}
-            className="overflow-hidden"
-          >
-            <div className="pb-4 space-y-1">
-              {tasks.map((task) => (
-                <motion.div
-                  key={task.id}
-                  whileHover={{ x: 3 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  onClick={() => toggleTask(task.id)}
-                  className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-primary cursor-pointer transition-colors duration-300 hover:bg-sidebar-hover rounded-md"
-                >
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={() => toggleTask(task.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-3 w-3 shrink-0 border border-border-secondary bg-transparent accent-accent transition-colors duration-300"
-                  />
-                  <span className={cn(
-                    "transition-colors duration-200",
-                    task.completed && "line-through text-text-muted"
-                  )}>
-                    {task.text}
-                  </span>
-                </motion.div>
-              ))}
-
-              {/* Inline task creation */}
-              <div className="flex items-center gap-2 pt-1 pl-2">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Add task..."
-                    className="w-full border border-card-border bg-transparent px-2 py-1.5 pr-8 text-xs text-text-primary outline-none transition-[border-color,color,background-color] duration-300 ease-out focus:border-accent rounded-md"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addTask();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={addTask}
-                    disabled={!draft.trim()}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-text-muted transition-colors duration-300 hover:text-text-primary disabled:opacity-30"
-                    aria-label="Add task"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+        <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+            Typography
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+                Heading
+              </p>
+              <p className="mt-2 text-base font-medium text-text-primary">
+                {fontLabel(headingFont)}
+              </p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+                Body
+              </p>
+              <p className="mt-2 text-base font-medium text-text-primary">
+                {fontLabel(bodyFont)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        {tasteProfile ? <TasteSnapshot tasteProfile={tasteProfile} /> : null}
+
+        <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+            System snapshot
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+                Layout bias
+              </p>
+              <p className="mt-2 text-sm text-text-primary">
+                {tasteProfile?.layoutBias.gridStyle ?? "Awaiting extraction"}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">
+                Density {tasteProfile?.layoutBias.density ?? "—"} · whitespace {tasteProfile?.layoutBias.whitespacePreference ?? "—"}
+              </p>
+            </div>
+            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+                CTA tone
+              </p>
+              <p className="mt-2 text-sm text-text-primary">
+                {tasteProfile?.ctaTone ?? "Awaiting extraction"}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">
+                {tasteProfile?.imageTreatment.style ?? "No image treatment captured yet"}
+              </p>
+            </div>
+          </div>
+          {tokens ? (
+            <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+              {tokenCount(tokens)} primary tokens are already extracted and available in Canvas.
+            </p>
+          ) : null}
+        </div>
+
+        {tasteProfile?.avoid?.length ? (
+          <div className="rounded-[26px] border border-red-500/20 bg-red-500/[0.04] p-5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-red-300">
+              Avoid
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-red-100/80">
+              {tasteProfile.avoid.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function VariantPreviewCard({
+  variant,
+  tokens,
+}: {
+  variant: GeneratedVariant;
+  tokens: DesignSystemTokens | null;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[24px] border border-border-primary bg-card-bg">
+      <div className="border-b border-border-primary px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-text-primary">
+              {variant.strategyLabel ?? variant.name}
+            </p>
+            <p className="mt-1 text-xs text-text-tertiary">
+              {formatRelativeTime(variant.createdAt)}
+            </p>
+          </div>
+          {variant.strategy ? (
+            <span className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-text-secondary">
+              {variant.strategy}
+            </span>
+          ) : null}
+        </div>
+        {variant.description ? (
+          <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+            {variant.description}
+          </p>
+        ) : null}
+      </div>
+      <div className="bg-bg-secondary p-4">
+        <div className="overflow-hidden rounded-[18px] border border-border-primary bg-white">
+          {tokens ? (
+            <ComposeDocumentView
+              pageTree={variant.pageTree}
+              tokens={tokens}
+              breakpoint="desktop"
+              scale={320 / 1440}
+              className="pointer-events-none"
+            />
+          ) : (
+            <div className="flex aspect-[16/11] items-center justify-center text-sm text-text-tertiary">
+              Preview unavailable
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SiteOverview({
+  project,
+}: {
+  project: Project;
+}) {
+  const [state, setState] = React.useState(() => getProjectState(project.id));
+
+  React.useEffect(() => {
+    setState(getProjectState(project.id));
+  }, [project.id]);
+
+  React.useEffect(() => {
+    const sync = () => setState(getProjectState(project.id));
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
+  }, [project.id]);
+
+  const tokens = state.canvas?.designTokens ?? null;
+  const variants = state.canvas?.generatedVariants ?? [];
+  const composeDocument = state.canvas?.composeDocument ?? null;
+  const exportArtboard = getExportArtboard(composeDocument);
+  const exportHistory = [
+    composeDocument?.exportArtifact
+      ? {
+          label: "Compose export",
+          detail: composeDocument.exportArtifact.name,
+          time: composeDocument.exportArtifact.updatedAt,
+        }
+      : null,
+    state.canvas?.generatedSite
+      ? {
+          label: "Generated site",
+          detail: state.canvas.generatedSite.name,
+          time: state.canvas.generatedSite.updatedAt,
+        }
+      : null,
+    variants[0]
+      ? {
+          label: "Latest variants",
+          detail: `${variants.length} directions`,
+          time: variants[0].createdAt,
+        }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; detail: string; time: string }>;
+
+  if (variants.length === 0 && !exportArtboard) {
+    return (
+      <EmptyOverviewState
+        title="No site output yet"
+        body="Enter Canvas to generate variants, choose a direction, and refine it inside Compose."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_360px]">
+        <div className="space-y-5">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+              Latest variants
+            </p>
+            <h3 className="mt-2 text-xl font-semibold tracking-tight text-text-primary">
+              Current directions
+            </h3>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {variants.slice(0, 3).map((variant) => (
+              <VariantPreviewCard
+                key={variant.id}
+                variant={variant}
+                tokens={tokens}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+              Compose preview
+            </p>
+            <div className="mt-4 overflow-hidden rounded-[22px] border border-border-primary bg-white">
+              {exportArtboard && tokens ? (
+                <ComposeDocumentView
+                  pageTree={exportArtboard.pageTree}
+                  tokens={tokens}
+                  breakpoint={composeDocument?.breakpoint ?? "desktop"}
+                  scale={280 / 1440}
+                  className="pointer-events-none"
+                />
+              ) : (
+                <div className="flex aspect-[3/4] items-center justify-center px-6 text-center text-sm text-text-tertiary">
+                  Compose preview will appear here after you move a variant into Canvas.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+              Export history
+            </p>
+            {exportHistory.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {exportHistory.map((item) => (
+                  <div
+                    key={`${item.label}-${item.time}`}
+                    className="rounded-[20px] border border-border-primary bg-bg-secondary p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-text-primary">{item.label}</p>
+                        <p className="mt-1 text-xs text-text-secondary">{item.detail}</p>
+                      </div>
+                      <span className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
+                        {formatRelativeTime(item.time)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+                Export activity will appear here once the project is generated or exported from Canvas.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ProjectRoomSections({ project }: { project: Project }) {
+  const [activeTab, setActiveTab] = React.useState<ProjectOverviewTab>("board");
+  const [state, setState] = React.useState(() => getProjectState(project.id));
+  const [referenceCount, setReferenceCount] = React.useState(() => listProjectReferences(project.id).length);
+
+  React.useEffect(() => {
+    setState(getProjectState(project.id));
+    setReferenceCount(listProjectReferences(project.id).length);
+  }, [project.id]);
+
+  React.useEffect(() => {
+    const sync = () => {
+      setState(getProjectState(project.id));
+      setReferenceCount(listProjectReferences(project.id).length);
+    };
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
+    window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, sync);
+    return () => {
+      window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, sync);
+      window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, sync);
+    };
+  }, [project.id]);
+
+  const variants = state.canvas?.generatedVariants ?? [];
+  const tokens = state.canvas?.designTokens ?? null;
+  const lastEdited = formatRelativeTime(state.updatedAt ?? project.lastActivity);
+
+  return (
+    <div className="space-y-8 pb-16">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatPill label="references" value={String(referenceCount)} />
+        <StatPill label="tokens" value={String(tokenCount(tokens))} />
+        <StatPill label="variants" value={String(variants.length)} />
+        <StatPill label="last edited" value={lastEdited} />
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "rounded-full border px-4 py-2 text-left transition-colors",
+                activeTab === tab.id
+                  ? "border-[#3B5EFC]/30 bg-[#3B5EFC]/10 text-text-primary"
+                  : "border-border-primary bg-bg-secondary text-text-secondary hover:text-text-primary"
+              )}
+            >
+              <p className="text-[11px] uppercase tracking-[0.14em]">{tab.label}</p>
+            </button>
+          ))}
+        </div>
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+            {TABS.find((tab) => tab.id === activeTab)?.subtitle}
+          </p>
+        </div>
+      </div>
+
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+      >
+        {activeTab === "board" ? <BoardOverview projectId={project.id} /> : null}
+        {activeTab === "system" ? <SystemOverview project={project} /> : null}
+        {activeTab === "site" ? <SiteOverview project={project} /> : null}
+      </motion.div>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { CanvasPage } from "./canvas-client";
+import { normalizeCanvasStage } from "@/lib/canvas/compose";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Canvas — Studio OS",
@@ -9,8 +11,14 @@ export const metadata: Metadata = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; step?: string }>;
 }) {
   const params = await Promise.resolve(searchParams);
-  return <CanvasPage projectId={params.project} />;
+  const normalizedStep = normalizeCanvasStage(params.step);
+  if (params.project && params.step && normalizedStep && normalizedStep !== params.step) {
+    redirect(
+      `/canvas-v1?project=${encodeURIComponent(params.project)}&step=${normalizedStep}`
+    );
+  }
+  return <CanvasPage projectId={params.project} initialStep={normalizedStep ?? undefined} />;
 }

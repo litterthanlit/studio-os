@@ -25,6 +25,7 @@ import {
   getExportArtboard,
   getSelectedArtboard,
   inferSiteName,
+  normalizeCanvasStage,
   rehydrateComposeDocument,
   updateArtboardTree,
   updateNodeContent,
@@ -57,14 +58,46 @@ import {
 } from "@/lib/project-store";
 import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
 
-type StageMeta = { label: string; number: string; description: string };
+type StageMeta = {
+  label: string;
+  icon: "layers" | "sparkles" | "layout";
+  description: string;
+};
 
 const STAGE_META: Record<CanvasStage, StageMeta> = {
-  moodboard: { label: "Moodboard", number: "01", description: "Upload and analyze references" },
-  system: { label: "System", number: "02", description: "Generate design tokens" },
-  generate: { label: "Generate", number: "03", description: "Create full-page variants" },
-  compose: { label: "Compose", number: "04", description: "Refine on an infinite board" },
+  collect: { label: "Collect", icon: "layers", description: "Gather references and shape the system" },
+  generate: { label: "Generate", icon: "sparkles", description: "Create full-page variants" },
+  compose: { label: "Compose", icon: "layout", description: "Refine on an infinite board" },
 };
+
+function StepIcon({ icon }: { icon: StageMeta["icon"] }) {
+  if (icon === "layers") {
+    return (
+      <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m8 2.5 5.5 3L8 8.5l-5.5-3L8 2.5Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m2.5 8.25 5.5 3 5.5-3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m2.5 11 5.5 3 5.5-3" />
+      </svg>
+    );
+  }
+  if (icon === "sparkles") {
+    return (
+      <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 2.5 9.1 6 12.5 7.1 9.1 8.2 8 11.5 6.9 8.2 3.5 7.1 6.9 6 8 2.5Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 2.75v2.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4h2.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+    </svg>
+  );
+}
 
 const BREAKPOINT_OPTIONS: Array<{ key: Breakpoint; label: string; short: string }> = [
   { key: "desktop", label: "Desktop", short: "1440" },
@@ -861,7 +894,7 @@ function StageStepper({
                       <rect x="3.5" y="7" width="9" height="6" rx="1.5" />
                     </svg>
                   ) : (
-                    meta.number
+                    <StepIcon icon={meta.icon} />
                   )}
                 </span>
                 <span>{meta.label}</span>
@@ -1052,87 +1085,6 @@ function ReferenceThumbnailStrip({
               </div>
             );
           })
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SystemPreviewPanel({
-  tokens,
-  analysis,
-}: {
-  tokens: DesignSystemTokens | null;
-  analysis: ImageAnalysis | null;
-}) {
-  return (
-    <div className="flex h-full flex-col overflow-y-auto p-6">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-        <div className="space-y-2">
-          <PanelSectionLabel
-            label="System Preview"
-            detail="Your project references are now distilled into a working web system."
-          />
-          {analysis ? (
-            <p className="max-w-2xl text-sm leading-relaxed text-text-secondary">
-              {analysis.designDirection}
-            </p>
-          ) : null}
-        </div>
-
-        {tokens ? (
-          <div className="space-y-6">
-            <div className="rounded-[28px] border border-border-primary bg-bg-primary p-6">
-              <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
-                Palette
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {Object.entries(tokens.colors).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="overflow-hidden rounded-2xl border border-border-primary bg-bg-secondary"
-                  >
-                    <div className="h-24" style={{ backgroundColor: value }} />
-                    <div className="px-4 py-3">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
-                        {key}
-                      </p>
-                      <p className="mt-1 font-mono text-[12px] text-text-primary">{value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-border-primary bg-bg-primary p-8">
-              <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
-                Typography
-              </p>
-              <div className="mt-5 rounded-[24px] border border-border-primary bg-bg-secondary p-8">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
-                  Heading / Body Stack
-                </p>
-                <h2
-                  className="mt-4 text-5xl tracking-tight text-text-primary"
-                  style={{ fontFamily: tokens.typography.fontFamily }}
-                >
-                  Taste becomes structure.
-                </h2>
-                <p
-                  className="mt-5 max-w-2xl text-base leading-relaxed text-text-secondary"
-                  style={{ fontFamily: tokens.typography.fontFamily }}
-                >
-                  Adjust the tokens on the right. The variants and final compose canvas will inherit the same system.
-                </p>
-              </div>
-            </div>
-
-            {analysis ? <AnalysisPanel analysis={analysis} loading={false} /> : null}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-border-primary bg-bg-primary p-10 text-center text-sm text-text-muted">
-            Generate a system from the current references to preview tokens here.
-          </div>
         )}
       </div>
     </div>
@@ -2724,8 +2676,14 @@ function ComposeStage({
   );
 }
 
-export function CanvasPage({ projectId }: { projectId?: string }) {
-  const [stage, setStage] = React.useState<CanvasStage>("moodboard");
+export function CanvasPage({
+  projectId,
+  initialStep,
+}: {
+  projectId?: string;
+  initialStep?: CanvasStage;
+}) {
+  const [stage, setStage] = React.useState<CanvasStage>(initialStep ?? "collect");
   const [images, setImages] = React.useState<ReferenceImage[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [setName, setSetName] = React.useState("");
@@ -2771,7 +2729,9 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     const fontsCount = [meta?.headingFont, meta?.bodyFont].filter(Boolean).length;
     const restoredCanvas = {
       ...storedState.canvas,
-      stage: persistedSession?.stage ?? storedState.canvas?.stage,
+      stage: normalizeCanvasStage(
+        persistedSession?.stage ?? storedState.canvas?.stage ?? initialStep ?? null
+      ),
       referenceSetName:
         persistedSession?.referenceSetName ?? storedState.canvas?.referenceSetName,
       analysis: persistedSession?.analysis ?? storedState.canvas?.analysis ?? null,
@@ -2844,10 +2804,13 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         setStage("compose");
       } else if (restoredVariants.length > 0) {
         setStage("generate");
-      } else if (projectTokens) {
-        setStage(restoredCanvas.stage === "moodboard" ? "moodboard" : "system");
-      } else if (refs.length > 0) {
-        setStage(restoredCanvas.stage ?? "system");
+      } else if (
+        restoredCanvas.stage === "generate" &&
+        (refs.length > 0 || projectTokens)
+      ) {
+        setStage("generate");
+      } else {
+        setStage("collect");
       }
     }
 
@@ -2859,13 +2822,22 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         `${refs.length} references, ${colorsCount} colors, ${fontsCount} fonts loaded`
       );
     }
-  }, [linkedProjectId]);
+  }, [initialStep, linkedProjectId]);
 
   React.useEffect(() => {
     if (!bootstrapToast) return;
     const timeout = window.setTimeout(() => setBootstrapToast(null), 3200);
     return () => window.clearTimeout(timeout);
   }, [bootstrapToast]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !linkedProjectId) return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("project", linkedProjectId);
+    params.set("step", stage);
+    const nextUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, [linkedProjectId, stage]);
 
   React.useEffect(() => {
     setCompareVariantIds((current) =>
@@ -3087,12 +3059,12 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
       const data = await response.json();
       setTokens(data.tokens);
       setMarkdown(data.markdown);
-      setStage("system");
+      setStage("collect");
     } catch {
       const localTokens = analysisToTokens(analysis);
       setTokens(localTokens);
       setMarkdown(tokensToMarkdown(localTokens));
-      setStage("system");
+      setStage("collect");
     } finally {
       setSystemLoading(false);
     }
@@ -3176,14 +3148,22 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   const selectedCount = selectedIds.size;
   const hasReferences = images.length > 0;
   const hasTokens = tokens !== null;
+  const tokenCount = tokens ? Object.keys(tokens.colors).length : 0;
   const canAnalyze = selectedCount > 0 && !analysisLoading;
   const canGenerateSystem = analysis !== null && !systemLoading;
   const canGenerateVariants =
     hasTokens && sitePrompt.trim().length > 0 && !generateLoading;
+  const collectCount =
+    hasReferences && hasTokens
+      ? `${images.length} refs · ${tokenCount} tokens`
+      : hasReferences
+      ? `${images.length} refs`
+      : hasTokens
+      ? `${tokenCount} tokens`
+      : undefined;
 
   const completions: Partial<Record<CanvasStage, boolean>> = {
-    moodboard: hasReferences,
-    system: hasTokens,
+    collect: hasReferences || hasTokens,
     generate: generatedVariants.length > 0,
     compose: false,
   };
@@ -3192,14 +3172,10 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
     CanvasStage,
     { available: boolean; tooltip?: string }
   > = {
-    moodboard: { available: true },
-    system: {
-      available: hasReferences || hasTokens,
-      tooltip: "Upload references first",
-    },
+    collect: { available: true },
     generate: {
-      available: hasTokens,
-      tooltip: "Generate a design system first",
+      available: hasReferences || hasTokens,
+      tooltip: "Upload references or load a saved system first",
     },
     compose: {
       available: generatedVariants.length > 0,
@@ -3208,8 +3184,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
   };
 
   const stepCounts: Partial<Record<CanvasStage, string>> = {
-    moodboard: `${images.length} refs`,
-    system: `${tokens ? Object.keys(tokens.colors).length : 0} tokens`,
+    collect: collectCount,
     generate: `${generatedVariants.length} variant${generatedVariants.length === 1 ? "" : "s"}`,
   };
 
@@ -3280,26 +3255,24 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
         <CanvasStageLayout
           stage={stage}
           leftPanel={
-            stage === "moodboard" ? (
+            stage === "collect" ? (
               <ReferenceThumbnailStrip
                 images={images}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 onRemove={handleRemoveImage}
               />
-            ) : stage === "system" ? (
-              <ReferenceThumbnailStrip images={images} selectedIds={selectedIds} readOnly />
             ) : undefined
           }
           centerPanel={
-            stage === "moodboard" ? (
+            stage === "collect" ? (
               <div className="flex h-full flex-col overflow-y-auto p-6">
                 <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
                   <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div className="space-y-2">
                       <PanelSectionLabel
-                        label="Moodboard"
-                        detail="Drop a full reference set into the board. This is the primary ingest surface for Canvas."
+                        label="Collect"
+                        detail="Drop references into the board, analyze them, and shape the project system in one place."
                       />
                       <Input
                         value={setName}
@@ -3386,8 +3359,6 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
                   <AnalysisPanel analysis={analysis} loading={analysisLoading} />
                 </div>
               </div>
-            ) : stage === "system" ? (
-              <SystemPreviewPanel tokens={tokens} analysis={analysis} />
             ) : (
               <div className="flex h-full flex-col overflow-y-auto p-6">
                 <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-6">
@@ -3474,11 +3445,11 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
             )
           }
           rightPanel={
-            stage === "system" ? (
+            stage === "collect" ? (
               <div className="space-y-4 p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    Token Editor
+                    System
                   </h3>
                   {tokens ? (
                     <span className="text-[9px] text-emerald-400 font-mono">Active</span>
@@ -3495,7 +3466,7 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
 
                 <Button
                   onClick={() => setStage("generate")}
-                  disabled={!tokens}
+                  disabled={!availability.generate.available}
                   className="w-full h-10 text-[11px] uppercase tracking-[0.12em]"
                 >
                   Continue to Generate →
@@ -3505,8 +3476,8 @@ export function CanvasPage({ projectId }: { projectId?: string }) {
               <SystemSummaryPanel tokens={tokens} selectedVariant={selectedVariant} />
             ) : undefined
           }
-          leftWidth={stage === "system" ? "260px" : "240px"}
-          rightWidth={stage === "system" ? "320px" : "300px"}
+          leftWidth="240px"
+          rightWidth={stage === "collect" ? "320px" : "300px"}
         />
       )}
     </div>

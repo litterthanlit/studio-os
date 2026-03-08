@@ -1,7 +1,7 @@
 import type { DesignSystemTokens } from "./generate-system";
 import type { SiteType } from "./templates";
 
-export type CanvasStage = "moodboard" | "system" | "generate" | "compose";
+export type CanvasStage = "collect" | "generate" | "compose";
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 export type InspectorTab = "content" | "style" | "layout" | "effects" | "ai";
 
@@ -153,6 +153,17 @@ export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
 };
 
 export const COMPOSE_ARTBOARD_GAP = 100;
+
+export function normalizeCanvasStage(value?: string | null): CanvasStage | null {
+  if (!value) return null;
+  if (value === "moodboard" || value === "system" || value === "collect") {
+    return "collect";
+  }
+  if (value === "generate" || value === "compose") {
+    return value;
+  }
+  return null;
+}
 
 type VariantProfile = {
   key: string;

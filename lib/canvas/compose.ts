@@ -5,6 +5,7 @@ import type { TasteProfile } from "@/types/taste-profile";
 export type CanvasStage = "collect" | "generate" | "compose";
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 export type InspectorTab = "content" | "style" | "layout" | "effects" | "ai";
+export type VariantMode = "safe" | "creative" | "alternative";
 
 export type PageNodeType =
   | "page"
@@ -88,6 +89,9 @@ export type GeneratedVariant = {
   isFavorite?: boolean;
   description?: string;
   siteType?: SiteType;
+  strategy?: VariantMode;
+  strategyLabel?: string;
+  tasteEmphasis?: string[];
 };
 
 export type ComposeArtboard = {
@@ -176,8 +180,6 @@ type VariantProfile = {
   sectionBackgrounds: Array<"background" | "surface" | "accentWash">;
   pricingEmphasis: number;
 };
-
-type VariantMode = "safe" | "creative" | "alternative";
 
 const VARIANT_PROFILES: VariantProfile[] = [
   {
@@ -751,31 +753,72 @@ export function createVariantSet(
   tokens: DesignSystemTokens,
   siteType: SiteType,
   siteName = inferSiteName(prompt),
-  tasteProfile: TasteProfile | null = null
+  tasteProfile: TasteProfile | null = null,
+  requestedModes: VariantMode[] = ["safe", "creative", "alternative"]
 ): GeneratedVariant[] {
   const createdAt = new Date().toISOString();
   const resolvedSiteType = siteType === "auto" ? "saas-landing" : siteType;
-  const variantModes: VariantMode[] = ["safe", "creative", "alternative"];
+  const variantModes = requestedModes.length > 0 ? requestedModes : ["safe"];
 
-  return VARIANT_PROFILES.map((profile, index) => ({
-    id: uid("variant"),
-    name: `${profile.name} ${index + 1}`,
-    pageTree: createVariantPageTree(
-      profile,
-      prompt,
-      siteName,
-      tokens,
-      tasteProfile,
-      variantModes[index] ?? "safe"
-    ),
-    previewImage: null,
-    compiledCode: null,
-    sourcePrompt: prompt,
-    createdAt,
-    isFavorite: false,
-    description: tasteAlignmentNote(tasteProfile, variantModes[index] ?? "safe"),
-    siteType: resolvedSiteType,
-  }));
+  return VARIANT_PROFILES.filter((_, index) => Boolean(variantModes[index])).map((profile, index) => {
+    const mode = variantModes[index] ?? "safe";
+    return {
+      id: uid("variant"),
+      name: `${profile.name} ${index + 1}`,
+      pageTree: createVariantPageTree(
+        profile,
+        prompt,
+        siteName,
+        tokens,
+        tasteProfile,
+        mode
+      ),
+      previewImage: null,
+      compiledCode: null,
+      sourcePrompt: prompt,
+      createdAt,
+      isFavorite: false,
+      description: tasteAlignmentNote(tasteProfile, mode),
+      siteType: resolvedSiteType,
+      strategy: mode,
+      strategyLabel:
+        mode === "safe"
+          ? "A: Safe"
+          : mode === "creative"
+          ? "B: Creative"
+          : "C: Alternative",
+      tasteEmphasis:
+        mode === "safe"
+          ? [
+              normalizeValue(
+                tasteProfile?.layoutBias.whitespacePreference,
+                "spacing balance"
+              ),
+              normalizeValue(
+                tasteProfile?.typographyTraits.headingMood,
+                "type mood"
+              ),
+            ]
+          : mode === "creative"
+          ? [
+              normalizeValue(
+                tasteProfile?.imageTreatment.style,
+                "image treatment"
+              ),
+              normalizeValue(
+                tasteProfile?.layoutBias.heroStyle,
+                "hero treatment"
+              ),
+            ]
+          : [
+              normalizeValue(tasteProfile?.layoutBias.gridStyle, "grid style"),
+              normalizeValue(
+                tasteProfile?.colorBehavior.backgroundPreference,
+                "background preference"
+              ),
+            ],
+    };
+  });
 }
 
 export function createComposeDocument(variants: GeneratedVariant[]): ComposeDocument {

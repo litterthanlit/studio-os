@@ -821,6 +821,21 @@ function normalizeVariant(variant: unknown): GeneratedVariant | null {
     previewImage: typedVariant.previewImage ?? null,
     compiledCode: typedVariant.compiledCode ?? null,
     isFavorite: typedVariant.isFavorite ?? legacyVariant.favorite ?? false,
+    strategy:
+      typedVariant.strategy === "safe" ||
+      typedVariant.strategy === "creative" ||
+      typedVariant.strategy === "alternative"
+        ? typedVariant.strategy
+        : undefined,
+    strategyLabel:
+      typeof typedVariant.strategyLabel === "string"
+        ? typedVariant.strategyLabel
+        : undefined,
+    tasteEmphasis: Array.isArray(typedVariant.tasteEmphasis)
+      ? typedVariant.tasteEmphasis.filter(
+          (value): value is string => typeof value === "string" && value.length > 0
+        )
+      : [],
   };
 }
 
@@ -840,19 +855,6 @@ function setVariantFavorite(
       ? { ...variant, isFavorite: !variant.isFavorite }
       : variant
   );
-}
-
-function toggleVariantCompare(
-  variantIds: string[],
-  targetId: string
-): string[] {
-  if (variantIds.includes(targetId)) {
-    return variantIds.filter((id) => id !== targetId);
-  }
-  if (variantIds.length >= 2) {
-    return [variantIds[1], targetId];
-  }
-  return [...variantIds, targetId];
 }
 
 function formatVariantTimestamp(createdAt: string) {
@@ -962,21 +964,34 @@ function VariantCard({
   active,
   onSelect,
   onFavorite,
-  onCompare,
   onOpenCompose,
-  compareActive,
-  compareDisabled,
+  onRegenerateVariant,
+  setScrollRef,
+  onSyncScroll,
 }: {
   variant: GeneratedVariant;
   tokens: DesignSystemTokens;
   active: boolean;
   onSelect: () => void;
   onFavorite: () => void;
-  onCompare: () => void;
   onOpenCompose: () => void;
-  compareActive: boolean;
-  compareDisabled: boolean;
+  onRegenerateVariant: (
+    variant: GeneratedVariant,
+    options: {
+      intent: "more-like-this" | "different-approach";
+      promptOverride?: string;
+    }
+  ) => void;
+  setScrollRef: (element: HTMLDivElement | null) => void;
+  onSyncScroll: (scrollTop: number) => void;
 }) {
+  const [showPromptEditor, setShowPromptEditor] = React.useState(false);
+  const [promptDraft, setPromptDraft] = React.useState(variant.sourcePrompt);
+
+  React.useEffect(() => {
+    setPromptDraft(variant.sourcePrompt);
+  }, [variant.sourcePrompt]);
+
   return (
     <motion.div
       whileHover={{ y: -2 }}
@@ -1002,7 +1017,14 @@ function VariantCard({
         <div className="border-b border-border-subtle px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[13px] font-medium text-text-primary">{variant.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[13px] font-medium text-text-primary">
+                  {variant.strategyLabel ?? variant.name}
+                </p>
+                <span className="rounded-full border border-border-primary px-2 py-0.5 text-[9px] uppercase tracking-[0.12em] text-text-muted">
+                  {variant.strategy ?? "variant"}
+                </span>
+              </div>
               <p className="mt-1 text-[11px] text-text-muted">
                 {formatVariantTimestamp(variant.createdAt)}
               </p>
@@ -1021,52 +1043,110 @@ function VariantCard({
         </div>
         <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-4">
           <div className="overflow-hidden rounded-[22px] border border-border-primary bg-black/10">
-            <div className="h-[380px] overflow-y-auto">
+            <div
+              ref={setScrollRef}
+              className="h-[560px] overflow-y-auto"
+              onScroll={(event) => onSyncScroll(event.currentTarget.scrollTop)}
+            >
               <ComposeDocumentView
                 pageTree={variant.pageTree}
                 tokens={tokens}
                 breakpoint="desktop"
-                scale={variantCardScale(320)}
+                scale={variantCardScale(380)}
                 className="pointer-events-none"
               />
             </div>
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-t border-border-subtle px-4 py-3">
-        <button
-          type="button"
-          onClick={onFavorite}
-          className={cn(
-            "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
-            variant.isFavorite
-              ? "bg-accent text-white"
-              : "bg-bg-secondary text-text-muted hover:text-text-secondary"
-          )}
-        >
-          {variant.isFavorite ? "★ Starred" : "☆ Star"}
-        </button>
-        <button
-          type="button"
-          onClick={onCompare}
-          disabled={compareDisabled}
-          className={cn(
-            "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
-            compareActive
-              ? "bg-white text-black"
-              : "bg-bg-secondary text-text-muted hover:text-text-secondary",
-            compareDisabled && "cursor-not-allowed opacity-45"
-          )}
-        >
-          {compareActive ? "Comparing" : "Compare"}
-        </button>
-        <Button
-          type="button"
-          className="ml-auto h-8 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
-          onClick={onOpenCompose}
-        >
-          Open in Compose
-        </Button>
+      <div className="space-y-3 border-t border-border-subtle px-4 py-4">
+        <div className="flex flex-wrap gap-2">
+          {(variant.tasteEmphasis ?? []).map((chip) => (
+            <span
+              key={`${variant.id}-${chip}`}
+              className="rounded-full border border-[#3B5EFC]/20 bg-[#3B5EFC]/8 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#3B5EFC]"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onFavorite}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
+              variant.isFavorite
+                ? "bg-accent text-white"
+                : "bg-bg-secondary text-text-muted hover:text-text-secondary"
+            )}
+          >
+            {variant.isFavorite ? "★ Starred" : "☆ Star"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPromptEditor((current) => !current)}
+            className="rounded-full bg-bg-secondary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-text-secondary"
+          >
+            {showPromptEditor ? "Hide Prompt" : "Edit Prompt"}
+          </button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
+            onClick={() =>
+              onRegenerateVariant(variant, {
+                intent: "more-like-this",
+                promptOverride: promptDraft,
+              })
+            }
+          >
+            More Like This
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
+            onClick={() =>
+              onRegenerateVariant(variant, {
+                intent: "different-approach",
+                promptOverride: promptDraft,
+              })
+            }
+          >
+            Different Approach
+          </Button>
+          <Button
+            type="button"
+            className="ml-auto h-8 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
+            onClick={onOpenCompose}
+          >
+            Select
+          </Button>
+        </div>
+        <AnimatePresence initial={false}>
+          {showPromptEditor ? (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-[22px] border border-border-primary bg-bg-secondary p-3">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+                  Taste-derived prompt
+                </p>
+                <textarea
+                  value={promptDraft}
+                  onChange={(event) => setPromptDraft(event.target.value)}
+                  rows={8}
+                  className="mt-3 min-h-[190px] w-full rounded-[18px] border border-border-primary bg-bg-primary px-3 py-3 text-[12px] leading-relaxed text-text-primary outline-none"
+                />
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -1098,14 +1178,14 @@ function GenerateEmptyState() {
         <div className="space-y-4">
           <PanelSectionLabel
             label="Variant Gallery"
-            detail="Generate 2 to 4 site directions from the current system. Each card becomes a scrollable, comparable candidate for Compose."
+            detail="Generate three taste-aware site directions from the current system. Each card stays visible side by side so you can compare them like a review wall."
           />
           <p className="max-w-xl text-sm leading-relaxed text-text-secondary">
-            Studio OS will turn your prompt and design system into several full-page options. Star the strongest ones, compare two side-by-side, then send the best direction into Compose.
+            Studio OS turns your prompt, references, and taste profile into a safe direction, a creative stretch, and an alternative layout path. Review them together, then send the strongest one into Compose.
           </p>
           <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.12em] text-text-muted">
-            <span className="rounded-full border border-border-primary px-3 py-1.5">2-4 full-page variants</span>
-            <span className="rounded-full border border-border-primary px-3 py-1.5">compare mode</span>
+            <span className="rounded-full border border-border-primary px-3 py-1.5">3 full-page variants</span>
+            <span className="rounded-full border border-border-primary px-3 py-1.5">synced review</span>
             <span className="rounded-full border border-border-primary px-3 py-1.5">compose-ready</span>
           </div>
         </div>
@@ -1139,81 +1219,33 @@ function GenerateEmptyState() {
   );
 }
 
-function VariantCompareView({
-  variants,
-  tokens,
-  onSelectWinner,
-}: {
-  variants: GeneratedVariant[];
-  tokens: DesignSystemTokens;
-  onSelectWinner: (variantId: string) => void;
-}) {
-  return (
-    <div className="grid gap-5 xl:grid-cols-2">
-      {variants.map((variant) => (
-        <div
-          key={variant.id}
-          className="overflow-hidden rounded-[30px] border border-border-primary bg-bg-primary"
-        >
-          <div className="flex items-center justify-between gap-4 border-b border-border-subtle px-5 py-4">
-            <div>
-              <p className="text-[13px] font-medium text-text-primary">{variant.name}</p>
-              <p className="mt-1 text-[11px] text-text-muted">
-                {formatVariantTimestamp(variant.createdAt)}
-              </p>
-            </div>
-            <Button
-              type="button"
-              className="h-9 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
-              onClick={() => onSelectWinner(variant.id)}
-            >
-              Use this one
-            </Button>
-          </div>
-          <div className="h-[760px] overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-4">
-            <div className="overflow-hidden rounded-[22px] border border-border-primary bg-black/10">
-              <ComposeDocumentView
-                pageTree={variant.pageTree}
-                tokens={tokens}
-                breakpoint="desktop"
-                scale={variantCardScale(560)}
-                className="pointer-events-none"
-              />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function VariantGallery({
   tokens,
   variants,
   selectedVariantId,
-  compareVariantIds,
   generating,
   onSelect,
   onFavorite,
-  onToggleCompare,
-  onClearCompare,
   onOpenCompose,
+  onRegenerateVariant,
 }: {
   tokens: DesignSystemTokens | null;
   variants: GeneratedVariant[];
   selectedVariantId: string | null;
-  compareVariantIds: string[];
   generating: boolean;
   onSelect: (variantId: string) => void;
   onFavorite: (variantId: string) => void;
-  onToggleCompare: (variantId: string) => void;
-  onClearCompare: () => void;
   onOpenCompose: (variantId: string) => void;
+  onRegenerateVariant: (
+    variant: GeneratedVariant,
+    options: {
+      intent: "more-like-this" | "different-approach";
+      promptOverride?: string;
+    }
+  ) => void;
 }) {
-  const compareVariants = React.useMemo(
-    () => variants.filter((variant) => compareVariantIds.includes(variant.id)),
-    [compareVariantIds, variants]
-  );
+  const scrollRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const syncLockRef = React.useRef(false);
 
   if (generating) {
     return (
@@ -1241,53 +1273,53 @@ function VariantGallery({
     return <GenerateEmptyState />;
   }
 
-  if (compareVariants.length === 2) {
-    return (
-      <div className="space-y-5">
-        <div className="flex items-center justify-between gap-4 rounded-[24px] border border-border-primary bg-bg-primary px-5 py-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
-              Compare Mode
-            </p>
-            <p className="mt-1 text-sm text-text-secondary">
-              Review both directions side by side, then pick the one to carry into Compose.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClearCompare}
-            className="rounded-full border border-border-primary px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-text-secondary"
-          >
-            Exit compare
-          </button>
-        </div>
-        <VariantCompareView
-          variants={compareVariants}
-          tokens={tokens}
-          onSelectWinner={onOpenCompose}
-        />
-      </div>
-    );
+  function syncScroll(sourceId: string, top: number) {
+    if (syncLockRef.current) return;
+    syncLockRef.current = true;
+    Object.entries(scrollRefs.current).forEach(([variantId, element]) => {
+      if (!element || variantId === sourceId) return;
+      element.scrollTop = top;
+    });
+    window.requestAnimationFrame(() => {
+      syncLockRef.current = false;
+    });
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-2">
+    <div className="space-y-4">
+      <div className="rounded-[24px] border border-border-primary bg-bg-primary px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
+              Compare Directions
+            </p>
+            <p className="mt-1 text-sm text-text-secondary">
+              Review the variants side by side. Scrolling one column keeps the others in sync.
+            </p>
+          </div>
+          <div className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+            {variants.length >= 3 ? "3-up compare" : "2-up compare"}
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {variants.map((variant) => (
         <VariantCard
           key={variant.id}
           variant={variant}
           tokens={tokens}
           active={selectedVariantId === variant.id}
-          compareActive={compareVariantIds.includes(variant.id)}
-          compareDisabled={
-            compareVariantIds.length >= 2 && !compareVariantIds.includes(variant.id)
-          }
           onSelect={() => onSelect(variant.id)}
           onFavorite={() => onFavorite(variant.id)}
-          onCompare={() => onToggleCompare(variant.id)}
           onOpenCompose={() => onOpenCompose(variant.id)}
+          onRegenerateVariant={onRegenerateVariant}
+          setScrollRef={(element) => {
+            scrollRefs.current[variant.id] = element;
+          }}
+          onSyncScroll={(scrollTop) => syncScroll(variant.id, scrollTop)}
         />
       ))}
+      </div>
     </div>
   );
 }
@@ -3350,7 +3382,6 @@ export function CanvasPage({
   const [siteType, setSiteType] = React.useState<SiteType>("auto");
   const [generatedVariants, setGeneratedVariants] = React.useState<GeneratedVariant[]>([]);
   const [selectedVariantId, setSelectedVariantId] = React.useState<string | null>(null);
-  const [compareVariantIds, setCompareVariantIds] = React.useState<string[]>([]);
   const [generateLoading, setGenerateLoading] = React.useState(false);
   const [generateError, setGenerateError] = React.useState<string | null>(null);
   const [composeDocument, setComposeDocument] = React.useState<ComposeDocument | null>(null);
@@ -3501,14 +3532,6 @@ export function CanvasPage({
     const nextUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", nextUrl);
   }, [linkedProjectId, stage]);
-
-  React.useEffect(() => {
-    setCompareVariantIds((current) =>
-      current.filter((variantId) =>
-        generatedVariants.some((variant) => variant.id === variantId)
-      )
-    );
-  }, [generatedVariants]);
 
   const selectedVariant = React.useMemo(
     () =>
@@ -3876,11 +3899,26 @@ export function CanvasPage({
     };
   }, [linkedProjectId, referenceSignature, refreshCollectTaste, images.length]);
 
-  async function handleGenerateVariants() {
-    if (!tokens || !sitePrompt.trim()) return;
+  const requestVariantGeneration = React.useCallback(async ({
+    promptOverride,
+    variantStrategy,
+    regenerationIntent,
+  }: {
+    promptOverride?: string;
+    variantStrategy?: "safe" | "creative" | "alternative";
+    regenerationIntent?: "more-like-this" | "different-approach";
+  }) => {
+    if (!tokens) return [];
     const requestId = ++generateRequestIdRef.current;
     setGenerateLoading(true);
     setGenerateError(null);
+    const promptValue = (promptOverride ?? sitePrompt).trim();
+
+    if (!promptValue) {
+      setGenerateLoading(false);
+      setGenerateError("Add a prompt before generating variants.");
+      return [];
+    }
 
     try {
       const response = await fetch("/api/canvas/generate-component", {
@@ -3888,12 +3926,14 @@ export function CanvasPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "variants",
-          prompt: sitePrompt,
+          prompt: promptValue,
           tokens,
           tasteProfile,
           referenceUrls: images.slice(0, 8).map((image) => image.url),
           siteType,
-          siteName: setName || inferSiteName(sitePrompt),
+          siteName: setName || inferSiteName(promptValue),
+          variantStrategy,
+          regenerationIntent,
         }),
       });
 
@@ -3901,24 +3941,61 @@ export function CanvasPage({
       if (!response.ok) throw new Error(data.error || "Variant generation failed");
 
       // Discard the response if a newer request has already been issued
-      if (requestId !== generateRequestIdRef.current) return;
+      if (requestId !== generateRequestIdRef.current) return [];
 
       const normalizedVariants = normalizeVariants(data.variants ?? []);
-      setGeneratedVariants(normalizedVariants);
-      setSelectedVariantId(normalizedVariants[0]?.id ?? null);
-      setCompareVariantIds([]);
       if (!setName.trim() && data.siteName) {
         setSetName(data.siteName);
       }
-      setStage("generate");
+      return normalizedVariants;
     } catch (error) {
-      if (requestId !== generateRequestIdRef.current) return;
+      if (requestId !== generateRequestIdRef.current) return [];
       setGenerateError(error instanceof Error ? error.message : "Variant generation failed");
+      return [];
     } finally {
       if (requestId === generateRequestIdRef.current) {
         setGenerateLoading(false);
       }
     }
+  }, [images, setName, sitePrompt, siteType, tasteProfile, tokens]);
+
+  async function handleGenerateVariants() {
+    const normalizedVariants = await requestVariantGeneration({});
+    if (normalizedVariants.length === 0) return;
+    setGeneratedVariants(normalizedVariants);
+    setSelectedVariantId(normalizedVariants[0]?.id ?? null);
+    setStage("generate");
+  }
+
+  async function handleRegenerateVariant(
+    variant: GeneratedVariant,
+    options: {
+      intent: "more-like-this" | "different-approach";
+      promptOverride?: string;
+    }
+  ) {
+    const nextVariants = await requestVariantGeneration({
+      promptOverride: options.promptOverride,
+      variantStrategy: variant.strategy ?? "safe",
+      regenerationIntent: options.intent,
+    });
+    const replacement = nextVariants[0];
+    if (!replacement) return;
+
+    setGeneratedVariants((current) =>
+      current.map((item) =>
+        item.id === variant.id
+          ? {
+              ...replacement,
+              isFavorite: item.isFavorite,
+              strategy: item.strategy ?? replacement.strategy,
+              strategyLabel: item.strategyLabel ?? replacement.strategyLabel,
+            }
+          : item
+      )
+    );
+    setSelectedVariantId(replacement.id);
+    setStage("generate");
   }
 
   function handleOpenCompose(preferredVariantId?: string) {
@@ -4159,7 +4236,6 @@ export function CanvasPage({
                     tokens={tokens}
                     variants={generatedVariants}
                     selectedVariantId={selectedVariantId}
-                    compareVariantIds={compareVariantIds}
                     generating={generateLoading}
                     onSelect={setSelectedVariantId}
                     onFavorite={(variantId) =>
@@ -4167,13 +4243,8 @@ export function CanvasPage({
                         setVariantFavorite(prev, variantId)
                       )
                     }
-                    onToggleCompare={(variantId) =>
-                      setCompareVariantIds((prev) =>
-                        toggleVariantCompare(prev, variantId)
-                      )
-                    }
-                    onClearCompare={() => setCompareVariantIds([])}
                     onOpenCompose={handleOpenCompose}
+                    onRegenerateVariant={handleRegenerateVariant}
                   />
                 </div>
               </div>

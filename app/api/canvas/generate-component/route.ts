@@ -6,6 +6,7 @@ import {
   compilePageTreeToTSX,
   createVariantSet,
   inferSiteName,
+  type VariantMode,
 } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { TasteProfile } from "@/types/taste-profile";
@@ -154,9 +155,11 @@ export async function POST(req: NextRequest) {
       existingSections,
       mode,
       siteType,
-      siteName,
-      tasteProfile,
-      referenceUrls,
+    siteName,
+    tasteProfile,
+    referenceUrls,
+    variantStrategy,
+    regenerationIntent,
     } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
@@ -167,6 +170,8 @@ export async function POST(req: NextRequest) {
       siteName?: string;
       tasteProfile?: TasteProfile | null;
       referenceUrls?: string[];
+      variantStrategy?: VariantMode;
+      regenerationIntent?: "more-like-this" | "different-approach";
     };
 
     if (!prompt || !tokens) {
@@ -178,12 +183,25 @@ export async function POST(req: NextRequest) {
 
     if (mode === "variants") {
       const resolvedSiteName = siteName || inferSiteName(prompt);
+      const requestedModes =
+        variantStrategy === "safe" ||
+        variantStrategy === "creative" ||
+        variantStrategy === "alternative"
+          ? [variantStrategy]
+          : ["safe", "creative", "alternative"];
+      const regenerationNote =
+        regenerationIntent === "more-like-this"
+          ? "Strengthen the same direction, double down on its taste alignment, and sharpen what already works."
+          : regenerationIntent === "different-approach"
+          ? "Keep the same project and taste profile, but find a meaningfully different layout and styling emphasis."
+          : "";
       const baseVariants = createVariantSet(
-        prompt,
+        regenerationNote ? `${prompt}\n\n${regenerationNote}` : prompt,
         tokens,
         siteType ?? "auto",
         resolvedSiteName,
-        tasteProfile ?? null
+        tasteProfile ?? null,
+        requestedModes
       );
       const variants = baseVariants.map((variant, index) => {
         const strategy = VARIANT_STRATEGIES[index] ?? VARIANT_STRATEGIES[0];

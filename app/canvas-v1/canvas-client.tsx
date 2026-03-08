@@ -253,6 +253,435 @@ function paletteToTokens(palette: string[]): DesignSystemTokens {
   };
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function clampConfidence(value: unknown, fallback = 0): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(1, value));
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function sanitizeImageAnalysis(value: unknown): ImageAnalysis | null {
+  if (!isPlainObject(value)) return null;
+
+  const quality = isPlainObject(value.quality) ? value.quality : null;
+  const colors = isPlainObject(value.colors) ? value.colors : null;
+  const typography = isPlainObject(value.typography) ? value.typography : null;
+  const spacing = isPlainObject(value.spacing) ? value.spacing : null;
+  const vibe = isPlainObject(value.vibe) ? value.vibe : null;
+  const dominantVibe =
+    quality && isPlainObject(quality.dominantVibe) ? quality.dominantVibe : null;
+
+  if (!quality || !colors || !typography || !spacing || !vibe || !dominantVibe) {
+    return null;
+  }
+
+  const typographyCategory =
+    typography.category === "serif" ||
+    typography.category === "sans-serif" ||
+    typography.category === "mono" ||
+    typography.category === "display" ||
+    typography.category === "mixed"
+      ? typography.category
+      : "sans-serif";
+
+  const spacingDensity =
+    spacing.density === "tight" ||
+    spacing.density === "comfortable" ||
+    spacing.density === "spacious"
+      ? spacing.density
+      : "comfortable";
+
+  const vibeDensity =
+    vibe.density === "minimal" ||
+    vibe.density === "balanced" ||
+    vibe.density === "maximal"
+      ? vibe.density
+      : "balanced";
+
+  const vibeTone =
+    vibe.tone === "playful" ||
+    vibe.tone === "neutral" ||
+    vibe.tone === "serious"
+      ? vibe.tone
+      : "neutral";
+
+  const vibeEnergy =
+    vibe.energy === "calm" ||
+    vibe.energy === "moderate" ||
+    vibe.energy === "energetic"
+      ? vibe.energy
+      : "moderate";
+
+  return {
+    quality: {
+      scores: Array.isArray(quality.scores)
+        ? quality.scores
+            .filter(isPlainObject)
+            .map((score) => ({
+              composition:
+                typeof score.composition === "number" && Number.isFinite(score.composition)
+                  ? score.composition
+                  : 0,
+              colorHarmony:
+                typeof score.colorHarmony === "number" && Number.isFinite(score.colorHarmony)
+                  ? score.colorHarmony
+                  : 0,
+              visualNoise:
+                typeof score.visualNoise === "number" && Number.isFinite(score.visualNoise)
+                  ? score.visualNoise
+                  : 0,
+              designRelevance:
+                typeof score.designRelevance === "number" &&
+                Number.isFinite(score.designRelevance)
+                  ? score.designRelevance
+                  : 0,
+              overall:
+                typeof score.overall === "number" && Number.isFinite(score.overall)
+                  ? score.overall
+                  : 0,
+              usedForExtraction: Boolean(score.usedForExtraction),
+            }))
+        : [],
+      dominantVibe: {
+        label:
+          typeof dominantVibe.label === "string" ? dominantVibe.label : "Curated direction",
+        description:
+          typeof dominantVibe.description === "string"
+            ? dominantVibe.description
+            : "A coherent visual direction has been detected from the project references.",
+        matchingImageIndices: Array.isArray(dominantVibe.matchingImageIndices)
+          ? dominantVibe.matchingImageIndices.filter(
+              (index): index is number =>
+                typeof index === "number" && Number.isFinite(index) && index >= 0
+            )
+          : [],
+      },
+      usableImageCount:
+        typeof quality.usableImageCount === "number" &&
+        Number.isFinite(quality.usableImageCount)
+          ? quality.usableImageCount
+          : 0,
+    },
+    colors: {
+      dominant: toStringArray(colors.dominant),
+      accents: toStringArray(colors.accents),
+      neutrals: toStringArray(colors.neutrals),
+      confidence: {
+        dominant: clampConfidence(
+          isPlainObject(colors.confidence) ? colors.confidence.dominant : undefined
+        ),
+        accents: clampConfidence(
+          isPlainObject(colors.confidence) ? colors.confidence.accents : undefined
+        ),
+        neutrals: clampConfidence(
+          isPlainObject(colors.confidence) ? colors.confidence.neutrals : undefined
+        ),
+      },
+    },
+    typography: {
+      category: typographyCategory,
+      weights: toStringArray(typography.weights),
+      hierarchy:
+        typeof typography.hierarchy === "string"
+          ? typography.hierarchy
+          : "Clear, structured hierarchy",
+      confidence: clampConfidence(typography.confidence),
+    },
+    spacing: {
+      density: spacingDensity,
+      rhythm:
+        typeof spacing.rhythm === "string"
+          ? spacing.rhythm
+          : "Balanced spacing with a readable content rhythm.",
+      confidence: clampConfidence(spacing.confidence),
+    },
+    vibe: {
+      density: vibeDensity,
+      tone: vibeTone,
+      energy: vibeEnergy,
+    },
+    designDirection:
+      typeof value.designDirection === "string"
+        ? value.designDirection
+        : "Taste-driven direction",
+    summary:
+      typeof value.summary === "string"
+        ? value.summary
+        : "The references suggest a coherent visual direction for generation.",
+  };
+}
+
+function sanitizeDesignTokens(value: unknown): DesignSystemTokens | null {
+  if (!isPlainObject(value)) return null;
+
+  const colors = isPlainObject(value.colors) ? value.colors : null;
+  const typography = isPlainObject(value.typography) ? value.typography : null;
+  const spacing = isPlainObject(value.spacing) ? value.spacing : null;
+  const radii = isPlainObject(value.radii) ? value.radii : null;
+  const shadows = isPlainObject(value.shadows) ? value.shadows : null;
+  const animation = isPlainObject(value.animation) ? value.animation : null;
+  const spring = animation && isPlainObject(animation.spring) ? animation.spring : null;
+
+  if (!colors || !typography || !spacing || !radii || !shadows || !spring) {
+    return null;
+  }
+
+  const nextTokens = paletteToTokens(
+    [
+      typeof colors.primary === "string" ? colors.primary : "#2430AD",
+      typeof colors.secondary === "string" ? colors.secondary : "#111111",
+      typeof colors.accent === "string" ? colors.accent : "#6366F1",
+      typeof colors.background === "string" ? colors.background : "#0a0a0a",
+      typeof colors.surface === "string" ? colors.surface : "#f5f5f5",
+    ].filter(Boolean)
+  );
+
+  return {
+    colors: {
+      primary:
+        typeof colors.primary === "string" ? colors.primary : nextTokens.colors.primary,
+      secondary:
+        typeof colors.secondary === "string"
+          ? colors.secondary
+          : nextTokens.colors.secondary,
+      accent:
+        typeof colors.accent === "string" ? colors.accent : nextTokens.colors.accent,
+      background:
+        typeof colors.background === "string"
+          ? colors.background
+          : nextTokens.colors.background,
+      surface:
+        typeof colors.surface === "string" ? colors.surface : nextTokens.colors.surface,
+      text: typeof colors.text === "string" ? colors.text : nextTokens.colors.text,
+      textMuted:
+        typeof colors.textMuted === "string"
+          ? colors.textMuted
+          : nextTokens.colors.textMuted,
+      border:
+        typeof colors.border === "string" ? colors.border : nextTokens.colors.border,
+    },
+    typography: {
+      fontFamily:
+        typeof typography.fontFamily === "string"
+          ? typography.fontFamily
+          : nextTokens.typography.fontFamily,
+      scale: {
+        ...nextTokens.typography.scale,
+        ...(isPlainObject(typography.scale)
+          ? Object.fromEntries(
+              Object.entries(typography.scale).filter(
+                ([, scaleValue]) => typeof scaleValue === "string"
+              )
+            )
+          : {}),
+      },
+      weights: {
+        normal:
+          isPlainObject(typography.weights) &&
+          typeof typography.weights.normal === "number"
+            ? typography.weights.normal
+            : nextTokens.typography.weights.normal,
+        medium:
+          isPlainObject(typography.weights) &&
+          typeof typography.weights.medium === "number"
+            ? typography.weights.medium
+            : nextTokens.typography.weights.medium,
+        semibold:
+          isPlainObject(typography.weights) &&
+          typeof typography.weights.semibold === "number"
+            ? typography.weights.semibold
+            : nextTokens.typography.weights.semibold,
+        bold:
+          isPlainObject(typography.weights) &&
+          typeof typography.weights.bold === "number"
+            ? typography.weights.bold
+            : nextTokens.typography.weights.bold,
+      },
+      lineHeight: {
+        ...nextTokens.typography.lineHeight,
+        ...(isPlainObject(typography.lineHeight)
+          ? Object.fromEntries(
+              Object.entries(typography.lineHeight).filter(
+                ([, lineHeightValue]) => typeof lineHeightValue === "string"
+              )
+            )
+          : {}),
+      },
+    },
+    spacing: {
+      unit:
+        typeof spacing.unit === "number" && Number.isFinite(spacing.unit)
+          ? spacing.unit
+          : nextTokens.spacing.unit,
+      scale: {
+        ...nextTokens.spacing.scale,
+        ...(isPlainObject(spacing.scale)
+          ? Object.fromEntries(
+              Object.entries(spacing.scale).filter(
+                ([, spacingValue]) => typeof spacingValue === "string"
+              )
+            )
+          : {}),
+      },
+    },
+    radii: {
+      sm: typeof radii.sm === "string" ? radii.sm : nextTokens.radii.sm,
+      md: typeof radii.md === "string" ? radii.md : nextTokens.radii.md,
+      lg: typeof radii.lg === "string" ? radii.lg : nextTokens.radii.lg,
+      xl: typeof radii.xl === "string" ? radii.xl : nextTokens.radii.xl,
+      full: typeof radii.full === "string" ? radii.full : nextTokens.radii.full,
+    },
+    shadows: {
+      sm: typeof shadows.sm === "string" ? shadows.sm : nextTokens.shadows.sm,
+      md: typeof shadows.md === "string" ? shadows.md : nextTokens.shadows.md,
+      lg: typeof shadows.lg === "string" ? shadows.lg : nextTokens.shadows.lg,
+    },
+    animation: {
+      spring: {
+        smooth: {
+          stiffness:
+            isPlainObject(spring.smooth) && typeof spring.smooth.stiffness === "number"
+              ? spring.smooth.stiffness
+              : nextTokens.animation.spring.smooth.stiffness,
+          damping:
+            isPlainObject(spring.smooth) && typeof spring.smooth.damping === "number"
+              ? spring.smooth.damping
+              : nextTokens.animation.spring.smooth.damping,
+        },
+        snappy: {
+          stiffness:
+            isPlainObject(spring.snappy) && typeof spring.snappy.stiffness === "number"
+              ? spring.snappy.stiffness
+              : nextTokens.animation.spring.snappy.stiffness,
+          damping:
+            isPlainObject(spring.snappy) && typeof spring.snappy.damping === "number"
+              ? spring.snappy.damping
+              : nextTokens.animation.spring.snappy.damping,
+        },
+        gentle: {
+          stiffness:
+            isPlainObject(spring.gentle) && typeof spring.gentle.stiffness === "number"
+              ? spring.gentle.stiffness
+              : nextTokens.animation.spring.gentle.stiffness,
+          damping:
+            isPlainObject(spring.gentle) && typeof spring.gentle.damping === "number"
+              ? spring.gentle.damping
+              : nextTokens.animation.spring.gentle.damping,
+        },
+        bouncy: {
+          stiffness:
+            isPlainObject(spring.bouncy) && typeof spring.bouncy.stiffness === "number"
+              ? spring.bouncy.stiffness
+              : nextTokens.animation.spring.bouncy.stiffness,
+          damping:
+            isPlainObject(spring.bouncy) && typeof spring.bouncy.damping === "number"
+              ? spring.bouncy.damping
+              : nextTokens.animation.spring.bouncy.damping,
+        },
+      },
+    },
+  };
+}
+
+function sanitizeTasteProfile(value: unknown): TasteProfile | null {
+  if (!isPlainObject(value)) return null;
+
+  const layoutBias = isPlainObject(value.layoutBias) ? value.layoutBias : null;
+  const typographyTraits = isPlainObject(value.typographyTraits)
+    ? value.typographyTraits
+    : null;
+  const colorBehavior = isPlainObject(value.colorBehavior) ? value.colorBehavior : null;
+  const imageTreatment = isPlainObject(value.imageTreatment)
+    ? value.imageTreatment
+    : null;
+
+  if (!layoutBias || !typographyTraits || !colorBehavior || !imageTreatment) {
+    return null;
+  }
+
+  return {
+    summary:
+      typeof value.summary === "string"
+        ? value.summary
+        : "The references point toward a clear visual direction.",
+    adjectives: toStringArray(value.adjectives),
+    layoutBias: {
+      density:
+        typeof layoutBias.density === "string" ? layoutBias.density : "balanced",
+      gridStyle:
+        typeof layoutBias.gridStyle === "string"
+          ? layoutBias.gridStyle
+          : "structured",
+      whitespacePreference:
+        typeof layoutBias.whitespacePreference === "string"
+          ? layoutBias.whitespacePreference
+          : "balanced",
+      heroStyle:
+        typeof layoutBias.heroStyle === "string"
+          ? layoutBias.heroStyle
+          : "editorial",
+    },
+    typographyTraits: {
+      headingMood:
+        typeof typographyTraits.headingMood === "string"
+          ? typographyTraits.headingMood
+          : "confident",
+      bodyMood:
+        typeof typographyTraits.bodyMood === "string"
+          ? typographyTraits.bodyMood
+          : "clear",
+      scale:
+        typeof typographyTraits.scale === "string"
+          ? typographyTraits.scale
+          : "balanced",
+      suggestedPairings: toStringArray(typographyTraits.suggestedPairings),
+    },
+    colorBehavior: {
+      palette: toStringArray(colorBehavior.palette),
+      dominantMood:
+        typeof colorBehavior.dominantMood === "string"
+          ? colorBehavior.dominantMood
+          : "measured",
+      contrast:
+        typeof colorBehavior.contrast === "string"
+          ? colorBehavior.contrast
+          : "balanced",
+      backgroundPreference:
+        typeof colorBehavior.backgroundPreference === "string"
+          ? colorBehavior.backgroundPreference
+          : "light",
+    },
+    imageTreatment: {
+      style:
+        typeof imageTreatment.style === "string" ? imageTreatment.style : "editorial",
+      mood: typeof imageTreatment.mood === "string" ? imageTreatment.mood : "calm",
+      corners:
+        typeof imageTreatment.corners === "string"
+          ? imageTreatment.corners
+          : "soft",
+      overlays:
+        typeof imageTreatment.overlays === "string"
+          ? imageTreatment.overlays
+          : "minimal",
+    },
+    ctaTone:
+      value.ctaTone === "aggressive" ||
+      value.ctaTone === "subtle" ||
+      value.ctaTone === "minimal"
+        ? value.ctaTone
+        : "subtle",
+    avoid: toStringArray(value.avoid),
+    confidence: clampConfidence(value.confidence, 0.55),
+  };
+}
+
 function variantCardScale(width = 280) {
   return width / BREAKPOINT_WIDTHS.desktop;
 }
@@ -2950,6 +3379,15 @@ export function CanvasPage({
     const persistedComposeWorkspace = readComposeWorkspace(linkedProjectId);
     const colorsCount = meta?.palette.length ?? storedState.palette?.length ?? 0;
     const fontsCount = [meta?.headingFont, meta?.bodyFont].filter(Boolean).length;
+    const restoredAnalysis = sanitizeImageAnalysis(
+      persistedSession?.analysis ?? storedState.canvas?.analysis ?? null
+    );
+    const restoredTasteProfile = sanitizeTasteProfile(
+      persistedSession?.tasteProfile ?? storedState.canvas?.tasteProfile ?? null
+    );
+    const restoredDesignTokens = sanitizeDesignTokens(
+      persistedSession?.designTokens ?? storedState.canvas?.designTokens ?? null
+    );
     const restoredCanvas = {
       ...storedState.canvas,
       stage: normalizeCanvasStage(
@@ -2957,11 +3395,9 @@ export function CanvasPage({
       ),
       referenceSetName:
         persistedSession?.referenceSetName ?? storedState.canvas?.referenceSetName,
-      analysis: persistedSession?.analysis ?? storedState.canvas?.analysis ?? null,
-      tasteProfile:
-        persistedSession?.tasteProfile ?? storedState.canvas?.tasteProfile ?? null,
-      designTokens:
-        persistedSession?.designTokens ?? storedState.canvas?.designTokens ?? null,
+      analysis: restoredAnalysis,
+      tasteProfile: restoredTasteProfile,
+      designTokens: restoredDesignTokens,
       designSystemMarkdown:
         persistedSession?.designSystemMarkdown ??
         storedState.canvas?.designSystemMarkdown ??
@@ -2988,9 +3424,7 @@ export function CanvasPage({
             restoredCanvas.composeDocument ?? persistedComposeWorkspace
           )
         : null;
-    skipInitialCollectRefreshRef.current = Boolean(
-      restoredCanvas.analysis || restoredCanvas.designTokens
-    );
+    skipInitialCollectRefreshRef.current = Boolean(restoredAnalysis || restoredDesignTokens);
 
     if (meta) {
       setProjectName(meta.name);
@@ -3007,8 +3441,8 @@ export function CanvasPage({
       setAnalysis(restoredCanvas.analysis ?? null);
       setTasteProfile(restoredCanvas.tasteProfile ?? null);
 
-      const projectTokens = restoredCanvas.designTokens
-        ? applyProjectTypography(restoredCanvas.designTokens, storedState.typography)
+      const projectTokens = restoredDesignTokens
+        ? applyProjectTypography(restoredDesignTokens, storedState.typography)
         : meta.palette.length > 0
         ? applyProjectTypography(paletteToTokens(meta.palette), storedState.typography)
         : null;
@@ -3325,7 +3759,11 @@ export function CanvasPage({
     }
 
     const data = await response.json();
-    return data.analysis as ImageAnalysis;
+    const analysis = sanitizeImageAnalysis(data.analysis);
+    if (!analysis) {
+      throw new Error("Analysis returned an invalid payload");
+    }
+    return analysis;
   }, []);
 
   const requestSystemForAnalysis = React.useCallback(async (nextAnalysis: ImageAnalysis) => {
@@ -3342,9 +3780,16 @@ export function CanvasPage({
       }
 
       const data = await response.json();
+      const nextTokens = sanitizeDesignTokens(data.tokens);
+      if (!nextTokens) {
+        throw new Error("System generation returned an invalid token payload");
+      }
       return {
-        tokens: data.tokens as DesignSystemTokens,
-        markdown: data.markdown as string,
+        tokens: nextTokens,
+        markdown:
+          typeof data.markdown === "string" && data.markdown.length > 0
+            ? data.markdown
+            : tokensToMarkdown(nextTokens),
       };
     } catch {
       const localTokens = analysisToTokens(nextAnalysis);
@@ -3384,7 +3829,11 @@ export function CanvasPage({
           : "Taste profile generation failed";
       throw new Error(error);
     }
-    return data as TasteProfile;
+    const nextTasteProfile = sanitizeTasteProfile(data);
+    if (!nextTasteProfile) {
+      throw new Error("Taste profile generation returned an invalid payload");
+    }
+    return nextTasteProfile;
   }, [linkedProjectId]);
 
   const refreshCollectTaste = React.useCallback(async () => {

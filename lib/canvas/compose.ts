@@ -605,17 +605,88 @@ export function createComposeDocument(variants: GeneratedVariant[]): ComposeDocu
   };
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeComposeDocument(value: unknown): ComposeDocument | null {
+  if (!isPlainObject(value)) return null;
+  if (!Array.isArray(value.artboards)) return null;
+
+  const artboards = value.artboards.filter(
+    (artboard): artboard is ComposeArtboard =>
+      isPlainObject(artboard) &&
+      typeof artboard.id === "string" &&
+      typeof artboard.name === "string" &&
+      typeof artboard.x === "number" &&
+      typeof artboard.y === "number" &&
+      isPlainObject(artboard.pageTree)
+  );
+
+  if (artboards.length === 0) return null;
+
+  const panSource = isPlainObject(value.pan) ? value.pan : null;
+  const overlays = Array.isArray(value.overlays) ? (value.overlays as ComposeOverlay[]) : [];
+
+  return {
+    artboards,
+    selectedArtboardId:
+      typeof value.selectedArtboardId === "string" || value.selectedArtboardId === null
+        ? value.selectedArtboardId
+        : null,
+    selectedNodeId:
+      typeof value.selectedNodeId === "string" || value.selectedNodeId === null
+        ? value.selectedNodeId
+        : null,
+    primaryArtboardId:
+      typeof value.primaryArtboardId === "string" || value.primaryArtboardId === null
+        ? value.primaryArtboardId
+        : null,
+    breakpoint:
+      value.breakpoint === "desktop" || value.breakpoint === "tablet" || value.breakpoint === "mobile"
+        ? value.breakpoint
+        : "desktop",
+    pan: {
+      x: typeof panSource?.x === "number" ? panSource.x : 120,
+      y: typeof panSource?.y === "number" ? panSource.y : 120,
+    },
+    zoom:
+      typeof value.zoom === "number" ? Math.max(0.1, Math.min(5, value.zoom)) : 0.58,
+    overlays,
+    inspectorTab:
+      value.inspectorTab === "content" ||
+      value.inspectorTab === "style" ||
+      value.inspectorTab === "layout" ||
+      value.inspectorTab === "effects" ||
+      value.inspectorTab === "ai"
+        ? value.inspectorTab
+        : "content",
+    exportArtifact:
+      isPlainObject(value.exportArtifact) &&
+      typeof value.exportArtifact.code === "string" &&
+      typeof value.exportArtifact.name === "string" &&
+      typeof value.exportArtifact.updatedAt === "string"
+        ? {
+            code: value.exportArtifact.code,
+            name: value.exportArtifact.name,
+            updatedAt: value.exportArtifact.updatedAt,
+          }
+        : null,
+  };
+}
+
 export function rehydrateComposeDocument(
   base: ComposeDocument,
   persisted: ComposeDocument | null
 ): ComposeDocument {
-  if (!persisted) return base;
+  const safePersisted = sanitizeComposeDocument(persisted);
+  if (!safePersisted) return base;
 
   const persistedByVariantId = new Map(
-    persisted.artboards.map((artboard) => [artboard.variantId, artboard])
+    safePersisted.artboards.map((artboard) => [artboard.variantId, artboard])
   );
   const persistedByName = new Map(
-    persisted.artboards.map((artboard) => [artboard.name, artboard])
+    safePersisted.artboards.map((artboard) => [artboard.name, artboard])
   );
 
   const artboards = base.artboards.map((artboard) => {
@@ -635,7 +706,7 @@ export function rehydrateComposeDocument(
 
   function resolveArtboardId(persistedId: string | null): string | null {
     if (!persistedId) return null;
-    const previous = persisted.artboards.find((artboard) => artboard.id === persistedId);
+    const previous = safePersisted.artboards.find((artboard) => artboard.id === persistedId);
     if (!previous) return null;
     return (
       artboards.find(
@@ -648,20 +719,20 @@ export function rehydrateComposeDocument(
   return {
     ...base,
     artboards,
-    breakpoint: persisted.breakpoint ?? base.breakpoint,
-    pan: persisted.pan ?? base.pan,
+    breakpoint: safePersisted.breakpoint ?? base.breakpoint,
+    pan: safePersisted.pan ?? base.pan,
     zoom:
-      typeof persisted.zoom === "number"
-        ? Math.max(0.1, Math.min(5, persisted.zoom))
+      typeof safePersisted.zoom === "number"
+        ? Math.max(0.1, Math.min(5, safePersisted.zoom))
         : base.zoom,
-    overlays: persisted.overlays ?? base.overlays,
-    inspectorTab: persisted.inspectorTab ?? base.inspectorTab,
+    overlays: safePersisted.overlays ?? base.overlays,
+    inspectorTab: safePersisted.inspectorTab ?? base.inspectorTab,
     selectedArtboardId:
-      resolveArtboardId(persisted.selectedArtboardId) ?? base.selectedArtboardId,
+      resolveArtboardId(safePersisted.selectedArtboardId) ?? base.selectedArtboardId,
     primaryArtboardId:
-      resolveArtboardId(persisted.primaryArtboardId) ?? base.primaryArtboardId,
-    selectedNodeId: persisted.selectedNodeId ?? base.selectedNodeId,
-    exportArtifact: persisted.exportArtifact ?? base.exportArtifact,
+      resolveArtboardId(safePersisted.primaryArtboardId) ?? base.primaryArtboardId,
+    selectedNodeId: safePersisted.selectedNodeId ?? base.selectedNodeId,
+    exportArtifact: safePersisted.exportArtifact ?? base.exportArtifact,
   };
 }
 

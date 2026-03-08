@@ -374,18 +374,32 @@ function formatNodeLabel(node: PageNode): string {
   return content.length > 42 ? `${content.slice(0, 42)}…` : content;
 }
 
-function normalizeVariant(variant: GeneratedVariant): GeneratedVariant {
-  const legacyVariant = variant as GeneratedVariant & { favorite?: boolean };
+function normalizeVariant(variant: unknown): GeneratedVariant | null {
+  if (!variant || typeof variant !== "object") return null;
+  const typedVariant = variant as GeneratedVariant;
+  if (
+    typeof typedVariant.id !== "string" ||
+    typeof typedVariant.name !== "string" ||
+    !typedVariant.pageTree ||
+    typeof typedVariant.pageTree !== "object"
+  ) {
+    return null;
+  }
+
+  const legacyVariant = typedVariant as GeneratedVariant & { favorite?: boolean };
   return {
-    ...variant,
-    previewImage: variant.previewImage ?? null,
-    compiledCode: variant.compiledCode ?? null,
-    isFavorite: variant.isFavorite ?? legacyVariant.favorite ?? false,
+    ...typedVariant,
+    previewImage: typedVariant.previewImage ?? null,
+    compiledCode: typedVariant.compiledCode ?? null,
+    isFavorite: typedVariant.isFavorite ?? legacyVariant.favorite ?? false,
   };
 }
 
-function normalizeVariants(variants: GeneratedVariant[]): GeneratedVariant[] {
-  return variants.map(normalizeVariant);
+function normalizeVariants(variants: unknown): GeneratedVariant[] {
+  if (!Array.isArray(variants)) return [];
+  return variants
+    .map(normalizeVariant)
+    .filter((variant): variant is GeneratedVariant => variant !== null);
 }
 
 function setVariantFavorite(

@@ -28,6 +28,7 @@ type CollectViewProps = {
   tokens: DesignSystemTokens | null;
   tasteProfile: TasteProfile | null;
   processing: boolean;
+  tasteProfileLoading?: boolean;
   error?: string | null;
 };
 
@@ -69,11 +70,13 @@ function TastePanel({
   tokens,
   tasteProfile,
   processing,
+  tasteProfileLoading = false,
 }: {
   analysis: ImageAnalysis | null;
   tokens: DesignSystemTokens | null;
   tasteProfile: TasteProfile | null;
   processing: boolean;
+  tasteProfileLoading?: boolean;
 }) {
   const paletteEntries = React.useMemo(() => {
     if (tasteProfile?.colorBehavior.palette?.length) {
@@ -140,7 +143,7 @@ function TastePanel({
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={`${analysis?.summary ?? "no-analysis"}-${tokens?.typography.fontFamily ?? "no-tokens"}-${processing ? "processing" : "idle"}`}
+        key={`${analysis?.summary ?? "no-analysis"}-${tokens?.typography.fontFamily ?? "no-tokens"}-${processing ? "processing" : "idle"}-${tasteProfileLoading ? "extracting" : "settled"}`}
         {...fadeIn}
         transition={springs.smooth}
         className="space-y-4"
@@ -271,6 +274,7 @@ export function CollectView({
   tokens,
   tasteProfile,
   processing,
+  tasteProfileLoading = false,
   error,
 }: CollectViewProps) {
   const [panelCollapsed, setPanelCollapsed] = React.useState(false);
@@ -456,9 +460,20 @@ export function CollectView({
                   <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-text-tertiary">
                     Extracted taste
                   </p>
-                  <p className="mt-1 text-xs text-text-muted">
-                    {processing ? "Refreshing from the latest board changes…" : "Auto-updates from the reference board"}
-                  </p>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
+                    {tasteProfileLoading ? (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#3B5EFC] animate-pulse" />
+                        <span>Extracting the latest taste direction…</span>
+                      </>
+                    ) : (
+                      <span>
+                        {processing
+                          ? "Refreshing from the latest board changes…"
+                          : "Auto-updates from the reference board"}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -491,6 +506,7 @@ export function CollectView({
                     tokens={tokens}
                     tasteProfile={tasteProfile}
                     processing={processing}
+                    tasteProfileLoading={tasteProfileLoading}
                   />
                 </div>
               )}

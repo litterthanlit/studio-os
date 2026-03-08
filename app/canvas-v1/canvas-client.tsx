@@ -2621,6 +2621,7 @@ export function CanvasPage({
   const [tasteProfile, setTasteProfile] = React.useState<TasteProfile | null>(null);
   const [analysisLoading, setAnalysisLoading] = React.useState(false);
   const [analysisError, setAnalysisError] = React.useState<string | null>(null);
+  const [tasteProfileLoading, setTasteProfileLoading] = React.useState(false);
 
   const [tokens, setTokens] = React.useState<DesignSystemTokens | null>(null);
   const [markdown, setMarkdown] = React.useState("");
@@ -2763,9 +2764,14 @@ export function CanvasPage({
     return () => window.clearTimeout(timeout);
   }, [bootstrapToast]);
 
+  const referenceSignature = React.useMemo(
+    () => images.map((image) => `${image.id}:${image.url}`).sort().join("|"),
+    [images]
+  );
+
   React.useEffect(() => {
     if (!hydratedCanvasRef.current) return;
-    if (selectedIds.size === 0 || images.length === 0) return;
+    if (images.length === 0) return;
 
     if (!collectHydrationPrimedRef.current) {
       collectHydrationPrimedRef.current = true;
@@ -2781,14 +2787,14 @@ export function CanvasPage({
 
     collectDebounceRef.current = window.setTimeout(() => {
       void refreshCollectTaste();
-    }, 500);
+    }, 1000);
 
     return () => {
       if (collectDebounceRef.current) {
         window.clearTimeout(collectDebounceRef.current);
       }
     };
-  }, [images, linkedProjectId, refreshCollectTaste, selectedIds]);
+  }, [linkedProjectId, referenceSignature, refreshCollectTaste, images.length]);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !linkedProjectId) return;
@@ -3063,36 +3069,42 @@ export function CanvasPage({
     selected: ReferenceImage[],
     nextTokens: DesignSystemTokens | null
   ): Promise<TasteProfile> => {
-    const base64Images = await Promise.all(
+    const referenceUrls = await Promise.all(
       selected.slice(0, 8).map(async (img) => {
         if (img.file) return fileToDataUrl(img.file);
         return img.url;
       })
     );
 
-    const response = await fetch("/api/canvas/taste-profile", {
+    const response = await fetch("/api/taste/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        images: base64Images,
-        tokens: nextTokens,
+        projectId: linkedProjectId,
+        referenceUrls,
+        existingTokens: nextTokens,
       }),
     });
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(data.error || "Taste profile generation failed");
+      const error =
+        data && typeof data === "object" && "error" in data
+          ? String((data as { error?: unknown }).error)
+          : "Taste profile generation failed";
+      throw new Error(error);
     }
-    return data.tasteProfile as TasteProfile;
-  }, []);
+    return data as TasteProfile;
+  }, [linkedProjectId]);
 
   const refreshCollectTaste = React.useCallback(async () => {
-    const selected = images.filter((img) => selectedIds.has(img.id));
+    const selected = images;
     if (selected.length === 0) return;
     const requestId = ++collectRequestIdRef.current;
 
     setAnalysisLoading(true);
     setSystemLoading(true);
+    setTasteProfileLoading(true);
     setAnalysisError(null);
 
     try {
@@ -3115,6 +3127,7 @@ export function CanvasPage({
       if (requestId === collectRequestIdRef.current) {
         setAnalysisLoading(false);
         setSystemLoading(false);
+        setTasteProfileLoading(false);
       }
     }
   }, [
@@ -3122,7 +3135,6 @@ export function CanvasPage({
     images,
     requestAnalysisForImages,
     requestSystemForAnalysis,
-    selectedIds,
   ]);
 
   async function handleGenerateVariants() {
@@ -3323,6 +3335,7 @@ export function CanvasPage({
                   tokens={tokens}
                   tasteProfile={tasteProfile}
                   processing={analysisLoading || systemLoading}
+                  tasteProfileLoading={tasteProfileLoading}
                   error={analysisError}
                 />
               ) : (

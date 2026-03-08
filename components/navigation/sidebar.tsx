@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -258,16 +258,62 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   );
 }
 
+function CanvasSidebarContent({
+  projectHref,
+}: {
+  projectHref: string;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-between px-3 py-4">
+      <div className="group relative mt-1">
+        <Link
+          href={projectHref}
+          aria-label="Back to projects"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-bg shadow-[0_12px_32px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#3B5EFC]/25 hover:bg-white"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-icon.svg" alt="Studio OS" className="h-7 w-7" />
+        </Link>
+        <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-border-primary bg-bg-primary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-secondary opacity-0 shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-opacity duration-150 group-hover:opacity-100">
+          Back to projects
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Sidebar (desktop + mobile) ───────────────────────────────────────────────
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [canvasSidebarVisible, setCanvasSidebarVisible] = React.useState(true);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isCanvasRoute = pathname === "/canvas" || pathname === "/canvas-v1";
+  const canvasProjectId = searchParams.get("project");
+  const canvasProjectHref = canvasProjectId ? `/projects/${canvasProjectId}` : "/home";
 
   // Close mobile sidebar on route change
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    if (!isCanvasRoute) {
+      setCanvasSidebarVisible(true);
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
+        event.preventDefault();
+        setCanvasSidebarVisible((current) => !current);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isCanvasRoute]);
 
   return (
     <>
@@ -275,37 +321,57 @@ export function Sidebar() {
       <aside
         className={cn(
           "hidden md:flex flex-col",
-          "w-[220px] shrink-0 h-screen",
+          isCanvasRoute
+            ? canvasSidebarVisible
+              ? "w-[72px]"
+              : "w-0"
+            : "w-[220px]",
+          "shrink-0 h-screen",
           "bg-sidebar-bg border-r border-sidebar-border",
-          "sticky top-0"
+          "sticky top-0 overflow-hidden transition-[width] duration-200 ease-out",
+          isCanvasRoute && !canvasSidebarVisible && "border-r-transparent"
         )}
       >
-        <SidebarContent />
+        {isCanvasRoute ? (
+          canvasSidebarVisible ? (
+            <CanvasSidebarContent projectHref={canvasProjectHref} />
+          ) : null
+        ) : (
+          <SidebarContent />
+        )}
       </aside>
 
       {/* ── Mobile hamburger ── */}
-      <button
-        type="button"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open sidebar"
-        className="md:hidden fixed top-4 left-4 z-50 flex items-center justify-center w-8 h-8 text-text-tertiary hover:text-text-primary transition-colors duration-150"
-      >
-        <svg
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="w-5 h-5"
-          aria-hidden
+      {isCanvasRoute ? (
+        canvasSidebarVisible ? (
+          <div className="fixed left-4 top-4 z-50 md:hidden">
+            <CanvasSidebarContent projectHref={canvasProjectHref} />
+          </div>
+        ) : null
+      ) : (
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open sidebar"
+          className="md:hidden fixed top-4 left-4 z-50 flex items-center justify-center w-8 h-8 text-text-tertiary hover:text-text-primary transition-colors duration-150"
         >
-          <path
-            fillRule="evenodd"
-            d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-5 h-5"
+            aria-hidden
+          >
+            <path
+              fillRule="evenodd"
+              d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      )}
 
       {/* ── Mobile overlay ── */}
-      {mobileOpen && (
+      {!isCanvasRoute && mobileOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/50 z-30"
           onClick={() => setMobileOpen(false)}
@@ -322,7 +388,7 @@ export function Sidebar() {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <SidebarContent onClose={() => setMobileOpen(false)} />
+        {!isCanvasRoute ? <SidebarContent onClose={() => setMobileOpen(false)} /> : null}
       </aside>
     </>
   );

@@ -65,18 +65,265 @@ function TasteSkeletonSection() {
   );
 }
 
+function TasteDetailSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[24px] border border-border-primary bg-bg-primary p-4">
+        <div className="space-y-2">
+          <div className="h-3 w-20 animate-pulse rounded-full bg-bg-tertiary" />
+          <div className="h-4 w-full animate-pulse rounded-full bg-bg-tertiary" />
+          <div className="h-4 w-[92%] animate-pulse rounded-full bg-bg-tertiary" />
+          <div className="h-4 w-[75%] animate-pulse rounded-full bg-bg-tertiary" />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[0, 1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="h-7 w-20 animate-pulse rounded-full bg-bg-tertiary"
+            />
+          ))}
+        </div>
+      </div>
+      <div className="rounded-[24px] border border-border-primary bg-bg-primary p-4">
+        <div className="h-3 w-28 animate-pulse rounded-full bg-bg-tertiary" />
+        <div className="mt-4 grid gap-3">
+          {[0, 1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="h-16 animate-pulse rounded-[18px] bg-bg-tertiary"
+            />
+          ))}
+        </div>
+      </div>
+      <div className="rounded-[24px] border border-red-500/15 bg-red-500/[0.04] p-4">
+        <div className="h-3 w-24 animate-pulse rounded-full bg-red-500/10" />
+        <div className="mt-4 space-y-2">
+          {[0, 1, 2].map((item) => (
+            <div
+              key={item}
+              className="h-10 animate-pulse rounded-[16px] bg-red-500/10"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TasteMetric({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[18px] border border-border-primary bg-bg-primary p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">{label}</p>
+          <p className="mt-2 text-sm font-medium leading-snug text-text-primary">{value}</p>
+        </div>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border-primary bg-bg-secondary text-text-secondary">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayoutMetricIcon({ type }: { type: "density" | "grid" | "whitespace" | "hero" }) {
+  if (type === "density") {
+    return (
+      <div className="grid grid-cols-3 gap-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        <span className="h-1.5 w-1.5 rounded-full bg-current/80" />
+        <span className="h-1.5 w-1.5 rounded-full bg-current/60" />
+        <span className="h-1.5 w-1.5 rounded-full bg-current/60" />
+        <span className="h-1.5 w-1.5 rounded-full bg-current/80" />
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      </div>
+    );
+  }
+  if (type === "grid") {
+    return (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25">
+        <rect x="2.5" y="2.5" width="5" height="5" rx="1.2" />
+        <rect x="10.5" y="2.5" width="5" height="5" rx="1.2" />
+        <rect x="2.5" y="10.5" width="5" height="5" rx="1.2" />
+        <rect x="10.5" y="10.5" width="5" height="5" rx="1.2" />
+      </svg>
+    );
+  }
+  if (type === "whitespace") {
+    return (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25">
+        <rect x="3.5" y="3.5" width="11" height="11" rx="2" />
+        <path d="M6 9h6" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.25">
+      <path d="M3 13.5V4.5h12v9" />
+      <path d="M6 7h6M6 10h3" />
+    </svg>
+  );
+}
+
+function TasteProfileDisplay({
+  tasteProfile,
+  loading,
+  canExtract,
+}: {
+  tasteProfile: TasteProfile | null;
+  loading: boolean;
+  canExtract: boolean;
+}) {
+  if (loading) {
+    return <TasteDetailSkeleton />;
+  }
+
+  if (!tasteProfile) {
+    return (
+      <div className="rounded-[24px] border border-dashed border-border-primary bg-bg-primary/60 px-4 py-6 text-center">
+        <p className="text-[10px] uppercase tracking-[0.16em] text-text-tertiary">
+          Taste profile
+        </p>
+        <p className="mt-3 text-sm font-medium text-text-primary">
+          {canExtract ? "Studio OS is ready to extract direction." : "Add 3+ references for taste extraction"}
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-text-muted">
+          {canExtract
+            ? "Keep refining the board and the extracted direction will update live."
+            : "A stronger cluster of references gives the AI enough signal to describe layout, type, and mood with confidence."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={springs.smooth}
+      className="space-y-4"
+    >
+      <div className="rounded-[24px] border border-border-primary bg-[linear-gradient(180deg,rgba(59,94,252,0.08),rgba(59,94,252,0.01))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-text-tertiary">
+            Taste summary
+          </p>
+          <div className="rounded-full border border-[#3B5EFC]/20 bg-[#3B5EFC]/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#6e86ff]">
+            {Math.round(tasteProfile.confidence * 100)}%
+          </div>
+        </div>
+        <blockquote className="mt-4 border-l-2 border-[#3B5EFC]/40 pl-4 text-sm leading-relaxed text-text-primary">
+          {tasteProfile.summary}
+        </blockquote>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {tasteProfile.adjectives.map((adjective) => (
+            <span
+              key={adjective}
+              className="rounded-full border border-[#3B5EFC]/18 bg-[#3B5EFC]/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[#6e86ff]"
+            >
+              {adjective}
+            </span>
+          ))}
+        </div>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-text-muted">
+            <span>Confidence</span>
+            <span>{Math.round(tasteProfile.confidence * 100)}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-bg-secondary">
+            <div
+              className="h-full rounded-full bg-[linear-gradient(90deg,#3B5EFC,#91a4ff)] transition-all duration-500"
+              style={{ width: `${Math.max(8, Math.round(tasteProfile.confidence * 100))}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-border-primary bg-bg-primary p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-text-tertiary">
+              Layout preferences
+            </p>
+            <p className="mt-1 text-xs text-text-muted">
+              The AI uses these tendencies to steer structure and pacing.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3">
+          <TasteMetric
+            label="Density"
+            value={tasteProfile.layoutBias.density}
+            icon={<LayoutMetricIcon type="density" />}
+          />
+          <TasteMetric
+            label="Grid style"
+            value={tasteProfile.layoutBias.gridStyle}
+            icon={<LayoutMetricIcon type="grid" />}
+          />
+          <TasteMetric
+            label="Whitespace"
+            value={tasteProfile.layoutBias.whitespacePreference}
+            icon={<LayoutMetricIcon type="whitespace" />}
+          />
+          <TasteMetric
+            label="Hero style"
+            value={tasteProfile.layoutBias.heroStyle}
+            icon={<LayoutMetricIcon type="hero" />}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-red-500/18 bg-[linear-gradient(180deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02))] p-4">
+        <p className="text-[10px] uppercase tracking-[0.16em] text-red-300/90">
+          Anti-patterns
+        </p>
+        <p className="mt-1 text-xs text-red-200/80">
+          The AI will avoid these patterns in generation.
+        </p>
+        {tasteProfile.avoid.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            {tasteProfile.avoid.map((item) => (
+              <div
+                key={item}
+                className="rounded-[16px] border border-red-500/15 bg-red-500/[0.045] px-3 py-2 text-xs leading-relaxed text-red-100/90"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-red-100/80">
+            No major anti-patterns detected yet.
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 function TastePanel({
   analysis,
   tokens,
   tasteProfile,
   processing,
   tasteProfileLoading = false,
+  referenceCount,
 }: {
   analysis: ImageAnalysis | null;
   tokens: DesignSystemTokens | null;
   tasteProfile: TasteProfile | null;
   processing: boolean;
   tasteProfileLoading?: boolean;
+  referenceCount: number;
 }) {
   const paletteEntries = React.useMemo(() => {
     if (tasteProfile?.colorBehavior.palette?.length) {
@@ -138,7 +385,7 @@ function TastePanel({
     (tokens
       ? "A project system already exists. Colors and typography are ready to drive generation while new references refine the direction."
       : null);
-  const avoidList = tasteProfile?.avoid ?? [];
+  const canExtractTaste = referenceCount >= 3;
 
   return (
     <AnimatePresence mode="wait">
@@ -234,27 +481,13 @@ function TastePanel({
               Studio OS will summarize the visual direction after analyzing your references.
             </p>
           )}
-          {tasteProfile ? (
-            <div className="space-y-2 border-t border-border-subtle pt-3">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-text-muted">
-                <span>Confidence</span>
-                <span>{Math.round(tasteProfile.confidence * 100)}%</span>
-              </div>
-              {avoidList.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {avoidList.slice(0, 4).map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-border-primary bg-bg-primary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted"
-                    >
-                      Avoid: {item}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </PanelSection>
+
+        <TasteProfileDisplay
+          tasteProfile={tasteProfile}
+          loading={tasteProfileLoading}
+          canExtract={canExtractTaste}
+        />
       </motion.div>
     </AnimatePresence>
   );
@@ -507,6 +740,7 @@ export function CollectView({
                     tasteProfile={tasteProfile}
                     processing={processing}
                     tasteProfileLoading={tasteProfileLoading}
+                    referenceCount={images.length}
                   />
                 </div>
               )}

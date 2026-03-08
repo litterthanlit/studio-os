@@ -1106,6 +1106,8 @@ function ComposeStage({
   const [showLayers, setShowLayers] = React.useState(false);
   const [showMinimap, setShowMinimap] = React.useState(false);
   const [showShortcuts, setShowShortcuts] = React.useState(false);
+  const [spacePanActive, setSpacePanActive] = React.useState(false);
+  const [isPanning, setIsPanning] = React.useState(false);
   const [referencesDockOpen, setReferencesDockOpen] = React.useState(false);
   const [systemDockOpen, setSystemDockOpen] = React.useState(false);
   const canvasRef = React.useRef<HTMLDivElement>(null);
@@ -1116,11 +1118,12 @@ function ComposeStage({
   });
   const panStateRef = React.useRef<{
     active: boolean;
+    source: "space" | "middle" | null;
     startX: number;
     startY: number;
     panX: number;
     panY: number;
-  }>({ active: false, startX: 0, startY: 0, panX: 0, panY: 0 });
+  }>({ active: false, source: null, startX: 0, startY: 0, panX: 0, panY: 0 });
   const dragRef = React.useRef<
     | {
         kind: "artboard";
@@ -1189,6 +1192,14 @@ function ComposeStage({
 
       if (event.key === "Escape") {
         setShowShortcuts(false);
+        setSpacePanActive(false);
+        clearPointerState();
+        return;
+      }
+
+      if (event.code === "Space" && !isTypingTarget) {
+        event.preventDefault();
+        setSpacePanActive(true);
         return;
       }
 
@@ -1206,7 +1217,20 @@ function ComposeStage({
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    function handleKeyUp(event: KeyboardEvent) {
+      if (event.code === "Space") {
+        setSpacePanActive(false);
+        if (panStateRef.current.source === "space") {
+          clearPointerState();
+        }
+      }
+    }
+
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -1375,25 +1399,44 @@ function ComposeStage({
       event.preventDefault();
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const mx = event.clientX - rect.left;
-      const my = event.clientY - rect.top;
       const curPan = stateRef.current.pan;
-      const curZoom = stateRef.current.zoom;
       const rawDelta =
         event.deltaMode === 1
           ? event.deltaY * 24
           : event.deltaMode === 2
           ? event.deltaY * 400
           : event.deltaY;
-      const factor = Math.pow(0.9984, rawDelta);
-      const nextZoom = Math.max(0.1, Math.min(5, curZoom * factor));
-      const worldX = (mx - curPan.x) / curZoom;
-      const worldY = (my - curPan.y) / curZoom;
+      const rawDeltaX =
+        event.deltaMode === 1
+          ? event.deltaX * 24
+          : event.deltaMode === 2
+          ? event.deltaX * 400
+          : event.deltaX;
+
+      if (event.ctrlKey || event.metaKey) {
+        const mx = event.clientX - rect.left;
+        const my = event.clientY - rect.top;
+        const curZoom = stateRef.current.zoom;
+        const factor = Math.pow(0.9984, rawDelta);
+        const nextZoom = Math.max(0.1, Math.min(5, curZoom * factor));
+        const worldX = (mx - curPan.x) / curZoom;
+        const worldY = (my - curPan.y) / curZoom;
+        updateDocument({
+          zoom: nextZoom,
+          pan: {
+            x: mx - worldX * nextZoom,
+            y: my - worldY * nextZoom,
+          },
+        });
+        return;
+      }
+
+      const horizontalDelta = event.shiftKey ? rawDelta + rawDeltaX : rawDeltaX;
+      const verticalDelta = event.shiftKey ? 0 : rawDelta;
       updateDocument({
-        zoom: nextZoom,
         pan: {
-          x: mx - worldX * nextZoom,
-          y: my - worldY * nextZoom,
+          x: curPan.x - horizontalDelta,
+          y: curPan.y - verticalDelta,
         },
       });
     }
@@ -1402,16 +1445,45 @@ function ComposeStage({
     return () => element.removeEventListener("wheel", onWheel);
   }, [updateDocument]);
 
-  function onBackgroundMouseDown(event: React.MouseEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest("[data-artboard], [data-overlay]")) return;
-    updateDocument({ selectedNodeId: null });
+  React.useEffect(() => {
+    function handleWindowMouseUp() {
+      clearPointerState();
+    }
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    return () => window.removeEventListener("mouseup", handleWindowMouseUp);
+  }, []);
+
+  function beginPan(event: React.MouseEvent, source: "space" | "middle") {
+    event.preventDefault();
+    event.stopPropagation();
     panStateRef.current = {
       active: true,
+      source,
       startX: event.clientX,
       startY: event.clientY,
       panX: document.pan.x,
       panY: document.pan.y,
     };
+    setIsPanning(true);
+  }
+
+  function onCanvasMouseDownCapture(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.button === 1) {
+      beginPan(event, "middle");
+      return;
+    }
+
+    if (spacePanActive && event.button === 0) {
+      beginPan(event, "space");
+    }
+  }
+
+  function onBackgroundMouseDown(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    if (spacePanActive) return;
+    if ((event.target as HTMLElement).closest("[data-artboard], [data-overlay]")) return;
+    updateDocument({ selectedNodeId: null });
   }
 
   function onMouseMove(event: React.MouseEvent<HTMLDivElement>) {
@@ -1454,7 +1526,9 @@ function ComposeStage({
 
   function clearPointerState() {
     panStateRef.current.active = false;
+    panStateRef.current.source = null;
     dragRef.current = null;
+    setIsPanning(false);
   }
 
   async function applyAiAction(
@@ -2369,13 +2443,17 @@ function ComposeStage({
         <div className="absolute inset-0">
             <div
               ref={canvasRef}
-              className="h-full w-full cursor-grab overflow-hidden"
+              className={cn(
+                "h-full w-full overflow-hidden",
+                isPanning ? "cursor-grabbing" : spacePanActive ? "cursor-grab" : "cursor-default"
+              )}
               style={{
                 backgroundImage:
                   "radial-gradient(circle, rgba(126,141,170,0.22) 1px, transparent 1px), linear-gradient(180deg,rgba(255,255,255,0.02),transparent)",
                 backgroundSize: `${Math.max(18, 30 * document.zoom)}px ${Math.max(18, 30 * document.zoom)}px, 100% 100%`,
                 backgroundPosition: `${document.pan.x % 30}px ${document.pan.y % 30}px, 0 0`,
               }}
+              onMouseDownCapture={onCanvasMouseDownCapture}
               onMouseDown={onBackgroundMouseDown}
               onMouseMove={onMouseMove}
               onMouseUp={clearPointerState}
@@ -2540,6 +2618,7 @@ function ComposeStage({
                       <div
                         className="flex cursor-move items-center justify-between border-b border-border-subtle bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] px-4 py-3"
                         onMouseDown={(event) => {
+                          if (event.button !== 0 || spacePanActive) return;
                           event.stopPropagation();
                           dragRef.current = {
                             kind: "artboard",
@@ -2606,6 +2685,7 @@ function ComposeStage({
                           : "var(--bg-primary)",
                     }}
                     onMouseDown={(event) => {
+                      if (event.button !== 0 || spacePanActive) return;
                       event.stopPropagation();
                       dragRef.current = {
                         kind: "overlay",

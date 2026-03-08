@@ -3890,6 +3890,8 @@ export function CanvasPage({
           mode: "variants",
           prompt: sitePrompt,
           tokens,
+          tasteProfile,
+          referenceUrls: images.slice(0, 8).map((image) => image.url),
           siteType,
           siteName: setName || inferSiteName(sitePrompt),
         }),

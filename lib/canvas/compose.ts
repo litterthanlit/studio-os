@@ -1,5 +1,6 @@
 import type { DesignSystemTokens } from "./generate-system";
 import type { SiteType } from "./templates";
+import type { TasteProfile } from "@/types/taste-profile";
 
 export type CanvasStage = "collect" | "generate" | "compose";
 export type Breakpoint = "desktop" | "tablet" | "mobile";
@@ -176,6 +177,8 @@ type VariantProfile = {
   pricingEmphasis: number;
 };
 
+type VariantMode = "safe" | "creative" | "alternative";
+
 const VARIANT_PROFILES: VariantProfile[] = [
   {
     key: "signal",
@@ -303,6 +306,151 @@ function createFeatureCards(siteName: string): PageNode[] {
   ];
 }
 
+function normalizeValue(value: string | undefined, fallback: string) {
+  const nextValue = value?.trim();
+  return nextValue && nextValue.length > 0 ? nextValue : fallback;
+}
+
+function cornerRadiusForTaste(corners: string | undefined) {
+  const normalized = corners?.toLowerCase() ?? "";
+  if (normalized.includes("sharp")) return 14;
+  if (normalized.includes("round") || normalized.includes("soft")) return 30;
+  return 22;
+}
+
+function sectionSpacingForTaste(
+  whitespacePreference: string | undefined,
+  density: string | undefined,
+  mode: VariantMode
+) {
+  const prefersOpen =
+    (whitespacePreference?.toLowerCase() ?? "").includes("open") ||
+    (whitespacePreference?.toLowerCase() ?? "").includes("spacious");
+  const prefersDense =
+    (whitespacePreference?.toLowerCase() ?? "").includes("tight") ||
+    (density?.toLowerCase() ?? "").includes("dense");
+
+  if (mode === "creative") {
+    return prefersDense
+      ? { paddingX: 44, paddingY: 56, gap: 20 }
+      : { paddingX: 64, paddingY: 84, gap: 30 };
+  }
+
+  if (mode === "alternative") {
+    return prefersOpen
+      ? { paddingX: 60, paddingY: 74, gap: 26 }
+      : { paddingX: 46, paddingY: 58, gap: 18 };
+  }
+
+  if (prefersDense) {
+    return { paddingX: 42, paddingY: 54, gap: 16 };
+  }
+
+  if (prefersOpen) {
+    return { paddingX: 60, paddingY: 76, gap: 28 };
+  }
+
+  return { paddingX: 52, paddingY: 64, gap: 22 };
+}
+
+function heroAlignmentForTaste(
+  baseAlign: VariantProfile["heroAlign"],
+  heroStyle: string | undefined,
+  mode: VariantMode
+): VariantProfile["heroAlign"] {
+  const normalized = heroStyle?.toLowerCase() ?? "";
+  if (mode === "alternative") {
+    return baseAlign === "left" ? "center" : "left";
+  }
+  if (normalized.includes("center")) return "center";
+  if (normalized.includes("split") || normalized.includes("editorial")) return "left";
+  return baseAlign;
+}
+
+function heroToneForTaste(
+  baseTone: VariantProfile["heroTone"],
+  dominantMood: string | undefined,
+  mode: VariantMode
+): VariantProfile["heroTone"] {
+  const normalized = dominantMood?.toLowerCase() ?? "";
+  if (mode === "creative") return "accent";
+  if (normalized.includes("editorial") || normalized.includes("quiet")) return "outline";
+  if (normalized.includes("bold") || normalized.includes("dramatic")) return "accent";
+  return baseTone;
+}
+
+function featureColumnsForTaste(
+  baseColumns: number,
+  gridStyle: string | undefined,
+  mode: VariantMode
+) {
+  const normalized = gridStyle?.toLowerCase() ?? "";
+  if (mode === "alternative") return baseColumns === 3 ? 2 : 3;
+  if (normalized.includes("editorial") || normalized.includes("magazine")) return 2;
+  if (normalized.includes("modular") || normalized.includes("grid")) return 3;
+  return baseColumns;
+}
+
+function ctaCopyForTaste(ctaTone: TasteProfile["ctaTone"] | undefined, mode: VariantMode) {
+  if (mode === "creative") return "Generate a bolder direction";
+  if (mode === "alternative") return "See another layout path";
+  if (ctaTone === "aggressive") return "Book the working session";
+  if (ctaTone === "minimal") return "View the composed site";
+  return "Open Compose";
+}
+
+function sectionBackgroundsForTaste(
+  profile: VariantProfile,
+  backgroundPreference: string | undefined,
+  mode: VariantMode
+) {
+  const normalized = backgroundPreference?.toLowerCase() ?? "";
+  if (mode === "creative") {
+    return ["accentWash", "background", "surface", "accentWash", "background", "surface"] as const;
+  }
+  if (mode === "alternative") {
+    return ["background", "surface", "accentWash", "background", "surface", "background"] as const;
+  }
+  if (normalized.includes("dark")) {
+    return ["background", "background", "surface", "background", "surface", "accentWash"] as const;
+  }
+  return profile.sectionBackgrounds;
+}
+
+function tasteAlignmentNote(tasteProfile: TasteProfile | null | undefined, mode: VariantMode) {
+  if (!tasteProfile) {
+    if (mode === "creative") {
+      return "This variant pushes the layout and pacing while staying anchored to your system.";
+    }
+    if (mode === "alternative") {
+      return "This variant explores a different layout rhythm from the same project direction.";
+    }
+    return "This variant stays closest to the current project system.";
+  }
+
+  if (mode === "creative") {
+    return `This variant emphasizes ${normalizeValue(
+      tasteProfile.imageTreatment.style,
+      "image treatment"
+    )} and ${normalizeValue(tasteProfile.layoutBias.heroStyle, "hero treatment")} from your references.`;
+  }
+
+  if (mode === "alternative") {
+    return `This variant emphasizes ${normalizeValue(
+      tasteProfile.layoutBias.gridStyle,
+      "grid structure"
+    )} with a different layout approach from your references.`;
+  }
+
+  return `This variant emphasizes ${normalizeValue(
+    tasteProfile.layoutBias.whitespacePreference,
+    "spacing balance"
+  )} and ${normalizeValue(
+    tasteProfile.typographyTraits.headingMood,
+    "typographic mood"
+  )} from your references.`;
+}
+
 function createTestimonials(siteName: string): PageNode[] {
   return [
     createNode("testimonial-card", "Testimonial One", {
@@ -379,38 +527,78 @@ function createVariantPageTree(
   profile: VariantProfile,
   prompt: string,
   siteName: string,
-  tokens: DesignSystemTokens
+  tokens: DesignSystemTokens,
+  tasteProfile: TasteProfile | null,
+  mode: VariantMode
 ): PageNode {
   const audience = inferAudience(prompt);
   const promise = inferPromise(prompt);
+  const spacing = sectionSpacingForTaste(
+    tasteProfile?.layoutBias.whitespacePreference,
+    tasteProfile?.layoutBias.density,
+    mode
+  );
+  const featureColumns = featureColumnsForTaste(
+    profile.featuresColumns,
+    tasteProfile?.layoutBias.gridStyle,
+    mode
+  );
+  const heroAlign = heroAlignmentForTaste(
+    profile.heroAlign,
+    tasteProfile?.layoutBias.heroStyle,
+    mode
+  );
+  const heroTone = heroToneForTaste(
+    profile.heroTone,
+    tasteProfile?.colorBehavior.dominantMood,
+    mode
+  );
+  const sectionBackgrounds = sectionBackgroundsForTaste(
+    profile,
+    tasteProfile?.colorBehavior.backgroundPreference,
+    mode
+  );
+  const radius = cornerRadiusForTaste(tasteProfile?.imageTreatment.corners);
+  const headingMood = normalizeValue(
+    tasteProfile?.typographyTraits.headingMood,
+    "confident"
+  );
+  const bodyMood = normalizeValue(tasteProfile?.typographyTraits.bodyMood, "clear");
+  const imageMood = normalizeValue(tasteProfile?.imageTreatment.mood, "measured");
+  const imageStyle = normalizeValue(tasteProfile?.imageTreatment.style, "editorial");
+  const dominantMood = normalizeValue(
+    tasteProfile?.colorBehavior.dominantMood,
+    "intentional"
+  );
+  const ctaCopy = ctaCopyForTaste(tasteProfile?.ctaTone, mode);
 
   const hero = createNode(
     "section",
     "Hero Section",
     undefined,
     {
-      background: surfaceForMode(tokens, profile.sectionBackgrounds[0]),
-      align: profile.heroAlign,
-      minHeight: 560,
-      paddingX: 56,
-      paddingY: 72,
-      gap: 20,
-      borderRadius: 26,
-      badgeTone: profile.heroTone,
+      background: surfaceForMode(tokens, sectionBackgrounds[0]),
+      align: heroAlign,
+      minHeight: mode === "creative" ? 620 : 560,
+      paddingX: spacing.paddingX,
+      paddingY: spacing.paddingY + 8,
+      gap: spacing.gap,
+      borderRadius: radius + 4,
+      badgeTone: heroTone,
     },
     [
       createNode("paragraph", "Hero Kicker", {
-        text: "Taste to site",
-      }, { foreground: tokens.colors.accent, align: profile.heroAlign }),
+        text: `${headingMood} taste to site`,
+      }, { foreground: tokens.colors.accent, align: heroAlign }),
       createNode("heading", "Hero Heading", {
         text: promise,
-      }, { align: profile.heroAlign }),
+      }, { align: heroAlign }),
       createNode("paragraph", "Hero Body", {
-        text: `${siteName} helps ${audience}. Generate complete directions, compare them, and refine the strongest one visually.`,
-      }, { align: profile.heroAlign, muted: tokens.colors.textMuted }),
-      createNode("button-row", "Hero Actions", undefined, { align: profile.heroAlign, gap: 12 }, [
+        text: `${siteName} helps ${audience} with a ${dominantMood} landing page system. The layout stays ${bodyMood}, the imagery feels ${imageMood}, and every variant can still be refined visually.`,
+      }, { align: heroAlign, muted: tokens.colors.textMuted }),
+      createNode("button-row", "Hero Actions", undefined, { align: heroAlign, gap: 12 }, [
         createNode("button", "Primary Button", {
-          text: "Open Compose",
+          text: ctaCopy,
           href: "#compose",
         }, { accent: tokens.colors.accent, emphasized: true }),
         createNode("button", "Secondary Button", {
@@ -418,7 +606,7 @@ function createVariantPageTree(
           href: "#variants",
         }, { borderColor: tokens.colors.border, foreground: tokens.colors.text }),
       ]),
-      createNode("metric-row", "Hero Metrics", undefined, { gap: 16, align: profile.heroAlign }, createMetricItems()),
+      createNode("metric-row", "Hero Metrics", undefined, { gap: 16, align: heroAlign }, createMetricItems()),
     ]
   );
 
@@ -427,16 +615,16 @@ function createVariantPageTree(
     "Proof Section",
     undefined,
     {
-      background: surfaceForMode(tokens, profile.sectionBackgrounds[1]),
+      background: surfaceForMode(tokens, sectionBackgrounds[1]),
       align: "center",
-      paddingX: 48,
-      paddingY: 44,
-      gap: 24,
-      borderRadius: 22,
+      paddingX: spacing.paddingX - 4,
+      paddingY: spacing.paddingY - 14,
+      gap: spacing.gap + 2,
+      borderRadius: radius,
     },
     [
       createNode("paragraph", "Proof Label", {
-        text: "Used by teams who design in public",
+        text: `Built for teams who want ${imageStyle} polish without losing speed`,
       }, { align: "center", muted: tokens.colors.textMuted }),
       createNode("logo-row", "Logo Row", undefined, { gap: 18, align: "center" }, createLogoItems()),
     ]
@@ -447,25 +635,25 @@ function createVariantPageTree(
     "Features Section",
     undefined,
     {
-      background: surfaceForMode(tokens, profile.sectionBackgrounds[2]),
-      align: profile.heroAlign,
-      paddingX: 48,
-      paddingY: 64,
-      gap: 28,
-      borderRadius: 22,
+      background: surfaceForMode(tokens, sectionBackgrounds[2]),
+      align: heroAlign,
+      paddingX: spacing.paddingX,
+      paddingY: spacing.paddingY,
+      gap: spacing.gap + 6,
+      borderRadius: radius,
     },
     [
       createNode("heading", "Features Heading", {
-        text: "From references to real page systems",
-      }, { align: profile.heroAlign }),
+        text: "From references to a page system with taste built in",
+      }, { align: heroAlign }),
       createNode("paragraph", "Features Body", {
-        text: "Keep the references, extracted system, generated variants, and final composition in one place.",
-      }, { align: profile.heroAlign, muted: tokens.colors.textMuted }),
+        text: "Keep the references, extracted system, generated variants, and final composition in one place without flattening the original visual direction.",
+      }, { align: heroAlign, muted: tokens.colors.textMuted }),
       createNode(
         "feature-grid",
         "Feature Grid",
         undefined,
-        { columns: profile.featuresColumns, gap: 18 },
+        { columns: featureColumns, gap: spacing.gap },
         createFeatureCards(siteName)
       ),
     ]
@@ -476,12 +664,12 @@ function createVariantPageTree(
     "Testimonials Section",
     undefined,
     {
-      background: surfaceForMode(tokens, profile.sectionBackgrounds[3]),
+      background: surfaceForMode(tokens, sectionBackgrounds[3]),
       align: "left",
-      paddingX: 48,
-      paddingY: 64,
-      gap: 24,
-      borderRadius: 22,
+      paddingX: spacing.paddingX,
+      paddingY: spacing.paddingY,
+      gap: spacing.gap + 2,
+      borderRadius: radius,
     },
     [
       createNode("heading", "Testimonials Heading", {
@@ -496,12 +684,12 @@ function createVariantPageTree(
     "Pricing Section",
     undefined,
     {
-      background: surfaceForMode(tokens, profile.sectionBackgrounds[4]),
+      background: surfaceForMode(tokens, sectionBackgrounds[4]),
       align: "center",
-      paddingX: 48,
-      paddingY: 64,
-      gap: 24,
-      borderRadius: 22,
+      paddingX: spacing.paddingX,
+      paddingY: spacing.paddingY,
+      gap: spacing.gap + 2,
+      borderRadius: radius,
     },
     [
       createNode("heading", "Pricing Heading", {
@@ -516,12 +704,12 @@ function createVariantPageTree(
     "CTA Section",
     undefined,
     {
-      background: surfaceForMode(tokens, profile.sectionBackgrounds[5]),
+      background: surfaceForMode(tokens, sectionBackgrounds[5]),
       align: "center",
-      paddingX: 48,
-      paddingY: 72,
-      gap: 20,
-      borderRadius: 22,
+      paddingX: spacing.paddingX,
+      paddingY: spacing.paddingY + 8,
+      gap: spacing.gap,
+      borderRadius: radius,
     },
     [
       createNode("heading", "CTA Heading", {
@@ -532,7 +720,7 @@ function createVariantPageTree(
       }, { align: "center", muted: tokens.colors.textMuted }),
       createNode("button-row", "CTA Actions", undefined, { align: "center", gap: 12 }, [
         createNode("button", "CTA Button", {
-          text: "Start with your moodboard",
+          text: ctaCopy,
           href: "#top",
         }, { accent: tokens.colors.accent, emphasized: true }),
       ]),
@@ -562,21 +750,30 @@ export function createVariantSet(
   prompt: string,
   tokens: DesignSystemTokens,
   siteType: SiteType,
-  siteName = inferSiteName(prompt)
+  siteName = inferSiteName(prompt),
+  tasteProfile: TasteProfile | null = null
 ): GeneratedVariant[] {
   const createdAt = new Date().toISOString();
   const resolvedSiteType = siteType === "auto" ? "saas-landing" : siteType;
+  const variantModes: VariantMode[] = ["safe", "creative", "alternative"];
 
   return VARIANT_PROFILES.map((profile, index) => ({
     id: uid("variant"),
     name: `${profile.name} ${index + 1}`,
-    pageTree: createVariantPageTree(profile, prompt, siteName, tokens),
+    pageTree: createVariantPageTree(
+      profile,
+      prompt,
+      siteName,
+      tokens,
+      tasteProfile,
+      variantModes[index] ?? "safe"
+    ),
     previewImage: null,
     compiledCode: null,
     sourcePrompt: prompt,
     createdAt,
     isFavorite: false,
-    description: profile.description,
+    description: tasteAlignmentNote(tasteProfile, variantModes[index] ?? "safe"),
     siteType: resolvedSiteType,
   }));
 }

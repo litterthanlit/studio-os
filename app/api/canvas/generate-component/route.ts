@@ -8,6 +8,31 @@ import {
   inferSiteName,
 } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
+import type { TasteProfile } from "@/types/taste-profile";
+
+type VariantStrategy = {
+  key: "safe" | "creative" | "alternative";
+  label: string;
+  note: string;
+};
+
+const VARIANT_STRATEGIES: VariantStrategy[] = [
+  {
+    key: "safe",
+    label: "Variant A",
+    note: "This variant stays closest to your reference signal and protects the strongest taste cues.",
+  },
+  {
+    key: "creative",
+    label: "Variant B",
+    note: "This variant pushes the visual interpretation while staying grounded in your references.",
+  },
+  {
+    key: "alternative",
+    label: "Variant C",
+    note: "This variant keeps the same taste but explores a different layout direction.",
+  },
+];
 
 function createVariantPreviewImage(
   name: string,
@@ -35,6 +60,90 @@ function createVariantPreviewImage(
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function formatTasteSection(
+  label: string,
+  values: Array<string | undefined | null>
+) {
+  const filtered = values
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean);
+  if (filtered.length === 0) return `${label}: none supplied`;
+  return `${label}: ${filtered.join(" • ")}`;
+}
+
+function buildTasteAwareVariantPrompt(args: {
+  prompt: string;
+  tasteProfile: TasteProfile | null;
+  referenceUrls: string[];
+  strategy: VariantStrategy;
+}) {
+  const { prompt, tasteProfile, referenceUrls, strategy } = args;
+  const referenceNote =
+    referenceUrls.length > 0
+      ? `Reference set size: ${referenceUrls.length} visual references informed this direction.`
+      : "Reference set size: no reference URLs were attached to this request.";
+
+  if (!tasteProfile) {
+    return [
+      `Base brief: ${prompt}`,
+      `Variant strategy: ${strategy.label} (${strategy.key}).`,
+      strategy.note,
+      referenceNote,
+      "No explicit taste profile was provided. Use the design tokens as the primary style signal while still producing a full, coherent landing page direction.",
+    ].join("\n");
+  }
+
+  const doNotList =
+    tasteProfile.avoid.length > 0
+      ? tasteProfile.avoid.map((item) => `- ${item}`).join("\n")
+      : "- Do not fall back to generic SaaS landing page tropes";
+
+  return [
+    `Base brief: ${prompt}`,
+    `Variant strategy: ${strategy.label} (${strategy.key}).`,
+    strategy.note,
+    referenceNote,
+    "",
+    "Taste profile:",
+    `Summary: ${tasteProfile.summary}`,
+    formatTasteSection("Adjectives", tasteProfile.adjectives),
+    formatTasteSection("Layout preferences", [
+      `density: ${tasteProfile.layoutBias.density}`,
+      `grid style: ${tasteProfile.layoutBias.gridStyle}`,
+      `whitespace: ${tasteProfile.layoutBias.whitespacePreference}`,
+      `hero style: ${tasteProfile.layoutBias.heroStyle}`,
+    ]),
+    formatTasteSection("Typography traits", [
+      `heading mood: ${tasteProfile.typographyTraits.headingMood}`,
+      `body mood: ${tasteProfile.typographyTraits.bodyMood}`,
+      `scale: ${tasteProfile.typographyTraits.scale}`,
+      ...tasteProfile.typographyTraits.suggestedPairings.map(
+        (pairing) => `pairing: ${pairing}`
+      ),
+    ]),
+    formatTasteSection("Color behavior", [
+      ...tasteProfile.colorBehavior.palette.map((color) => `palette: ${color}`),
+      `dominant mood: ${tasteProfile.colorBehavior.dominantMood}`,
+      `contrast: ${tasteProfile.colorBehavior.contrast}`,
+      `background preference: ${tasteProfile.colorBehavior.backgroundPreference}`,
+    ]),
+    formatTasteSection("Image treatment", [
+      `style: ${tasteProfile.imageTreatment.style}`,
+      `mood: ${tasteProfile.imageTreatment.mood}`,
+      `corners: ${tasteProfile.imageTreatment.corners}`,
+      `overlays: ${tasteProfile.imageTreatment.overlays}`,
+    ]),
+    `CTA tone: ${tasteProfile.ctaTone}`,
+    `Confidence: ${Math.round(tasteProfile.confidence * 100)}%`,
+    "",
+    "Generation rule:",
+    "Generate a full landing-page direction whose layout, pacing, typography, spacing, imagery treatment, and CTA behavior naturally express the taste profile. Do not only map the palette; reflect the profile in structure and hierarchy too.",
+    "",
+    "DO NOT:",
+    doNotList,
+  ].join("\n");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -46,6 +155,8 @@ export async function POST(req: NextRequest) {
       mode,
       siteType,
       siteName,
+      tasteProfile,
+      referenceUrls,
     } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
@@ -54,6 +165,8 @@ export async function POST(req: NextRequest) {
       mode?: "single" | "variants";
       siteType?: SiteType;
       siteName?: string;
+      tasteProfile?: TasteProfile | null;
+      referenceUrls?: string[];
     };
 
     if (!prompt || !tokens) {
@@ -65,20 +178,47 @@ export async function POST(req: NextRequest) {
 
     if (mode === "variants") {
       const resolvedSiteName = siteName || inferSiteName(prompt);
-      const variants = createVariantSet(
+      const baseVariants = createVariantSet(
         prompt,
         tokens,
         siteType ?? "auto",
-        resolvedSiteName
-      ).map((variant) => ({
-        ...variant,
-        previewImage: createVariantPreviewImage(variant.name, tokens),
-        compiledCode: compilePageTreeToTSX(
-          variant.pageTree,
-          tokens,
-          variant.name.replace(/\s+/g, "")
-        ),
-      }));
+        resolvedSiteName,
+        tasteProfile ?? null
+      );
+      const variants = baseVariants.map((variant, index) => {
+        const strategy = VARIANT_STRATEGIES[index] ?? VARIANT_STRATEGIES[0];
+        const sourcePrompt = buildTasteAwareVariantPrompt({
+          prompt,
+          tasteProfile: tasteProfile ?? null,
+          referenceUrls: Array.isArray(referenceUrls) ? referenceUrls : [],
+          strategy,
+        });
+        const emphasizedAspect =
+          strategy.key === "safe"
+            ? tasteProfile?.layoutBias.whitespacePreference ||
+              tasteProfile?.typographyTraits.headingMood ||
+              "taste alignment"
+            : strategy.key === "creative"
+            ? tasteProfile?.imageTreatment.style ||
+              tasteProfile?.layoutBias.heroStyle ||
+              "creative interpretation"
+            : tasteProfile?.layoutBias.gridStyle ||
+              tasteProfile?.colorBehavior.backgroundPreference ||
+              "layout contrast";
+
+        return {
+          ...variant,
+          name: `${strategy.label} — ${variant.name}`,
+          sourcePrompt,
+          description: `This variant emphasizes ${emphasizedAspect} from your references.`,
+          previewImage: createVariantPreviewImage(variant.name, tokens),
+          compiledCode: compilePageTreeToTSX(
+            variant.pageTree,
+            tokens,
+            variant.name.replace(/\s+/g, "")
+          ),
+        };
+      });
 
       return NextResponse.json({
         siteName: resolvedSiteName,

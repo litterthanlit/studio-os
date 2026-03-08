@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -287,16 +287,31 @@ function CanvasSidebarContent({
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [canvasSidebarVisible, setCanvasSidebarVisible] = React.useState(true);
+  const [canvasProjectHref, setCanvasProjectHref] = React.useState("/home");
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isCanvasRoute = pathname === "/canvas" || pathname === "/canvas-v1";
-  const canvasProjectId = searchParams.get("project");
-  const canvasProjectHref = canvasProjectId ? `/projects/${canvasProjectId}` : "/home";
 
   // Close mobile sidebar on route change
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    if (!isCanvasRoute || typeof window === "undefined") {
+      setCanvasProjectHref("/home");
+      return;
+    }
+
+    const updateProjectHref = () => {
+      const params = new URLSearchParams(window.location.search);
+      const projectId = params.get("project");
+      setCanvasProjectHref(projectId ? `/projects/${projectId}` : "/home");
+    };
+
+    updateProjectHref();
+    window.addEventListener("popstate", updateProjectHref);
+    return () => window.removeEventListener("popstate", updateProjectHref);
+  }, [isCanvasRoute, pathname]);
 
   React.useEffect(() => {
     if (!isCanvasRoute) {

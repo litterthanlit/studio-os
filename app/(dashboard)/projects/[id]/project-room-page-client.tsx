@@ -44,13 +44,14 @@ function storedToProject(sp: {
   color: string;
   createdAt: string;
 }): Project {
+  const state = getProjectState(sp.id);
   return {
     id: sp.id,
     name: sp.name,
     client: "—",
     phase: "Discovery",
     progress: 0,
-    leadImage: getProjectCover(sp.id) ?? `https://picsum.photos/seed/${sp.id}/400/300`,
+    leadImage: state.coverImage ?? `https://picsum.photos/seed/${sp.id}/400/300`,
     palette: [sp.color, "#111111", "#222222", "#333333", "#999999"],
     lastActivity: "Just created",
     references: getStoredReferenceCount(sp.id),

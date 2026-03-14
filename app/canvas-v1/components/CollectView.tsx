@@ -265,13 +265,13 @@ function TasteProfileDisplay({
             icon={<LayoutMetricIcon type="density" />}
           />
           <TasteMetric
-            label="Grid style"
-            value={tasteProfile.layoutBias.gridStyle}
+            label="Grid behavior"
+            value={tasteProfile.layoutBias.gridBehavior}
             icon={<LayoutMetricIcon type="grid" />}
           />
           <TasteMetric
             label="Whitespace"
-            value={tasteProfile.layoutBias.whitespacePreference}
+            value={tasteProfile.layoutBias.whitespaceIntent}
             icon={<LayoutMetricIcon type="whitespace" />}
           />
           <TasteMetric
@@ -326,10 +326,11 @@ function TastePanel({
   referenceCount: number;
 }) {
   const paletteEntries = React.useMemo(() => {
-    if (tasteProfile?.colorBehavior.palette?.length) {
-      return tasteProfile.colorBehavior.palette
+    if (tasteProfile?.colorBehavior.suggestedColors) {
+      return Object.entries(tasteProfile.colorBehavior.suggestedColors)
+        .filter(([, color]) => Boolean(color))
         .slice(0, 6)
-        .map((color, index) => [`taste ${index + 1}`, color] as const);
+        .map(([key, color]) => [key, color as string] as const);
     }
     if (tokens) {
       return Object.entries(tokens.colors).slice(0, 6);
@@ -348,9 +349,9 @@ function TastePanel({
   const typographyLines = React.useMemo(() => {
     if (tasteProfile) {
       return [
-        `${tasteProfile.typographyTraits.headingMood} headings`,
-        `${tasteProfile.typographyTraits.bodyMood} body`,
-        ...tasteProfile.typographyTraits.suggestedPairings,
+        `${tasteProfile.typographyTraits.headingTone} headings`,
+        `${tasteProfile.typographyTraits.bodyTone} body`,
+        ...tasteProfile.typographyTraits.recommendedPairings,
       ].slice(0, 3);
     }
     const lines: string[] = [];

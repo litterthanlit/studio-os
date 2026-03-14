@@ -396,8 +396,8 @@ function featureColumnsForTaste(
 function ctaCopyForTaste(ctaTone: TasteProfile["ctaTone"] | undefined, mode: VariantMode) {
   if (mode === "creative") return "Generate a bolder direction";
   if (mode === "alternative") return "See another layout path";
-  if (ctaTone === "aggressive") return "Book the working session";
-  if (ctaTone === "minimal") return "View the composed site";
+  if (ctaTone?.style === "bold") return "Book the working session";
+  if (ctaTone?.style === "understated") return "View the composed site";
   return "Open Compose";
 }
 
@@ -439,16 +439,16 @@ function tasteAlignmentNote(tasteProfile: TasteProfile | null | undefined, mode:
 
   if (mode === "alternative") {
     return `This variant emphasizes ${normalizeValue(
-      tasteProfile.layoutBias.gridStyle,
+      tasteProfile.layoutBias.gridBehavior,
       "grid structure"
     )} with a different layout approach from your references.`;
   }
 
   return `This variant emphasizes ${normalizeValue(
-    tasteProfile.layoutBias.whitespacePreference,
+    tasteProfile.layoutBias.whitespaceIntent,
     "spacing balance"
   )} and ${normalizeValue(
-    tasteProfile.typographyTraits.headingMood,
+    tasteProfile.typographyTraits.headingTone,
     "typographic mood"
   )} from your references.`;
 }
@@ -536,13 +536,13 @@ function createVariantPageTree(
   const audience = inferAudience(prompt);
   const promise = inferPromise(prompt);
   const spacing = sectionSpacingForTaste(
-    tasteProfile?.layoutBias.whitespacePreference,
+    tasteProfile?.layoutBias.whitespaceIntent,
     tasteProfile?.layoutBias.density,
     mode
   );
   const featureColumns = featureColumnsForTaste(
     profile.featuresColumns,
-    tasteProfile?.layoutBias.gridStyle,
+    tasteProfile?.layoutBias.gridBehavior,
     mode
   );
   const heroAlign = heroAlignmentForTaste(
@@ -552,24 +552,24 @@ function createVariantPageTree(
   );
   const heroTone = heroToneForTaste(
     profile.heroTone,
-    tasteProfile?.colorBehavior.dominantMood,
+    tasteProfile?.colorBehavior.mode,
     mode
   );
   const sectionBackgrounds = sectionBackgroundsForTaste(
     profile,
-    tasteProfile?.colorBehavior.backgroundPreference,
+    tasteProfile?.colorBehavior.suggestedColors.background,
     mode
   );
-  const radius = cornerRadiusForTaste(tasteProfile?.imageTreatment.corners);
+  const radius = cornerRadiusForTaste(tasteProfile?.imageTreatment.cornerRadius);
   const headingMood = normalizeValue(
-    tasteProfile?.typographyTraits.headingMood,
+    tasteProfile?.typographyTraits.headingTone,
     "confident"
   );
-  const bodyMood = normalizeValue(tasteProfile?.typographyTraits.bodyMood, "clear");
-  const imageMood = normalizeValue(tasteProfile?.imageTreatment.mood, "measured");
+  const bodyMood = normalizeValue(tasteProfile?.typographyTraits.bodyTone, "clear");
+  const imageMood = normalizeValue(tasteProfile?.imageTreatment.treatment, "measured");
   const imageStyle = normalizeValue(tasteProfile?.imageTreatment.style, "editorial");
   const dominantMood = normalizeValue(
-    tasteProfile?.colorBehavior.dominantMood,
+    tasteProfile?.colorBehavior.mode,
     "intentional"
   );
   const ctaCopy = ctaCopyForTaste(tasteProfile?.ctaTone, mode);
@@ -758,7 +758,7 @@ export function createVariantSet(
 ): GeneratedVariant[] {
   const createdAt = new Date().toISOString();
   const resolvedSiteType = siteType === "auto" ? "saas-landing" : siteType;
-  const variantModes = requestedModes.length > 0 ? requestedModes : ["safe"];
+  const variantModes: VariantMode[] = requestedModes.length > 0 ? requestedModes : ["safe"];
 
   return VARIANT_PROFILES.filter((_, index) => Boolean(variantModes[index])).map((profile, index) => {
     const mode = variantModes[index] ?? "safe";
@@ -791,11 +791,11 @@ export function createVariantSet(
         mode === "safe"
           ? [
               normalizeValue(
-                tasteProfile?.layoutBias.whitespacePreference,
+                tasteProfile?.layoutBias.whitespaceIntent,
                 "spacing balance"
               ),
               normalizeValue(
-                tasteProfile?.typographyTraits.headingMood,
+                tasteProfile?.typographyTraits.headingTone,
                 "type mood"
               ),
             ]
@@ -811,9 +811,9 @@ export function createVariantSet(
               ),
             ]
           : [
-              normalizeValue(tasteProfile?.layoutBias.gridStyle, "grid style"),
+              normalizeValue(tasteProfile?.layoutBias.gridBehavior, "grid style"),
               normalizeValue(
-                tasteProfile?.colorBehavior.backgroundPreference,
+                tasteProfile?.colorBehavior.suggestedColors?.background,
                 "background preference"
               ),
             ],

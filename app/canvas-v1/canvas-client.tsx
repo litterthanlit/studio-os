@@ -602,6 +602,12 @@ function sanitizeDesignTokens(value: unknown): DesignSystemTokens | null {
   };
 }
 
+function pickEnum<T extends string>(val: unknown, options: readonly T[], fallback: T): T {
+  return typeof val === "string" && (options as readonly string[]).includes(val)
+    ? (val as T)
+    : fallback;
+}
+
 function sanitizeTasteProfile(value: unknown): TasteProfile | null {
   if (!isPlainObject(value)) return null;
 
@@ -618,79 +624,72 @@ function sanitizeTasteProfile(value: unknown): TasteProfile | null {
     return null;
   }
 
+  const suggestedColors = isPlainObject(colorBehavior.suggestedColors)
+    ? colorBehavior.suggestedColors
+    : null;
+  const ctaToneRaw = isPlainObject(value.ctaTone) ? value.ctaTone : null;
+
   return {
     summary:
       typeof value.summary === "string"
         ? value.summary
         : "The references point toward a clear visual direction.",
     adjectives: toStringArray(value.adjectives),
+    archetypeMatch:
+      typeof value.archetypeMatch === "string" ? value.archetypeMatch : "premium-saas",
+    archetypeConfidence:
+      typeof value.archetypeConfidence === "number" ? value.archetypeConfidence : 0.55,
+    secondaryArchetype:
+      typeof value.secondaryArchetype === "string" ? value.secondaryArchetype : undefined,
     layoutBias: {
-      density:
-        typeof layoutBias.density === "string" ? layoutBias.density : "balanced",
-      gridStyle:
-        typeof layoutBias.gridStyle === "string"
-          ? layoutBias.gridStyle
-          : "structured",
-      whitespacePreference:
-        typeof layoutBias.whitespacePreference === "string"
-          ? layoutBias.whitespacePreference
-          : "balanced",
-      heroStyle:
-        typeof layoutBias.heroStyle === "string"
-          ? layoutBias.heroStyle
-          : "editorial",
+      density: pickEnum(layoutBias.density, ["spacious", "balanced", "dense"] as const, "balanced"),
+      rhythm: pickEnum(layoutBias.rhythm, ["uniform", "alternating", "progressive", "asymmetric"] as const, "alternating"),
+      heroStyle: pickEnum(layoutBias.heroStyle, ["full-bleed", "contained", "split", "text-dominant", "media-dominant"] as const, "contained"),
+      sectionFlow: pickEnum(layoutBias.sectionFlow, ["stacked", "overlapping", "interlocking", "editorial-grid"] as const, "stacked"),
+      gridBehavior: pickEnum(layoutBias.gridBehavior, ["strict", "fluid", "broken", "editorial"] as const, "strict"),
+      whitespaceIntent: pickEnum(layoutBias.whitespaceIntent, ["breathing", "structural", "dramatic", "minimal"] as const, "structural"),
     },
     typographyTraits: {
-      headingMood:
-        typeof typographyTraits.headingMood === "string"
-          ? typographyTraits.headingMood
-          : "confident",
-      bodyMood:
-        typeof typographyTraits.bodyMood === "string"
-          ? typographyTraits.bodyMood
-          : "clear",
-      scale:
-        typeof typographyTraits.scale === "string"
-          ? typographyTraits.scale
-          : "balanced",
-      suggestedPairings: toStringArray(typographyTraits.suggestedPairings),
+      scale: pickEnum(typographyTraits.scale, ["compressed", "moderate", "expanded", "dramatic"] as const, "moderate"),
+      headingTone: pickEnum(typographyTraits.headingTone, ["display", "editorial", "technical", "humanist", "geometric"] as const, "geometric"),
+      bodyTone: pickEnum(typographyTraits.bodyTone, ["neutral", "warm", "technical", "literary"] as const, "neutral"),
+      contrast: pickEnum(typographyTraits.contrast, ["low", "medium", "high", "extreme"] as const, "high"),
+      casePreference: pickEnum(typographyTraits.casePreference, ["mixed", "uppercase-headings", "all-uppercase", "all-lowercase"] as const, "mixed"),
+      recommendedPairings: toStringArray(typographyTraits.recommendedPairings),
     },
     colorBehavior: {
-      palette: toStringArray(colorBehavior.palette),
-      dominantMood:
-        typeof colorBehavior.dominantMood === "string"
-          ? colorBehavior.dominantMood
-          : "measured",
-      contrast:
-        typeof colorBehavior.contrast === "string"
-          ? colorBehavior.contrast
-          : "balanced",
-      backgroundPreference:
-        typeof colorBehavior.backgroundPreference === "string"
-          ? colorBehavior.backgroundPreference
-          : "light",
+      mode: pickEnum(colorBehavior.mode, ["light", "dark", "mixed", "adaptive"] as const, "light"),
+      palette: pickEnum(colorBehavior.palette, ["monochromatic", "analogous", "complementary", "neutral-plus-accent", "restrained"] as const, "neutral-plus-accent"),
+      accentStrategy: pickEnum(colorBehavior.accentStrategy, ["single-pop", "gradient-subtle", "gradient-bold", "multi-accent", "no-accent"] as const, "single-pop"),
+      saturation: pickEnum(colorBehavior.saturation, ["desaturated", "muted", "moderate", "vivid"] as const, "muted"),
+      temperature: pickEnum(colorBehavior.temperature, ["cool", "neutral", "warm"] as const, "neutral"),
+      suggestedColors: {
+        background: typeof suggestedColors?.background === "string" ? suggestedColors.background : "#FAFAFA",
+        surface: typeof suggestedColors?.surface === "string" ? suggestedColors.surface : "#F5F5F5",
+        text: typeof suggestedColors?.text === "string" ? suggestedColors.text : "#111111",
+        accent: typeof suggestedColors?.accent === "string" ? suggestedColors.accent : "#3B5EFC",
+        secondary: typeof suggestedColors?.secondary === "string" ? suggestedColors.secondary : undefined,
+      },
     },
     imageTreatment: {
-      style:
-        typeof imageTreatment.style === "string" ? imageTreatment.style : "editorial",
-      mood: typeof imageTreatment.mood === "string" ? imageTreatment.mood : "calm",
-      corners:
-        typeof imageTreatment.corners === "string"
-          ? imageTreatment.corners
-          : "soft",
-      overlays:
-        typeof imageTreatment.overlays === "string"
-          ? imageTreatment.overlays
-          : "minimal",
+      style: pickEnum(imageTreatment.style, ["editorial", "product", "atmospheric", "abstract", "documentary", "minimal"] as const, "editorial"),
+      sizing: pickEnum(imageTreatment.sizing, ["full-bleed", "contained", "mixed", "thumbnail-grid"] as const, "contained"),
+      treatment: pickEnum(imageTreatment.treatment, ["raw", "filtered", "duotone", "high-contrast", "desaturated"] as const, "raw"),
+      cornerRadius: pickEnum(imageTreatment.cornerRadius, ["none", "subtle", "rounded", "pill"] as const, "subtle"),
+      borders: typeof imageTreatment.borders === "boolean" ? imageTreatment.borders : false,
+      shadow: pickEnum(imageTreatment.shadow, ["none", "subtle", "medium", "dramatic"] as const, "subtle"),
+      aspectPreference: pickEnum(imageTreatment.aspectPreference, ["landscape", "portrait", "square", "mixed"] as const, "landscape"),
     },
-    ctaTone:
-      value.ctaTone === "aggressive" ||
-      value.ctaTone === "subtle" ||
-      value.ctaTone === "minimal"
-        ? value.ctaTone
-        : "subtle",
+    ctaTone: {
+      style: pickEnum(ctaToneRaw?.style, ["bold", "understated", "editorial", "technical", "playful"] as const, "understated"),
+      shape: pickEnum(ctaToneRaw?.shape, ["sharp", "subtle-radius", "rounded", "pill"] as const, "subtle-radius"),
+      hierarchy: pickEnum(ctaToneRaw?.hierarchy, ["primary-dominant", "balanced", "text-link-preferred"] as const, "primary-dominant"),
+    },
     avoid: toStringArray(value.avoid),
     confidence: clampConfidence(value.confidence, 0.55),
+    referenceCount: typeof value.referenceCount === "number" ? value.referenceCount : 0,
+    dominantReferenceType: pickEnum(value.dominantReferenceType, ["ui-screenshot", "photography", "poster", "art", "mixed"] as const, "mixed"),
+    warnings: toStringArray(value.warnings),
   };
 }
 

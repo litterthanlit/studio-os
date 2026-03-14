@@ -110,31 +110,31 @@ function buildTasteAwareVariantPrompt(args: {
     formatTasteSection("Adjectives", tasteProfile.adjectives),
     formatTasteSection("Layout preferences", [
       `density: ${tasteProfile.layoutBias.density}`,
-      `grid style: ${tasteProfile.layoutBias.gridStyle}`,
-      `whitespace: ${tasteProfile.layoutBias.whitespacePreference}`,
+      `grid behavior: ${tasteProfile.layoutBias.gridBehavior}`,
+      `whitespace: ${tasteProfile.layoutBias.whitespaceIntent}`,
       `hero style: ${tasteProfile.layoutBias.heroStyle}`,
     ]),
     formatTasteSection("Typography traits", [
-      `heading mood: ${tasteProfile.typographyTraits.headingMood}`,
-      `body mood: ${tasteProfile.typographyTraits.bodyMood}`,
+      `heading tone: ${tasteProfile.typographyTraits.headingTone}`,
+      `body tone: ${tasteProfile.typographyTraits.bodyTone}`,
       `scale: ${tasteProfile.typographyTraits.scale}`,
-      ...tasteProfile.typographyTraits.suggestedPairings.map(
-        (pairing) => `pairing: ${pairing}`
+      ...tasteProfile.typographyTraits.recommendedPairings.map(
+        (pairing: string) => `pairing: ${pairing}`
       ),
     ]),
     formatTasteSection("Color behavior", [
-      ...tasteProfile.colorBehavior.palette.map((color) => `palette: ${color}`),
-      `dominant mood: ${tasteProfile.colorBehavior.dominantMood}`,
-      `contrast: ${tasteProfile.colorBehavior.contrast}`,
-      `background preference: ${tasteProfile.colorBehavior.backgroundPreference}`,
+      `palette type: ${tasteProfile.colorBehavior.palette}`,
+      `mode: ${tasteProfile.colorBehavior.mode}`,
+      `contrast: ${tasteProfile.typographyTraits.contrast}`,
+      `background: ${tasteProfile.colorBehavior.suggestedColors.background}`,
+      `accent: ${tasteProfile.colorBehavior.suggestedColors.accent}`,
     ]),
     formatTasteSection("Image treatment", [
       `style: ${tasteProfile.imageTreatment.style}`,
-      `mood: ${tasteProfile.imageTreatment.mood}`,
-      `corners: ${tasteProfile.imageTreatment.corners}`,
-      `overlays: ${tasteProfile.imageTreatment.overlays}`,
+      `treatment: ${tasteProfile.imageTreatment.treatment}`,
+      `corner radius: ${tasteProfile.imageTreatment.cornerRadius}`,
     ]),
-    `CTA tone: ${tasteProfile.ctaTone}`,
+    `CTA tone: ${tasteProfile.ctaTone.style}`,
     `Confidence: ${Math.round(tasteProfile.confidence * 100)}%`,
     "",
     "Generation rule:",
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
         variantStrategy === "creative" ||
         variantStrategy === "alternative"
           ? [variantStrategy]
-          : ["safe", "creative", "alternative"];
+          : (["safe", "creative", "alternative"] as VariantMode[]);
       const regenerationNote =
         regenerationIntent === "more-like-this"
           ? "Strengthen the same direction, double down on its taste alignment, and sharpen what already works."
@@ -213,15 +213,15 @@ export async function POST(req: NextRequest) {
         });
         const emphasizedAspect =
           strategy.key === "safe"
-            ? tasteProfile?.layoutBias.whitespacePreference ||
-              tasteProfile?.typographyTraits.headingMood ||
+            ? tasteProfile?.layoutBias.whitespaceIntent ||
+              tasteProfile?.typographyTraits.headingTone ||
               "taste alignment"
             : strategy.key === "creative"
             ? tasteProfile?.imageTreatment.style ||
               tasteProfile?.layoutBias.heroStyle ||
               "creative interpretation"
-            : tasteProfile?.layoutBias.gridStyle ||
-              tasteProfile?.colorBehavior.backgroundPreference ||
+            : tasteProfile?.layoutBias.gridBehavior ||
+              tasteProfile?.colorBehavior.suggestedColors.background ||
               "layout contrast";
 
         return {

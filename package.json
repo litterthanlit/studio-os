@@ -11,6 +11,8 @@
     "generate:marketing-images": "npx tsx scripts/generate-marketing-images.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/genai": "^1.45.0",
     "@google/generative-ai": "^0.24.1",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.8.0",

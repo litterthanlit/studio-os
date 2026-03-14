@@ -1,16 +1,7 @@
 // lib/ai/image-scorer.ts
-// GPT-4 Vision API service for scoring inspiration images
+// Gemini 2.5 Flash via OpenRouter for scoring inspiration images
 
-import OpenAI from "openai";
-
-// Lazy — don't instantiate at module level so missing env vars don't crash the build
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) {
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return _openai;
-}
+import { getRouter, GEMINI_FLASH, imageUrlBlock } from "@/lib/ai/model-router";
 
 export interface ImageScore {
   composition: number;
@@ -45,64 +36,40 @@ Also provide:
 - Style: Design style category (e.g., "minimalist", "brutalist", "organic", "futuristic")
 - Reasoning: Brief 1-2 sentence explanation of why it scored this way
 
-Respond in this exact JSON format:
-{
-  "scores": {
-    "composition": number,
-    "color": number,
-    "mood": number,
-    "uniqueness": number,
-    "overall": number
-  },
-  "tags": string[],
-  "colors": string[],
-  "mood": string,
-  "style": string,
-  "reasoning": string
-}
-
 Calculate overall as weighted average: (composition * 0.3 + color * 0.25 + mood * 0.25 + uniqueness * 0.2)
 Round all scores to integers.
-Only return valid JSON, no markdown formatting.`;
+
+Respond ONLY with valid JSON, no markdown formatting.`;
 
 export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
+  const router = getRouter();
 
-  const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini", // Using mini for cost-effectiveness, upgrade to gpt-4o if needed
+  const response = await router.chat.completions.create({
+    model: GEMINI_FLASH,
+    max_tokens: 500,
+    temperature: 0.3,
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "user",
         content: [
           { type: "text", text: SCORING_PROMPT },
-          {
-            type: "image_url",
-            image_url: {
-              url: imageUrl,
-              detail: "low", // Use low detail for faster/cheaper processing
-            },
-          },
+          imageUrlBlock(imageUrl, "low"),
         ],
       },
     ],
-    max_tokens: 500,
-    temperature: 0.3, // Lower temperature for consistent scoring
   });
 
-  const content = response.choices[0]?.message?.content;
+  const content = response.choices[0]?.message?.content ?? "";
   if (!content) {
-    throw new Error("No response from GPT-4 Vision");
+    throw new Error("No response from Gemini Flash via OpenRouter");
   }
 
-  // Parse JSON response
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : content;
     const analysis = JSON.parse(jsonStr) as ImageAnalysis;
 
-    // Validate scores
     const scores = analysis.scores;
     if (
       typeof scores.composition !== "number" ||
@@ -111,26 +78,24 @@ export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
       typeof scores.uniqueness !== "number" ||
       typeof scores.overall !== "number"
     ) {
-      throw new Error("Invalid score format from GPT-4 Vision");
+      throw new Error("Invalid score format from Gemini Flash");
     }
 
-    // Ensure overall matches our formula
     const calculatedOverall = Math.round(
       scores.composition * 0.3 +
-      scores.color * 0.25 +
-      scores.mood * 0.25 +
-      scores.uniqueness * 0.2
+        scores.color * 0.25 +
+        scores.mood * 0.25 +
+        scores.uniqueness * 0.2
     );
     analysis.scores.overall = calculatedOverall;
 
     return analysis;
-  } catch (error) {
-    console.error("[image-scorer] Failed to parse GPT-4 Vision response:", content);
+  } catch {
+    console.error("[image-scorer] Failed to parse Gemini Flash response:", content);
     throw new Error("Failed to parse image analysis");
   }
 }
 
-// Batch score multiple images with rate limiting
 export async function scoreImagesBatch(
   images: { id: string; url: string }[],
   options: { delayMs?: number; onProgress?: (completed: number, total: number) => void } = {}
@@ -150,7 +115,6 @@ export async function scoreImagesBatch(
 
     onProgress?.(i + 1, images.length);
 
-    // Rate limiting delay between requests
     if (i < images.length - 1 && delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }

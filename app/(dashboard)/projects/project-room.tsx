@@ -296,10 +296,10 @@ function SystemOverview({
                 Layout bias
               </p>
               <p className="mt-2 text-sm text-text-primary">
-                {tasteProfile?.layoutBias.gridStyle ?? "Awaiting extraction"}
+                {tasteProfile?.layoutBias.gridBehavior ?? "Awaiting extraction"}
               </p>
               <p className="mt-1 text-xs text-text-secondary">
-                Density {tasteProfile?.layoutBias.density ?? "—"} · whitespace {tasteProfile?.layoutBias.whitespacePreference ?? "—"}
+                Density {tasteProfile?.layoutBias.density ?? "—"} · whitespace {tasteProfile?.layoutBias.whitespaceIntent ?? "—"}
               </p>
             </div>
             <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
@@ -307,7 +307,7 @@ function SystemOverview({
                 CTA tone
               </p>
               <p className="mt-2 text-sm text-text-primary">
-                {tasteProfile?.ctaTone ?? "Awaiting extraction"}
+                {tasteProfile?.ctaTone?.style ?? "Awaiting extraction"}
               </p>
               <p className="mt-1 text-xs text-text-secondary">
                 {tasteProfile?.imageTreatment.style ?? "No image treatment captured yet"}

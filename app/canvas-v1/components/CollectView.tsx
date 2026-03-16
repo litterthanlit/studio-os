@@ -14,6 +14,7 @@ import { buildIframeHTML } from "./ComponentPreview";
 import { ComposeDocumentView } from "./ComposeDocumentView";
 import type { GeneratedVariant } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 type ImportMode = "upload" | "arena" | "pinterest" | "url";
 
@@ -561,10 +562,10 @@ function CollectVariantCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
-        "overflow-hidden rounded-[4px] border bg-white transition-all duration-150",
+        "overflow-hidden rounded-[4px] transition-all duration-150 surface-panel",
         active
-          ? "border-[#1E5DF2] border-2 shadow-[0_0_0_3px_rgba(209,228,252,0.3)]"
-          : "border-[#E5E5E0] hover:border-[#D1E4FC] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:-translate-y-px"
+          ? "border-[#1E5DF2] shadow-[0_0_0_1px_#1E5DF2,0_16px_40px_rgba(30,93,242,0.12)]"
+          : "border-[#E5E5E0] hover:border-[#D1E4FC] hover:shadow-[0_12px_24px_rgba(17,17,17,0.05)] hover:-translate-y-px"
       )}
     >
       {/* 16:10 Preview */}
@@ -595,7 +596,7 @@ function CollectVariantCard({
             />
           </div>
         ) : (
-          <div className="absolute inset-0 overflow-y-auto bg-gradient-to-br from-[#F4F8FF] via-[#EBF3FF] to-[#D1E4FC]">
+          <div className="halftone-preview absolute inset-0 overflow-y-auto">
             <ComposeDocumentView
               pageTree={variant.pageTree}
               tokens={tokens}
@@ -618,7 +619,7 @@ function CollectVariantCard({
       <div
         className={cn(
           "border-t border-[#E5E5E0] px-4 py-3 transition-colors",
-          active ? "bg-[rgba(209,228,252,0.1)]" : "bg-white"
+          active ? "bg-[#F3F7FF]" : "bg-white/90"
         )}
       >
         <div className="flex items-center justify-between gap-3">
@@ -742,10 +743,15 @@ function GenerationSection({
   const isGenerating = generateLoading;
 
   return (
-    <div style={{ borderTop: "1px solid #E5E5E0" }}>
+    <DitherSurface
+      patternVariant="band"
+      patternTone="warm"
+      patternDensity="sm"
+      className="rounded-none border-x-0 border-b-0 border-t"
+    >
       {/* Generation controls */}
       <div className="px-6 py-5">
-        <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.16em]" style={{ color: "#A0A0A0" }}>
+        <p className="mono-kicker mb-4">
           Generate
         </p>
 
@@ -787,7 +793,7 @@ function GenerationSection({
                       "rounded-sm px-3 py-1.5 text-[11px] font-medium transition-colors",
                       siteType === type
                         ? "bg-[#1E5DF2] text-white"
-                        : "border border-[#E5E5E0] bg-white text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                        : "border border-[#E5E5E0] bg-white/90 text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
                     )}
                   >
                     {SITE_TYPE_LABELS[type] ?? type}
@@ -796,7 +802,7 @@ function GenerationSection({
               </div>
 
               {/* Prompt + Generate in one row */}
-              <div className="flex gap-3">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                 <textarea
                   value={sitePrompt}
                   onChange={(e) => onSitePromptChange(e.target.value)}
@@ -813,7 +819,7 @@ function GenerationSection({
                     resize: "none",
                     lineHeight: 1.5,
                     color: "#1A1A1A",
-                    background: "#fff",
+                    background: "rgba(255,255,255,0.92)",
                     transition: "border-color 0.15s",
                   }}
                   onFocus={(e) => { e.currentTarget.style.borderColor = "#D1E4FC"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(209,228,252,0.4)"; }}
@@ -837,6 +843,7 @@ function GenerationSection({
                     flexShrink: 0,
                     transition: "background 0.15s",
                     minHeight: 44,
+                    alignSelf: "stretch",
                   }}
                   onMouseEnter={(e) => { if (canGenerate) e.currentTarget.style.background = "#1A4FD6"; }}
                   onMouseLeave={(e) => { if (canGenerate) e.currentTarget.style.background = "#1E5DF2"; }}
@@ -866,7 +873,7 @@ function GenerationSection({
             className="px-6 pb-8"
           >
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em]" style={{ color: "#A0A0A0" }}>
+              <p className="mono-kicker">
                 Variants — {variants.length >= 3 ? "3-up" : variants.length === 2 ? "2-up" : "1 variant"}
               </p>
               <p className="text-[11px]" style={{ color: "#6B6B6B" }}>
@@ -899,7 +906,7 @@ function GenerationSection({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </DitherSurface>
   );
 }
 
@@ -947,18 +954,23 @@ export function CollectView({
   const hasAnalysis = Boolean(analysis || tasteProfile || tokens);
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(249,241,224,0.6),transparent_44%),linear-gradient(180deg,#FAFAF8_0%,#F7F3EA_100%)]">
+    <div className="flex h-full min-h-0 overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(249,241,224,0.72),transparent_44%),linear-gradient(180deg,#FAFAF8_0%,#F7F3EA_100%)]">
       <div className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-0 px-6 py-6">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-0 px-6 py-8">
 
           {/* ── Reference Grid + Side Panel ── */}
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
               {/* Header card */}
-              <div className="flex flex-col gap-4 rounded-[4px] border border-[#E5E5E0] bg-white px-5 py-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+              <DitherSurface
+                patternVariant="fade"
+                patternTone="warm"
+                patternDensity="sm"
+                className="flex flex-col gap-4 rounded-[4px] px-5 py-5"
+              >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div className="space-y-2">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#A0A0A0]">Collect</p>
+                    <p className="mono-kicker">Collect</p>
                     <div className="space-y-1">
                       {/* Editable board name */}
                       <h2
@@ -994,10 +1006,16 @@ export function CollectView({
                   <UploadZone
                     onFilesAdded={(files) => { void onFilesAdded(files); }}
                     disabled={false}
-                    className="min-h-[220px] rounded-[4px] border border-dashed border-[#E5E5E0]"
+                    className="min-h-[220px] rounded-[4px] border border-dashed border-[#E5E5E0] bg-white/70"
                   />
-                  <div className="rounded-[4px] border border-[#E5E5E0] bg-[#F5F5F0] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-[#A0A0A0]">Stats</p>
+                  <DitherSurface
+                    patternVariant="grid"
+                    patternTone="blue"
+                    patternDensity="sm"
+                    muted
+                    className="rounded-[4px] p-4"
+                  >
+                    <p className="mono-kicker">Stats</p>
                     <div className="mt-3 space-y-3 text-xs text-[#6B6B6B]">
                       <div className="flex items-center justify-between">
                         <span>References</span>
@@ -1008,7 +1026,7 @@ export function CollectView({
                         <span className="font-medium text-[#1A1A1A]">{selectedIds.size}</span>
                       </div>
                     </div>
-                  </div>
+                  </DitherSurface>
                 </div>
 
                 {error && (
@@ -1016,7 +1034,7 @@ export function CollectView({
                     {error}
                   </div>
                 )}
-              </div>
+              </DitherSurface>
 
               {/* Reference grid (masonry) */}
               {images.length > 0 ? (
@@ -1089,7 +1107,12 @@ export function CollectView({
                   })}
                 </div>
               ) : (
-                <div className="rounded-[4px] border-2 border-dashed border-[#E5E5E0] bg-white p-10 text-center">
+                <DitherSurface
+                  patternVariant="grid"
+                  patternTone="blue"
+                  patternDensity="md"
+                  className="rounded-[4px] border-2 border-dashed p-10 text-center"
+                >
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[4px] border border-[#D1E4FC] bg-[#F4F8FF] text-[#1E5DF2]">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10 13V4M10 4L7 7M10 4L13 7" />
@@ -1101,7 +1124,7 @@ export function CollectView({
                   <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#6B6B6B]">
                     Bring in 6–20 references that share a visual direction. Studio OS will extract palette, typography, mood, and a concise creative reading from that cluster.
                   </p>
-                </div>
+                </DitherSurface>
               )}
             </div>
 
@@ -1109,11 +1132,11 @@ export function CollectView({
             <motion.aside
               animate={{ width: panelCollapsed ? 64 : 320 }}
               transition={springs.smooth}
-              className="sticky top-0 hidden h-fit shrink-0 overflow-hidden rounded-[4px] border border-border-primary bg-bg-primary shadow-[0_18px_48px_rgba(0,0,0,0.12)] xl:block"
+              className="sticky top-0 hidden h-fit shrink-0 overflow-hidden rounded-[4px] border border-border-primary bg-bg-primary shadow-[0_18px_48px_rgba(0,0,0,0.12)] xl:block surface-panel"
             >
-              <div className="flex items-center justify-between border-b border-border-subtle px-4 py-4">
+              <div className="flex items-center justify-between border-b border-border-subtle px-4 py-4 surface-panel-dither pattern-grid tone-blue density-sm">
                 <div className={cn("min-w-0", panelCollapsed && "sr-only")}>
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-text-tertiary">Extracted taste</p>
+                  <p className="mono-kicker">Extracted taste</p>
                   <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
                     {tasteProfileLoading ? (
                       <>

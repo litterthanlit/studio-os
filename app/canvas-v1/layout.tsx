@@ -8,9 +8,9 @@ export default function CanvasLayout({ children }: { children: ReactNode }) {
   return (
     <NewProjectModalProvider>
       <CanvasStageProvider>
-        <div className="flex h-screen bg-[#FAFAF8]">
+        <div className="app-shell flex h-screen">
           <Sidebar />
-          <main className="flex-1 overflow-hidden">
+          <main className="relative flex-1 overflow-hidden">
             {children}
           </main>
           <CommandPalette showTrigger={false} />

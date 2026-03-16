@@ -3,6 +3,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { useCuratedInspiration } from "@/hooks/use-curated-inspiration";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 export default function ExplorePage() {
   const {
@@ -15,8 +16,14 @@ export default function ExplorePage() {
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-16 sm:px-8">
-      <div className="max-w-2xl">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
+      <DitherSurface
+        patternVariant="fade"
+        patternTone="warm"
+        patternDensity="sm"
+        muted
+        className="max-w-3xl px-6 py-6"
+      >
+        <p className="mono-kicker text-text-tertiary">
           Explore
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary sm:text-5xl">
@@ -25,29 +32,45 @@ export default function ExplorePage() {
         <p className="mt-4 text-sm leading-relaxed text-text-secondary sm:text-base">
           A curated feed of references Studio OS scores for composition, color, and mood.
         </p>
-      </div>
+      </DitherSurface>
 
       <div className="mt-10">
         {loading ? (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 9 }).map((_, index) => (
-              <div
+              <DitherSurface
                 key={index}
-                className="aspect-[4/5] animate-pulse rounded-[28px] bg-bg-tertiary"
+                patternVariant="grid"
+                patternTone="blue"
+                patternDensity="sm"
+                muted
+                className="aspect-[4/5] animate-pulse"
               />
             ))}
           </div>
         ) : error ? (
-          <div className="rounded-[28px] border border-border-primary bg-card-bg px-6 py-10 text-sm text-red-500">
+          <DitherSurface
+            patternVariant="grid"
+            patternTone="warm"
+            patternDensity="sm"
+            muted
+            className="px-6 py-10 text-sm text-red-500"
+          >
             {error}
-          </div>
+          </DitherSurface>
         ) : images.length === 0 ? (
-          <div className="rounded-[28px] border border-dashed border-border-primary bg-bg-secondary px-8 py-16 text-center">
+          <DitherSurface
+            patternVariant="grid"
+            patternTone="blue"
+            patternDensity="md"
+            muted
+            className="border-dashed px-8 py-16 text-center"
+          >
             <p className="text-lg font-medium text-text-primary">No inspiration yet</p>
             <p className="mt-3 text-sm text-text-secondary">
               Connect a source in Settings to populate Explore.
             </p>
-          </div>
+          </DitherSurface>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {images.map((item, index) => (
@@ -56,9 +79,9 @@ export default function ExplorePage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.28, delay: index * 0.03, ease: "easeOut" }}
-                className="group overflow-hidden rounded-[28px] border border-border-primary bg-card-bg"
+                className="surface-panel group overflow-hidden"
               >
-                <div className="relative aspect-[4/5] overflow-hidden bg-bg-tertiary">
+                <div className="halftone-preview relative aspect-[4/5] overflow-hidden bg-bg-tertiary">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.thumbnailUrl || item.imageUrl}
@@ -67,7 +90,7 @@ export default function ExplorePage() {
                     loading="lazy"
                   />
                   {item.scores ? (
-                    <div className="absolute right-3 top-3 rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                    <div className="absolute right-3 top-3 rounded-[2px] border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
                       Score {item.scores.overall}
                     </div>
                   ) : null}
@@ -85,7 +108,7 @@ export default function ExplorePage() {
                     <button
                       type="button"
                       onClick={() => toggleLike(item.id)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-primary bg-bg-secondary text-sm text-text-secondary transition-colors hover:text-text-primary"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-[4px] border border-border-primary bg-white/70 text-sm text-text-secondary transition-colors hover:text-text-primary"
                       aria-label={isLiked(item.id) ? "Unlike image" : "Like image"}
                     >
                       {isLiked(item.id) ? "♥" : "♡"}
@@ -95,7 +118,7 @@ export default function ExplorePage() {
                     {item.tags.slice(0, 4).map((tag) => (
                       <span
                         key={`${item.id}-${tag}`}
-                        className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-text-tertiary"
+                        className="rounded-[2px] border border-border-primary bg-white/70 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-text-tertiary"
                       >
                         {tag}
                       </span>

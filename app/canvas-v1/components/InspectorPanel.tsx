@@ -3,10 +3,9 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { DitherSurface } from "@/components/ui/dither-surface";
 import type { ComposeDocument, PageNode, PageNodeContent, PageNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import type { SiteType } from "@/lib/canvas/templates";
 
 type InspectorTabValue = "content" | "style" | "layout" | "ai";
 
@@ -47,7 +46,7 @@ const selectCls = "h-8 w-full rounded-[2px] border border-[#E5E5E0] bg-white px-
 function InspectorSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#A0A0A0]">{title}</p>
+      <p className="mono-kicker">{title}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -450,22 +449,28 @@ export function InspectorPanel({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden border-l border-[#E5E5E0] bg-white">
+    <div className="flex h-full flex-col overflow-hidden border-l border-[#E5E5E0] bg-white surface-panel surface-panel-muted rounded-none border-y-0 border-r-0">
 
       {/* ── Node identity ── */}
       {selectedNode && (
-        <div className="shrink-0 border-b border-[#E5E5E0] px-4 py-3">
+        <DitherSurface
+          patternVariant="grid"
+          patternTone="warm"
+          patternDensity="sm"
+          muted
+          className="shrink-0 rounded-none border-x-0 border-t-0 px-4 py-3"
+        >
           <p className="truncate text-[13px] font-semibold text-[#1A1A1A]">
             {selectedNode.name}
           </p>
-          <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">
+          <p className="mono-kicker mt-0.5">
             {selectedNode.type}
           </p>
-        </div>
+        </DitherSurface>
       )}
 
       {/* ── Tab bar ── */}
-      <div className="shrink-0 flex border-b border-[#E5E5E0] px-3">
+      <div className="shrink-0 flex border-b border-[#E5E5E0] bg-white/80 px-3">
         {tabs.map((tab) => (
           <button
             key={tab.value}
@@ -489,14 +494,20 @@ export function InspectorPanel({
       {/* ── Tab content ── */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {!selectedNode ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#A0A0A0]">
+          <DitherSurface
+            patternVariant="fade"
+            patternTone="blue"
+            patternDensity="sm"
+            muted
+            className="flex h-full flex-col items-center justify-center rounded-[4px] px-4 text-center"
+          >
+            <p className="mono-kicker">
               No Selection
             </p>
             <p className="mt-2 text-[11px] leading-relaxed text-[#A0A0A0]">
               Click a node on the canvas to inspect it.
             </p>
-          </div>
+          </DitherSurface>
         ) : (
           <>
             {activeTab === "content" && (
@@ -535,7 +546,7 @@ export function InspectorPanel({
       </div>
 
       {/* ── Bottom action bar (always visible) ── */}
-      <div className="shrink-0 flex items-center gap-2 border-t border-[#E5E5E0] px-4 py-3">
+      <div className="shrink-0 flex items-center gap-2 border-t border-[#E5E5E0] bg-white/80 px-4 py-3">
         <button
           type="button"
           onClick={onViewCode}

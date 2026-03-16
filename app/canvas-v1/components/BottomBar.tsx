@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Map, BookImage, Palette, Minus, Plus, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 export type BottomBarProps = {
   zoom: number;
@@ -62,7 +63,13 @@ export function BottomBar({
   const pct = Math.round(zoom * 100);
 
   return (
-    <div className="flex h-[44px] shrink-0 items-center border-t border-[#E5E5E0] bg-[#FAFAF8] px-3">
+    <DitherSurface
+      patternVariant="band"
+      patternTone="warm"
+      patternDensity="sm"
+      muted
+      className="flex h-[44px] shrink-0 items-center rounded-none border-x-0 border-b-0 px-3"
+    >
       {/* Left: Zoom controls */}
       <div className="flex items-center gap-1">
         <button
@@ -129,6 +136,6 @@ export function BottomBar({
 
       {/* Right: empty slot (reserved for future status) */}
       <div className="w-[88px]" />
-    </div>
+    </DitherSurface>
   );
 }

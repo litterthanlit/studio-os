@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 function storedToProject(sp: {
   id: string;
@@ -75,10 +76,9 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
   return (
     <Link
       href={`/projects/${DEMO_PROJECT_ID}`}
-          className={cn(
-            "group relative flex w-full flex-col border border-[#1a1a1a] bg-card-bg text-left rounded-md",
-            "transition-[border-color] duration-200 ease-out hover:border-accent/40"
-          )}
+      className={cn(
+        "surface-panel group relative flex w-full flex-col rounded-[4px] text-left transition-[border-color,transform] duration-200 ease-out hover:-translate-y-[1px] hover:border-accent/40"
+      )}
     >
       {/* Demo badge */}
       <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 border border-accent/25 bg-accent/10 px-2 py-0.5">
@@ -265,11 +265,14 @@ export function ProjectsPage() {
             {allProjects.map((project) => {
               const canDelete = localProjectIds.has(project.id);
               return (
-                <div
+                <DitherSurface
                   key={project.id}
+                  patternVariant="band"
+                  patternTone="ink"
+                  patternDensity="sm"
                   className={cn(
-                    "flex w-full flex-col overflow-hidden border border-card-border bg-card-bg text-left rounded-md",
-                    "transition-[border-color] duration-200 ease-out hover:border-border-hover"
+                    "flex w-full flex-col overflow-hidden rounded-[4px] text-left",
+                    "transition-[border-color,transform] duration-200 ease-out hover:-translate-y-[1px] hover:border-border-hover"
                   )}
                 >
                   <div className="flex items-start justify-between gap-3 px-4 pt-4">
@@ -344,7 +347,7 @@ export function ProjectsPage() {
                       </span>
                     </div>
                   </Link>
-                </div>
+                </DitherSurface>
               );
             })}
           </div>

@@ -4,6 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { SectionLabel } from "@/components/ui/section-label";
+import { DitherSurface } from "@/components/ui/dither-surface";
 import { cn } from "@/lib/utils";
 import type { UnifiedFont, FontCategory, FontSource } from "@/lib/fonts/types";
 import { fontshareFonts } from "@/lib/fonts/fontshare-catalog";
@@ -23,7 +24,7 @@ const CATEGORY_TABS: (FontCategory | "all")[] = [
 
 const SOURCE_TABS: (FontSource | "all")[] = ["all", "google", "fontshare"];
 
-const SORT_OPTIONS = ["popularity", "name-asc", "name-desc"] as const;
+type SortOption = "popularity" | "name-asc" | "name-desc";
 const SIZE_SCALE = [12, 14, 16, 20, 24, 32, 48, 72];
 
 const PREVIEW_SAMPLE = "The quick brown fox jumps over the lazy dog.";
@@ -70,15 +71,17 @@ function FontCard({
   }
 
   return (
-    <div
+    <DitherSurface
       ref={ref}
+      patternVariant="band"
+      patternTone={font.category === "display" ? "blue" : "warm"}
+      patternDensity="sm"
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
       className={cn(
-        "flex flex-col border border-[#1a1a1a] bg-card-bg p-5 text-left cursor-pointer",
-        "transition-[border-color] duration-200 ease-out hover:border-[#252525]"
+        "flex cursor-pointer flex-col p-5 text-left transition-transform duration-200 ease-out hover:-translate-y-0.5"
       )}
     >
       <div
@@ -106,7 +109,7 @@ function FontCard({
           </svg>
         </button>
       </div>
-    </div>
+    </DitherSurface>
   );
 }
 
@@ -137,7 +140,7 @@ function FontDetailPanel({
         onClick={onClose}
       />
       <motion.aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-[#1a1a1a] bg-bg-secondary p-6"
+        className="surface-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto rounded-none border-y-0 border-r-0 p-6"
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
@@ -164,14 +167,18 @@ function FontDetailPanel({
         <div className="space-y-6">
           <div>
             <SectionLabel className="mb-3">Specimen</SectionLabel>
-            <div
-              className="border border-[#1a1a1a] bg-card-bg p-4 space-y-2"
+            <DitherSurface
+              patternVariant="grid"
+              patternTone="warm"
+              patternDensity="sm"
+              muted
+              className="space-y-2 p-4"
               style={fontStyle}
             >
               <div className="text-lg">{SPECIMEN_ABC}</div>
               <div className="text-sm text-text-tertiary">{SPECIMEN_abc}</div>
               <div className="text-sm text-text-tertiary">{SPECIMEN_NUMS}</div>
-            </div>
+            </DitherSurface>
           </div>
 
           <div>
@@ -192,7 +199,7 @@ function FontDetailPanel({
               value={previewText}
               onChange={(e) => setPreviewText(e.target.value)}
               placeholder="Type anything here..."
-              className="w-full border border-[#1a1a1a] bg-card-bg px-3 py-2 text-text-primary placeholder:text-text-tertiary outline-none focus:border-[#252525] mb-4"
+              className="mb-4 w-full rounded-[2px] border border-border-primary bg-white/80 px-3 py-2 text-text-primary placeholder:text-text-tertiary outline-none focus:border-[#1E5DF2]"
               style={{ ...fontStyle, fontSize: previewSize }}
             />
             <div className="flex flex-wrap gap-2">
@@ -202,10 +209,10 @@ function FontDetailPanel({
                   type="button"
                   onClick={() => setPreviewSize(size)}
                   className={cn(
-                    "px-2 py-1 text-[11px] font-mono border transition-colors",
+                    "rounded-[2px] px-2 py-1 text-[11px] font-mono border transition-colors",
                     previewSize === size
-                      ? "border-text-primary text-text-primary bg-[#1a1a1a]"
-                      : "border-[#1a1a1a] text-text-tertiary hover:text-text-secondary"
+                      ? "border-[#1E5DF2] text-[#1E5DF2] bg-[#F3F7FF]"
+                      : "border-border-primary bg-white/70 text-text-tertiary hover:text-text-secondary"
                   )}
                 >
                   {size}px
@@ -214,10 +221,10 @@ function FontDetailPanel({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#1a1a1a]">
+          <div className="editorial-divider border-t pt-4">
             <button
               type="button"
-              className="border border-border-subtle px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-text-primary hover:border-border-hover transition-colors"
+              className="rounded-[2px] border border-border-subtle bg-white/70 px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-text-primary transition-colors hover:border-border-hover"
             >
               Add to Project ▾
             </button>
@@ -232,7 +239,7 @@ export function TypeLibraryPage() {
   const [query, setQuery] = React.useState("");
   const [activeCategory, setActiveCategory] = React.useState<(typeof CATEGORY_TABS)[number]>("all");
   const [activeSource, setActiveSource] = React.useState<(typeof SOURCE_TABS)[number]>("all");
-  const [sort, setSort] = React.useState<(typeof SORT_OPTIONS)[number]>("popularity");
+  const [sort, setSort] = React.useState<SortOption>("popularity");
   const [selectedFont, setSelectedFont] = React.useState<UnifiedFont | null>(null);
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE);
   const [googleFonts, setGoogleFonts] = React.useState<UnifiedFont[]>([]);
@@ -310,7 +317,14 @@ export function TypeLibraryPage() {
       <SectionLabel>Type</SectionLabel>
 
       <div className="space-y-6">
-        <div className="space-y-2">
+        <DitherSurface
+          patternVariant="fade"
+          patternTone="warm"
+          patternDensity="sm"
+          muted
+          className="space-y-2 px-6 py-6"
+        >
+          <p className="mono-kicker">Studio OS / Type Library</p>
           <h2 className="text-3xl font-bold text-text-primary tracking-tight">
             Type Library
           </h2>
@@ -318,7 +332,7 @@ export function TypeLibraryPage() {
             Browse 1500+ fonts from Google Fonts and Fontshare — search, filter, and add to your
             project.
           </p>
-        </div>
+        </DitherSurface>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Input
@@ -331,8 +345,8 @@ export function TypeLibraryPage() {
             <span className="font-mono uppercase tracking-wider">Sort</span>
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as (typeof SORT_OPTIONS)[number])}
-              className="border border-[#1a1a1a] bg-card-bg px-2 py-1.5 text-text-primary outline-none focus:border-[#252525]"
+              onChange={(e) => setSort(e.target.value as SortOption)}
+              className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1.5 text-text-primary outline-none focus:border-[#1E5DF2]"
             >
               <option value="popularity">Popularity</option>
               <option value="name-asc">Name A–Z</option>

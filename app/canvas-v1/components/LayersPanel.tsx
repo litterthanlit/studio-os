@@ -5,6 +5,7 @@ import { Monitor, Tablet, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import type { ComposeDocument, PageNode } from "@/lib/canvas/compose";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 type Artboard = ComposeDocument["artboards"][number];
 type LayerItem = { node: PageNode; depth: number };
@@ -88,18 +89,23 @@ export function LayersPanel({
 }: LayersPanelProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[#FAFAF8]">
-
       {/* ── Artboards ── */}
-      <div className="shrink-0 border-b border-[#E5E5E0] px-2 py-2">
-        <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#A0A0A0]">
+      <DitherSurface
+        patternVariant="grid"
+        patternTone="warm"
+        patternDensity="sm"
+        muted
+        className="shrink-0 rounded-none border-x-0 border-t-0 px-2 py-2"
+      >
+        <p className="mono-kicker mb-1.5 px-1">
           Artboards
         </p>
         {artboards.map((artboard) => {
           const active = selectedArtboardId === artboard.id;
           const BreakpointIcon =
-            breakpoint === "mobile"
+            (artboard.breakpoint ?? breakpoint) === "mobile"
               ? Smartphone
-              : breakpoint === "tablet"
+              : (artboard.breakpoint ?? breakpoint) === "tablet"
               ? Tablet
               : Monitor;
           return (
@@ -137,16 +143,16 @@ export function LayersPanel({
                 className="shrink-0 font-mono text-[10px] text-[#A0A0A0]"
                 style={{ fontFamily: "'Geist Mono', monospace" }}
               >
-                {BREAKPOINT_WIDTHS[breakpoint]}
+                {BREAKPOINT_WIDTHS[artboard.breakpoint ?? breakpoint]}
               </span>
             </button>
           );
         })}
-      </div>
+      </DitherSurface>
 
       {/* ── Node Tree ── */}
       <div className="flex-1 overflow-y-auto px-2 py-2">
-        <p className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#A0A0A0]">
+        <p className="mono-kicker mb-1.5 px-1">
           Layers
         </p>
         {layers.length === 0 ? (

@@ -10,6 +10,7 @@ import {
   CheckIcon as Check,
 } from "@/components/ui/icon";
 import { SectionLabel } from "@/components/ui/section-label";
+import { DitherSurface } from "@/components/ui/dither-surface";
 import { cn } from "@/lib/utils";
 import {
   getStoredProjects,
@@ -139,7 +140,13 @@ function IdeasSection({
       <SectionLabel>Ideas</SectionLabel>
 
       {/* Input */}
-      <div className="flex items-center border border-dashed border-card-border bg-card-bg">
+      <DitherSurface
+        patternVariant="grid"
+        patternTone="warm"
+        patternDensity="sm"
+        muted
+        className="flex items-center border-dashed"
+      >
         <input
           type="text"
           placeholder="Quick idea..."
@@ -154,7 +161,7 @@ function IdeasSection({
           className="h-11 flex-1 bg-transparent px-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
         />
         <span className="pr-3 font-mono text-[11px] text-text-muted select-none">↵</span>
-      </div>
+      </DitherSurface>
 
       {/* Empty state */}
       {sorted.length === 0 && (
@@ -165,7 +172,13 @@ function IdeasSection({
 
       {/* List */}
       {sorted.length > 0 && (
-        <div className="overflow-hidden border border-[#1a1a1a] bg-card-bg">
+        <DitherSurface
+          patternVariant="band"
+          patternTone="warm"
+          patternDensity="sm"
+          muted
+          className="overflow-hidden"
+        >
           {visible.map((idea, idx) => {
             const isLast = idx === visible.length - 1 && !shouldCollapse;
             const hasMenu = menu?.ideaId === idea.id;
@@ -177,9 +190,9 @@ function IdeasSection({
                 key={idea.id}
                 className={cn(
                   "group relative flex items-start justify-between gap-3 px-4 py-3 transition-colors duration-150",
-                  !isLast && "border-b border-[#151515]",
+                  !isLast && "editorial-divider border-b",
                   todayReminder && "border-l-2 border-accent",
-                  isFlash && "bg-bg-tertiary",
+                  isFlash && "bg-[#F3F7FF]",
                   idea.status === "done" && "opacity-30"
                 )}
               >
@@ -214,7 +227,7 @@ function IdeasSection({
                   </button>
 
                   {hasMenu && (
-                    <div className="absolute right-0 top-full z-50 mt-1 w-48 border border-[#1a1a1a] bg-bg-secondary shadow-xl">
+                    <div className="surface-panel surface-panel-muted absolute right-0 top-full z-50 mt-1 w-48 rounded-[4px] shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
                       {menu.sub === "main" && (
                         <>
                           <button
@@ -233,7 +246,7 @@ function IdeasSection({
                             <span>📁 Add to project</span>
                             <span className="text-text-placeholder">→</span>
                           </button>
-                          <div className="my-1 border-t border-[#151515]" />
+                          <div className="editorial-divider my-1 border-t" />
                           <button
                             type="button"
                             onClick={() => update(idea.id, { status: "done" })}
@@ -306,14 +319,14 @@ function IdeasSection({
             <button
               type="button"
               onClick={() => setExpanded((e) => !e)}
-              className="w-full border-t border-[#151515] px-4 py-2.5 text-left font-mono text-[11px] text-text-placeholder transition-colors hover:text-text-tertiary"
+              className="editorial-divider w-full border-t px-4 py-2.5 text-left font-mono text-[11px] text-text-placeholder transition-colors hover:text-text-tertiary"
             >
               {expanded
                 ? "↑ Collapse"
                 : `↓ Show ${hiddenCount} more idea${hiddenCount !== 1 ? "s" : ""}`}
             </button>
           )}
-        </div>
+        </DitherSurface>
       )}
 
       {/* Summary */}
@@ -346,15 +359,6 @@ function getDateString(): string {
     day: "numeric",
   });
 }
-
-type Phase = "Discovery" | "Concept" | "Refine" | "Deliver";
-
-const PHASE_STYLES: Record<Phase, string> = {
-  Discovery: "bg-[rgba(187,77,0,0.1)] text-[#BB4D00]",
-  Concept:   "border border-purple-500/30 bg-purple-900/20 text-purple-300",
-  Refine:    "border border-sky-500/30 bg-sky-900/20 text-sky-300",
-  Deliver:   "border border-emerald-500/30 bg-emerald-900/20 text-emerald-300",
-};
 
 // ─── Schedule (localStorage) ─────────────────────────────────────────────────
 
@@ -407,7 +411,7 @@ export function BriefPage() {
   const [projects, setProjects] = React.useState<StoredProject[]>([]);
   const [scheduleBlocks, setScheduleBlocks] = React.useState<ScheduleBlock[]>([]);
   const [recentRefs, setRecentRefs] = React.useState<{ id: string; image_url: string }[]>([]);
-  const [stats, setStats] = React.useState({ dayStreak: 0, references: 0, focus: "0h", reviews: 0 });
+  const stats = { dayStreak: 0, references: 0, focus: "0h", reviews: 0 };
   const [scheduleAddOpen, setScheduleAddOpen] = React.useState(false);
   const todayDate = getTodayDate();
 
@@ -476,12 +480,21 @@ export function BriefPage() {
     <section className="space-y-12 pb-8">
 
       {/* Header */}
-      <header className="space-y-3">
-        <p className="text-[11px] text-text-tertiary font-mono tracking-wide">{dateStr}</p>
+      <DitherSurface
+        patternVariant="fade"
+        patternTone="warm"
+        patternDensity="sm"
+        muted
+        className="space-y-3 px-6 py-6"
+      >
+        <p className="mono-kicker">{dateStr}</p>
         <h1 className="text-[42px] font-medium leading-tight text-text-primary tracking-tight">
           {greeting}, {USER_NAME}.
         </h1>
-      </header>
+        <p className="max-w-2xl text-sm leading-6 text-text-secondary">
+          Briefing for the day: what needs focus, what needs taste, and what should resurface before momentum gets lost.
+        </p>
+      </DitherSurface>
 
       {/* Section 0 — Ideas */}
       <IdeasSection onTodayReminders={handleTodayReminders} />
@@ -490,28 +503,39 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Today&apos;s Focus</SectionLabel>
         {activeProject ? (
-          <div className="flex items-center justify-between gap-4 border border-[#1a1a1a] bg-card-bg p-5 transition-[border-color] duration-200 ease-out hover:border-[#252525]">
+          <DitherSurface
+            patternVariant="fade"
+            patternTone="blue"
+            patternDensity="sm"
+            className="flex items-center justify-between gap-4 p-5 transition-transform duration-200 hover:-translate-y-0.5"
+          >
             <div className="flex min-w-0 flex-1 items-center gap-4">
               <div
-                className="h-16 w-24 flex-none rounded border border-border-subtle bg-bg-tertiary"
+                className="halftone-preview h-16 w-24 flex-none border border-border-subtle"
                 style={{ backgroundColor: activeProject.color }}
               />
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="text-sm font-medium text-text-primary">{activeProject.name}</div>
-                <span className="text-[11px] text-text-tertiary font-mono">Open to add phase & progress</span>
+                <span className="mono-kicker text-text-tertiary">Open to add phase & progress</span>
               </div>
             </div>
             <Link
               href={`/projects/${activeProject.id}`}
-              className="shrink-0 text-sm font-medium text-accent transition-opacity duration-150 hover:opacity-70 font-mono"
+              className="mono-kicker shrink-0 text-accent transition-opacity duration-150 hover:opacity-70"
             >
               Open →
             </Link>
-          </div>
+          </DitherSurface>
         ) : (
-          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+          <DitherSurface
+            patternVariant="grid"
+            patternTone="warm"
+            patternDensity="sm"
+            muted
+            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
+          >
             No projects in progress. Create one from Home or Projects.
-          </p>
+          </DitherSurface>
         )}
       </div>
 
@@ -528,7 +552,13 @@ export function BriefPage() {
           </button>
         </div>
         {scheduleBlocks.length === 0 ? (
-          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+          <DitherSurface
+            patternVariant="grid"
+            patternTone="warm"
+            patternDensity="sm"
+            muted
+            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
+          >
             No events today.{" "}
             <button
               type="button"
@@ -537,15 +567,21 @@ export function BriefPage() {
             >
               + Add time block
             </button>
-          </p>
+          </DitherSurface>
         ) : (
-          <div className="border border-[#1a1a1a] bg-card-bg overflow-hidden">
+          <DitherSurface
+            patternVariant="band"
+            patternTone="warm"
+            patternDensity="sm"
+            muted
+            className="overflow-hidden"
+          >
             {scheduleBlocks.map((block, index) => (
               <div
                 key={block.id}
                 className={cn(
                   "group flex items-center gap-4 py-3 pl-4 pr-4 transition-colors duration-150 hover:bg-sidebar-hover",
-                  index < scheduleBlocks.length - 1 && "border-b border-[#151515]"
+                  index < scheduleBlocks.length - 1 && "editorial-divider border-b"
                 )}
               >
                 <div className="w-10 shrink-0 text-[11px] text-text-tertiary font-mono">{block.startTime}</div>
@@ -569,7 +605,7 @@ export function BriefPage() {
                 </button>
               </div>
             ))}
-          </div>
+          </DitherSurface>
         )}
         {scheduleAddOpen && (
           <ScheduleBlockForm
@@ -583,16 +619,22 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Inspiration Pulse</SectionLabel>
         {recentRefs.length === 0 ? (
-          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+          <DitherSurface
+            patternVariant="grid"
+            patternTone="blue"
+            patternDensity="sm"
+            muted
+            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
+          >
             No references yet. Save from Vision to see them here.
-          </p>
+          </DitherSurface>
         ) : (
           <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
             {recentRefs.map((r) => (
               <Link
                 key={r.id}
                 href="/vision"
-                className="relative h-24 w-32 shrink-0 overflow-hidden bg-card-bg border border-[#1a1a1a]"
+                className="surface-panel relative h-24 w-32 shrink-0 overflow-hidden"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={r.image_url} alt="" className="h-full w-full object-cover" />
@@ -607,16 +649,20 @@ export function BriefPage() {
         <SectionLabel>Creative Pulse</SectionLabel>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {STAT_LABELS.map(({ key, label, icon: Icon }) => (
-            <div
+            <DitherSurface
               key={key}
-              className="flex flex-col gap-1.5 border border-[#1a1a1a] bg-card-bg p-5"
+              patternVariant="grid"
+              patternTone={key === "references" ? "blue" : "warm"}
+              patternDensity="sm"
+              muted
+              className="flex flex-col gap-1.5 p-5"
             >
               <Icon className="h-3.5 w-3.5 text-text-tertiary" />
               <div className="text-2xl font-medium text-text-primary font-mono">
                 {key === "focus" ? stats.focus : key === "references" ? stats.references : key === "reviews" ? stats.reviews : stats.dayStreak}
               </div>
-              <div className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider">{label}</div>
-            </div>
+              <div className="mono-kicker text-text-tertiary">{label}</div>
+            </DitherSurface>
           ))}
         </div>
       </div>
@@ -625,15 +671,21 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Needs Attention</SectionLabel>
         {todayIdeaReminders.length === 0 ? (
-          <p className="border border-dashed border-card-border bg-card-bg px-4 py-6 text-center text-[11px] text-text-muted font-mono">
+          <DitherSurface
+            patternVariant="grid"
+            patternTone="warm"
+            patternDensity="sm"
+            muted
+            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
+          >
             No items needing attention. Ideas with &ldquo;Today&rdquo; reminders will show here.
-          </p>
+          </DitherSurface>
         ) : (
           <ul className="space-y-2">
             {todayIdeaReminders.map((idea) => (
               <li
                 key={`idea-${idea.id}`}
-                className="flex items-start gap-3 border border-l-2 border-[#1a1a1a] border-l-accent bg-card-bg px-4 py-3"
+                className="surface-panel flex items-start gap-3 border-l-2 border-l-accent bg-[#FDFDF9] px-4 py-3"
               >
                 <span className="mt-0.5 shrink-0 text-sm">💡</span>
                 <div className="min-w-0 flex-1">
@@ -666,13 +718,19 @@ function ScheduleBlockForm({
   const [tag, setTag] = React.useState<ScheduleTag | "">("");
 
   return (
-    <div className="border border-[#1a1a1a] bg-card-bg p-4 space-y-3">
+    <DitherSurface
+      patternVariant="grid"
+      patternTone="warm"
+      patternDensity="sm"
+      muted
+      className="space-y-3 p-4"
+    >
       <input
         type="text"
         placeholder="Title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="w-full border border-[#1a1a1a] bg-bg-secondary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-[#252525]"
+        className="w-full rounded-[2px] border border-border-primary bg-white/80 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-[#1E5DF2]"
       />
       <div className="flex gap-3 flex-wrap">
         <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
@@ -681,7 +739,7 @@ function ScheduleBlockForm({
             type="time"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="border border-[#1a1a1a] bg-bg-secondary px-2 py-1 text-text-primary"
+            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#1E5DF2]"
           />
         </label>
         <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
@@ -690,7 +748,7 @@ function ScheduleBlockForm({
             type="time"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            className="border border-[#1a1a1a] bg-bg-secondary px-2 py-1 text-text-primary"
+            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#1E5DF2]"
           />
         </label>
         <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
@@ -698,7 +756,7 @@ function ScheduleBlockForm({
           <select
             value={tag}
             onChange={(e) => setTag((e.target.value || "") as ScheduleTag | "")}
-            className="border border-[#1a1a1a] bg-bg-secondary px-2 py-1 text-text-primary"
+            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#1E5DF2]"
           >
             <option value="">—</option>
             <option value="Focus">Focus</option>
@@ -727,6 +785,6 @@ function ScheduleBlockForm({
           Add block
         </button>
       </div>
-    </div>
+    </DitherSurface>
   );
 }

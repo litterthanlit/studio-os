@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useNewProjectModal } from "@/components/new-project-modal";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 // Dummy data to ensure we have the exact visual state requested.
 const RECENT_PROJECTS = [
@@ -40,16 +41,25 @@ export function HomeClient() {
   const { openModal } = useNewProjectModal();
   
   return (
-    <div className="relative z-10 mx-auto max-w-[960px] animate-in fade-in slide-in-from-bottom-2 pt-20 pb-12 duration-300 ease-out before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:bg-pattern-ascii before:opacity-[0.03]">
+    <div className="relative z-10 mx-auto max-w-[960px] animate-in fade-in slide-in-from-bottom-2 pt-20 pb-12 duration-300 ease-out">
       {/* Header Section */}
       <div className="mx-auto flex max-w-[760px] flex-col items-center text-center">
+        <span className="mono-kicker">Studio OS / Command Deck</span>
         <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-text-primary">
           Good evening, Nick
         </h1>
+        <p className="mt-3 max-w-[560px] text-sm text-text-secondary">
+          Collect references, read the signal, and move into composition without breaking the creative thread.
+        </p>
       </div>
 
       {/* Search / Command Block */}
-      <div className="mx-auto mt-7 w-full max-w-[760px] rounded-[4px] border border-[#E5E5E0] bg-white p-2 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+      <DitherSurface
+        patternVariant="fade"
+        patternTone="blue"
+        patternDensity="md"
+        className="mx-auto mt-7 w-full max-w-[760px] rounded-[4px] p-2"
+      >
         <div className="flex items-center gap-3 px-3 py-2">
           <input
             type="text"
@@ -93,19 +103,24 @@ export function HomeClient() {
             <kbd className="rounded-[2px] border border-[#E5E5E0] bg-[#F5F5F0] px-1.5 py-0.5 font-mono text-[9px] text-[#A0A0A0]">K</kbd>
           </div>
         </div>
-      </div>
+      </DitherSurface>
 
       {/* Recent Projects list */}
       <div className="mt-14">
-        <h2 className="text-[13px] font-medium uppercase tracking-[0.08em] text-text-secondary mb-4">
+        <h2 className="mono-kicker mb-4">
           Recent Projects
         </h2>
         <div className="flex flex-col gap-2">
           {RECENT_PROJECTS.map((project) => (
-            <div 
+            <DitherSurface
               key={project.id}
               onClick={() => router.push(`/canvas?project=${project.name.toLowerCase().replace(/\\s+/g, '-')}`)}
-              className="group flex items-center justify-between p-3 rounded-md bg-card-bg border border-transparent hover:-translate-y-[1px] hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] hover:border-border-hover transition-all duration-150 ease-out cursor-pointer"
+              role="button"
+              tabIndex={0}
+              patternVariant="band"
+              patternTone="ink"
+              patternDensity="sm"
+              className="group flex items-center justify-between rounded-[4px] p-3 transition-all duration-150 ease-out cursor-pointer hover:-translate-y-[1px] hover:border-border-hover"
             >
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden border border-border-primary bg-bg-secondary">
@@ -131,7 +146,7 @@ export function HomeClient() {
                   {project.status}
                 </span>
               </div>
-            </div>
+            </DitherSurface>
           ))}
         </div>
       </div>

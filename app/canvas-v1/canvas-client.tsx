@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import type { ImageAnalysis, ReferenceImage } from "@/lib/canvas/analyze-images";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { analysisToTokens, tokensToMarkdown } from "@/lib/canvas/generate-system";
@@ -45,7 +44,6 @@ import {
   type CanvasStage,
   type ComposeDocument,
   type GeneratedVariant,
-  type InspectorTab,
   type PageNode,
   type PageNodeContent,
   type PageNodeStyle,
@@ -76,7 +74,7 @@ import {
   type StoredReference,
 } from "@/lib/project-store";
 import type { TasteProfile } from "@/types/taste-profile";
-import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
+import type { SiteType } from "@/lib/canvas/templates";
 
 type StageMeta = {
   label: string;
@@ -2441,10 +2439,10 @@ function ComposeStage({
       : null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#FAFAF8] text-[#1A1A1A] overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(209,228,252,0.42),transparent_24%),linear-gradient(180deg,#FAFAF8_0%,#F6F2E8_100%)] text-[#1A1A1A]">
       
       {/* ── Canvas Toolbar ── */}
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#E5E5E0] bg-[#FAFAF8] px-3 select-none">
+      <div className="surface-panel surface-panel-dither pattern-band tone-warm density-sm flex h-10 shrink-0 items-center gap-2 rounded-none border-x-0 border-t-0 px-3 select-none">
         <Link
           href={projectHref}
           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] transition-colors"
@@ -2523,8 +2521,8 @@ function ComposeStage({
             )}
             style={{
               backgroundImage:
-                "radial-gradient(circle, rgba(126,141,170,0.22) 1px, transparent 1px)",
-              backgroundSize: `${Math.max(18, 30 * document.zoom)}px ${Math.max(18, 30 * document.zoom)}px`,
+                "radial-gradient(circle, rgba(17,17,17,0.12) 0.8px, transparent 0.95px), linear-gradient(180deg, rgba(255,255,255,0.4), rgba(245,245,240,0.2))",
+              backgroundSize: `${Math.max(18, 28 * document.zoom)}px ${Math.max(18, 28 * document.zoom)}px`,
               backgroundPosition: `${document.pan.x % 30}px ${document.pan.y % 30}px`,
             }}
             onMouseDownCapture={onCanvasMouseDownCapture}
@@ -2541,10 +2539,10 @@ function ComposeStage({
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: -24, opacity: 0 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute bottom-4 left-4 top-4 z-20 w-[290px] overflow-hidden rounded-[6px] border border-[#E5E5E0] bg-white shadow-sm flex flex-col"
+                  className="surface-panel absolute bottom-16 left-4 z-20 flex h-[300px] w-[320px] flex-col overflow-hidden rounded-[4px]"
                 >
-                  <div className="border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
-                    <p className="text-[11px] font-medium text-[#1A1A1A]">References</p>
+                  <div className="surface-panel-dither pattern-grid tone-blue density-sm border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
+                    <p className="mono-kicker text-[#1A1A1A]">References</p>
                     <p className="mt-0.5 text-[10px] text-[#A0A0A0]">
                       Pin references and overlays onto the board.
                     </p>
@@ -2633,10 +2631,10 @@ function ComposeStage({
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: 24, opacity: 0 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute bottom-4 right-4 top-4 z-20 w-[280px] overflow-hidden rounded-[6px] border border-[#E5E5E0] bg-white shadow-sm flex flex-col"
+                  className="surface-panel absolute bottom-16 right-4 z-20 flex h-[300px] w-[300px] flex-col overflow-hidden rounded-[4px]"
                 >
-                  <div className="border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
-                    <p className="text-[11px] font-medium text-[#1A1A1A]">Design Tokens</p>
+                  <div className="surface-panel-dither pattern-grid tone-warm density-sm border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
+                    <p className="mono-kicker text-[#1A1A1A]">Design Tokens</p>
                     <p className="mt-0.5 text-[10px] text-[#A0A0A0]">
                       Palette and typography.
                     </p>
@@ -2663,7 +2661,7 @@ function ComposeStage({
 
             {/* Artboard render area */}
             <div
-              className="absolute inset-0 bg-[#E5E5E5]"
+              className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.35),rgba(245,245,240,0.4))]"
               style={{
                 cursor: isPanning ? "grabbing" : spacePanActive ? "grab" : "default",
               }}
@@ -2687,7 +2685,7 @@ function ComposeStage({
                     <React.Fragment key={artboard.id}>
                       {/* Label above artboard */}
                       <div
-                        className="absolute flex items-center gap-1.5 select-none pointer-events-none"
+                        className="absolute flex items-center gap-1.5 rounded-[3px] border border-[#E5E5E0] bg-white/88 px-2 py-1 shadow-[0_8px_16px_rgba(17,17,17,0.04)] select-none pointer-events-none"
                         style={{ left: artboard.x, top: artboard.y - 32 }}
                       >
                         <span className={isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]"}>
@@ -2705,7 +2703,7 @@ function ComposeStage({
                       <div
                         data-artboard
                         className={cn(
-                          "absolute overflow-hidden rounded-[6px] border bg-[#FAFAF8]",
+                          "absolute overflow-hidden rounded-[4px] border bg-[#FAFAF8]",
                           "shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
                           isSelected ? "border-[#1E5DF2]" : "border-[#E5E5E0]"
                         )}
@@ -2867,10 +2865,10 @@ function ComposeStage({
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: 16, opacity: 0 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="pointer-events-none absolute bottom-5 right-5 z-10 w-[244px] rounded-[6px] border border-[#E5E5E0] bg-[#FAFAF8] p-3 shadow-sm"
+                  className="pointer-events-none absolute bottom-16 right-5 z-10 w-[244px] rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] p-3 shadow-sm surface-panel"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-[#A0A0A0]">
+                    <p className="mono-kicker">
                       Minimap
                     </p>
                     <span
@@ -2933,7 +2931,7 @@ function ComposeStage({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.97, y: 8 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="w-full max-w-sm rounded-[8px] border border-[#E5E5E0] bg-[#FAFAF8] p-5 shadow-lg"
+                    className="surface-panel w-full max-w-sm rounded-[4px] p-5 shadow-lg"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="flex items-center justify-between">

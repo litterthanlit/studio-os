@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { SectionLabel } from "@/components/ui/section-label";
+import { DitherSurface } from "@/components/ui/dither-surface";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,9 +63,15 @@ function SettingRow({
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border border-[var(--border-primary)] bg-[var(--card-bg)] px-4">
+    <DitherSurface
+      patternVariant="grid"
+      patternTone="warm"
+      patternDensity="sm"
+      muted
+      className="px-4"
+    >
       {children}
-    </div>
+    </DitherSurface>
   );
 }
 
@@ -109,6 +116,7 @@ function IntegrationRow({
 
 export default function SettingsPage() {
   const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
   const [name, setName] = React.useState("Nick");
   const [nameDirty, setNameDirty] = React.useState(false);
   const [clearConfirm, setClearConfirm] = React.useState(false);
@@ -119,10 +127,8 @@ export default function SettingsPage() {
   React.useEffect(() => {
     const profile = getStoredProfile();
     setName(profile.name);
-    const envLummi = typeof window !== "undefined"
-      ? document.cookie.includes("lummi") || !!localStorage.getItem("studio-os:lummi-key")
-      : false;
     setLummiKey(localStorage.getItem("studio-os:lummi-key") ?? "");
+    setMounted(true);
   }, []);
 
   function saveName() {
@@ -165,10 +171,20 @@ export default function SettingsPage() {
   }
 
   const lummiConnected = !!lummiKey.trim();
+  const activeTheme = mounted ? (resolvedTheme ?? "system") : null;
 
   return (
     <section className="space-y-8 pb-20 max-w-[600px]">
-      <h1 className="text-lg font-medium text-[var(--text-primary)]">Settings</h1>
+      <DitherSurface
+        patternVariant="fade"
+        patternTone="warm"
+        patternDensity="sm"
+        muted
+        className="space-y-2 px-5 py-5"
+      >
+        <p className="mono-kicker">Studio OS / Settings</p>
+        <h1 className="text-lg font-medium text-[var(--text-primary)]">Settings</h1>
+      </DitherSurface>
 
       {/* ── Profile ── */}
       <div className="space-y-3">
@@ -181,13 +197,13 @@ export default function SettingsPage() {
                 value={name}
                 onChange={(e) => { setName(e.target.value); setNameDirty(true); }}
                 onKeyDown={(e) => { if (e.key === "Enter") saveName(); }}
-                className="w-36 border border-[var(--border-primary)] bg-[var(--bg-input)] px-2.5 py-1.5 text-sm text-[var(--text-primary)] outline-none transition-[border-color] duration-150 focus:border-[var(--accent)]"
+                className="w-36 rounded-[2px] border border-[var(--border-primary)] bg-white/80 px-2.5 py-1.5 text-sm text-[var(--text-primary)] outline-none transition-[border-color] duration-150 focus:border-[var(--accent)]"
               />
               {nameDirty && (
                 <button
                   type="button"
                   onClick={saveName}
-                  className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--accent)] border border-[var(--accent)]/30 px-2.5 py-1.5 transition-colors duration-150 hover:bg-[var(--accent)]/10"
+                  className="rounded-[2px] border border-[var(--accent)]/30 px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--accent)] transition-colors duration-150 hover:bg-[var(--accent)]/10"
                 >
                   Save
                 </button>
@@ -211,8 +227,8 @@ export default function SettingsPage() {
                   key={t}
                   type="button"
                   onClick={() => handleTheme(t)}
-                  className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.1em] border transition-colors duration-150 ${
-                    resolvedTheme === t || (!resolvedTheme && t === "system")
+                  className={`rounded-[2px] px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.1em] border transition-colors duration-150 ${
+                    activeTheme === t
                       ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/5"
                       : "border-[var(--border-primary)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                   }`}
@@ -244,12 +260,12 @@ export default function SettingsPage() {
                   onChange={(e) => setLummiKey(e.target.value)}
                   placeholder="Paste Lummi API key..."
                   autoFocus
-                  className="flex-1 border border-[var(--border-primary)] bg-[var(--bg-input)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none transition-[border-color] duration-150 focus:border-[var(--accent)] font-mono"
+                  className="flex-1 rounded-[2px] border border-[var(--border-primary)] bg-white/80 px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none transition-[border-color] duration-150 focus:border-[var(--accent)] font-mono"
                 />
                 <button
                   type="button"
                   onClick={saveLummiKey}
-                  className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--accent)] border border-[var(--accent)]/30 px-2.5 py-1.5 transition-colors duration-150 hover:bg-[var(--accent)]/10"
+                  className="rounded-[2px] border border-[var(--accent)]/30 px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--accent)] transition-colors duration-150 hover:bg-[var(--accent)]/10"
                 >
                   Save
                 </button>

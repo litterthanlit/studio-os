@@ -786,19 +786,19 @@ function HowItWorks() {
 function Testimonials() {
   const quotes = [
     {
-      text: "We cut the time between design and code review by 60%. The token sync alone was worth switching.",
+      text: "This changed how our team ships — we went from weeks to days on every launch.",
       name: "Sarah Chen",
-      role: "Head of Design, Arkwright",
+      role: "Head of Product, Arkwright",
     },
     {
-      text: "Finally, a design system tool that engineers actually want to use. The Git integration is seamless.",
+      text: "The quality jump was immediate. Our clients started asking what we changed.",
       name: "Marcus Reid",
-      role: "Staff Engineer, Daylite",
+      role: "Engineering Lead, Daylite",
     },
     {
-      text: "Vessel replaced three separate tools. Our design system is finally a first-class citizen.",
+      text: "We evaluated everything on the market. This was the only tool that felt like it was built for us.",
       name: "Priya Nair",
-      role: "Design Systems Lead, Luminary",
+      role: "VP of Design, Luminary",
     },
   ];
 

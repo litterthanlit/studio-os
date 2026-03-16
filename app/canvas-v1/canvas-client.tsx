@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Monitor, Tablet, Smartphone, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,15 @@ import { Input } from "@/components/ui/input";
 import type { ImageAnalysis, ReferenceImage } from "@/lib/canvas/analyze-images";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { analysisToTokens, tokensToMarkdown } from "@/lib/canvas/generate-system";
+import { useCanvasStage } from "@/lib/canvas-stage-context";
 import { CollectView } from "./components/CollectView";
+import { LayersPanel } from "./components/LayersPanel";
+import { InspectorPanel } from "./components/InspectorPanel";
+import { BottomBar } from "./components/BottomBar";
 import { ComposeDocumentView } from "./components/ComposeDocumentView";
+import { buildIframeHTML } from "./components/ComponentPreview";
 import {
+  BREAKPOINT_ARTBOARD_LAYOUTS,
   BREAKPOINT_WIDTHS,
   compileSectionNodeToTSX,
   compilePageTreeToTSX,
@@ -73,13 +80,12 @@ import { SITE_TYPE_OPTIONS, type SiteType } from "@/lib/canvas/templates";
 
 type StageMeta = {
   label: string;
-  icon: "layers" | "sparkles" | "layout";
+  icon: "layers" | "layout";
   description: string;
 };
 
 const STAGE_META: Record<CanvasStage, StageMeta> = {
-  collect: { label: "Collect", icon: "layers", description: "Gather references and shape the system" },
-  generate: { label: "Generate", icon: "sparkles", description: "Create full-page variants" },
+  collect: { label: "Collect", icon: "layers", description: "Gather references and generate variants" },
   compose: { label: "Compose", icon: "layout", description: "Refine on an infinite board" },
 };
 
@@ -93,15 +99,6 @@ function StepIcon({ icon }: { icon: StageMeta["icon"] }) {
       </svg>
     );
   }
-  if (icon === "sparkles") {
-    return (
-      <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 2.5 9.1 6 12.5 7.1 9.1 8.2 8 11.5 6.9 8.2 3.5 7.1 6.9 6 8 2.5Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 2.75v2.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4h2.5" />
-      </svg>
-    );
-  }
   return (
     <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
       <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
@@ -111,12 +108,6 @@ function StepIcon({ icon }: { icon: StageMeta["icon"] }) {
     </svg>
   );
 }
-
-const BREAKPOINT_OPTIONS: Array<{ key: Breakpoint; label: string; short: string }> = [
-  { key: "desktop", label: "Desktop", short: "1440" },
-  { key: "tablet", label: "Tablet", short: "768" },
-  { key: "mobile", label: "Mobile", short: "375" },
-];
 
 const STATIC_PALETTES: Record<string, { name: string; palette: string[] }> = {
   "acme-rebrand": { name: "Acme Rebrand", palette: ["#1b1b1f", "#f97316", "#fed7aa", "#0f172a", "#e4e4e7"] },
@@ -768,7 +759,15 @@ function readComposeWorkspace(projectId: string): ComposeDocument | null {
 function writeComposeWorkspace(projectId: string, document: ComposeDocument) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(getComposeWorkspaceKey(projectId), JSON.stringify(document));
+    // Strip compiledCode before persisting to avoid localStorage quota issues.
+    // compiledCode is large (~30-40KB per artboard) and lives in React state only.
+    const stripped = {
+      ...document,
+      artboards: document.artboards.map((a) =>
+        a.compiledCode ? { ...a, compiledCode: null } : a
+      ),
+    };
+    window.localStorage.setItem(getComposeWorkspaceKey(projectId), JSON.stringify(stripped));
   } catch {
     // Ignore quota/storage issues and keep the in-memory session alive.
   }
@@ -809,6 +808,12 @@ function artboardPreviewHeight(breakpoint: Breakpoint) {
   return 1780;
 }
 
+function ArtboardBreakpointIcon({ breakpoint, size = 14 }: { breakpoint: Breakpoint; size?: number }) {
+  if (breakpoint === "mobile") return <Smartphone size={size} strokeWidth={1} />;
+  if (breakpoint === "tablet") return <Tablet size={size} strokeWidth={1} />;
+  return <Monitor size={size} strokeWidth={1} />;
+}
+
 function formatNodeLabel(node: PageNode): string {
   const content = node.content?.text || node.content?.label || node.name;
   return content.length > 42 ? `${content.slice(0, 42)}…` : content;
@@ -831,6 +836,17 @@ function normalizeVariant(variant: unknown): GeneratedVariant | null {
     ...typedVariant,
     previewImage: typedVariant.previewImage ?? null,
     compiledCode: typedVariant.compiledCode ?? null,
+    previewSource:
+      typedVariant.previewSource === "ai" || typedVariant.previewSource === "fallback"
+        ? typedVariant.previewSource
+        : typedVariant.compiledCode
+        ? "ai"
+        : "fallback",
+    previewFallbackReason:
+      typeof typedVariant.previewFallbackReason === "string" &&
+      typedVariant.previewFallbackReason.length > 0
+        ? typedVariant.previewFallbackReason
+        : null,
     isFavorite: typedVariant.isFavorite ?? legacyVariant.favorite ?? false,
     strategy:
       typedVariant.strategy === "safe" ||
@@ -887,6 +903,8 @@ function ExportMenu({
   tokens,
   sectionCode,
   sectionName,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: {
   code: string | null;
   siteName: string;
@@ -895,9 +913,13 @@ function ExportMenu({
   tokens?: DesignSystemTokens | null;
   sectionCode?: string | null;
   sectionName?: string | null;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }) {
   const [copied, setCopied] = React.useState<string | null>(null);
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [exporting, setExporting] = React.useState<string | null>(null);
   const [options, setOptions] = React.useState<ComposeExportOptions>({
     framework: "html",
@@ -998,7 +1020,7 @@ function ExportMenu({
                           setOptions((current) => ({ ...current, framework: value }))
                         }
                         className={cn(
-                          "rounded-2xl border px-4 py-3 text-left transition-colors",
+                          "rounded-lg border px-4 py-3 text-left transition-colors",
                           options.framework === value
                             ? "border-[#3B5EFC]/40 bg-[#3B5EFC]/12"
                             : "border-white/10 bg-white/5 hover:border-white/20"
@@ -1153,7 +1175,7 @@ function ExportMenu({
 
               <div className="min-h-0 flex-1 px-5 py-5">
                 {options.framework === "html" && !canExportHtml ? (
-                  <div className="flex h-full items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] px-8 text-center">
+                  <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.03] px-8 text-center">
                     <div>
                       <p className="text-sm font-medium text-white">HTML export needs a composed artboard.</p>
                       <p className="mt-2 text-xs leading-relaxed text-white/45">
@@ -1162,7 +1184,7 @@ function ExportMenu({
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full overflow-hidden rounded-[24px] border border-white/10 bg-[#090b10]">
+                  <div className="h-full overflow-hidden rounded-lg border border-white/10 bg-[#090b10]">
                     <pre className="h-full overflow-auto whitespace-pre-wrap break-words p-5 text-[12px] leading-6 text-white/78">
                       <code>{previewCode}</code>
                     </pre>
@@ -1183,6 +1205,7 @@ function VariantCard({
   active,
   onSelect,
   onFavorite,
+  onViewCode,
   onOpenCompose,
   onRegenerateVariant,
   setScrollRef,
@@ -1193,6 +1216,7 @@ function VariantCard({
   active: boolean;
   onSelect: () => void;
   onFavorite: () => void;
+  onViewCode: () => void;
   onOpenCompose: () => void;
   onRegenerateVariant: (
     variant: GeneratedVariant,
@@ -1204,21 +1228,68 @@ function VariantCard({
   setScrollRef: (element: HTMLDivElement | null) => void;
   onSyncScroll: (scrollTop: number) => void;
 }) {
+  const previewId = React.useId();
   const [showPromptEditor, setShowPromptEditor] = React.useState(false);
   const [promptDraft, setPromptDraft] = React.useState(variant.sourcePrompt);
+  const [previewError, setPreviewError] = React.useState<string | null>(null);
+  const [previewReady, setPreviewReady] = React.useState(false);
 
   React.useEffect(() => {
     setPromptDraft(variant.sourcePrompt);
   }, [variant.sourcePrompt]);
 
+  React.useEffect(() => {
+    setPreviewError(null);
+    setPreviewReady(false);
+  }, [variant.compiledCode, previewId]);
+
+  React.useEffect(() => {
+    if (!variant.compiledCode) return;
+
+    const clearPreviewTimeout = (timeoutId: number) => {
+      window.clearTimeout(timeoutId);
+    };
+
+    const timeout = window.setTimeout(() => {
+      setPreviewError((current) => current ?? "Preview timed out — CDN libraries may be slow to load. Try refreshing.");
+    }, 20000);
+
+    function handleMessage(event: MessageEvent) {
+      if (!event.data || typeof event.data !== "object") return;
+      if (event.data.previewId !== previewId) return;
+      if (event.data.type === "preview-ready") {
+        clearPreviewTimeout(timeout);
+        setPreviewReady(true);
+        setPreviewError(null);
+      } else if (event.data.type === "preview-error") {
+        clearPreviewTimeout(timeout);
+        setPreviewReady(true);
+        setPreviewError(typeof event.data.error === "string" ? event.data.error : "Preview failed to render");
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      clearPreviewTimeout(timeout);
+    };
+  }, [previewId, variant.compiledCode]);
+
+  const previewBlockedReason =
+    variant.previewSource === "fallback"
+      ? variant.previewFallbackReason ??
+        "The model returned preview-incompatible output, so Studio OS withheld the template fallback."
+      : previewError;
+
   return (
     <motion.div
-      whileHover={{ y: -2 }}
+      whileHover={active ? {} : { backgroundColor: "#F4F8FF" }}
+      transition={{ duration: 0.15 }}
       className={cn(
-        "w-full overflow-hidden rounded-[28px] border bg-bg-primary text-left transition-colors",
+        "group w-full overflow-hidden rounded-xl border bg-white text-left transition-all duration-150",
         active
-          ? "border-accent shadow-[0_0_0_1px_var(--accent)]"
-          : "border-border-primary hover:border-border-hover"
+          ? "border-[#2430AD] border-2 shadow-[0_0_0_3px_rgba(209,228,252,0.4)]"
+          : "border-[#E2E8F0] hover:border-[#D1E4FC]"
       )}
     >
       <div
@@ -1233,38 +1304,46 @@ function VariantCard({
         }}
         className="block w-full cursor-pointer text-left"
       >
-        <div className="border-b border-border-subtle px-5 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-[13px] font-medium text-text-primary">
-                  {variant.strategyLabel ?? variant.name}
-                </p>
-                <span className="rounded-full border border-border-primary px-2 py-0.5 text-[9px] uppercase tracking-[0.12em] text-text-muted">
-                  {variant.strategy ?? "variant"}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-text-muted">
-                {formatVariantTimestamp(variant.createdAt)}
-              </p>
-            </div>
-            {variant.isFavorite ? (
-              <span className="rounded-full bg-accent/12 px-2.5 py-1 text-[9px] uppercase tracking-[0.12em] text-accent">
-                Favorite
-              </span>
-            ) : null}
-          </div>
-          {variant.description ? (
-            <p className="mt-3 text-[11px] leading-relaxed text-text-muted">
-              {variant.description}
-            </p>
-          ) : null}
-        </div>
-        <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] p-4">
-          <div className="overflow-hidden rounded-[22px] border border-border-primary bg-black/10">
+        {/* 16:10 Preview Area */}
+        <div className="relative w-full" style={{ paddingBottom: "62.5%" /* 10/16 */ }}>
+          {previewBlockedReason ? (
             <div
               ref={setScrollRef}
-              className="h-[560px] overflow-y-auto"
+              className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#F4F8FF] via-[#E8F0FE] to-[#D1E4FC] p-8"
+            >
+              <div className="max-w-sm space-y-3 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-[#D1E4FC] bg-white text-[#2430AD] text-base font-semibold">
+                  !
+                </div>
+                <p className="text-sm font-medium text-[#0F172A]">Preview unavailable</p>
+                <p className="text-[11px] leading-relaxed text-[#64748B]">{previewBlockedReason}</p>
+              </div>
+            </div>
+          ) : variant.compiledCode ? (
+            <div
+              ref={setScrollRef}
+              className="absolute inset-0 overflow-hidden"
+            >
+              {!previewReady ? (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#FAFBFE]">
+                  <div className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 py-2.5 shadow-sm">
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#E2E8F0] border-t-[#2430AD]" />
+                    <span className="text-[11px] text-[#94A3B8]">Rendering…</span>
+                  </div>
+                </div>
+              ) : null}
+              <iframe
+                srcDoc={buildIframeHTML(variant.compiledCode, tokens, previewId)}
+                className="absolute inset-0 w-full border-0 pointer-events-none"
+                style={{ height: "100%", width: "100%" }}
+                sandbox="allow-scripts allow-same-origin"
+                title={`Preview: ${variant.name}`}
+              />
+            </div>
+          ) : (
+            <div
+              ref={setScrollRef}
+              className="absolute inset-0 overflow-y-auto bg-gradient-to-br from-[#F4F8FF] via-[#EBF3FF] to-[#D1E4FC]"
               onScroll={(event) => onSyncScroll(event.currentTarget.scrollTop)}
             >
               <ComposeDocumentView
@@ -1275,74 +1354,50 @@ function VariantCard({
                 className="pointer-events-none"
               />
             </div>
-          </div>
+          )}
         </div>
       </div>
-      <div className="space-y-3 border-t border-border-subtle px-4 py-4">
-        <div className="flex flex-wrap gap-2">
-          {(variant.tasteEmphasis ?? []).map((chip) => (
-            <span
-              key={`${variant.id}-${chip}`}
-              className="rounded-full border border-[#3B5EFC]/20 bg-[#3B5EFC]/8 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#3B5EFC]"
-            >
-              {chip}
+      {/* Card Footer */}
+      <div
+        className={cn(
+          "border-t border-[#E2E8F0] px-4 py-3 transition-colors duration-150",
+          active ? "bg-[#F0F7FF]" : "bg-white"
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          {/* Variant label */}
+          <div>
+            <span className="text-[12px] font-medium uppercase tracking-[0.1em] text-[#64748B]">
+              {variant.strategyLabel ?? variant.name}
             </span>
-          ))}
+            {variant.description ? (
+              <p className="mt-0.5 line-clamp-1 text-[11px] text-[#94A3B8]">{variant.description}</p>
+            ) : null}
+          </div>
+          {/* Quick action buttons */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowPromptEditor(c => !c); }}
+              className="rounded-md border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-[10px] text-[#64748B] transition-colors hover:border-[#D1E4FC] hover:text-[#2430AD]"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenCompose(); }}
+              className={cn(
+                "rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-all duration-150",
+                active
+                  ? "bg-[#2430AD] text-white shadow-[0_1px_3px_rgba(36,48,173,0.2)]"
+                  : "bg-[#D1E4FC] text-[#2430AD] hover:bg-[#C1D8F5]"
+              )}
+            >
+              Select
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onFavorite}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
-              variant.isFavorite
-                ? "bg-accent text-white"
-                : "bg-bg-secondary text-text-muted hover:text-text-secondary"
-            )}
-          >
-            {variant.isFavorite ? "★ Starred" : "☆ Star"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowPromptEditor((current) => !current)}
-            className="rounded-full bg-bg-secondary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted transition-colors hover:text-text-secondary"
-          >
-            {showPromptEditor ? "Hide Prompt" : "Edit Prompt"}
-          </button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
-            onClick={() =>
-              onRegenerateVariant(variant, {
-                intent: "more-like-this",
-                promptOverride: promptDraft,
-              })
-            }
-          >
-            More Like This
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
-            onClick={() =>
-              onRegenerateVariant(variant, {
-                intent: "different-approach",
-                promptOverride: promptDraft,
-              })
-            }
-          >
-            Different Approach
-          </Button>
-          <Button
-            type="button"
-            className="ml-auto h-8 rounded-full bg-[#3B5EFC] px-4 text-[10px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
-            onClick={onOpenCompose}
-          >
-            Select
-          </Button>
-        </div>
+        {/* Expandable prompt editor */}
         <AnimatePresence initial={false}>
           {showPromptEditor ? (
             <motion.div
@@ -1352,16 +1407,31 @@ function VariantCard({
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="overflow-hidden"
             >
-              <div className="rounded-[22px] border border-border-primary bg-bg-secondary p-3">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-                  Taste-derived prompt
-                </p>
+              <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-[#94A3B8]">Taste-derived prompt</p>
                 <textarea
                   value={promptDraft}
                   onChange={(event) => setPromptDraft(event.target.value)}
-                  rows={8}
-                  className="mt-3 min-h-[190px] w-full rounded-[18px] border border-border-primary bg-bg-primary px-3 py-3 text-[12px] leading-relaxed text-text-primary outline-none"
+                  rows={6}
+                  className="mt-2 min-h-[140px] w-full rounded-lg border border-[#E2E8F0] bg-white px-3 py-2.5 text-[12px] leading-relaxed text-[#0F172A] outline-none focus:border-[#D1E4FC]"
                 />
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onRegenerateVariant(variant, { intent: "more-like-this", promptOverride: promptDraft })}
+                    className="rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-[10px] text-[#64748B] hover:border-[#D1E4FC] hover:text-[#2430AD]"
+                  >More Like This</button>
+                  <button
+                    type="button"
+                    onClick={() => onRegenerateVariant(variant, { intent: "different-approach", promptOverride: promptDraft })}
+                    className="rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-[10px] text-[#64748B] hover:border-[#D1E4FC] hover:text-[#2430AD]"
+                  >Different Approach</button>
+                  <button
+                    type="button"
+                    onClick={onViewCode}
+                    className="ml-auto rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-[10px] text-[#64748B] hover:border-[#D1E4FC] hover:text-[#2430AD]"
+                  >View Code</button>
+                </div>
               </div>
             </motion.div>
           ) : null}
@@ -1373,18 +1443,25 @@ function VariantCard({
 
 function GenerateSkeletonCard() {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-border-primary bg-bg-primary">
-      <div className="border-b border-border-subtle px-5 py-4">
-        <div className="h-4 w-32 animate-pulse rounded-full bg-bg-secondary" />
-        <div className="mt-2 h-3 w-24 animate-pulse rounded-full bg-bg-secondary" />
+    <div className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
+      {/* 16:10 preview skeleton with shimmer */}
+      <div className="relative w-full" style={{ paddingBottom: "62.5%" }}>
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            background: "linear-gradient(90deg, #F4F8FF 0%, #E8F0FE 40%, #F4F8FF 80%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 1.4s linear infinite",
+          }}
+        />
       </div>
-      <div className="p-4">
-        <div className="h-[380px] animate-pulse rounded-[22px] border border-border-primary bg-bg-secondary" />
-      </div>
-      <div className="flex gap-2 border-t border-border-subtle px-4 py-3">
-        <div className="h-8 w-20 animate-pulse rounded-full bg-bg-secondary" />
-        <div className="h-8 w-24 animate-pulse rounded-full bg-bg-secondary" />
-        <div className="ml-auto h-8 w-32 animate-pulse rounded-full bg-bg-secondary" />
+      {/* Footer skeleton */}
+      <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3">
+        <div className="space-y-1.5">
+          <div className="h-3 w-20 animate-pulse rounded-full bg-[#E2E8F0]" />
+          <div className="h-2.5 w-32 animate-pulse rounded-full bg-[#E2E8F0]" />
+        </div>
+        <div className="h-7 w-16 animate-pulse rounded-md bg-[#D1E4FC]" />
       </div>
     </div>
   );
@@ -1392,46 +1469,46 @@ function GenerateSkeletonCard() {
 
 function GenerateEmptyState() {
   return (
-    <div className="rounded-[32px] border border-dashed border-border-primary bg-bg-primary p-8">
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_420px] lg:items-center">
-        <div className="space-y-4">
-          <PanelSectionLabel
-            label="Variant Gallery"
-            detail="Generate three taste-aware site directions from the current system. Each card stays visible side by side so you can compare them like a review wall."
-          />
-          <p className="max-w-xl text-sm leading-relaxed text-text-secondary">
-            Studio OS turns your prompt, references, and taste profile into a safe direction, a creative stretch, and an alternative layout path. Review them together, then send the strongest one into Compose.
-          </p>
-          <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.12em] text-text-muted">
-            <span className="rounded-full border border-border-primary px-3 py-1.5">3 full-page variants</span>
-            <span className="rounded-full border border-border-primary px-3 py-1.5">synced review</span>
-            <span className="rounded-full border border-border-primary px-3 py-1.5">compose-ready</span>
+    <div className="rounded-lg border-2 border-dashed border-[#E2E8F0] bg-white p-8">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center">
+        <div className="space-y-5">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#94A3B8]">Variant Gallery</p>
+            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-[#0F172A]">
+              Generate three directions.
+            </h3>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-[#64748B]">
+              Studio OS turns your references and taste profile into a safe direction, a creative stretch, and an alternative. Review them side by side, then send the strongest into Compose.
+            </p>
           </div>
-        </div>
-        <div className="rounded-[28px] border border-border-primary bg-[linear-gradient(180deg,rgba(59,94,252,0.14),rgba(255,255,255,0.02))] p-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            {[0, 1].map((index) => (
-              <div
-                key={index}
-                className="overflow-hidden rounded-[22px] border border-white/10 bg-black/20"
-              >
-                <div className="border-b border-white/10 px-4 py-3">
-                  <div className="h-3.5 w-24 rounded-full bg-white/20" />
-                  <div className="mt-2 h-3 w-16 rounded-full bg-white/10" />
-                </div>
-                <div className="p-3">
-                  <div className="space-y-2 rounded-[18px] border border-white/10 bg-white/5 p-3">
-                    <div className="h-20 rounded-[14px] bg-white/10" />
-                    <div className="h-10 rounded-[12px] bg-white/10" />
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="h-16 rounded-[12px] bg-white/10" />
-                      <div className="h-16 rounded-[12px] bg-white/10" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div className="flex flex-wrap gap-2">
+            {["3 full-page variants", "synced scroll review", "compose-ready"].map((tag) => (
+              <span key={tag} className="rounded-full border border-[#E2E8F0] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[#94A3B8]">{tag}</span>
             ))}
           </div>
+        </div>
+        {/* Preview of 3 ghost variant cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {["A", "B", "C"].map((letter, i) => (
+            <div
+              key={letter}
+              className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white"
+              style={{ opacity: 1 - i * 0.15 }}
+            >
+              {/* 16:10 preview ghost */}
+              <div
+                className="w-full"
+                style={{
+                  paddingBottom: "62.5%",
+                  background: `linear-gradient(135deg, #F4F8FF, #D1E4FC ${30 + i * 15}%, #E8F0FE)`,
+                }}
+              />
+              <div className="flex items-center justify-between border-t border-[#E2E8F0] px-3 py-2.5">
+                <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-[#94A3B8]">Variant {letter}</span>
+                <span className="rounded-md bg-[#D1E4FC] px-2 py-1 text-[10px] font-medium text-[#2430AD]">Select</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -1445,6 +1522,7 @@ function VariantGallery({
   generating,
   onSelect,
   onFavorite,
+  onViewCode,
   onOpenCompose,
   onRegenerateVariant,
 }: {
@@ -1454,6 +1532,7 @@ function VariantGallery({
   generating: boolean;
   onSelect: (variantId: string) => void;
   onFavorite: (variantId: string) => void;
+  onViewCode: (variantId: string) => void;
   onOpenCompose: (variantId: string) => void;
   onRegenerateVariant: (
     variant: GeneratedVariant,
@@ -1505,23 +1584,22 @@ function VariantGallery({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-[24px] border border-border-primary bg-bg-primary px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
-              Compare Directions
-            </p>
-            <p className="mt-1 text-sm text-text-secondary">
-              Review the variants side by side. Scrolling one column keeps the others in sync.
-            </p>
-          </div>
-          <div className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-muted">
-            {variants.length >= 3 ? "3-up compare" : "2-up compare"}
-          </div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#94A3B8]">Variants</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-[#0F172A]">
+            Compare directions
+          </h2>
+          <p className="mt-1 text-sm text-[#64748B]">
+            Review side by side — scrolling one column keeps the others in sync.
+          </p>
         </div>
+        <span className="rounded-full border border-[#E2E8F0] bg-[#F4F8FF] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[#94A3B8]">
+          {variants.length >= 3 ? "3-up" : variants.length === 2 ? "2-up" : "1 variant"}
+        </span>
       </div>
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-5 ${variants.length === 1 ? "grid-cols-1 max-w-2xl mx-auto" : "md:grid-cols-2 xl:grid-cols-3"}`}>
       {variants.map((variant) => (
         <VariantCard
           key={variant.id}
@@ -1530,6 +1608,7 @@ function VariantGallery({
           active={selectedVariantId === variant.id}
           onSelect={() => onSelect(variant.id)}
           onFavorite={() => onFavorite(variant.id)}
+          onViewCode={() => onViewCode(variant.id)}
           onOpenCompose={() => onOpenCompose(variant.id)}
           onRegenerateVariant={onRegenerateVariant}
           setScrollRef={(element) => {
@@ -1728,7 +1807,7 @@ function SystemSummaryPanel({
       />
       {tokens ? (
         <>
-          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+          <div className="rounded-lg border border-border-primary bg-bg-secondary p-4">
             <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
               Palette
             </p>
@@ -1747,7 +1826,7 @@ function SystemSummaryPanel({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+          <div className="rounded-lg border border-border-primary bg-bg-secondary p-4">
             <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
               Typography
             </p>
@@ -1759,7 +1838,7 @@ function SystemSummaryPanel({
       ) : null}
 
       {selectedVariant ? (
-        <div className="rounded-2xl border border-border-primary bg-bg-secondary p-4">
+        <div className="rounded-lg border border-border-primary bg-bg-secondary p-4">
           <p className="text-[11px] uppercase tracking-[0.15em] text-text-tertiary">
             Selected Variant
           </p>
@@ -1783,6 +1862,7 @@ function ComposeStage({
   projectName,
   siteName,
   siteType,
+  sourceVariant,
   onChange,
 }: {
   document: ComposeDocument;
@@ -1792,14 +1872,17 @@ function ComposeStage({
   projectName: string;
   siteName: string;
   siteType: SiteType;
+  sourceVariant: GeneratedVariant | null;
   onChange: (document: ComposeDocument) => void;
 }) {
   const [aiPrompt, setAiPrompt] = React.useState("");
   const [aiError, setAiError] = React.useState<string | null>(null);
   const [aiLoading, setAiLoading] = React.useState(false);
   const [showLayers, setShowLayers] = React.useState(false);
+  const [showInspector, setShowInspector] = React.useState(true);
   const [showMinimap, setShowMinimap] = React.useState(false);
   const [showShortcuts, setShowShortcuts] = React.useState(false);
+  const [exportOpen, setExportOpen] = React.useState(false);
   const [spacePanActive, setSpacePanActive] = React.useState(false);
   const [isPanning, setIsPanning] = React.useState(false);
   const [referencesDockOpen, setReferencesDockOpen] = React.useState(false);
@@ -1853,9 +1936,11 @@ function ComposeStage({
       const parsed = JSON.parse(raw) as {
         showLayers?: boolean;
         showMinimap?: boolean;
+        showInspector?: boolean;
       };
       setShowLayers(Boolean(parsed.showLayers));
       setShowMinimap(Boolean(parsed.showMinimap));
+      if (parsed.showInspector !== undefined) setShowInspector(Boolean(parsed.showInspector));
     } catch {
       // Ignore malformed UI preference payloads
     }
@@ -1865,9 +1950,9 @@ function ComposeStage({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
       COMPOSE_UI_PREFERENCES_KEY,
-      JSON.stringify({ showLayers, showMinimap })
+      JSON.stringify({ showLayers, showMinimap, showInspector })
     );
-  }, [showLayers, showMinimap]);
+  }, [showLayers, showMinimap, showInspector]);
 
   React.useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1902,6 +1987,11 @@ function ComposeStage({
       if (event.key.toLowerCase() === "l") {
         event.preventDefault();
         setShowLayers((current) => !current);
+      }
+
+      if (event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        setShowInspector((current) => !current);
       }
 
       if (event.key.toLowerCase() === "m") {
@@ -1987,17 +2077,18 @@ function ComposeStage({
     [selectedSection, tokens]
   );
   const boardItems = React.useMemo(() => {
-    const artboardWidth = BREAKPOINT_WIDTHS[document.breakpoint];
-    const artboardHeight = artboardPreviewHeight(document.breakpoint);
     return [
-      ...document.artboards.map((artboard) => ({
-        id: artboard.id,
-        type: "artboard" as const,
-        x: artboard.x,
-        y: artboard.y,
-        width: artboardWidth,
-        height: artboardHeight,
-      })),
+      ...document.artboards.map((artboard) => {
+        const bp = artboard.breakpoint ?? document.breakpoint;
+        return {
+          id: artboard.id,
+          type: "artboard" as const,
+          x: artboard.x,
+          y: artboard.y,
+          width: BREAKPOINT_WIDTHS[bp],
+          height: artboardPreviewHeight(bp),
+        };
+      }),
       ...document.overlays.map((overlay) => ({
         id: overlay.id,
         type: "overlay" as const,
@@ -2342,949 +2433,241 @@ function ComposeStage({
   }, [selectedNode]);
 
   const projectHref = projectId ? `/projects/${projectId}` : "/projects";
-  const inspectorVisible = Boolean(selectedNode);
+  const composeSourceMessage =
+    sourceVariant?.previewSource === "ai"
+      ? "Compose is showing the editable structured version of this variant, not the raw AI preview. The visual result here can differ from the generated preview."
+      : sourceVariant?.previewSource === "fallback"
+      ? `Compose is using the structured fallback because the AI preview was unavailable: ${sourceVariant.previewFallbackReason ?? "unknown reason"}`
+      : null;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-[#090b10]">
-      <div className="border-b border-border-primary bg-[#0d1016]/92 px-4 py-3 backdrop-blur">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Link
-              href={projectHref}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/78 transition-colors hover:border-white/18 hover:text-white"
-              aria-label="Back to project"
-            >
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
-              </svg>
-            </Link>
-            <div className="min-w-0">
-              <p className="truncate text-[12px] font-medium uppercase tracking-[0.14em] text-white/88">
-                {projectName}
-              </p>
-              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/38">
-                Compose
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowLayers((current) => !current)}
-              className={cn(
-                "ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
-                showLayers
-                  ? "border-[#3B5EFC]/30 bg-[#3B5EFC]/14 text-white"
-                  : "border-white/10 bg-white/5 text-white/60 hover:text-white"
-              )}
-              aria-label="Toggle layers panel"
-              title="Layers (L)"
-            >
-              <StepIcon icon="layout" />
-            </button>
-          </div>
+    <div className="flex h-full min-h-0 flex-col bg-[#FAFAF8] text-[#1A1A1A] overflow-hidden">
+      
+      {/* ── Canvas Toolbar ── */}
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#E5E5E0] bg-[#FAFAF8] px-3 select-none">
+        <Link
+          href={projectHref}
+          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] transition-colors"
+          aria-label="Back to project"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
+          </svg>
+        </Link>
 
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
-            {BREAKPOINT_OPTIONS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => updateDocument({ breakpoint: item.key })}
-                className={cn(
-                  "rounded-full px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors",
-                  document.breakpoint === item.key
-                    ? "bg-white text-[#0b0e14]"
-                    : "text-white/55 hover:text-white"
-                )}
-              >
-                {item.short}
-              </button>
-            ))}
-          </div>
+        <div className="flex-1" />
 
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowMinimap((current) => !current)}
-              className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors",
-                showMinimap
-                  ? "border-[#3B5EFC]/30 bg-[#3B5EFC]/14 text-white"
-                  : "border-white/10 bg-white/5 text-white/60 hover:text-white"
-              )}
-              aria-label="Toggle minimap"
-              title="Minimap (M)"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2.5" y="3" width="11" height="10" rx="1.6" />
-                <path d="M6 6.25h4M6 9.5h2.5" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowShortcuts(true)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition-colors hover:text-white"
-              aria-label="Show shortcuts"
-              title="Shortcuts (?)"
-            >
-              ?
-            </button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-9 rounded-full px-4 text-[10px] uppercase tracking-[0.12em]"
-              onClick={handlePreview}
-              disabled={!exportCode}
-            >
-              Preview
-            </Button>
-            {exportCode ? (
-              <ExportMenu
-                code={exportCode}
-                siteName={siteName}
-                siteType={siteType}
-                pageTree={exportArtboard?.pageTree ?? null}
-                tokens={tokens}
-                sectionCode={sectionExportCode}
-                sectionName={selectedSection?.name ?? null}
-              />
-            ) : null}
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-9 rounded-full text-[10px] uppercase tracking-[0.12em]"
-              onClick={() => updateDocument({ zoom: Math.max(0.1, document.zoom / 1.15) })}
-            >
-              −
-            </Button>
-            <span className="w-12 text-center font-mono text-[11px] text-white/55">
-              {Math.round(document.zoom * 100)}%
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-9 rounded-full text-[10px] uppercase tracking-[0.12em]"
-              onClick={() => updateDocument({ zoom: Math.min(5, document.zoom * 1.15) })}
-            >
-              +
-            </Button>
-          </div>
-        </div>
+        {/* Preview + Export */}
+        <button
+          type="button"
+          className="h-7 rounded-[4px] bg-[#1E5DF2] px-3 text-[11px] font-medium text-white hover:bg-[#1A4FD6] transition-colors disabled:opacity-40"
+          onClick={handlePreview}
+          disabled={!exportCode}
+        >
+          Preview
+        </button>
+        {exportCode ? (
+          <ExportMenu
+            code={exportCode}
+            siteName={siteName}
+            siteType={siteType}
+            pageTree={exportArtboard?.pageTree ?? null}
+            tokens={tokens}
+            sectionCode={sectionExportCode}
+            sectionName={selectedSection?.name ?? null}
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+          />
+        ) : null}
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <AnimatePresence initial={false}>
-          {showLayers ? (
-            <motion.aside
-              initial={{ x: -18, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -18, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute bottom-4 left-4 top-4 z-20 w-[320px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
-            >
-              <div className="flex h-full flex-col">
-                <div className="border-b border-white/10 px-4 py-4">
-                  <PanelSectionLabel
-                    label="Layers"
-                    detail="Structured pages, sections, and blocks for the current site."
-                  />
-                </div>
+      {composeSourceMessage ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[11px] leading-relaxed text-amber-700">
+          {composeSourceMessage}
+        </div>
+      ) : null}
 
-                <div className="flex-1 space-y-5 overflow-y-auto p-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/70">
-                        Artboards
-                      </p>
-                      <span className="text-[10px] text-white/40">{document.artboards.length}</span>
-                    </div>
-                    {document.artboards.map((artboard) => (
-                      <div
-                        key={artboard.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() =>
-                          updateDocument({
-                            selectedArtboardId: artboard.id,
-                            selectedNodeId:
-                              document.selectedArtboardId === artboard.id
-                                ? document.selectedNodeId ?? artboard.pageTree.id
-                                : artboard.pageTree.id,
-                          })
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" && event.key !== " ") {
-                            return;
-                          }
-                          event.preventDefault();
-                          updateDocument({
-                            selectedArtboardId: artboard.id,
-                            selectedNodeId:
-                              document.selectedArtboardId === artboard.id
-                                ? document.selectedNodeId ?? artboard.pageTree.id
-                                : artboard.pageTree.id,
-                          });
-                        }}
-                        className={cn(
-                          "w-full rounded-2xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
-                          document.selectedArtboardId === artboard.id
-                            ? "border-[#3B5EFC]/35 bg-[#3B5EFC]/10"
-                            : "border-white/10 bg-white/5 hover:border-white/20"
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[12px] font-medium text-white">{artboard.name}</p>
-                            <p className="mt-1 text-[10px] text-white/42">
-                              {Math.round(artboard.x)} / {Math.round(artboard.y)}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            className={cn(
-                              "rounded-full px-2.5 py-1 text-[9px] uppercase tracking-[0.12em]",
-                              document.primaryArtboardId === artboard.id
-                                ? "bg-emerald-500/12 text-emerald-300"
-                                : "bg-white/5 text-white/45"
-                            )}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              updateDocument({ primaryArtboardId: artboard.id });
-                            }}
-                          >
-                            {document.primaryArtboardId === artboard.id ? "Primary" : "Set primary"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+      {/* ── Main content area ── */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Layers panel */}
+        {showLayers && (
+          <div className="w-[220px] shrink-0 overflow-hidden border-r border-[#E5E5E0]">
+            <LayersPanel
+              artboards={document.artboards}
+              selectedArtboardId={document.selectedArtboardId}
+              selectedNodeId={document.selectedNodeId}
+              primaryArtboardId={document.primaryArtboardId}
+              breakpoint={document.breakpoint}
+              layers={layers}
+              onSelectArtboard={(artboardId, nodeId) => {
+                const target = document.artboards.find((a) => a.id === artboardId);
+                updateDocument({
+                  selectedArtboardId: artboardId,
+                  selectedNodeId: nodeId,
+                  breakpoint: target?.breakpoint ?? document.breakpoint,
+                });
+              }}
+              onSelectNode={(nodeId) => updateDocument({ selectedNodeId: nodeId })}
+            />
+          </div>
+        )}
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/70">
-                        Tree
-                      </p>
-                      {selectedArtboard ? (
-                        <span className="truncate text-[10px] text-white/40">
-                          {selectedArtboard.name}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="space-y-1 rounded-[24px] border border-white/10 bg-white/5 p-2">
-                      {layers.map(({ node, depth }) => (
-                        <button
-                          key={node.id}
-                          type="button"
-                          onClick={() => updateDocument({ selectedNodeId: node.id })}
-                          className={cn(
-                            "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[12px] transition-colors",
-                            document.selectedNodeId === node.id
-                              ? "bg-white/12 text-white"
-                              : "text-white/45 hover:bg-white/6 hover:text-white/82"
-                          )}
-                          style={{ paddingLeft: 12 + depth * 14 }}
-                        >
-                          <span className="text-[10px] uppercase tracking-[0.08em] opacity-50">
-                            {node.type}
-                          </span>
-                          <span className="truncate">{formatNodeLabel(node)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 rounded-[24px] border border-white/10 bg-white/5 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/70">
-                      Canvas Tools
+        {/* Canvas */}
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div
+            ref={canvasRef}
+            className={cn(
+              "h-full w-full overflow-hidden",
+              isPanning ? "cursor-grabbing" : spacePanActive ? "cursor-grab" : "cursor-default"
+            )}
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, rgba(126,141,170,0.22) 1px, transparent 1px)",
+              backgroundSize: `${Math.max(18, 30 * document.zoom)}px ${Math.max(18, 30 * document.zoom)}px`,
+              backgroundPosition: `${document.pan.x % 30}px ${document.pan.y % 30}px`,
+            }}
+            onMouseDownCapture={onCanvasMouseDownCapture}
+            onMouseDown={onBackgroundMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={clearPointerState}
+            onMouseLeave={clearPointerState}
+          >
+            {/* References dock */}
+            <AnimatePresence initial={false}>
+              {referencesDockOpen ? (
+                <motion.div
+                  initial={{ x: -24, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -24, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute bottom-4 left-4 top-4 z-20 w-[290px] overflow-hidden rounded-[6px] border border-[#E5E5E0] bg-white shadow-sm flex flex-col"
+                >
+                  <div className="border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
+                    <p className="text-[11px] font-medium text-[#1A1A1A]">References</p>
+                    <p className="mt-0.5 text-[10px] text-[#A0A0A0]">
+                      Pin references and overlays onto the board.
                     </p>
+                  </div>
+                  <div className="space-y-4 overflow-y-auto p-3 flex-1">
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
                         variant="secondary"
-                        className="h-9 text-[10px] uppercase tracking-[0.12em]"
-                        onClick={() => setReferencesDockOpen((open) => !open)}
+                        className="h-8 text-[10px] uppercase tracking-[0.12em]"
+                        onClick={() =>
+                          addOverlay({
+                            id: `note-${Date.now()}`,
+                            type: "note",
+                            x: (selectedArtboard?.x ?? 0) - 280,
+                            y: (selectedArtboard?.y ?? 0) + 120,
+                            width: 240,
+                            height: 180,
+                            text: "Pin a thought, content note, or feedback loop here.",
+                            color: "#FBE67A",
+                          })
+                        }
                       >
-                        {referencesDockOpen ? "Hide refs" : "References"}
+                        Add Note
                       </Button>
                       <Button
                         type="button"
                         variant="secondary"
-                        className="h-9 text-[10px] uppercase tracking-[0.12em]"
-                        onClick={() => setSystemDockOpen((open) => !open)}
+                        className="h-8 text-[10px] uppercase tracking-[0.12em]"
+                        onClick={() =>
+                          addOverlay({
+                            id: `arrow-${Date.now()}`,
+                            type: "arrow",
+                            x: (selectedArtboard?.x ?? 0) - 160,
+                            y: (selectedArtboard?.y ?? 0) + 80,
+                            width: 180,
+                            height: 80,
+                            color: "#F97316",
+                          })
+                        }
                       >
-                        {systemDockOpen ? "Hide system" : "System"}
+                        Add Arrow
                       </Button>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-white/42">
-                      Press <span className="font-mono text-white/70">L</span> to toggle this panel and <span className="font-mono text-white/70">M</span> to show the minimap.
+                    <div className="grid grid-cols-2 gap-2">
+                      {references.slice(0, 8).map((reference) => (
+                        <button
+                          key={reference.id}
+                          type="button"
+                          onClick={() =>
+                            addOverlay({
+                              id: `overlay-${reference.id}-${Date.now()}`,
+                              type: "reference",
+                              x: (selectedArtboard?.x ?? 0) - 340,
+                              y: (selectedArtboard?.y ?? 0) + 40,
+                              width: 220,
+                              height: 160,
+                              imageUrl: reference.url,
+                              label: reference.name,
+                            })
+                          }
+                          className="overflow-hidden rounded-[4px] border border-[#E5E5E0] text-left"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={reference.thumbnail || reference.url}
+                            alt={reference.name}
+                            className="h-20 w-full object-cover"
+                          />
+                          <div className="px-2 py-1.5 text-[10px] text-[#6B6B6B] truncate">
+                            {reference.name}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {/* System tokens dock */}
+            <AnimatePresence initial={false}>
+              {systemDockOpen ? (
+                <motion.div
+                  initial={{ x: 24, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 24, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute bottom-4 right-4 top-4 z-20 w-[280px] overflow-hidden rounded-[6px] border border-[#E5E5E0] bg-white shadow-sm flex flex-col"
+                >
+                  <div className="border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
+                    <p className="text-[11px] font-medium text-[#1A1A1A]">Design Tokens</p>
+                    <p className="mt-0.5 text-[10px] text-[#A0A0A0]">
+                      Palette and typography.
                     </p>
                   </div>
-                </div>
-              </div>
-            </motion.aside>
-          ) : null}
-        </AnimatePresence>
-
-        <AnimatePresence initial={false}>
-          {inspectorVisible ? (
-            <motion.aside
-              initial={{ x: 18, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 18, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute bottom-4 right-4 top-4 z-20 w-[340px] overflow-hidden rounded-[26px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
-            >
-              <div className="flex h-full flex-col">
-                <div className="border-b border-white/10 px-4 py-4">
-                  <PanelSectionLabel
-                    label="Inspector"
-                    detail="Appears only when something is selected."
-                  />
-                  <div className="mt-3 flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
-                    {(["content", "style", "layout", "effects", "ai"] as InspectorTab[]).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => updateDocument({ inspectorTab: tab })}
-                        className={cn(
-                          "flex-1 rounded-md px-2 py-1.5 text-[10px] uppercase tracking-[0.12em]",
-                          document.inspectorTab === tab
-                            ? "bg-white text-[#0b0e14]"
-                            : "text-white/45 hover:text-white/82"
-                        )}
-                      >
-                        {tab}
-                      </button>
-                    ))}
+                  <div className="space-y-4 overflow-y-auto p-3 flex-1">
+                    <div className="grid grid-cols-3 gap-2">
+                      {Object.entries(tokens.colors).map(([key, value]) => (
+                        <div key={key} className="rounded-[4px] border border-[#E5E5E0] p-2">
+                          <div className="h-7 rounded-[2px] border border-black/5" style={{ background: value }} />
+                          <p className="mt-1.5 text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">
+                            {key}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded-[4px] border border-[#E5E5E0] p-2">
+                      <p className="text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">Typography</p>
+                      <p className="mt-1.5 text-sm text-[#1A1A1A]">{tokens.typography.fontFamily}</p>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-5">
-                  {selectedNode ? (
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/55">
-                        Selection
-                      </p>
-                      <p className="mt-2 text-[13px] font-medium text-white">{selectedNode.name}</p>
-                      <p className="mt-1 text-[11px] text-white/45">{selectedNode.type}</p>
-                    </div>
-                  ) : null}
-
-                  {selectedNode && document.inspectorTab === "content" ? (
-                    <div className="space-y-4">
-                      {Object.entries(selectedNode.content ?? {})
-                        .filter(([key]) => !["mediaUrl", "mediaAlt"].includes(key))
-                        .filter(([, value]) => typeof value === "string")
-                        .map(([key, value]) => (
-                          <label key={key} className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              {key}
-                            </span>
-                            {String(value).length > 80 ? (
-                              <textarea
-                                value={String(value)}
-                                onChange={(event) =>
-                                  updateSelectedContent(
-                                    key as keyof PageNodeContent,
-                                    event.target.value
-                                  )
-                                }
-                                rows={4}
-                                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-                              />
-                            ) : (
-                              <Input
-                                value={String(value)}
-                                onChange={(event) =>
-                                  updateSelectedContent(
-                                    key as keyof PageNodeContent,
-                                    event.target.value
-                                  )
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            )}
-                          </label>
-                        ))}
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Media
-                        </p>
-                        <div className="mt-3 space-y-3">
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Media URL
-                            </span>
-                            <Input
-                              value={selectedNode.content?.mediaUrl ?? ""}
-                              onChange={(event) =>
-                                updateSelectedContent("mediaUrl", event.target.value)
-                              }
-                              placeholder="https://..."
-                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                            />
-                          </label>
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Alt Text
-                            </span>
-                            <Input
-                              value={selectedNode.content?.mediaAlt ?? ""}
-                              onChange={(event) =>
-                                updateSelectedContent("mediaAlt", event.target.value)
-                              }
-                              placeholder="Describe the image"
-                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {selectedNode && document.inspectorTab === "style" ? (
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Typography
-                        </p>
-                        <div className="mt-3 space-y-3">
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Font Family
-                            </span>
-                            <Input
-                              value={selectedNode.style?.fontFamily ?? ""}
-                              onChange={(event) =>
-                                updateSelectedStyle("fontFamily", event.target.value)
-                              }
-                              placeholder="inherit"
-                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                            />
-                          </label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <label className="block space-y-1.5">
-                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                                Font Size
-                              </span>
-                              <Input
-                                type="number"
-                                value={String(selectedNode.style?.fontSize ?? "")}
-                                onChange={(event) =>
-                                  updateSelectedStyle(
-                                    "fontSize",
-                                    Number(event.target.value || 0)
-                                  )
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            </label>
-                            <label className="block space-y-1.5">
-                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                                Weight
-                              </span>
-                              <Input
-                                type="number"
-                                value={String(selectedNode.style?.fontWeight ?? "")}
-                                onChange={(event) =>
-                                  updateSelectedStyle(
-                                    "fontWeight",
-                                    Number(event.target.value || 0)
-                                  )
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            </label>
-                            <label className="block space-y-1.5">
-                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                                Line Height
-                              </span>
-                              <Input
-                                type="number"
-                                step="0.05"
-                                value={String(selectedNode.style?.lineHeight ?? "")}
-                                onChange={(event) =>
-                                  updateSelectedStyle(
-                                    "lineHeight",
-                                    Number(event.target.value || 0)
-                                  )
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            </label>
-                            <label className="block space-y-1.5">
-                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                                Letter Spacing
-                              </span>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                value={String(selectedNode.style?.letterSpacing ?? "")}
-                                onChange={(event) =>
-                                  updateSelectedStyle(
-                                    "letterSpacing",
-                                    Number(event.target.value || 0)
-                                  )
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Surface
-                        </p>
-                        <div className="mt-3 space-y-3">
-                          {(
-                            [
-                              ["background", "Background"],
-                              ["foreground", "Foreground"],
-                              ["borderColor", "Border"],
-                              ["accent", "Accent"],
-                            ] as Array<[keyof PageNodeStyle, string]>
-                          ).map(([key, label]) => (
-                            <label key={String(key)} className="block space-y-1.5">
-                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                                {label}
-                              </span>
-                              <Input
-                                value={String((selectedNode.style ?? {})[key] ?? "")}
-                                onChange={(event) =>
-                                  updateSelectedStyle(key, event.target.value)
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            </label>
-                          ))}
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Radius
-                            </span>
-                            <Input
-                              type="number"
-                              value={String(selectedNode.style?.borderRadius ?? "")}
-                              onChange={(event) =>
-                                updateSelectedStyle(
-                                  "borderRadius",
-                                  Number(event.target.value || 0)
-                                )
-                              }
-                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {selectedNode && document.inspectorTab === "layout" ? (
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Structure
-                        </p>
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Direction
-                            </span>
-                            <select
-                              value={selectedNode.style?.direction ?? "column"}
-                              onChange={(event) =>
-                                updateSelectedStyle(
-                                  "direction",
-                                  event.target.value as PageNodeStyle["direction"]
-                                )
-                              }
-                              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
-                            >
-                              <option value="column">Column</option>
-                              <option value="row">Row</option>
-                            </select>
-                          </label>
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Justify
-                            </span>
-                            <select
-                              value={selectedNode.style?.justify ?? "start"}
-                              onChange={(event) =>
-                                updateSelectedStyle(
-                                  "justify",
-                                  event.target.value as PageNodeStyle["justify"]
-                                )
-                              }
-                              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
-                            >
-                              <option value="start">Start</option>
-                              <option value="center">Center</option>
-                              <option value="end">End</option>
-                              <option value="between">Space Between</option>
-                            </select>
-                          </label>
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Align
-                            </span>
-                            <select
-                              value={selectedNode.style?.align ?? "left"}
-                              onChange={(event) =>
-                                updateSelectedStyle(
-                                  "align",
-                                  event.target.value as PageNodeStyle["align"]
-                                )
-                              }
-                              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
-                            >
-                              <option value="left">Left</option>
-                              <option value="center">Center</option>
-                              <option value="right">Right</option>
-                            </select>
-                          </label>
-                          <label className="block space-y-1.5">
-                            <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                              Columns
-                            </span>
-                            <Input
-                              type="number"
-                              value={String(selectedNode.style?.columns ?? "")}
-                              onChange={(event) =>
-                                updateSelectedStyle("columns", Number(event.target.value || 0))
-                              }
-                              className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                            />
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Spacing
-                        </p>
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                          {(
-                            [
-                              ["paddingX", "Padding X"],
-                              ["paddingY", "Padding Y"],
-                              ["gap", "Gap"],
-                              ["maxWidth", "Max Width"],
-                              ["minHeight", "Min Height"],
-                            ] as Array<[keyof PageNodeStyle, string]>
-                          ).map(([key, label]) => (
-                            <label key={String(key)} className="block space-y-1.5">
-                              <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                                {label}
-                              </span>
-                              <Input
-                                type="number"
-                                value={String(selectedNode.style?.[key] ?? "")}
-                                onChange={(event) =>
-                                  updateSelectedStyle(key, Number(event.target.value || 0))
-                                }
-                                className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-[11px] text-white/45">
-                        You are editing <strong className="text-white/80">{document.breakpoint}</strong> overrides. Desktop writes to base style; Tablet and Mobile write to responsive overrides.
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {selectedNode && document.inspectorTab === "effects" ? (
-                    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/45">
-                        Effects
-                      </p>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Opacity
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.05"
-                          min="0"
-                          max="1"
-                          value={String(selectedNode.style?.opacity ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle(
-                              "opacity",
-                              Number(event.target.value || 0)
-                            )
-                          }
-                          className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Blur
-                        </span>
-                        <Input
-                          type="number"
-                          value={String(selectedNode.style?.blur ?? "")}
-                          onChange={(event) =>
-                            updateSelectedStyle("blur", Number(event.target.value || 0))
-                          }
-                          className="h-10 border-white/10 bg-white/5 text-sm text-white"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          Shadow
-                        </span>
-                        <select
-                          value={selectedNode.style?.shadow ?? "none"}
-                          onChange={(event) =>
-                            updateSelectedStyle(
-                              "shadow",
-                              event.target.value as PageNodeStyle["shadow"]
-                            )
-                          }
-                          className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
-                        >
-                          <option value="none">None</option>
-                          <option value="soft">Soft</option>
-                          <option value="medium">Medium</option>
-                        </select>
-                      </label>
-                    </div>
-                  ) : null}
-
-                  {selectedNode && document.inspectorTab === "ai" ? (
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.15em] font-medium text-white/45">
-                          Selection-Aware Actions
-                        </p>
-                        <p className="mt-2 text-[12px] leading-relaxed text-white/45">
-                          {selectedNode.type === "page"
-                            ? "Page selected. Regenerate the whole direction while keeping it inside the current artboard."
-                            : selectedNode.type === "section"
-                            ? "Section selected. Rewrite, restyle, or regenerate this slice without leaving Compose."
-                            : "Block selected. Make targeted content or style changes directly from the inspector."}
-                        </p>
-                      </div>
-                      <label className="block space-y-1.5">
-                        <span className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          AI Prompt
-                        </span>
-                        <textarea
-                          value={aiPrompt}
-                          onChange={(event) => setAiPrompt(event.target.value)}
-                          rows={4}
-                          placeholder="Sharpen the message, make this section more confident, restyle it for a stronger editorial feel…"
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-                        />
-                      </label>
-                      <div className="grid grid-cols-1 gap-2">
-                        {activeAiActions.map((item) => (
-                          <Button
-                            key={item.label}
-                            type="button"
-                            variant="secondary"
-                            className="h-10 justify-start text-[10px] uppercase tracking-[0.12em]"
-                            onClick={() => applyAiAction(item.action)}
-                            disabled={aiLoading}
-                          >
-                            {item.label}
-                          </Button>
-                        ))}
-                      </div>
-                      {aiError ? (
-                        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
-                          {aiError}
-                        </div>
-                      ) : null}
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-white/45">
-                          System Context
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                          {[
-                            tokens.colors.primary,
-                            tokens.colors.secondary,
-                            tokens.colors.accent,
-                            tokens.colors.background,
-                            tokens.colors.surface,
-                          ].map((color) => (
-                            <div
-                              key={color}
-                              className="h-8 w-8 rounded-lg border border-white/10"
-                              style={{ background: color }}
-                            />
-                          ))}
-                        </div>
-                        <p className="mt-3 text-[11px] text-white/45">
-                          {tokens.typography.fontFamily}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </motion.aside>
-          ) : null}
-        </AnimatePresence>
-
-        <div className="absolute inset-0">
+            {/* Artboard render area */}
             <div
-              ref={canvasRef}
-              className={cn(
-                "h-full w-full overflow-hidden",
-                isPanning ? "cursor-grabbing" : spacePanActive ? "cursor-grab" : "cursor-default"
-              )}
+              className="absolute inset-0 bg-[#E5E5E5]"
               style={{
-                backgroundImage:
-                  "radial-gradient(circle, rgba(126,141,170,0.22) 1px, transparent 1px), linear-gradient(180deg,rgba(255,255,255,0.02),transparent)",
-                backgroundSize: `${Math.max(18, 30 * document.zoom)}px ${Math.max(18, 30 * document.zoom)}px, 100% 100%`,
-                backgroundPosition: `${document.pan.x % 30}px ${document.pan.y % 30}px, 0 0`,
+                cursor: isPanning ? "grabbing" : spacePanActive ? "grab" : "default",
               }}
-              onMouseDownCapture={onCanvasMouseDownCapture}
-              onMouseDown={onBackgroundMouseDown}
-              onMouseMove={onMouseMove}
-              onMouseUp={clearPointerState}
-              onMouseLeave={clearPointerState}
             >
-              <AnimatePresence initial={false}>
-                {referencesDockOpen ? (
-                  <motion.div
-                    initial={{ x: -24, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: -24, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute bottom-4 left-4 top-16 z-20 w-[290px] overflow-hidden rounded-[24px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
-                  >
-                    <div className="border-b border-white/10 px-4 py-3">
-                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/70">
-                        References Dock
-                      </p>
-                      <p className="mt-1 text-[11px] text-white/45">
-                        Pin references and overlays onto the board without leaving Compose.
-                      </p>
-                    </div>
-                    <div className="space-y-4 overflow-y-auto p-4">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="h-9 text-[10px] uppercase tracking-[0.12em]"
-                          onClick={() =>
-                            addOverlay({
-                              id: `note-${Date.now()}`,
-                              type: "note",
-                              x: (selectedArtboard?.x ?? 0) - 280,
-                              y: (selectedArtboard?.y ?? 0) + 120,
-                              width: 240,
-                              height: 180,
-                              text: "Pin a thought, content note, or feedback loop here.",
-                              color: "#FBE67A",
-                            })
-                          }
-                        >
-                          Add Note
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="h-9 text-[10px] uppercase tracking-[0.12em]"
-                          onClick={() =>
-                            addOverlay({
-                              id: `arrow-${Date.now()}`,
-                              type: "arrow",
-                              x: (selectedArtboard?.x ?? 0) - 160,
-                              y: (selectedArtboard?.y ?? 0) + 80,
-                              width: 180,
-                              height: 80,
-                              color: "#F97316",
-                            })
-                          }
-                        >
-                          Add Arrow
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {references.slice(0, 8).map((reference) => (
-                          <button
-                            key={reference.id}
-                            type="button"
-                            onClick={() =>
-                              addOverlay({
-                                id: `overlay-${reference.id}-${Date.now()}`,
-                                type: "reference",
-                                x: (selectedArtboard?.x ?? 0) - 340,
-                                y: (selectedArtboard?.y ?? 0) + 40,
-                                width: 220,
-                                height: 160,
-                                imageUrl: reference.url,
-                                label: reference.name,
-                              })
-                            }
-                            className="overflow-hidden rounded-xl border border-white/10 bg-white/5 text-left"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={reference.thumbnail || reference.url}
-                              alt={reference.name}
-                              className="h-24 w-full object-cover"
-                            />
-                            <div className="px-2 py-2 text-[11px] text-white/75 truncate">
-                              {reference.name}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-              <AnimatePresence initial={false}>
-                {systemDockOpen ? (
-                  <motion.div
-                    initial={{ x: 24, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 24, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute bottom-4 right-4 top-16 z-20 w-[300px] overflow-hidden rounded-[24px] border border-white/10 bg-[#0d1016]/94 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
-                  >
-                    <div className="border-b border-white/10 px-4 py-3">
-                      <p className="text-[11px] uppercase tracking-[0.15em] text-white/70">
-                        System Dock
-                      </p>
-                      <p className="mt-1 text-[11px] text-white/45">
-                        Palette and typography stay visible while you compose.
-                      </p>
-                    </div>
-                    <div className="space-y-4 overflow-y-auto p-4">
-                      <div className="grid grid-cols-3 gap-2">
-                        {Object.entries(tokens.colors).map(([key, value]) => (
-                          <div key={key} className="rounded-xl border border-white/10 bg-white/5 p-2">
-                            <div className="h-10 rounded-lg" style={{ background: value }} />
-                            <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-white/45">
-                              {key}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.12em] text-white/45">
-                          Typography
-                        </p>
-                        <p className="mt-2 text-sm text-white/80">{tokens.typography.fontFamily}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
               <div
                 style={{
                   position: "absolute",
@@ -3295,81 +2678,101 @@ function ComposeStage({
                   willChange: "transform",
                 }}
               >
-                {document.artboards.map((artboard) => (
-                  <div
-                    key={artboard.id}
-                    data-artboard
-                    className={cn(
-                      "absolute overflow-hidden rounded-[30px] border bg-bg-primary shadow-[0_32px_120px_rgba(0,0,0,0.48)]",
-                      document.selectedArtboardId === artboard.id
-                        ? "border-accent"
-                        : "border-border-primary"
-                    )}
-                    style={{
-                      left: artboard.x,
-                      top: artboard.y,
-                      width: BREAKPOINT_WIDTHS[document.breakpoint] + 2,
-                    }}
-                    >
+                {document.artboards.map((artboard) => {
+                  const artboardBp = artboard.breakpoint ?? document.breakpoint;
+                  const artboardWidth = BREAKPOINT_WIDTHS[artboardBp];
+                  const artboardHeight = artboardPreviewHeight(artboardBp);
+                  const isSelected = document.selectedArtboardId === artboard.id;
+                  return (
+                    <React.Fragment key={artboard.id}>
+                      {/* Label above artboard */}
                       <div
-                        className="flex cursor-move items-center justify-between border-b border-border-subtle bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] px-4 py-3"
+                        className="absolute flex items-center gap-1.5 select-none pointer-events-none"
+                        style={{ left: artboard.x, top: artboard.y - 32 }}
+                      >
+                        <span className={isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]"}>
+                          <ArtboardBreakpointIcon breakpoint={artboardBp} size={14} />
+                        </span>
+                        <span
+                          className={cn("text-[11px]", isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]")}
+                          style={{ fontFamily: "'Geist Mono', monospace" }}
+                        >
+                          {artboard.name}
+                        </span>
+                      </div>
+
+                      {/* Artboard */}
+                      <div
+                        data-artboard
+                        className={cn(
+                          "absolute overflow-hidden rounded-[6px] border bg-[#FAFAF8]",
+                          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
+                          isSelected ? "border-[#1E5DF2]" : "border-[#E5E5E0]"
+                        )}
+                        style={{
+                          left: artboard.x,
+                          top: artboard.y,
+                          width: artboardWidth + 2,
+                          height: artboardHeight,
+                        }}
                         onMouseDown={(event) => {
                           if (event.button !== 0 || spacePanActive) return;
-                          event.stopPropagation();
                           dragRef.current = {
                             kind: "artboard",
-                          id: artboard.id,
-                          startX: event.clientX,
-                          startY: event.clientY,
-                          x: artboard.x,
-                          y: artboard.y,
-                        };
-                        updateDocument({
-                          selectedArtboardId: artboard.id,
-                          selectedNodeId:
-                            document.selectedArtboardId === artboard.id
-                              ? document.selectedNodeId
-                              : artboard.pageTree.id,
-                        });
-                      }}
+                            id: artboard.id,
+                            startX: event.clientX,
+                            startY: event.clientY,
+                            x: artboard.x,
+                            y: artboard.y,
+                          };
+                          updateDocument({
+                            selectedArtboardId: artboard.id,
+                            selectedNodeId:
+                              document.selectedArtboardId === artboard.id
+                                ? document.selectedNodeId
+                                : artboard.pageTree.id,
+                            breakpoint: artboardBp,
+                          });
+                        }}
                       >
-                        <div>
-                          <p className="text-[12px] font-medium text-text-primary">{artboard.name}</p>
-                          <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
-                            {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.label} {BREAKPOINT_OPTIONS.find((item) => item.key === document.breakpoint)?.short}
-                          </p>
-                        </div>
-                        {document.primaryArtboardId === artboard.id ? (
-                        <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-emerald-400">
-                          Primary
-                        </span>
-                      ) : null}
-                    </div>
-                    <ComposeDocumentView
-                      pageTree={artboard.pageTree}
-                      tokens={tokens}
-                      breakpoint={document.breakpoint}
-                      selectedNodeId={
-                        document.selectedArtboardId === artboard.id
-                          ? document.selectedNodeId
-                          : null
-                      }
-                      onSelectNode={(nodeId) =>
-                        updateDocument({
-                          selectedArtboardId: artboard.id,
-                          selectedNodeId: nodeId,
-                        })
-                      }
-                      interactive={document.selectedArtboardId === artboard.id}
-                    />
-                  </div>
-                ))}
+                        {artboard.compiledCode ? (
+                          <iframe
+                            srcDoc={buildIframeHTML(artboard.compiledCode, tokens, `compose-${artboard.id}`)}
+                            className="absolute inset-0 w-full h-full border-0"
+                            sandbox="allow-scripts allow-same-origin"
+                            title={`Compose: ${artboard.name}`}
+                            style={{ width: artboardWidth, height: artboardHeight }}
+                          />
+                        ) : (
+                          <ComposeDocumentView
+                            pageTree={artboard.pageTree}
+                            tokens={tokens}
+                            breakpoint={artboardBp}
+                            selectedNodeId={
+                              document.selectedArtboardId === artboard.id
+                                ? document.selectedNodeId
+                                : null
+                            }
+                            onSelectNode={(nodeId) =>
+                              updateDocument({
+                                selectedArtboardId: artboard.id,
+                                selectedNodeId: nodeId,
+                                breakpoint: artboardBp,
+                              })
+                            }
+                            interactive={document.selectedArtboardId === artboard.id}
+                          />
+                        )}
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
 
                 {document.overlays.map((overlay) => (
                   <div
                     key={overlay.id}
                     data-overlay
-                    className="absolute overflow-hidden rounded-2xl border border-border-primary shadow-lg"
+                    className="absolute overflow-hidden rounded-[6px] border border-[#E5E5E0] shadow-lg"
                     style={{
                       left: overlay.x,
                       top: overlay.y,
@@ -3378,7 +2781,7 @@ function ComposeStage({
                       background:
                         overlay.type === "note"
                           ? overlay.color || "#FBE67A"
-                          : "var(--bg-primary)",
+                          : "#FAFAF8",
                     }}
                     onMouseDown={(event) => {
                       if (event.button !== 0 || spacePanActive) return;
@@ -3415,7 +2818,7 @@ function ComposeStage({
                           alt={overlay.label || "Reference"}
                           className="h-[calc(100%-28px)] w-full object-cover"
                         />
-                        <div className="px-3 py-2 text-[11px] text-text-secondary truncate">
+                        <div className="px-3 py-2 text-[11px] text-[#6B6B6B] truncate">
                           {overlay.label || "Reference"}
                         </div>
                       </>
@@ -3455,121 +2858,164 @@ function ComposeStage({
                 ))}
               </div>
             </div>
-        </div>
 
-        <AnimatePresence initial={false}>
-          {showMinimap && minimap ? (
-            <motion.div
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 16, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="pointer-events-none absolute bottom-5 right-5 z-10 w-[244px] rounded-[22px] border border-white/10 bg-[#0d1016]/92 p-3 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur"
-            >
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/70">
-                    Minimap
-                  </p>
-                  <span className="text-[10px] font-mono text-white/45">
-                    {Math.round(document.zoom * 100)}%
-                  </span>
-                </div>
-                <div
-                  className="relative mt-3 overflow-hidden rounded-[16px] border border-white/10 bg-[#05070b]"
-                  style={{ width: minimap.frameWidth, height: minimap.frameHeight }}
+            {/* Minimap */}
+            <AnimatePresence initial={false}>
+              {showMinimap && minimap ? (
+                <motion.div
+                  initial={{ y: 16, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 16, opacity: 0 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="pointer-events-none absolute bottom-5 right-5 z-10 w-[244px] rounded-[6px] border border-[#E5E5E0] bg-[#FAFAF8] p-3 shadow-sm"
                 >
-                  {minimap.items.map((item) => (
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-[#A0A0A0]">
+                      Minimap
+                    </p>
+                    <span
+                      className="text-[10px] text-[#A0A0A0]"
+                      style={{ fontFamily: "'Geist Mono', monospace" }}
+                    >
+                      {Math.round(document.zoom * 100)}%
+                    </span>
+                  </div>
+                  <div
+                    className="relative mt-2 overflow-hidden rounded-[4px] border border-[#E5E5E0] bg-[#F5F5F0]"
+                    style={{ width: minimap.frameWidth, height: minimap.frameHeight }}
+                  >
+                    {minimap.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "absolute rounded-[2px] border",
+                          item.type === "artboard"
+                            ? item.id === document.selectedArtboardId
+                              ? "border-[#1E5DF2] bg-[#D1E4FC]/50"
+                              : "border-[#A0A0A0] bg-[#E5E5E0]"
+                            : "border-amber-300/60 bg-amber-200/40"
+                        )}
+                        style={{
+                          left: item.left,
+                          top: item.top,
+                          width: item.width,
+                          height: item.height,
+                        }}
+                      />
+                    ))}
                     <div
-                      key={item.id}
-                      className={cn(
-                        "absolute rounded-sm border",
-                        item.type === "artboard"
-                          ? item.id === document.selectedArtboardId
-                            ? "border-[#3B5EFC] bg-[#3B5EFC]/25"
-                            : "border-white/30 bg-white/10"
-                          : "border-amber-300/40 bg-amber-300/20"
-                      )}
+                      className="absolute rounded-[2px] border border-[#1E5DF2] bg-[#D1E4FC]/20"
                       style={{
-                        left: item.left,
-                        top: item.top,
-                        width: item.width,
-                        height: item.height,
+                        left: minimap.viewport.left,
+                        top: minimap.viewport.top,
+                        width: minimap.viewport.width,
+                        height: minimap.viewport.height,
                       }}
                     />
-                  ))}
-                  <div
-                    className="absolute rounded border border-emerald-300/70 bg-emerald-300/10"
-                    style={{
-                      left: minimap.viewport.left,
-                      top: minimap.viewport.top,
-                      width: minimap.viewport.width,
-                      height: minimap.viewport.height,
-                    }}
-                  />
-                </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showShortcuts ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm"
-              onClick={() => setShowShortcuts(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 10 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#0d1016]/96 p-5 shadow-[0_32px_96px_rgba(0,0,0,0.55)]"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
-                      Keyboard Shortcuts
-                    </p>
-                    <h3 className="mt-2 text-lg font-semibold text-white">
-                      Compose is panel-light by default
-                    </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowShortcuts(false)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition-colors hover:text-white"
-                    aria-label="Close shortcuts"
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {/* Shortcuts overlay */}
+            <AnimatePresence>
+              {showShortcuts ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-6 backdrop-blur-sm"
+                  onClick={() => setShowShortcuts(false)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.97, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.97, y: 8 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="w-full max-w-sm rounded-[8px] border border-[#E5E5E0] bg-[#FAFAF8] p-5 shadow-lg"
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    ×
-                  </button>
-                </div>
-                <div className="mt-5 space-y-3">
-                  {[
-                    ["L", "Toggle layers panel"],
-                    ["M", "Toggle minimap"],
-                    ["?", "Show this shortcuts sheet"],
-                    ["⌘\\", "Toggle the canvas sidebar"],
-                  ].map(([shortcut, label]) => (
-                    <div
-                      key={shortcut}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
-                    >
-                      <span className="text-sm text-white/82">{label}</span>
-                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 font-mono text-[11px] text-white/72">
-                        {shortcut}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[13px] font-semibold text-[#1A1A1A]">Keyboard Shortcuts</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowShortcuts(false)}
+                        className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#6B6B6B] transition-colors"
+                        aria-label="Close shortcuts"
+                      >
+                        <X size={14} strokeWidth={1.5} />
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </motion.div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+                    <div className="mt-4 space-y-2">
+                      {[
+                        ["L", "Toggle layers panel"],
+                        ["I", "Toggle inspector panel"],
+                        ["M", "Toggle minimap"],
+                        ["Space + drag", "Pan canvas"],
+                        ["Middle drag", "Pan canvas"],
+                        ["Ctrl + scroll", "Zoom in / out"],
+                        ["Esc", "Close / deselect"],
+                        ["?", "Keyboard shortcuts"],
+                      ].map(([shortcut, label]) => (
+                        <div
+                          key={shortcut}
+                          className="flex items-center justify-between rounded-[4px] border border-[#E5E5E0] bg-[#F5F5F0] px-3 py-2"
+                        >
+                          <span className="text-[12px] text-[#6B6B6B]">{label}</span>
+                          <kbd className="rounded-[2px] border border-[#E5E5E0] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#A0A0A0]">
+                            {shortcut}
+                          </kbd>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Inspector panel */}
+        {showInspector && (
+          <div className="w-[280px] shrink-0 overflow-hidden border-l border-[#E5E5E0]">
+            <InspectorPanel
+              document={document}
+              tokens={tokens}
+              selectedNode={selectedNode}
+              breakpoint={document.breakpoint}
+              onUpdateDocument={updateDocument}
+              onUpdateContent={updateSelectedContent}
+              onUpdateStyle={updateSelectedStyle}
+              aiPrompt={aiPrompt}
+              onAiPromptChange={setAiPrompt}
+              aiLoading={aiLoading}
+              aiError={aiError}
+              activeAiActions={activeAiActions}
+              onApplyAiAction={applyAiAction}
+              exportCode={exportCode}
+              onPreview={handlePreview}
+              onViewCode={() => setExportOpen(true)}
+              onExport={() => setExportOpen(true)}
+            />
+          </div>
+        )}
       </div>
+
+      {/* ── Bottom bar ── */}
+      <BottomBar
+        zoom={document.zoom}
+        onZoomIn={() => updateDocument({ zoom: Math.min(5, document.zoom * 1.15) })}
+        onZoomOut={() => updateDocument({ zoom: Math.max(0.1, document.zoom / 1.15) })}
+        showLayers={showLayers}
+        onToggleLayers={() => setShowLayers((v) => !v)}
+        showMinimap={showMinimap}
+        onToggleMinimap={() => setShowMinimap((v) => !v)}
+        referencesDockOpen={referencesDockOpen}
+        onToggleReferences={() => setReferencesDockOpen((v) => !v)}
+        systemDockOpen={systemDockOpen}
+        onToggleSystem={() => setSystemDockOpen((v) => !v)}
+      />
     </div>
   );
 }
@@ -3581,7 +3027,16 @@ export function CanvasPage({
   projectId?: string;
   initialStep?: CanvasStage;
 }) {
-  const [stage, setStage] = React.useState<CanvasStage>(initialStep ?? "collect");
+  const canvasCtx = useCanvasStage();
+  const [stageLocal, setStageLocal] = React.useState<CanvasStage>(initialStep ?? "collect");
+  const stage = canvasCtx?.stage ?? stageLocal;
+  const setStage = React.useCallback(
+    (s: CanvasStage) => {
+      setStageLocal(s);
+      canvasCtx?.setStage(s);
+    },
+    [canvasCtx]
+  );
   const [images, setImages] = React.useState<ReferenceImage[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [setName, setSetName] = React.useState("");
@@ -3603,6 +3058,7 @@ export function CanvasPage({
   const [siteType, setSiteType] = React.useState<SiteType>("auto");
   const [generatedVariants, setGeneratedVariants] = React.useState<GeneratedVariant[]>([]);
   const [selectedVariantId, setSelectedVariantId] = React.useState<string | null>(null);
+  const [codeViewerVariantId, setCodeViewerVariantId] = React.useState<string | null>(null);
   const [generateLoading, setGenerateLoading] = React.useState(false);
   const [generateError, setGenerateError] = React.useState<string | null>(null);
   const [composeDocument, setComposeDocument] = React.useState<ComposeDocument | null>(null);
@@ -3668,11 +3124,14 @@ export function CanvasPage({
         persistedSession?.generatedSite ?? storedState.canvas?.generatedSite ?? null,
     };
     const restoredVariants = restoredCanvas.generatedVariants;
+    const restoredTargetVariant = restoredCanvas.selectedVariantId
+      ? (restoredVariants.find((v) => v.id === restoredCanvas.selectedVariantId) ?? restoredVariants[0])
+      : restoredVariants[0];
     const restoredComposeDocument =
-      restoredVariants.length > 0 &&
+      restoredTargetVariant &&
       (restoredCanvas.composeDocument || persistedComposeWorkspace)
         ? rehydrateComposeDocument(
-            createComposeDocument(restoredVariants),
+            createComposeDocument(restoredTargetVariant),
             restoredCanvas.composeDocument ?? persistedComposeWorkspace
           )
         : null;
@@ -3712,14 +3171,8 @@ export function CanvasPage({
 
       if (restoredComposeDocument) {
         setStage("compose");
-      } else if (restoredVariants.length > 0) {
-        setStage("generate");
-      } else if (
-        restoredCanvas.stage === "generate" &&
-        (refs.length > 0 || projectTokens)
-      ) {
-        setStage("generate");
       } else {
+        // Variants (if any) now show inline in CollectView — always restore to collect
         setStage("collect");
       }
     }
@@ -3760,6 +3213,12 @@ export function CanvasPage({
       generatedVariants[0] ??
       null,
     [generatedVariants, selectedVariantId]
+  );
+  const codeViewerVariant = React.useMemo(
+    () =>
+      generatedVariants.find((variant) => variant.id === codeViewerVariantId) ??
+      null,
+    [codeViewerVariantId, generatedVariants]
   );
 
   const exportArtboard = React.useMemo(
@@ -4185,7 +3644,7 @@ export function CanvasPage({
     if (normalizedVariants.length === 0) return;
     setGeneratedVariants(normalizedVariants);
     setSelectedVariantId(normalizedVariants[0]?.id ?? null);
-    setStage("generate");
+    // Stay on "collect" — variants now appear at the bottom of CollectView
   }
 
   async function handleRegenerateVariant(
@@ -4216,38 +3675,47 @@ export function CanvasPage({
       )
     );
     setSelectedVariantId(replacement.id);
-    setStage("generate");
+    // Stay on "collect" — variants shown inline in CollectView
   }
 
   function handleOpenCompose(preferredVariantId?: string) {
     if (generatedVariants.length === 0) return;
-    const nextDocument = rehydrateComposeDocument(
-      createComposeDocument(generatedVariants),
-      linkedProjectId ? readComposeWorkspace(linkedProjectId) : null
-    );
-    const preferredArtboard = preferredVariantId
-      ? nextDocument.artboards.find((artboard) => {
-          if (artboard.variantId === preferredVariantId) return true;
-          const preferredVariant = generatedVariants.find(
-            (variant) => variant.id === preferredVariantId
-          );
-          return preferredVariant ? artboard.name === preferredVariant.name : false;
-        })
-      : nextDocument.artboards[0];
+    const targetVariant = preferredVariantId
+      ? (generatedVariants.find((v) => v.id === preferredVariantId) ?? generatedVariants[0])
+      : (selectedVariant ?? generatedVariants[0]);
+    if (!targetVariant) return;
 
-    setComposeDocument(
-      preferredArtboard
-        ? {
-            ...nextDocument,
-            selectedArtboardId: preferredArtboard.id,
-            primaryArtboardId: preferredArtboard.id,
-            selectedNodeId: preferredArtboard.pageTree.id,
-          }
-        : nextDocument
-    );
-    if (preferredVariantId) {
-      setSelectedVariantId(preferredVariantId);
+    const savedWorkspace = linkedProjectId ? readComposeWorkspace(linkedProjectId) : null;
+    const baseDocument = createComposeDocument(targetVariant);
+    const nextDocument = rehydrateComposeDocument(baseDocument, savedWorkspace);
+
+    // Auto-fit all 3 artboards into the visible viewport on first open
+    let zoom = nextDocument.zoom;
+    let pan = nextDocument.pan;
+    if (!savedWorkspace) {
+      const totalSpan = BREAKPOINT_ARTBOARD_LAYOUTS.reduce(
+        (max, l) => Math.max(max, l.x + BREAKPOINT_WIDTHS[l.breakpoint]),
+        0
+      ); // = 2783
+      const usableWidth = typeof window !== "undefined"
+        ? Math.max(600, window.innerWidth - 48 - 280) // sidebar + inspector
+        : 800;
+      zoom = Math.min(0.75, Math.max(0.15, usableWidth / (totalSpan + 400)));
+      pan = {
+        x: Math.max(40, (usableWidth - totalSpan * zoom) / 2),
+        y: 120,
+      };
     }
+
+    setComposeDocument({
+      ...nextDocument,
+      selectedArtboardId: nextDocument.artboards[0]?.id ?? null,
+      primaryArtboardId: nextDocument.artboards[0]?.id ?? null,
+      selectedNodeId: nextDocument.artboards[0]?.pageTree.id ?? null,
+      zoom,
+      pan,
+    });
+    if (preferredVariantId) setSelectedVariantId(preferredVariantId);
     setStage("compose");
   }
 
@@ -4267,7 +3735,6 @@ export function CanvasPage({
 
   const completions: Partial<Record<CanvasStage, boolean>> = {
     collect: hasReferences || hasTokens,
-    generate: generatedVariants.length > 0,
     compose: false,
   };
 
@@ -4276,69 +3743,25 @@ export function CanvasPage({
     { available: boolean; tooltip?: string }
   > = {
     collect: { available: true },
-    generate: {
-      available: hasReferences || hasTokens,
-      tooltip: "Upload references or load a saved system first",
-    },
     compose: {
       available: generatedVariants.length > 0,
       tooltip: "Generate variants first",
     },
   };
 
+  // Keep context availability in sync so the sidebar reflects current state
+  React.useEffect(() => {
+    canvasCtx?.setAvailability(availability);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasReferences, hasTokens, generatedVariants.length]);
+
   const stepCounts: Partial<Record<CanvasStage, string>> = {
     collect: collectCount,
-    generate: `${generatedVariants.length} variant${generatedVariants.length === 1 ? "" : "s"}`,
   };
   const composeActive = stage === "compose" && Boolean(composeDocument && tokens);
 
   return (
-    <div className="relative flex h-full flex-col">
-      {!composeActive ? (
-        <div className="shrink-0 border-b border-border-primary bg-bg-primary px-6 py-4">
-          <div className="flex items-center gap-6">
-            <div className="flex min-w-0 items-center gap-3">
-              <Link
-                href={linkedProjectId ? `/projects/${linkedProjectId}` : "/projects"}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border-primary bg-bg-secondary text-text-secondary transition-colors duration-200 hover:border-border-hover hover:text-text-primary"
-                aria-label="Back to project"
-              >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 8H3.5" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4 3.5 8l4 4" />
-                </svg>
-              </Link>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[8px] leading-none text-text-tertiary">■</span>
-                  <span className="truncate text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
-                    {`CANVAS - ${projectName}`}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-[11px] text-text-muted">
-                  {setName || "Project-linked canvas workflow"}
-                </p>
-              </div>
-            </div>
-
-            <div className="ml-auto">
-              <StageStepper
-                stage={stage}
-                onSelect={setStage}
-                completions={completions}
-                availability={availability}
-                counts={stepCounts}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+    <div className="relative flex h-full flex-col overflow-hidden">
 
       {bootstrapToast ? (
         <div
@@ -4347,7 +3770,7 @@ export function CanvasPage({
             composeActive ? "top-4" : "top-[5.25rem]"
           )}
         >
-          <div className="rounded-2xl border border-[#3B5EFC]/30 bg-[#3B5EFC] px-4 py-3 text-[11px] font-medium text-white shadow-[0_18px_48px_rgba(59,94,252,0.28)]">
+          <div className="rounded-lg border border-[#3B5EFC]/30 bg-[#3B5EFC] px-4 py-3 text-[11px] font-medium text-white shadow-[0_18px_48px_rgba(59,94,252,0.28)]">
             {bootstrapToast}
           </div>
         </div>
@@ -4362,125 +3785,107 @@ export function CanvasPage({
           projectName={projectName}
           siteName={setName || inferSiteName(sitePrompt)}
           siteType={siteType}
+          sourceVariant={selectedVariant}
           onChange={setComposeDocument}
         />
       ) : (
         <CanvasStageLayout
           stage={stage}
           centerPanel={
-            stage === "collect" ? (
-              linkedProjectId ? (
-                <CollectView
-                  projectId={linkedProjectId}
-                  referenceSetName={setName}
-                  onReferenceSetNameChange={setSetName}
-                  images={images}
-                  selectedIds={selectedIds}
-                  onToggleSelect={handleToggleSelect}
-                  onRemove={handleRemoveImage}
-                  onFilesAdded={handleFilesAdded}
-                  onImport={handleImportReferences}
-                  analysis={analysis}
-                  tokens={tokens}
-                  tasteProfile={tasteProfile}
-                  processing={analysisLoading || systemLoading}
-                  tasteProfileLoading={tasteProfileLoading}
-                  error={analysisError}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center p-6 text-sm text-text-muted">
-                  Open Canvas from a project to collect references and extract taste.
-                </div>
-              )
+            linkedProjectId ? (
+              <CollectView
+                projectId={linkedProjectId}
+                referenceSetName={setName}
+                onReferenceSetNameChange={setSetName}
+                images={images}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onRemove={handleRemoveImage}
+                onFilesAdded={handleFilesAdded}
+                onImport={handleImportReferences}
+                analysis={analysis}
+                tokens={tokens}
+                tasteProfile={tasteProfile}
+                processing={analysisLoading || systemLoading}
+                tasteProfileLoading={tasteProfileLoading}
+                error={analysisError}
+                siteType={siteType}
+                onSiteTypeChange={setSiteType}
+                sitePrompt={sitePrompt}
+                onSitePromptChange={setSitePrompt}
+                onGenerateVariants={handleGenerateVariants}
+                canGenerate={canGenerateVariants}
+                generateLoading={generateLoading}
+                generateError={generateError}
+                variants={generatedVariants}
+                selectedVariantId={selectedVariantId}
+                onSelectVariant={setSelectedVariantId}
+                onOpenCompose={handleOpenCompose}
+                onViewCode={setCodeViewerVariantId}
+                onRegenerateVariant={handleRegenerateVariant}
+              />
             ) : (
-              <div className="flex h-full flex-col overflow-y-auto p-6">
-                <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-6">
-                  <div className="rounded-[30px] border border-border-primary bg-bg-primary px-6 py-5">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold tracking-tight text-text-primary">
-                            Generated Variants
-                          </h3>
-                          <p className="mt-1 text-xs text-text-tertiary">
-                            Describe the direction once, generate multiple candidates, then compare or move one into Compose.
-                          </p>
-                        </div>
-                        {selectedVariant?.compiledCode ? (
-                          <ExportMenu
-                            code={selectedVariant.compiledCode}
-                            siteName={setName || inferSiteName(sitePrompt)}
-                            siteType={siteType}
-                            pageTree={selectedVariant.pageTree}
-                            tokens={tokens}
-                          />
-                        ) : null}
-                      </div>
-
-                      <div className="grid gap-3 xl:grid-cols-[180px_minmax(0,1fr)_190px]">
-                        <select
-                          value={siteType}
-                          onChange={(event) => setSiteType(event.target.value as SiteType)}
-                          className="h-11 w-full rounded-2xl border border-border-primary bg-bg-secondary px-3 text-sm text-text-primary"
-                        >
-                          {SITE_TYPE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <textarea
-                          value={sitePrompt}
-                          onChange={(event) => setSitePrompt(event.target.value)}
-                          rows={3}
-                          placeholder="Describe the site direction, audience, tone, and what the page should feel like."
-                          className="min-h-[84px] w-full rounded-2xl border border-border-primary bg-bg-secondary px-4 py-3 text-sm text-text-primary outline-none"
-                        />
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            onClick={handleGenerateVariants}
-                            disabled={!canGenerateVariants}
-                            className="h-11 bg-[#3B5EFC] text-[11px] uppercase tracking-[0.12em] text-white hover:bg-[#2f4fe3]"
-                          >
-                            {generateLoading ? "Generating..." : "Generate Variants"}
-                          </Button>
-                        </div>
-                      </div>
-
-                      {generateError ? (
-                        <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-400">
-                          {generateError}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <VariantGallery
-                    tokens={tokens}
-                    variants={generatedVariants}
-                    selectedVariantId={selectedVariantId}
-                    generating={generateLoading}
-                    onSelect={setSelectedVariantId}
-                    onFavorite={(variantId) =>
-                      setGeneratedVariants((prev) =>
-                        setVariantFavorite(prev, variantId)
-                      )
-                    }
-                    onOpenCompose={handleOpenCompose}
-                    onRegenerateVariant={handleRegenerateVariant}
-                  />
-                </div>
+              <div className="flex h-full items-center justify-center p-6 text-sm text-text-muted">
+                Open Canvas from a project to collect references and generate variants.
               </div>
             )
-          }
-          rightPanel={
-            stage === "generate" ? (
-              <SystemSummaryPanel tokens={tokens} selectedVariant={selectedVariant} />
-            ) : undefined
           }
           rightWidth="300px"
         />
       )}
+
+      <Dialog
+        open={Boolean(codeViewerVariant)}
+        onOpenChange={(open) => {
+          if (!open) setCodeViewerVariantId(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] max-w-5xl overflow-hidden border border-border-primary bg-bg-primary">
+          <DialogHeader>
+            <DialogTitle>Generated Code</DialogTitle>
+            <DialogDescription>
+              Inspect the exact TSX returned for this variant. This helps us tell whether the
+              model output itself is generic, or whether the UI is masking it.
+            </DialogDescription>
+          </DialogHeader>
+
+          {codeViewerVariant ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
+                <span className="rounded-full border border-border-primary px-2.5 py-1">
+                  {codeViewerVariant.name}
+                </span>
+                <span className="rounded-full border border-border-primary px-2.5 py-1">
+                  {codeViewerVariant.previewSource === "fallback" ? "Fallback" : "AI"}
+                </span>
+                {codeViewerVariant.previewFallbackReason ? (
+                  <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-200">
+                    {codeViewerVariant.previewFallbackReason}
+                  </span>
+                ) : null}
+                {codeViewerVariant.compiledCode ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="ml-auto h-8 rounded-full px-3 text-[10px] uppercase tracking-[0.12em]"
+                    onClick={() => {
+                      void copyToClipboard(codeViewerVariant.compiledCode ?? "");
+                    }}
+                  >
+                    Copy Code
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="min-h-0 overflow-auto rounded-lg border border-border-primary bg-bg-secondary p-4">
+                <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-6 text-text-secondary">
+                  {codeViewerVariant.compiledCode ?? "No compiled code is attached to this variant."}
+                </pre>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

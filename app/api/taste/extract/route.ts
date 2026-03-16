@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
 import { scoreImagesBatch } from "@/lib/ai/image-scorer";
 import type { TasteProfile } from "@/types/taste-profile";
-import { readFileSync } from "fs";
-import { join } from "path";
+// Skill context is now inlined — no file system reads needed
 
 type CachedTasteProfile = {
   signature: string;
@@ -18,56 +17,23 @@ type TasteExtractBody = {
 
 const tasteCache = new Map<string, CachedTasteProfile>();
 
-// ── Skill context loader ────────────────────────────────────────────────────
-const SKILL_DIR = join(process.cwd(), ".claude/skills/taste-engine");
+// ── Inline skill context (condensed — previously loaded 10+ markdown files at ~700K tokens) ──
 
-function loadSkillContext(): string {
-  const archetypes = [
-    "premium-saas",
-    "editorial-brand",
-    "minimal-tech",
-    "creative-portfolio",
-    "culture-brand",
-    "experimental",
-  ];
-
-  const archetypeContext = archetypes
-    .map((name) => {
-      try {
-        return (
-          `### ${name}\n\n` +
-          readFileSync(join(SKILL_DIR, "archetypes", `${name}.md`), "utf-8")
-        );
-      } catch {
-        return "";
-      }
-    })
-    .filter(Boolean)
-    .join("\n\n---\n\n");
-
-  let vocabContext = "";
-  for (const v of [
-    "layout-terms",
-    "typography-terms",
-    "color-terms",
-    "image-treatment-terms",
-  ]) {
-    try {
-      vocabContext +=
-        readFileSync(join(SKILL_DIR, "vocabulary", `${v}.md`), "utf-8") +
-        "\n\n";
-    } catch {
-      // skip missing files gracefully
-    }
-  }
-
-  return `## Archetype Definitions\n\n${archetypeContext}\n\n## Design Vocabulary\n\n${vocabContext}`;
-}
-
-let _skillContext: string | null = null;
 function getSkillContext(): string {
-  if (!_skillContext) _skillContext = loadSkillContext();
-  return _skillContext;
+  return `Archetypes:
+premium-saas = sharp product system, restrained accent, dense-but-breathing
+editorial-brand = serif/sans contrast, asymmetric grids, dramatic whitespace
+minimal-tech = monochrome, oversized type, product-led restraint
+creative-portfolio = experimental layouts, identity-first composition
+culture-brand = warm palette, human tone, lifestyle imagery
+experimental = rule-breaking type, bold contrast, controlled visual noise
+
+Vocabulary:
+layout = spacious|balanced|dense, strict|fluid|broken|editorial
+hero = full-bleed|split|text-dominant|contained
+type = geometric|humanist|editorial|technical|expressive
+color = dark|light|mixed, single-pop|gradient-bold|no-accent
+radius = none|subtle|rounded|pill`;
 }
 
 // ── System prompt ───────────────────────────────────────────────────────────
@@ -88,10 +54,33 @@ Your job is to analyze visual references and produce a structured TasteProfile J
 8. If references are incoherent, set confidence low and list conflicts in warnings[]
 9. adjectives must be specific to this project — "modern", "clean", "professional" are banned
 10. archetypeConfidence of 1.0 is almost never correct — cap at 0.92 unless you have 10+ coherent references
+11. Keep the JSON concise and compact. No extra whitespace-heavy prose.
+12. summary must be 1 sentence. warnings max 3. recommendedPairings max 2. avoid exactly 5 items.
 
 ${getSkillContext()}
 
 Respond ONLY with valid JSON matching the TasteProfile schema. No markdown, no explanation, just JSON.`;
+}
+
+function summarizeExistingTokens(existingTokens: unknown) {
+  if (!existingTokens || typeof existingTokens !== "object") return null;
+  const tokens = existingTokens as {
+    colors?: Record<string, string>;
+    typography?: { fontFamily?: string };
+  };
+
+  return {
+    colors: tokens.colors
+      ? {
+          background: tokens.colors.background,
+          surface: tokens.colors.surface,
+          text: tokens.colors.text,
+          accent: tokens.colors.accent,
+          primary: tokens.colors.primary,
+        }
+      : undefined,
+    fontFamily: tokens.typography?.fontFamily,
+  };
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -310,6 +299,7 @@ function normalizeTasteProfile(
 
 // ── Route ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  console.log("[taste/extract] OPENROUTER_API_KEY present:", !!process.env.OPENROUTER_API_KEY);
   try {
     const body = (await req.json()) as TasteExtractBody;
     const projectId = body.projectId?.trim();
@@ -356,11 +346,31 @@ export async function POST(req: NextRequest) {
 
     const router = getRouter();
 
-    const imageContent = referenceUrls.slice(0, 8).map((url) => imageUrlBlock(url));
+    const imageContent = referenceUrls.slice(0, 5).map((url) => imageUrlBlock(url));
+
+    // Strip URLs from scored data to avoid sending base64 data as text
+    // (the images are already sent as vision blocks below)
+    const scoredSummary = scoredImages.map((img, i) => ({
+      index: i,
+      scores: img.scores,
+      tags: img.tags,
+      colors: img.colors,
+      mood: img.mood,
+      style: img.style,
+    }));
+
+    const existingTokenSummary = summarizeExistingTokens(existingTokens);
+
+    console.log(
+      `[taste/extract] Calling Sonnet 4.6 with ${Math.min(
+        referenceUrls.length,
+        5
+      )} images, system prompt ~${buildSystemPrompt().length} chars`
+    );
 
     const response = await router.chat.completions.create({
       model: SONNET_4_6,
-      max_tokens: 2400,
+      max_tokens: 2600,
       temperature: 0.4,
       response_format: { type: "json_object" },
       messages: [
@@ -373,17 +383,17 @@ export async function POST(req: NextRequest) {
           content: [
             {
               type: "text",
-              text: `Analyze these ${referenceUrls.length} visual references and produce a TasteProfile JSON.
+              text: `Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
 
 Project ID: ${projectId}
 Reference count: ${referenceUrls.length}
 
-Image scoring analysis (pre-computed):
-${JSON.stringify(scoredImages, null, 2)}
+Scored image summary:
+${JSON.stringify(scoredSummary)}
 
-${existingTokens ? `Existing design tokens to be additive to:\n${JSON.stringify(existingTokens, null, 2)}` : "No existing tokens."}
+${existingTokenSummary ? `Existing token summary:\n${JSON.stringify(existingTokenSummary)}` : "No existing tokens."}
 
-Return the full TasteProfile JSON schema with every field populated.`,
+Return compact JSON only. Do not pretty-print. Fill every field, but keep strings tight and specific.`,
             },
             ...imageContent,
           ],
@@ -392,8 +402,27 @@ Return the full TasteProfile JSON schema with every field populated.`,
     });
 
     const text = response.choices[0]?.message?.content ?? "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const raw = jsonMatch ? (JSON.parse(jsonMatch[0]) as Partial<TasteProfile>) : {};
+    const finishReason = response.choices[0]?.finish_reason;
+    console.log(`[taste/extract] Sonnet responded: ${text.length} chars, finish_reason: ${finishReason}`);
+
+    if (finishReason === "length") {
+      console.warn("[taste/extract] Sonnet hit max_tokens — response likely truncated");
+    }
+
+    let raw: Partial<TasteProfile> = {};
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        raw = JSON.parse(jsonMatch[0]) as Partial<TasteProfile>;
+      } else {
+        console.error("[taste/extract] No JSON found in response. First 300 chars:", text.slice(0, 300));
+      }
+    } catch (parseErr) {
+      console.error("[taste/extract] JSON parse failed:", parseErr instanceof Error ? parseErr.message : parseErr);
+      console.error("[taste/extract] Response tail (last 200 chars):", text.slice(-200));
+      // Fall through to normalization with empty raw — will use fallback values
+    }
+
     const profile = normalizeTasteProfile(raw, fallback, derivedConfidence);
 
     tasteCache.set(projectId, { signature, profile });

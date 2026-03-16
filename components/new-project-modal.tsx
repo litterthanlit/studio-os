@@ -260,11 +260,11 @@ function NewProjectModalInner({
         {/* Modal panel */}
         <motion.div
           ref={modalRef}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[480px] border border-card-border bg-card-bg shadow-2xl rounded-2xl"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30, duration: 0.25 }}
+          className="w-full max-w-[480px] border border-card-border bg-card-bg shadow-2xl rounded-lg"
           role="dialog"
           aria-modal="true"
           aria-label="New Project"

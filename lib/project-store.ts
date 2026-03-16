@@ -94,6 +94,8 @@ const REFERENCES_PREFIX = "studio-os:references:";
 const PROJECT_STATE_PREFIX = "studio-os:project-state:";
 const LEGACY_COVER_PREFIX = "studio-os:cover:";
 const LEGACY_CANVAS_SYSTEM_PREFIX = "studio-os:canvas-system:";
+const COMPOSE_WORKSPACE_PREFIX = "studio-os:compose-workspace:";
+const CANVAS_SESSION_PREFIX = "studio-os:canvas-session:";
 
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -161,6 +163,29 @@ export function saveProject(project: StoredProject) {
   ];
   storage.setItem(PROJECTS_KEY, JSON.stringify(nextProjects));
   emit(PROJECTS_UPDATED_EVENT);
+}
+
+export function deleteProject(projectId: string) {
+  const storage = getStorage();
+  if (!storage) return;
+
+  const nextProjects = getProjects().filter((project) => project.id !== projectId);
+  storage.setItem(PROJECTS_KEY, JSON.stringify(nextProjects));
+
+  storage.removeItem(referencesKey(projectId));
+  storage.removeItem(projectStateKey(projectId));
+  storage.removeItem(legacyCoverKey(projectId));
+  storage.removeItem(`${LEGACY_CANVAS_SYSTEM_PREFIX}${projectId}`);
+  storage.removeItem(`${COMPOSE_WORKSPACE_PREFIX}${projectId}`);
+  storage.removeItem(`${CANVAS_SESSION_PREFIX}${projectId}`);
+
+  const otherTasks = getAllTasks().filter((task) => task.projectId !== projectId);
+  storage.setItem(TASKS_KEY, JSON.stringify(otherTasks));
+
+  emit(PROJECTS_UPDATED_EVENT);
+  emit(PROJECT_REFERENCES_UPDATED_EVENT);
+  emit(PROJECT_STATE_UPDATED_EVENT);
+  emit(PROJECT_TASKS_UPDATED_EVENT);
 }
 
 function normalizeReference(
@@ -274,6 +299,27 @@ export function getProjectState(projectId: string): ProjectState {
   };
 }
 
+// Strip large fields before writing to localStorage to avoid QuotaExceededError.
+// compiledCode (~40KB per variant) is kept in React state for preview rendering
+// but stripped here since it can be regenerated on demand.
+function sanitizeForStorage(state: ProjectState): ProjectState {
+  if (!state.canvas) return state;
+
+  const canvas = { ...state.canvas };
+
+  if (canvas.generatedVariants) {
+    canvas.generatedVariants = canvas.generatedVariants.map((v) =>
+      v.compiledCode ? { ...v, compiledCode: null } : v
+    );
+  }
+
+  if (canvas.generatedSite?.code) {
+    canvas.generatedSite = { ...canvas.generatedSite, code: "" };
+  }
+
+  return { ...state, canvas };
+}
+
 export function upsertProjectState(
   projectId: string,
   nextState: Partial<ProjectState>
@@ -308,7 +354,22 @@ export function upsertProjectState(
     );
   }
 
-  storage.setItem(projectStateKey(projectId), JSON.stringify(merged));
+  try {
+    storage.setItem(projectStateKey(projectId), JSON.stringify(sanitizeForStorage(merged)));
+  } catch (e) {
+    // Last-resort: if quota still exceeded even after sanitization (e.g. large
+    // analysis object or many variants), drop the canvas state entirely and
+    // keep the rest of the project data intact.
+    if (e instanceof DOMException && e.name === "QuotaExceededError") {
+      console.warn("[project-store] localStorage quota exceeded; dropping canvas state for", projectId);
+      const fallback: ProjectState = { ...merged, canvas: undefined };
+      try {
+        storage.setItem(projectStateKey(projectId), JSON.stringify(fallback));
+      } catch {
+        // Nothing more we can do
+      }
+    }
+  }
   emit(PROJECT_STATE_UPDATED_EVENT);
 }
 

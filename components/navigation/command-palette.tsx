@@ -577,11 +577,11 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                   onClick={(e) => e.stopPropagation()}
                 >
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={springs.snappy}
-                    className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] rounded-2xl transition-colors duration-300"
+                    exit={{ opacity: 0, y: 16 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30, duration: 0.25 }}
+                    className="w-full max-w-[640px] border border-[var(--border-primary)] bg-[var(--card-bg)] rounded-[6px] transition-colors duration-300"
                     style={{ boxShadow: "0 32px 80px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04)" }}
                   >
                     <div className="flex items-center gap-2 border-b border-[var(--border-primary)] px-3 transition-colors duration-300">
@@ -635,8 +635,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                                     variants={staggerItem}
                                     onClick={() => runItem(item)}
                                     onMouseEnter={() => setSelectedKey(item.id)}
-                                    whileTap={{ scale: 0.98 }}
-                                    className={`flex w-full items-center gap-3 py-2 pl-[10px] pr-3 text-left transition-colors duration-100 ease-out border-l-2 ${
+                                    className={`flex w-full items-center gap-3 py-2 pl-[10px] pr-3 text-left transition-[background-color,border-color,opacity] duration-150 ease-out border-l-2 active:opacity-95 ${
                                       isSelected
                                         ? "bg-[var(--bg-secondary)] border-l-[var(--accent)]"
                                         : "border-l-transparent hover:bg-[var(--bg-tertiary)]"

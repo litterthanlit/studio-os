@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { buildSitePrompt, type SectionId } from "@/lib/canvas/generate-site";
 import {
@@ -10,6 +9,7 @@ import {
 } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { TasteProfile } from "@/types/taste-profile";
+import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
 
 type VariantStrategy = {
   key: "safe" | "creative" | "alternative";
@@ -86,7 +86,7 @@ function buildTasteAwareVariantPrompt(args: {
 
   if (!tasteProfile) {
     return [
-      `Base brief: ${prompt}`,
+      `Creative direction (treat as a brief, not as literal copy): ${prompt}`,
       `Variant strategy: ${strategy.label} (${strategy.key}).`,
       strategy.note,
       referenceNote,
@@ -100,7 +100,7 @@ function buildTasteAwareVariantPrompt(args: {
       : "- Do not fall back to generic SaaS landing page tropes";
 
   return [
-    `Base brief: ${prompt}`,
+    `Creative direction (treat as a brief, not as literal copy): ${prompt}`,
     `Variant strategy: ${strategy.label} (${strategy.key}).`,
     strategy.note,
     referenceNote,
@@ -145,6 +145,43 @@ function buildTasteAwareVariantPrompt(args: {
   ].join("\n");
 }
 
+function stripCodeFences(code: string): string {
+  return code
+    .replace(/^```(?:tsx?|jsx?|javascript|typescript)?\s*\n?/gm, "")
+    .replace(/\n?```\s*$/gm, "")
+    .trim();
+}
+
+type GeneratedCodeValidation =
+  | { ok: true }
+  | { ok: false; reason: string };
+
+function validateGeneratedPreviewCode(code: string): GeneratedCodeValidation {
+  if (!code.trim()) {
+    return { ok: false, reason: "empty response" };
+  }
+
+  if (!/export\s+default\s+/.test(code)) {
+    return { ok: false, reason: "missing default export" };
+  }
+
+  if (/from\s+['"](?:@\/|\.{1,2}\/)/.test(code)) {
+    return {
+      ok: false,
+      reason: "contains local imports, preview only supports self-contained components",
+    };
+  }
+
+  if (/className\s*=|class\s*=/.test(code)) {
+    return {
+      ok: false,
+      reason: "uses CSS classes; preview contract requires inline styles only",
+    };
+  }
+
+  return { ok: true };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -155,11 +192,11 @@ export async function POST(req: NextRequest) {
       existingSections,
       mode,
       siteType,
-    siteName,
-    tasteProfile,
-    referenceUrls,
-    variantStrategy,
-    regenerationIntent,
+      siteName,
+      tasteProfile,
+      referenceUrls,
+      variantStrategy,
+      regenerationIntent,
     } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
@@ -183,18 +220,21 @@ export async function POST(req: NextRequest) {
 
     if (mode === "variants") {
       const resolvedSiteName = siteName || inferSiteName(prompt);
-      const requestedModes =
+      // Single variant generation — pick the requested strategy or default to "safe"
+      const requestedModes: VariantMode[] =
         variantStrategy === "safe" ||
         variantStrategy === "creative" ||
         variantStrategy === "alternative"
           ? [variantStrategy]
-          : (["safe", "creative", "alternative"] as VariantMode[]);
+          : (["safe"] as VariantMode[]);
       const regenerationNote =
         regenerationIntent === "more-like-this"
           ? "Strengthen the same direction, double down on its taste alignment, and sharpen what already works."
           : regenerationIntent === "different-approach"
           ? "Keep the same project and taste profile, but find a meaningfully different layout and styling emphasis."
           : "";
+
+      // Build the page trees (drive canvas editor interactivity) + fallback compiled TSX
       const baseVariants = createVariantSet(
         regenerationNote ? `${prompt}\n\n${regenerationNote}` : prompt,
         tokens,
@@ -203,7 +243,8 @@ export async function POST(req: NextRequest) {
         tasteProfile ?? null,
         requestedModes
       );
-      const variants = baseVariants.map((variant, index) => {
+
+      const variantsWithMeta = baseVariants.map((variant, index) => {
         const strategy = VARIANT_STRATEGIES[index] ?? VARIANT_STRATEGIES[0];
         const sourcePrompt = buildTasteAwareVariantPrompt({
           prompt,
@@ -230,7 +271,8 @@ export async function POST(req: NextRequest) {
           sourcePrompt,
           description: `This variant emphasizes ${emphasizedAspect} from your references.`,
           previewImage: createVariantPreviewImage(variant.name, tokens),
-          compiledCode: compilePageTreeToTSX(
+          // Fallback code from the deterministic tree compiler
+          _fallbackCode: compilePageTreeToTSX(
             variant.pageTree,
             tokens,
             variant.name.replace(/\s+/g, "")
@@ -238,38 +280,144 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      return NextResponse.json({
-        siteName: resolvedSiteName,
-        variants,
+      // Single Kimi call — one variant at a time for quality
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      let kimiResults: PromiseSettledResult<string>[] = [];
+
+      if (apiKey) {
+        const router = getRouter();
+        kimiResults = await Promise.allSettled(
+          variantsWithMeta.map(async (variant, idx) => {
+            const variantMode = requestedModes[idx] ?? "safe";
+            const sitePrompt = buildSitePrompt(tokens, variant.sourcePrompt, undefined, undefined, {
+              variantMode,
+              tasteProfile: tasteProfile ?? null,
+            });
+            const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+              .slice(0, 4)
+              .map((url) => imageUrlBlock(url, "low"));
+            console.log(`[generate-component] Calling Sonnet 4.6 for variant: ${variantMode} (prompt length: ${sitePrompt.length} chars)`);
+            const response = await router.chat.completions.create({
+              model: SONNET_4_6,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: `${sitePrompt}
+
+Use the attached reference images as visual grounding. Do not copy them literally, but let them influence hierarchy, density, color energy, image treatment, and typographic attitude.`,
+                    },
+                    ...referenceImageBlocks,
+                  ],
+                },
+              ],
+              max_tokens: 16000,
+              temperature: 0.6,
+            });
+            const raw = response.choices[0]?.message?.content ?? "";
+            const finishReason = response.choices[0]?.finish_reason;
+            console.log(`[generate-component] Sonnet responded: ${raw.length} chars, finish_reason: ${finishReason}`);
+            if (finishReason === "length") {
+              console.warn(`[generate-component] Sonnet variant ${variantMode} hit max_tokens — output may be truncated`);
+            }
+            if (raw.length === 0) {
+              console.error(`[generate-component] Sonnet returned empty response for variant ${variantMode}. Full response:`, JSON.stringify(response.choices[0]));
+              throw new Error("Sonnet returned empty response — falling back to template");
+            }
+            const cleaned = stripCodeFences(raw);
+            const validation = validateGeneratedPreviewCode(cleaned);
+            if (!validation.ok) {
+              throw new Error(`Sonnet returned preview-incompatible code: ${validation.reason}`);
+            }
+            return cleaned;
+          })
+        );
+      }
+
+      // Log any failures from Promise.allSettled
+      kimiResults.forEach((result, idx) => {
+        if (result.status === "rejected") {
+          const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+          console.error(`[generate-component] Variant ${idx} REJECTED: ${reason}`);
+          if (result.reason instanceof Error && result.reason.stack) {
+            console.error(`[generate-component] Stack: ${result.reason.stack}`);
+          }
+        }
       });
+
+      const variants = variantsWithMeta.map((variant, index) => {
+        const { _fallbackCode, ...rest } = variant;
+        const kimiResult = kimiResults[index];
+        const fallbackReason =
+          kimiResult?.status === "rejected"
+            ? kimiResult.reason instanceof Error
+              ? kimiResult.reason.message
+              : String(kimiResult.reason)
+            : null;
+        const compiledCode =
+          kimiResult?.status === "fulfilled" && kimiResult.value
+            ? kimiResult.value
+            : _fallbackCode;
+        if (kimiResult?.status !== "fulfilled" || !kimiResult.value) {
+          console.warn(`[generate-component] Using fallback code for variant ${index} (AI generation failed)`);
+        }
+        return {
+          ...rest,
+          compiledCode,
+          previewSource:
+            kimiResult?.status === "fulfilled" && kimiResult.value ? "ai" : "fallback",
+          previewFallbackReason: fallbackReason,
+        };
+      });
+
+      return NextResponse.json({ siteName: resolvedSiteName, variants });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    // ── Single section / full-page generation ────────────────────────────────
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY not configured. Add it to your .env.local file." },
+        { error: "OPENROUTER_API_KEY not configured. Add it to your .env.local file." },
         { status: 500 }
       );
     }
 
-    const openai = new OpenAI({ apiKey });
-
+    const router = getRouter();
     const systemPrompt = buildSitePrompt(tokens, prompt, sectionId, existingSections);
+    const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+      .slice(0, 4)
+      .map((url) => imageUrlBlock(url, "low"));
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: systemPrompt }],
-      max_tokens: 8000,
-      temperature: 0.4,
+    const response = await router.chat.completions.create({
+      model: SONNET_4_6,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `${systemPrompt}
+
+Use the attached reference images as visual grounding. Translate their design direction into the page rather than defaulting to generic SaaS patterns.`,
+            },
+            ...referenceImageBlocks,
+          ],
+        },
+      ],
+      max_tokens: 16000,
+      temperature: 0.6,
     });
 
-    let code = response.choices[0]?.message?.content ?? "";
-
-    code = code
-      .replace(/^```(?:tsx?|jsx?|javascript|typescript)?\s*\n?/gm, "")
-      .replace(/\n?```\s*$/gm, "")
-      .trim();
-
+    const code = stripCodeFences(response.choices[0]?.message?.content ?? "");
+    const validation = validateGeneratedPreviewCode(code);
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: `Generated code is preview-incompatible: ${validation.reason}` },
+        { status: 422 }
+      );
+    }
     const nameMatch = code.match(/export\s+default\s+function\s+(\w+)/);
     const name = nameMatch?.[1] || "Page";
 
@@ -278,7 +426,7 @@ export async function POST(req: NextRequest) {
       name,
       description: sectionId
         ? `Regenerated section: ${sectionId}`
-        : `Generated site from: "${prompt}"`,
+        : `Generated site from brief`,
       sectionId: sectionId || null,
     });
   } catch (err) {

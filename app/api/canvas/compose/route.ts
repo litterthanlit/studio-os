@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
+import { getRouter, GEMINI_FLASH } from "@/lib/ai/model-router";
 
 type ComposeAction =
   | "rewrite-copy"
@@ -83,18 +83,18 @@ function localRestyle(tokens: DesignSystemTokens, prompt: string): Partial<PageN
   };
 }
 
-async function openAiEdit(
+async function geminiEdit(
   action: ComposeAction,
   node: PageNode,
   prompt: string,
   tokens: DesignSystemTokens
 ) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
-  const openai = new OpenAI({ apiKey });
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+  const router = getRouter();
+  const response = await router.chat.completions.create({
+    model: GEMINI_FLASH,
     temperature: 0.5,
     response_format: { type: "json_object" },
     messages: [
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ai = await openAiEdit(action, node, prompt, tokens);
+    const ai = await geminiEdit(action, node, prompt, tokens);
 
     if (action === "rewrite-copy") {
       return NextResponse.json({

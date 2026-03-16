@@ -2,7 +2,7 @@ import type { DesignSystemTokens } from "./generate-system";
 import type { SiteType } from "./templates";
 import type { TasteProfile } from "@/types/taste-profile";
 
-export type CanvasStage = "collect" | "generate" | "compose";
+export type CanvasStage = "collect" | "compose";
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 export type InspectorTab = "content" | "style" | "layout" | "effects" | "ai";
 export type VariantMode = "safe" | "creative" | "alternative";
@@ -84,6 +84,8 @@ export type GeneratedVariant = {
   pageTree: PageNode;
   previewImage?: string | null;
   compiledCode?: string | null;
+  previewSource?: "ai" | "fallback";
+  previewFallbackReason?: string | null;
   sourcePrompt: string;
   createdAt: string;
   isFavorite?: boolean;
@@ -98,9 +100,11 @@ export type ComposeArtboard = {
   id: string;
   variantId: string;
   name: string;
+  breakpoint: Breakpoint;
   x: number;
   y: number;
   pageTree: PageNode;
+  compiledCode?: string | null;
 };
 
 export type ComposeOverlay =
@@ -159,16 +163,29 @@ export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
 
 export const COMPOSE_ARTBOARD_GAP = 100;
 
+/** Fixed canvas positions for the three breakpoint artboards created from a single variant. */
+export const BREAKPOINT_ARTBOARD_LAYOUTS: Array<{
+  breakpoint: Breakpoint;
+  name: string;
+  x: number;
+}> = [
+  { breakpoint: "desktop", name: "Desktop 1440", x: 0 },
+  { breakpoint: "tablet",  name: "Tablet 768",   x: 1540 },
+  { breakpoint: "mobile",  name: "Mobile 375",   x: 2408 },
+];
+
 export function normalizeCanvasStage(value?: string | null): CanvasStage | null {
   if (!value) return null;
-  if (value === "moodboard" || value === "system" || value === "collect") {
+  if (value === "moodboard" || value === "system" || value === "collect" || value === "generate") {
     return "collect";
   }
-  if (value === "generate" || value === "compose") {
+  if (value === "compose") {
     return value;
   }
   return null;
 }
+
+type SectionId = "hero" | "proof" | "features" | "testimonials" | "pricing" | "cta";
 
 type VariantProfile = {
   key: string;
@@ -177,7 +194,8 @@ type VariantProfile = {
   heroAlign: "left" | "center";
   heroTone: "surface" | "accent" | "outline";
   featuresColumns: number;
-  sectionBackgrounds: Array<"background" | "surface" | "accentWash">;
+  sectionOrder: SectionId[];
+  sectionBackgrounds: Record<SectionId, "background" | "surface" | "accentWash">;
   pricingEmphasis: number;
 };
 
@@ -189,27 +207,42 @@ const VARIANT_PROFILES: VariantProfile[] = [
     heroAlign: "center",
     heroTone: "surface",
     featuresColumns: 3,
-    sectionBackgrounds: ["background", "surface", "background", "surface", "accentWash", "background"],
+    // Full 6-section funnel
+    sectionOrder: ["hero", "proof", "features", "testimonials", "pricing", "cta"],
+    sectionBackgrounds: {
+      hero: "background", proof: "surface", features: "background",
+      testimonials: "surface", pricing: "accentWash", cta: "background",
+    },
     pricingEmphasis: 1,
   },
   {
     key: "atlas",
     name: "Atlas",
-    description: "Editorial split layout with stronger narrative pacing and bolder sections.",
+    description: "Editorial split layout — features-first, no pricing, leaner conversion.",
     heroAlign: "left",
     heroTone: "outline",
     featuresColumns: 2,
-    sectionBackgrounds: ["background", "background", "surface", "background", "surface", "accentWash"],
+    // Impact-first: drop proof and pricing, features come immediately after hero
+    sectionOrder: ["hero", "features", "testimonials", "cta"],
+    sectionBackgrounds: {
+      hero: "background", proof: "background", features: "surface",
+      testimonials: "background", pricing: "surface", cta: "accentWash",
+    },
     pricingEmphasis: 2,
   },
   {
     key: "monograph",
     name: "Monograph",
-    description: "High-contrast showcase with oversized typography and generous whitespace.",
+    description: "Trust-first — social proof immediately after hero, no pricing section.",
     heroAlign: "left",
     heroTone: "accent",
     featuresColumns: 3,
-    sectionBackgrounds: ["accentWash", "background", "background", "surface", "background", "surface"],
+    // Social proof before features, no pricing
+    sectionOrder: ["hero", "testimonials", "proof", "features", "cta"],
+    sectionBackgrounds: {
+      hero: "accentWash", proof: "background", features: "background",
+      testimonials: "surface", pricing: "background", cta: "surface",
+    },
     pricingEmphasis: 0,
   },
 ];
@@ -234,7 +267,7 @@ function compactWords(prompt: string): string[] {
     .filter((word) => word.length > 2);
 }
 
-export function inferSiteName(prompt: string, fallback = "Studio OS Site"): string {
+export function inferSiteName(prompt: string, fallback = "Your Brand"): string {
   const quoted = prompt.match(/"([^"]+)"/)?.[1];
   if (quoted) return titleCase(quoted);
 
@@ -255,9 +288,24 @@ function inferAudience(prompt: string): string {
 function inferPromise(prompt: string): string {
   const clean = prompt.trim();
   if (!clean) return "Turn taste into a working site faster.";
-  const firstSentence = clean.split(/[.!?]/)[0]?.trim();
-  if (!firstSentence) return "Turn taste into a working site faster.";
-  return titleCase(firstSentence);
+
+  // If the user quoted an intended headline, use it directly
+  const quoted = clean.match(/"([^"]+)"/)?.[1];
+  if (quoted) return titleCase(quoted);
+
+  // Short prompts (≤4 words) are likely a brand name or noun phrase — safe to use as-is
+  const words = clean.split(/\s+/).filter((w) => w.length > 0);
+  if (words.length <= 4) return titleCase(clean);
+
+  // Longer prompts are creative direction — extract a headline-worthy fragment.
+  // Pull first sentence or first 6 words as a meaningful starting headline.
+  const firstSentence = clean.match(/^[^.!?]+[.!?]?/)?.[0] ?? "";
+  const sentenceWords = firstSentence.split(/\s+/).filter((w) => w.length > 0);
+  if (sentenceWords.length <= 8 && sentenceWords.length > 0) {
+    return titleCase(firstSentence.replace(/[.!?]+$/, ""));
+  }
+  // Fallback: use first 5 meaningful words
+  return titleCase(words.slice(0, 5).join(" "));
 }
 
 function withAlpha(hex: string, alpha: string): string {
@@ -288,22 +336,23 @@ function createNode(
   };
 }
 
-function createFeatureCards(siteName: string): PageNode[] {
+function createFeatureCards(siteName: string, adjectives: string[]): PageNode[] {
+  const [adj1 = "intuitive", adj2 = "powerful", adj3 = "reliable"] = adjectives;
   return [
-    createNode("feature-card", "Clarity Card", {
+    createNode("feature-card", "Feature One", {
       icon: "◈",
-      text: "Taste distilled into reusable sections",
-      subtext: `Build ${siteName} from a coherent system instead of scattered inspiration.`,
+      text: `${titleCase(adj1)} by design`,
+      subtext: `Every interaction in ${siteName} is shaped by this principle.`,
     }),
-    createNode("feature-card", "Speed Card", {
+    createNode("feature-card", "Feature Two", {
       icon: "→",
-      text: "Generate several full-page directions at once",
-      subtext: "Compare different visual narratives before committing to a single page.",
+      text: `${titleCase(adj2)} when it counts`,
+      subtext: `The capability that sets ${siteName} apart from the rest.`,
     }),
-    createNode("feature-card", "Refine Card", {
+    createNode("feature-card", "Feature Three", {
       icon: "◇",
-      text: "Edit structure and styling visually",
-      subtext: "Move from AI output to a presentable page without leaving the canvas.",
+      text: `${titleCase(adj3)} at scale`,
+      subtext: `${siteName} stays consistent as your team grows.`,
     }),
   ];
 }
@@ -401,23 +450,6 @@ function ctaCopyForTaste(ctaTone: TasteProfile["ctaTone"] | undefined, mode: Var
   return "Open Compose";
 }
 
-function sectionBackgroundsForTaste(
-  profile: VariantProfile,
-  backgroundPreference: string | undefined,
-  mode: VariantMode
-) {
-  const normalized = backgroundPreference?.toLowerCase() ?? "";
-  if (mode === "creative") {
-    return ["accentWash", "background", "surface", "accentWash", "background", "surface"] as const;
-  }
-  if (mode === "alternative") {
-    return ["background", "surface", "accentWash", "background", "surface", "background"] as const;
-  }
-  if (normalized.includes("dark")) {
-    return ["background", "background", "surface", "background", "surface", "accentWash"] as const;
-  }
-  return profile.sectionBackgrounds;
-}
 
 function tasteAlignmentNote(tasteProfile: TasteProfile | null | undefined, mode: VariantMode) {
   if (!tasteProfile) {
@@ -456,19 +488,19 @@ function tasteAlignmentNote(tasteProfile: TasteProfile | null | undefined, mode:
 function createTestimonials(siteName: string): PageNode[] {
   return [
     createNode("testimonial-card", "Testimonial One", {
-      text: `"${siteName} turned our visual references into a page we could actually ship."`,
-      subtext: "Mila Chen, Design Lead",
-      meta: "Launch team",
+      text: `"${siteName} changed the way our team works — we shipped in half the time."`,
+      subtext: "Alex K., Head of Product",
+      meta: "Series B startup",
     }),
     createNode("testimonial-card", "Testimonial Two", {
-      text: "We stopped losing momentum between idea, system, and final landing page.",
-      subtext: "Omar Singh, Founder",
-      meta: "Early-stage product",
+      text: `"The quality of output went up immediately. Our clients noticed."`,
+      subtext: "Jordan M., Founder & CEO",
+      meta: "Digital agency",
     }),
     createNode("testimonial-card", "Testimonial Three", {
-      text: "The compose step made the AI output feel editable, not disposable.",
-      subtext: "Ari Walker, Creative Director",
-      meta: "Studio workflow",
+      text: `"We evaluated six options. ${siteName} was the only one that felt right."`,
+      subtext: "Sam L., VP of Design",
+      meta: "Enterprise team",
     }),
   ];
 }
@@ -480,32 +512,32 @@ function createPricingTiers(siteName: string, emphasized: number): PageNode[] {
       "Starter Tier",
       {
         text: "Starter",
-        price: "$29",
-        subtext: "For solo explorations",
-        meta: "3 active boards • export HTML • local-first storage",
+        price: "$–",
+        subtext: "For individuals",
+        meta: "Core features • 1 workspace • community support",
       },
       { emphasized: emphasized === 0 }
     ),
     createNode(
       "pricing-tier",
-      "Studio Tier",
+      "Pro Tier",
       {
-        text: "Studio",
-        price: "$79",
-        subtext: `For teams shaping ${siteName}`,
-        meta: "Unlimited variants • compose editor • deployment export",
+        text: "Pro",
+        price: "$–",
+        subtext: `For growing teams using ${siteName}`,
+        meta: "All features • unlimited workspaces • priority support",
         badge: "Popular",
       },
       { emphasized: emphasized === 1 }
     ),
     createNode(
       "pricing-tier",
-      "Scale Tier",
+      "Enterprise Tier",
       {
-        text: "Scale",
-        price: "$149",
-        subtext: "For multi-brand systems",
-        meta: "Advanced AI refinements • deeper responsive controls • priority support",
+        text: "Enterprise",
+        price: "Custom",
+        subtext: "For large organisations",
+        meta: "Custom integrations • SLA • dedicated support",
       },
       { emphasized: emphasized === 2 }
     ),
@@ -519,9 +551,9 @@ function createLogoItems(): PageNode[] {
 
 function createMetricItems(): PageNode[] {
   return [
-    createNode("metric-item", "Metric One", { text: "4x", subtext: "faster direction setting" }),
-    createNode("metric-item", "Metric Two", { text: "3", subtext: "full-page variants in one pass" }),
-    createNode("metric-item", "Metric Three", { text: "1", subtext: "compose surface for export" }),
+    createNode("metric-item", "Metric One", { text: "—", subtext: "key result for your users" }),
+    createNode("metric-item", "Metric Two", { text: "—", subtext: "time to first outcome" }),
+    createNode("metric-item", "Metric Three", { text: "—", subtext: "teams already using it" }),
   ];
 }
 
@@ -535,6 +567,11 @@ function createVariantPageTree(
 ): PageNode {
   const audience = inferAudience(prompt);
   const promise = inferPromise(prompt);
+  const adjectives: string[] = tasteProfile?.adjectives?.length
+    ? tasteProfile.adjectives
+    : ["thoughtful", "refined", "structured"];
+  const [adj1 = "thoughtful", adj2 = "refined"] = adjectives;
+
   const spacing = sectionSpacingForTaste(
     tasteProfile?.layoutBias.whitespaceIntent,
     tasteProfile?.layoutBias.density,
@@ -555,31 +592,40 @@ function createVariantPageTree(
     tasteProfile?.colorBehavior.mode,
     mode
   );
-  const sectionBackgrounds = sectionBackgroundsForTaste(
-    profile,
-    tasteProfile?.colorBehavior.suggestedColors.background,
-    mode
-  );
   const radius = cornerRadiusForTaste(tasteProfile?.imageTreatment.cornerRadius);
-  const headingMood = normalizeValue(
-    tasteProfile?.typographyTraits.headingTone,
-    "confident"
-  );
-  const bodyMood = normalizeValue(tasteProfile?.typographyTraits.bodyTone, "clear");
-  const imageMood = normalizeValue(tasteProfile?.imageTreatment.treatment, "measured");
   const imageStyle = normalizeValue(tasteProfile?.imageTreatment.style, "editorial");
-  const dominantMood = normalizeValue(
-    tasteProfile?.colorBehavior.mode,
-    "intentional"
-  );
   const ctaCopy = ctaCopyForTaste(tasteProfile?.ctaTone, mode);
+
+  // Derive headings from the brief and taste profile — write copy that feels specific
+  const featuresHeading =
+    mode === "creative"
+      ? `Why ${audience} choose ${adj1}`
+      : `Everything ${audience} need`;
+  const featuresBody =
+    `${titleCase(adj1)} design meets ${adj2} execution. ` +
+    `Every detail considered, nothing left to chance.`;
+  const testimonialsHeading = `Trusted by ${audience}`;
+  const pricingHeading = `Choose your plan`;
+  const ctaHeading =
+    mode === "alternative"
+      ? `Ready to get started?`
+      : `Build something ${adj1}`;
+  const ctaBody =
+    `Join ${audience} already using ${siteName}.`;
+  const heroKicker = `${titleCase(adj1)} • ${titleCase(adj2)}`;
+  const heroBody =
+    `${siteName} helps ${audience} move faster without sacrificing quality. ` +
+    `${titleCase(adj1)} by default, ${adj2} by design.`;
+
+  // Build all possible sections — sectionOrder below decides which to include
+  const bg = (id: SectionId) => surfaceForMode(tokens, profile.sectionBackgrounds[id]);
 
   const hero = createNode(
     "section",
     "Hero Section",
     undefined,
     {
-      background: surfaceForMode(tokens, sectionBackgrounds[0]),
+      background: bg("hero"),
       align: heroAlign,
       minHeight: mode === "creative" ? 620 : 560,
       paddingX: spacing.paddingX,
@@ -590,22 +636,22 @@ function createVariantPageTree(
     },
     [
       createNode("paragraph", "Hero Kicker", {
-        text: `${headingMood} taste to site`,
+        text: heroKicker,
       }, { foreground: tokens.colors.accent, align: heroAlign }),
       createNode("heading", "Hero Heading", {
         text: promise,
       }, { align: heroAlign }),
       createNode("paragraph", "Hero Body", {
-        text: `${siteName} helps ${audience} with a ${dominantMood} landing page system. The layout stays ${bodyMood}, the imagery feels ${imageMood}, and every variant can still be refined visually.`,
+        text: heroBody,
       }, { align: heroAlign, muted: tokens.colors.textMuted }),
       createNode("button-row", "Hero Actions", undefined, { align: heroAlign, gap: 12 }, [
         createNode("button", "Primary Button", {
           text: ctaCopy,
-          href: "#compose",
+          href: "#cta",
         }, { accent: tokens.colors.accent, emphasized: true }),
         createNode("button", "Secondary Button", {
-          text: "Review Variants",
-          href: "#variants",
+          text: "See how it works",
+          href: "#features",
         }, { borderColor: tokens.colors.border, foreground: tokens.colors.text }),
       ]),
       createNode("metric-row", "Hero Metrics", undefined, { gap: 16, align: heroAlign }, createMetricItems()),
@@ -617,7 +663,7 @@ function createVariantPageTree(
     "Proof Section",
     undefined,
     {
-      background: surfaceForMode(tokens, sectionBackgrounds[1]),
+      background: bg("proof"),
       align: "center",
       paddingX: spacing.paddingX - 4,
       paddingY: spacing.paddingY - 14,
@@ -626,7 +672,7 @@ function createVariantPageTree(
     },
     [
       createNode("paragraph", "Proof Label", {
-        text: `Built for teams who want ${imageStyle} polish without losing speed`,
+        text: `Trusted by teams who care about ${imageStyle} quality`,
       }, { align: "center", muted: tokens.colors.textMuted }),
       createNode("logo-row", "Logo Row", undefined, { gap: 18, align: "center" }, createLogoItems()),
     ]
@@ -637,7 +683,7 @@ function createVariantPageTree(
     "Features Section",
     undefined,
     {
-      background: surfaceForMode(tokens, sectionBackgrounds[2]),
+      background: bg("features"),
       align: heroAlign,
       paddingX: spacing.paddingX,
       paddingY: spacing.paddingY,
@@ -646,17 +692,17 @@ function createVariantPageTree(
     },
     [
       createNode("heading", "Features Heading", {
-        text: "From references to a page system with taste built in",
+        text: featuresHeading,
       }, { align: heroAlign }),
       createNode("paragraph", "Features Body", {
-        text: "Keep the references, extracted system, generated variants, and final composition in one place without flattening the original visual direction.",
+        text: featuresBody,
       }, { align: heroAlign, muted: tokens.colors.textMuted }),
       createNode(
         "feature-grid",
         "Feature Grid",
         undefined,
         { columns: featureColumns, gap: spacing.gap },
-        createFeatureCards(siteName)
+        createFeatureCards(siteName, adjectives)
       ),
     ]
   );
@@ -666,7 +712,7 @@ function createVariantPageTree(
     "Testimonials Section",
     undefined,
     {
-      background: surfaceForMode(tokens, sectionBackgrounds[3]),
+      background: bg("testimonials"),
       align: "left",
       paddingX: spacing.paddingX,
       paddingY: spacing.paddingY,
@@ -675,7 +721,7 @@ function createVariantPageTree(
     },
     [
       createNode("heading", "Testimonials Heading", {
-        text: "The best output is the one you can still shape",
+        text: testimonialsHeading,
       }),
       createNode("testimonial-grid", "Testimonial Grid", undefined, { columns: 3, gap: 18 }, createTestimonials(siteName)),
     ]
@@ -686,7 +732,7 @@ function createVariantPageTree(
     "Pricing Section",
     undefined,
     {
-      background: surfaceForMode(tokens, sectionBackgrounds[4]),
+      background: bg("pricing"),
       align: "center",
       paddingX: spacing.paddingX,
       paddingY: spacing.paddingY,
@@ -695,7 +741,7 @@ function createVariantPageTree(
     },
     [
       createNode("heading", "Pricing Heading", {
-        text: "A workspace that gets sharper as you refine",
+        text: pricingHeading,
       }, { align: "center" }),
       createNode("pricing-grid", "Pricing Grid", undefined, { columns: 3, gap: 18 }, createPricingTiers(siteName, profile.pricingEmphasis)),
     ]
@@ -706,7 +752,7 @@ function createVariantPageTree(
     "CTA Section",
     undefined,
     {
-      background: surfaceForMode(tokens, sectionBackgrounds[5]),
+      background: bg("cta"),
       align: "center",
       paddingX: spacing.paddingX,
       paddingY: spacing.paddingY + 8,
@@ -715,10 +761,10 @@ function createVariantPageTree(
     },
     [
       createNode("heading", "CTA Heading", {
-        text: "Generate fast. Compose carefully. Export confidently.",
+        text: ctaHeading,
       }, { align: "center" }),
       createNode("paragraph", "CTA Body", {
-        text: "Pick the direction that feels right, then tune the layout, type, spacing, and copy until it is ready to ship.",
+        text: ctaBody,
       }, { align: "center", muted: tokens.colors.textMuted }),
       createNode("button-row", "CTA Actions", undefined, { align: "center", gap: 12 }, [
         createNode("button", "CTA Button", {
@@ -728,6 +774,10 @@ function createVariantPageTree(
       ]),
     ]
   );
+
+  // Build only the sections this variant calls for, in the order it specifies
+  const sectionMap: Record<SectionId, PageNode> = { hero, proof, features, testimonials, pricing, cta };
+  const children = profile.sectionOrder.map((id) => sectionMap[id]);
 
   return createNode(
     "page",
@@ -744,7 +794,7 @@ function createVariantPageTree(
       paddingY: 24,
       maxWidth: 1200,
     },
-    [hero, proof, features, testimonials, pricing, cta]
+    children
   );
 }
 
@@ -821,14 +871,16 @@ export function createVariantSet(
   });
 }
 
-export function createComposeDocument(variants: GeneratedVariant[]): ComposeDocument {
-  const artboards = variants.map((variant, index) => ({
+export function createComposeDocument(variant: GeneratedVariant): ComposeDocument {
+  const artboards = BREAKPOINT_ARTBOARD_LAYOUTS.map(({ breakpoint, name, x }) => ({
     id: uid("artboard"),
     variantId: variant.id,
-    name: variant.name,
-    x: index * (BREAKPOINT_WIDTHS.desktop + COMPOSE_ARTBOARD_GAP),
+    breakpoint,
+    name,
+    x,
     y: 0,
     pageTree: structuredClone(variant.pageTree),
+    compiledCode: variant.compiledCode ?? null,
   }));
 
   return {
@@ -838,7 +890,7 @@ export function createComposeDocument(variants: GeneratedVariant[]): ComposeDocu
     primaryArtboardId: artboards[0]?.id ?? null,
     breakpoint: "desktop",
     pan: { x: 120, y: 120 },
-    zoom: 0.58,
+    zoom: 0.25,
     overlays: [],
     inspectorTab: "content",
     exportArtifact: null,
@@ -853,7 +905,7 @@ function sanitizeComposeDocument(value: unknown): ComposeDocument | null {
   if (!isPlainObject(value)) return null;
   if (!Array.isArray(value.artboards)) return null;
 
-  const artboards = value.artboards.filter(
+  const validArtboards = value.artboards.filter(
     (artboard): artboard is ComposeArtboard =>
       isPlainObject(artboard) &&
       typeof artboard.id === "string" &&
@@ -863,7 +915,16 @@ function sanitizeComposeDocument(value: unknown): ComposeDocument | null {
       isPlainObject(artboard.pageTree)
   );
 
-  if (artboards.length === 0) return null;
+  if (validArtboards.length === 0) return null;
+
+  // Back-fill breakpoint for artboards saved before Phase 3B
+  const artboards = validArtboards.map((artboard) => {
+    if (artboard.breakpoint === "desktop" || artboard.breakpoint === "tablet" || artboard.breakpoint === "mobile") {
+      return artboard;
+    }
+    const inferred = BREAKPOINT_ARTBOARD_LAYOUTS.find((l) => l.name === artboard.name)?.breakpoint ?? "desktop";
+    return { ...artboard, breakpoint: inferred };
+  });
 
   const panSource = isPlainObject(value.pan) ? value.pan : null;
   const overlays = Array.isArray(value.overlays) ? (value.overlays as ComposeOverlay[]) : [];
@@ -944,9 +1005,12 @@ export function rehydrateComposeDocument(
     };
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const resolvedPersisted = safePersisted!;
+
   function resolveArtboardId(persistedId: string | null): string | null {
     if (!persistedId) return null;
-    const previous = safePersisted.artboards.find((artboard) => artboard.id === persistedId);
+    const previous = resolvedPersisted.artboards.find((artboard) => artboard.id === persistedId);
     if (!previous) return null;
     return (
       artboards.find(

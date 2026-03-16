@@ -420,7 +420,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "${cfg.siteName}",
-  description: "Built with Studio OS",
+  description: "${cfg.siteName} — generated landing page",
 };
 
 export default function RootLayout({
@@ -940,7 +940,7 @@ export default function Home() {
 function genReadme(cfg: ExportConfig): string {
   return `# ${cfg.siteName}
 
-Built with [Studio OS](https://studioos.app).
+Generated landing page for ${cfg.siteName}.
 
 ## Getting started
 
@@ -1608,7 +1608,7 @@ export function generateStandaloneHtml(cfg: ExportConfig): string {
     <div class="footer-grid">
       <div class="footer-col">
         <p style="font-family: var(--font-display); font-size: 1.25rem;">${cfg.siteName}</p>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">Built with Studio OS</p>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">&copy; ${new Date().getFullYear()} ${cfg.siteName}</p>
       </div>
       ${[["Product", ["Features", "Pricing", "Changelog"]], ["Company", ["About", "Blog", "Careers"]], ["Legal", ["Privacy", "Terms", "Security"]]]
         .map(

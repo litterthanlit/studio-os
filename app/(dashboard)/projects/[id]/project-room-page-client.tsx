@@ -1,23 +1,18 @@
-"use client";
+'use client';
 
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PHASE_STYLES } from "../projects-data";
 import type { Project } from "../projects-data";
-import { ProjectRoomSections } from "../project-room";
 import { getStoredProjects } from "@/components/new-project-modal";
 import {
   getProjectState,
   listProjectReferences,
   PROJECT_REFERENCES_UPDATED_EVENT,
   PROJECT_STATE_UPDATED_EVENT,
-  saveProject,
 } from "@/lib/project-store";
-
-function getStoredReferenceCount(projectId: string): number {
-  return listProjectReferences(projectId).length;
-}
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 function applyStoredProjectState(project: Project): Project {
   const state = getProjectState(project.id);
@@ -33,7 +28,7 @@ function applyStoredProjectState(project: Project): Project {
     headingFont,
     bodyFont,
     fontsSelected: [headingFont, bodyFont].filter(Boolean).length,
-    references: getStoredReferenceCount(project.id),
+    references: listProjectReferences(project.id).length,
   };
 }
 
@@ -54,30 +49,20 @@ function storedToProject(sp: {
     leadImage: state.coverImage ?? `https://picsum.photos/seed/${sp.id}/400/300`,
     palette: [sp.color, "#111111", "#222222", "#333333", "#999999"],
     lastActivity: "Just created",
-    references: getStoredReferenceCount(sp.id),
+    references: listProjectReferences(sp.id).length,
     fontsSelected: 0,
     daysActive: 0,
   };
 }
 
-function sameProjectSnapshot(a: Project | null, b: Project | null): boolean {
-  if (!a || !b) return a === b;
-  return (
-    a.id === b.id &&
-    a.name === b.name &&
-    a.client === b.client &&
-    a.phase === b.phase &&
-    a.progress === b.progress &&
-    a.leadImage === b.leadImage &&
-    a.lastActivity === b.lastActivity &&
-    a.references === b.references &&
-    a.fontsSelected === b.fontsSelected &&
-    a.daysActive === b.daysActive &&
-    a.headingFont?.family === b.headingFont?.family &&
-    a.bodyFont?.family === b.bodyFont?.family &&
-    a.palette.join("|") === b.palette.join("|")
-  );
-}
+type Tab = "Overview" | "Canvas" | "Assets" | "Settings";
+const TABS: Tab[] = ["Overview", "Canvas", "Assets", "Settings"];
+
+// Dummy data for variants preview
+const DUMMY_VARIANTS = [
+  "https://picsum.photos/seed/var1/600/400",
+  "https://picsum.photos/seed/var2/600/400"
+];
 
 export function ProjectRoomPageClient({
   id,
@@ -87,27 +72,25 @@ export function ProjectRoomPageClient({
   staticProject: Project | null;
 }) {
   const router = useRouter();
-  const [project, setProject] = React.useState<Project | null>(staticProject);
-  const [checked, setChecked] = React.useState(staticProject !== null);
-  const [draftName, setDraftName] = React.useState(staticProject?.name ?? "");
+  const [project, setProject] = React.useState<Project | null>(null);
+  const [checked, setChecked] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<Tab>("Overview");
 
-  // For localStorage-created projects, look them up on mount
+  // Load project
   React.useEffect(() => {
     if (staticProject) {
       setProject(applyStoredProjectState(staticProject));
-      setDraftName(staticProject.name);
+      setChecked(true);
       return;
     }
     const stored = getStoredProjects();
     const found = stored.find((p) => p.id === id);
     if (found) {
       setProject(applyStoredProjectState(storedToProject(found)));
-      setDraftName(found.name);
     }
     setChecked(true);
   }, [id, staticProject]);
 
-  // Not found — send back to /projects after a beat
   React.useEffect(() => {
     if (checked && !project) {
       router.replace("/projects");
@@ -116,141 +99,162 @@ export function ProjectRoomPageClient({
 
   React.useEffect(() => {
     if (!project) return;
-    setDraftName(project.name);
-  }, [project]);
-
-  React.useEffect(() => {
-    if (!project) return;
     const syncProjectState = () => {
       setProject((prev) => {
         if (!prev) return prev;
-        const next = applyStoredProjectState(prev);
-        return sameProjectSnapshot(prev, next) ? prev : next;
+        return applyStoredProjectState(prev);
       });
     };
 
-    syncProjectState();
     window.addEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncProjectState);
     window.addEventListener(PROJECT_STATE_UPDATED_EVENT, syncProjectState);
     return () => {
       window.removeEventListener(PROJECT_REFERENCES_UPDATED_EVENT, syncProjectState);
       window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, syncProjectState);
     };
-    // `syncProjectState` already reads the latest project snapshot from state.
-    // Re-subscribing on every derived field change would reintroduce noisy rerenders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id]);
-
-  function persistName() {
-    if (!project) return;
-    const nextName = draftName.trim();
-    if (!nextName || nextName === project.name) {
-      setDraftName(project.name);
-      return;
-    }
-    const stored = getStoredProjects().find((item) => item.id === project.id);
-    saveProject({
-      id: project.id,
-      name: nextName,
-      brief: stored?.brief ?? "",
-      color: stored?.color ?? project.palette[1] ?? "#2430AD",
-      createdAt: stored?.createdAt ?? new Date().toISOString(),
-    });
-    setProject((prev) => (prev ? { ...prev, name: nextName } : prev));
-  }
+  }, [project, project?.id]);
 
   if (!project) {
     return (
-      <div className="flex h-48 items-center justify-center text-[11px] text-gray-500">
-        Loading…
+      <div className="flex h-48 items-center justify-center text-[13px] text-text-muted">
+        Loading project…
       </div>
     );
   }
 
   return (
-    <section className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[10px] text-gray-500 transition-colors duration-300">
-        <Link
-          href="/projects"
-          className="transition-colors duration-300 ease-out hover:text-white"
-        >
-          Projects
-        </Link>
-        <span className="transition-colors duration-300">/</span>
-        <span className="text-gray-400 transition-colors duration-300">{project.name}</span>
+    <div className="mx-auto max-w-[960px] animate-in fade-in duration-300 py-10">
+      
+      {/* Header Area */}
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h1 className="text-[24px] font-semibold text-text-primary">
+            {project.name}
+          </h1>
+          <span className="rounded-full bg-[var(--accent-pill)] px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-[var(--accent)] font-medium">
+            {project.phase}
+          </span>
+        </div>
+        
+        {/* Actions Dropdown Trigger (3 dots) */}
+        <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-sidebar-hover text-text-secondary transition-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+          </svg>
+        </button>
+      </header>
+
+      {/* Tab Bar */}
+      <div className="mt-8 flex items-center gap-8 border-b border-border-primary">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "pb-3 text-[13px] font-medium transition-colors relative",
+              activeTab === tab
+                ? "text-[var(--accent)]"
+                : "text-text-secondary hover:text-text-primary"
+            )}
+          >
+            {tab}
+            {activeTab === tab && (
+              <div className="absolute left-0 right-0 bottom-[-1px] h-[2px] bg-[var(--accent)]" />
+            )}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-[32px] border border-card-border bg-card-bg px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.04)]">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                value={draftName}
-                onChange={(event) => setDraftName(event.target.value)}
-                onBlur={persistName}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    persistName();
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    setDraftName(project.name);
-                  }
-                }}
-                className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight text-[var(--text-primary)] outline-none transition-colors duration-300"
-                aria-label="Project name"
-              />
-              <span
-                className={`rounded-full px-2.5 py-1 text-[10px] font-sans font-semibold uppercase tracking-[0.12em] transition-colors duration-300 ${PHASE_STYLES[project.phase]}`}
-              >
-                {project.phase}
-              </span>
-            </div>
-            <div className="mt-3 text-sm text-gray-400 transition-colors duration-300">
-              {project.client}
-            </div>
-            <div className="mt-4 max-w-2xl text-sm leading-relaxed text-text-secondary">
-              This page mirrors the state of the project across Board, System, and Site. Editing happens in Canvas.
-            </div>
-          </div>
+      {/* Overview Tab Content */}
+      {activeTab === "Overview" && (
+        <div className="mt-8 space-y-8">
+          
+          {/* Description Block */}
+          <section className="space-y-4">
+            <h2 className="text-[13px] font-medium text-text-secondary uppercase tracking-wide">Overview</h2>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-[14px] text-text-primary leading-relaxed">
+                  The {project.name} initiative focuses on delivering a clinical, minimal, and premium aesthetic. The goal is to strip away visual noise and construct a workspace that respects the user&apos;s attention. All tokens and stylistic directions will be generated and validated in Canvas.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
 
-          <div className="flex shrink-0 items-center gap-3">
-            <div className="hidden rounded-full border border-border-primary bg-bg-secondary px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-text-tertiary sm:block">
-              Last activity · {project.lastActivity}
+          {/* Design System Preview */}
+          <section className="space-y-4">
+            <h2 className="text-[13px] font-medium text-text-secondary uppercase tracking-wide">Design System</h2>
+            <Card>
+              <CardContent className="pt-6 flex flex-col sm:flex-row gap-8">
+                <div className="space-y-3">
+                  <span className="text-[12px] text-text-secondary">Colors</span>
+                  <div className="flex gap-2">
+                    {(project.palette.length > 0 ? project.palette : ["#FAFBFE", "#FFFFFF", "#F4F8FF", "#D1E4FC", "#2430AD"]).slice(0, 5).map((color, i) => (
+                      <div 
+                        key={i} 
+                        className="w-6 h-6 rounded-full border border-border-primary shadow-sm"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="w-px bg-border-primary hidden sm:block" />
+                <div className="space-y-3">
+                  <span className="text-[12px] text-text-secondary">Typography</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[14px] font-medium text-text-primary">{project.headingFont?.family || "Geist Sans"} (Heading)</span>
+                    <span className="text-[14px] font-medium text-text-primary">{project.bodyFont?.family || "Geist Mono"} (Mono)</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Generated Variants Mini-grid */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[13px] font-medium text-text-secondary uppercase tracking-wide">Generated Variants</h2>
+              <Link href={`/canvas?project=${project.id}`} className="text-[13px] font-medium text-[var(--accent)] hover:underline">
+                Open in Canvas →
+              </Link>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                router.push(`/canvas?project=${encodeURIComponent(project.id)}`)
-              }
-              className="inline-flex h-11 items-center gap-2 rounded-full border border-[#3B5EFC] bg-[#3B5EFC] px-5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition-colors duration-200 hover:bg-[#2f4fe3]"
-            >
-              <span>Enter Canvas</span>
-              <svg
-                className="h-3.5 w-3.5"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 8h8.5" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 3.5 13 8l-4.5 4.5" />
-              </svg>
-            </button>
-          </div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              {DUMMY_VARIANTS.map((src, i) => (
+                <Card key={i} className="overflow-hidden p-0">
+                  <div className="aspect-[16/10] bg-bg-tertiary relative border-b border-border-primary">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="Variant Preview" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide">Variant {String.fromCharCode(65 + i)}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
+
         </div>
+      )}
 
-        <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-tertiary)] transition-colors duration-300">
-          <div
-            className="h-full bg-accent transition-[width] duration-500 ease-out"
-            style={{ width: `${project.progress}%` }}
-          />
+      {/* Other Tabs (Empty States) */}
+      {activeTab !== "Overview" && (
+        <div className="mt-16 flex flex-col items-center justify-center text-center">
+          <p className="text-[14px] text-text-secondary">
+            The {activeTab} view is currently empty.
+          </p>
+          <button 
+            onClick={() => router.push(`/canvas?project=${project.id}`)}
+            className="mt-6 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors shadow-sm"
+          >
+            Enter Canvas
+          </button>
         </div>
-      </div>
+      )}
 
-      <ProjectRoomSections project={project} />
-    </section>
+    </div>
   );
 }

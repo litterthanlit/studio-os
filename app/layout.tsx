@@ -70,7 +70,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={GeistSans.className}>
+      <body className={GeistSans.className} suppressHydrationWarning>
         <ThemeProvider>
           <Preloader>
             <div className="min-h-screen">{children}</div>

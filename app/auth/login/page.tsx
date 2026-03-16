@@ -110,7 +110,7 @@ function LoginContent() {
       <div className="relative w-full max-w-[360px]">
         {/* Logo mark */}
         <div className="mb-10 flex justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border-subtle bg-card-bg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border-subtle bg-card-bg">
             <svg
               viewBox="0 0 24 24"
               className="h-6 w-6 text-accent"

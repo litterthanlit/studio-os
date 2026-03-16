@@ -41,6 +41,81 @@ Round all scores to integers.
 
 Respond ONLY with valid JSON, no markdown formatting.`;
 
+// Normalize Gemini's inconsistent response shape into ImageAnalysis.
+// Gemini Flash returns flat uppercase keys (COMPOSITION, COLOR, etc.) or
+// mixed-case variants (Tags, Dominant colors, Dominant_colors) instead of
+// the nested lowercase structure we expect.
+function normalizeGeminiResponse(raw: Record<string, unknown>): ImageAnalysis {
+  // Build a flat lowercase-keyed map so we can do case-insensitive lookups
+  const flat: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    flat[k.toLowerCase().replace(/[\s_-]+/g, "")] = v;
+  }
+
+  // Scores: prefer nested `scores` object, fall back to flat top-level keys
+  const nestedScores =
+    flat["scores"] && typeof flat["scores"] === "object"
+      ? (flat["scores"] as Record<string, unknown>)
+      : null;
+
+  function numScore(nestedKey: string, flatKey: string): number {
+    const fromNested = nestedScores?.[nestedKey] ?? nestedScores?.[nestedKey.toUpperCase()];
+    const fromFlat = flat[flatKey];
+    const val = fromNested ?? fromFlat;
+    return typeof val === "number" ? Math.round(val) : 65;
+  }
+
+  const composition = numScore("composition", "composition");
+  const color = numScore("color", "color");
+  const mood = numScore("mood", "mood");
+  const uniqueness = numScore("uniqueness", "uniqueness");
+  const overall = Math.round(
+    composition * 0.3 + color * 0.25 + mood * 0.25 + uniqueness * 0.2
+  );
+
+  // Tags: "Tags", "tags", etc.
+  const rawTags = flat["tags"];
+  const tags = Array.isArray(rawTags)
+    ? rawTags.map(String)
+    : typeof rawTags === "string"
+    ? rawTags.split(",").map((t) => t.trim()).filter(Boolean)
+    : [];
+
+  // Colors: "Dominant colors", "Dominant_colors", "dominantcolors", "colors"
+  const rawColors =
+    flat["dominantcolors"] ?? flat["dominantcolor"] ?? flat["colors"] ?? flat["colour"] ?? [];
+  const colors = Array.isArray(rawColors)
+    ? rawColors.map(String)
+    : typeof rawColors === "string"
+    ? rawColors.split(",").map((c) => c.trim()).filter(Boolean)
+    : [];
+
+  // Mood/style/reasoning — Gemini may return "Mood" at top level separate from the score
+  const moodStr =
+    typeof flat["moodword"] === "string"
+      ? flat["moodword"]
+      : typeof flat["mood"] === "string"
+      ? flat["mood"]
+      : "refined";
+
+  const styleStr = typeof flat["style"] === "string" ? flat["style"] : "editorial";
+  const reasoningStr =
+    typeof flat["reasoning"] === "string"
+      ? flat["reasoning"]
+      : typeof flat["explanation"] === "string"
+      ? flat["explanation"]
+      : "";
+
+  return {
+    scores: { composition, color, mood, uniqueness, overall },
+    tags,
+    colors,
+    mood: moodStr,
+    style: styleStr,
+    reasoning: reasoningStr,
+  };
+}
+
 export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
   const router = getRouter();
 
@@ -68,28 +143,8 @@ export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : content;
-    const analysis = JSON.parse(jsonStr) as ImageAnalysis;
-
-    const scores = analysis.scores;
-    if (
-      typeof scores.composition !== "number" ||
-      typeof scores.color !== "number" ||
-      typeof scores.mood !== "number" ||
-      typeof scores.uniqueness !== "number" ||
-      typeof scores.overall !== "number"
-    ) {
-      throw new Error("Invalid score format from Gemini Flash");
-    }
-
-    const calculatedOverall = Math.round(
-      scores.composition * 0.3 +
-        scores.color * 0.25 +
-        scores.mood * 0.25 +
-        scores.uniqueness * 0.2
-    );
-    analysis.scores.overall = calculatedOverall;
-
-    return analysis;
+    const raw = JSON.parse(jsonStr) as Record<string, unknown>;
+    return normalizeGeminiResponse(raw);
   } catch {
     console.error("[image-scorer] Failed to parse Gemini Flash response:", content);
     throw new Error("Failed to parse image analysis");

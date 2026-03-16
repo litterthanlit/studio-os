@@ -59,7 +59,11 @@ function prepareCode(code: string): string {
   return c;
 }
 
-function buildIframeHTML(code: string, tokens: DesignSystemTokens | null): string {
+export function buildIframeHTML(
+  code: string,
+  tokens: DesignSystemTokens | null,
+  previewId = "preview"
+): string {
   const cssVars = tokens ? tokensToCSS(tokens) : "";
   const bgColor = tokens?.colors.background || "#0a0a0a";
   const textColor = tokens?.colors.text || "#ffffff";
@@ -67,6 +71,7 @@ function buildIframeHTML(code: string, tokens: DesignSystemTokens | null): strin
     || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   const prepared = prepareCode(code);
   const escaped = JSON.stringify(prepared);
+  const escapedPreviewId = JSON.stringify(previewId);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -85,26 +90,34 @@ function buildIframeHTML(code: string, tokens: DesignSystemTokens | null): strin
   #__err pre{color:#fca5a5;font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-family:monospace}
   #__err button{align-self:flex-start;background:#ef4444;color:#fff;border:none;padding:6px 16px;font-size:11px;cursor:pointer;font-family:monospace;text-transform:uppercase;letter-spacing:.08em}
   #__ld{position:fixed;inset:0;z-index:99998;background:${bgColor};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
-  #__ld .sp{width:24px;height:24px;border:2px solid rgba(255,255,255,.1);border-top-color:rgba(255,255,255,.6);border-radius:50%;animation:spin .8s linear infinite}
-  #__ld .tx{font-size:11px;color:rgba(255,255,255,.4);font-family:monospace;text-transform:uppercase;letter-spacing:.12em}
+  #__ld .sp{width:24px;height:24px;border:2px solid rgba(128,128,128,.2);border-top-color:rgba(128,128,128,.7);border-radius:50%;animation:spin .8s linear infinite}
+  #__ld .tx{font-size:11px;color:rgba(128,128,128,.6);font-family:monospace;text-transform:uppercase;letter-spacing:.12em}
+  #__ld .ct{font-size:9px;color:rgba(128,128,128,.4);font-family:monospace}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-<div id="__ld"><div class="sp"></div><div class="tx">Rendering page\u2026</div></div>
+<div id="__ld"><div class="sp"></div><div class="tx">Rendering page\u2026</div><div class="ct" id="__ldst">Loading libraries\u2026</div></div>
 <div id="__err"><h3>Render Error</h3><pre id="__msg"></pre><button onclick="this.parentElement.classList.remove('on')">Dismiss</button></div>
 <div id="root"></div>
 <script>
-var __loaded=0,__need=4;
+var __loaded=0,__need=4,__libNames=["React","ReactDOM","Framer Motion","Babel"];
+var __previewId=${escapedPreviewId};
+var __ldst=null;
+function __updSt(m){__ldst=__ldst||document.getElementById("__ldst");if(__ldst)__ldst.textContent=m;}
+setTimeout(function(){if(__loaded<__need)__showErr("Timed out loading libraries ("+__loaded+"/"+__need+" loaded).\\nCheck your network connection.");},18000);
 function __showErr(m){
   document.getElementById("__ld").style.display="none";
   document.getElementById("__msg").textContent=m;
   document.getElementById("__err").classList.add("on");
-  try{window.parent.postMessage({type:"preview-error",error:m},"*")}catch(x){}
+  try{window.parent.postMessage({type:"preview-error",error:m,previewId:__previewId},"*")}catch(x){}
 }
 function __onLib(){
   __loaded++;
+  __updSt("Loaded "+__loaded+"/"+__need+" libraries\u2026");
+  try{window.parent.postMessage({type:"preview-progress",loaded:__loaded,need:__need,previewId:__previewId},"*")}catch(x){}
   if(__loaded<__need)return;
+  __updSt("Transpiling\u2026");
   __run();
 }
 function __onLibErr(name){
@@ -128,7 +141,7 @@ function __scanSections(){
       secs.push({id:s.id,label:hd?hd.textContent.trim().slice(0,40):"Section "+(j+1)});
     }
   }
-  try{window.parent.postMessage({type:"preview-sections",sections:secs},"*")}catch(x){}
+  try{window.parent.postMessage({type:"preview-sections",sections:secs,previewId:__previewId},"*")}catch(x){}
 }
 window.addEventListener("message",function(ev){
   if(ev.data&&ev.data.type==="scroll-to-section"){
@@ -138,10 +151,12 @@ window.addEventListener("message",function(ev){
 });
 function __run(){
   try{
+    __updSt("Transpiling code\u2026");
     var code=${escaped};
     var transformed=Babel.transform(code,{presets:["react","typescript"],filename:"page.tsx"}).code;
+    __updSt("Initializing component\u2026");
     var fm=window["framer-motion"]||{};
-    var header="var motion=this.motion,AnimatePresence=this.AP,useAnimation=this.uA,useInView=this.uIV,useScroll=this.uS,useTransform=this.uT,useState=React.useState,useEffect=React.useEffect,useRef=React.useRef,useMemo=React.useMemo,useCallback=React.useCallback;\\n";
+    var header="var motion=this.motion||{div:'div',span:'span',section:'section',p:'p',h1:'h1',h2:'h2',h3:'h3',h4:'h4',nav:'nav',footer:'footer',header:'header',button:'button',ul:'ul',li:'li',a:'a',img:'img'},AnimatePresence=this.AP||function(p){return p.children},useAnimation=this.uA||function(){return{}},useInView=this.uIV||function(){return[null,false]},useScroll=this.uS||function(){return{scrollYProgress:{current:0}}},useTransform=this.uT||function(v){return v},useState=React.useState,useEffect=React.useEffect,useRef=React.useRef,useMemo=React.useMemo,useCallback=React.useCallback;\\n";
     var fn=new Function(header+transformed);
     fn.call({motion:fm.motion,AP:fm.AnimatePresence,uA:fm.useAnimation,uIV:fm.useInView,uS:fm.useScroll,uT:fm.useTransform});
     var C=window.__PREVIEW_COMPONENT__;
@@ -149,9 +164,26 @@ function __run(){
       __showErr("No default-exported React component found.\\nMake sure the code has: export default function PageName() { ... }");
       return;
     }
-    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(C));
+    __updSt("Rendering\u2026");
+    // Error boundary class to catch runtime crashes in generated sections
+    function EB(props){React.Component.call(this,props);this.state={hasError:false,error:null};}
+    EB.prototype=Object.create(React.Component.prototype);
+    EB.prototype.constructor=EB;
+    EB.getDerivedStateFromError=function(err){return{hasError:true,error:err}};
+    EB.prototype.componentDidCatch=function(){};
+    EB.prototype.render=function(){
+      if(this.state.hasError){
+        var msg=this.state.error?this.state.error.message:"Unknown render error";
+        return React.createElement("div",{style:{padding:"24px",margin:"12px 0",borderRadius:"12px",border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.08)"}},
+          React.createElement("p",{style:{fontSize:"12px",color:"#ef4444",fontFamily:"monospace",margin:0}},"Render error: "+msg)
+        );
+      }
+      return this.props.children;
+    };
+    var Wrapped=function(){return React.createElement(EB,null,React.createElement(C))};
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Wrapped));
     document.getElementById("__ld").style.display="none";
-    try{window.parent.postMessage({type:"preview-ready"},"*")}catch(x){}
+    try{window.parent.postMessage({type:"preview-ready",previewId:__previewId},"*")}catch(x){}
     setTimeout(__scanSections,600);
   }catch(err){
     __showErr(err.message||"Unknown error during render");
@@ -206,6 +238,7 @@ function LoadingSkeleton() {
 }
 
 export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProps) {
+  const previewId = React.useId();
   const [device, setDevice] = React.useState<DeviceSize>("desktop");
   const [sections, setSections] = React.useState<SectionEntry[]>([]);
   const [activeSection, setActiveSection] = React.useState<string | null>(null);
@@ -216,13 +249,14 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
   React.useEffect(() => {
     function handleMessage(e: MessageEvent) {
       if (!e.data || typeof e.data !== "object") return;
+      if (e.data.previewId !== previewId) return;
       if (e.data.type === "preview-sections") setSections(e.data.sections || []);
       else if (e.data.type === "preview-ready") { setIframeReady(true); setRenderError(null); }
       else if (e.data.type === "preview-error") { setRenderError(e.data.error); setIframeReady(true); }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [previewId]);
 
   React.useEffect(() => {
     setSections([]);
@@ -237,8 +271,8 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
 
   const iframeHTML = React.useMemo(() => {
     if (!code) return null;
-    return buildIframeHTML(code, tokens);
-  }, [code, tokens]);
+    return buildIframeHTML(code, tokens, previewId);
+  }, [code, tokens, previewId]);
 
   if (loading) return <LoadingSkeleton />;
 

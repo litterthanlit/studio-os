@@ -3,260 +3,518 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { Layers, Wand2, Home, FolderOpen, Zap, Image, Settings, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  HomeIcon,
-  ProjectsIcon,
-  VisionIcon,
-  SettingsIcon,
-  CloseIcon,
-} from "@/components/ui/icon";
-import { springs } from "@/lib/animations";
+import { useCanvasStage } from "@/lib/canvas-stage-context";
 
-// ─── Sidebar inner content ────────────────────────────────────────────────────
+// ─── Studio OS Logo ────────────────────────────────────────────────────────────
 
-const sidebarSlideIn = {
-  hidden: { x: -20, opacity: 0 },
-  visible: {
-    x: 0,
-    opacity: 1,
-    transition: { type: "spring", stiffness: 300, damping: 30, mass: 0.9 },
-  },
-};
+function StudioOSLogo({ size = 28 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect x="4" y="8" width="24" height="18" rx="3" fill="#1E5DF2" opacity="0.2" />
+      <path
+        d="M4 11C4 9.34315 5.34315 8 7 8H13L15.5 5.5H25C26.6569 5.5 28 6.84315 28 8.5V23C28 24.6569 26.6569 26 25 26H7C5.34315 26 4 24.6569 4 23V11Z"
+        fill="#1E5DF2"
+        opacity="0.45"
+      />
+      <rect x="4" y="12" width="24" height="14" rx="3" fill="#1E5DF2" />
+      <line x1="10" y1="18" x2="22" y2="18" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.7" />
+      <line x1="10" y1="22" x2="22" y2="22" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.4" />
+    </svg>
+  );
+}
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
-  const pathname = usePathname();
-  const items = [
-    { href: "/home", label: "Home", Icon: HomeIcon },
-    { href: "/projects", label: "Projects", Icon: ProjectsIcon },
-    { href: "/explore", label: "Explore", Icon: VisionIcon },
-    { href: "/settings", label: "Settings", Icon: SettingsIcon },
-  ] as const;
+// ─── User Avatar ──────────────────────────────────────────────────────────────
+
+function UserAvatar({ size = 28 }: { size?: number }) {
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center rounded-full bg-[#D1E4FC] font-medium text-[#1E5DF2] select-none"
+      style={{ width: size, height: size, fontSize: size * 0.38, letterSpacing: "0.02em" }}
+    >
+      NG
+    </div>
+  );
+}
+
+// ─── Nav Item ─────────────────────────────────────────────────────────────────
+
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  disabled,
+  expanded,
+  onClick,
+  href,
+  tooltip,
+}: {
+  icon: React.ElementType;
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  expanded: boolean;
+  onClick?: () => void;
+  href?: string;
+  tooltip?: string;
+}) {
+  const cls = cn(
+    "flex h-8 w-full items-center rounded-[4px] transition-colors duration-150",
+    expanded ? "px-2" : "justify-center px-0",
+    active
+      ? "bg-[#D1E4FC]"
+      : disabled
+      ? "opacity-40 cursor-not-allowed"
+      : "hover:bg-[#F5F5F0]"
+  );
+
+  const iconEl = (
+    <Icon
+      size={18}
+      strokeWidth={1}
+      className={cn(
+        "shrink-0 transition-colors duration-150",
+        active ? "text-[#1E5DF2]" : "text-[#A0A0A0]"
+      )}
+    />
+  );
+
+  const labelEl = (
+    <AnimatePresence initial={false}>
+      {expanded ? (
+        <motion.span
+          key="label"
+          initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+          animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
+          exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+          transition={{ duration: 0.12 }}
+          className={cn(
+            "overflow-hidden whitespace-nowrap text-[13px]",
+            active ? "font-medium text-[#1E5DF2]" : "text-[#6B6B6B]"
+          )}
+        >
+          {label}
+        </motion.span>
+      ) : null}
+    </AnimatePresence>
+  );
+
+  if (href && !disabled) {
+    return (
+      <Link href={href} className={cls} title={!expanded ? label : undefined}>
+        {iconEl}
+        {labelEl}
+      </Link>
+    );
+  }
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={sidebarSlideIn}
-      className="flex h-full flex-col px-3 py-4"
+    <button
+      type="button"
+      onClick={!disabled ? onClick : undefined}
+      title={(!expanded ? label : undefined) ?? tooltip}
+      className={cls}
     >
-      <div className="mb-8 flex h-10 items-center gap-2.5 px-3">
-        <motion.div whileHover={{ scale: 1.02, transition: springs.smooth }} whileTap={{ scale: 0.98 }}>
-          <Link
-            href="/home"
-            className="flex items-center gap-[6px] text-text-tertiary hover:text-text-secondary transition-colors duration-150 ease-out"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-icon.svg" alt="Studio OS" className="shrink-0" style={{ width: 36, height: 28 }} />
-            <span
-              className="text-[17px] font-semibold leading-none"
-              style={{
-                fontFamily: "var(--font-instrument-sans)",
-                background: "linear-gradient(180deg, #2430AD 0%, #6E79F5 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              studio OS
-            </span>
-          </Link>
-        </motion.div>
+      {iconEl}
+      {labelEl}
+    </button>
+  );
+}
 
-        {onClose && (
-          <motion.button
-            type="button"
-            onClick={onClose}
-            whileHover={{ scale: 1.1, transition: springs.smooth }}
-            whileTap={{ scale: 0.95 }}
-            aria-label="Close sidebar"
-            className="ml-auto text-text-muted hover:text-text-secondary transition-colors duration-150"
-          >
-            <CloseIcon className="w-4 h-4" />
-          </motion.button>
-        )}
+// ─── Dashboard Sidebar Content ─────────────────────────────────────────────────
+
+const DASH_NAV = [
+  { href: "/home", label: "Home", icon: Home },
+  { href: "/projects", label: "Projects", icon: FolderOpen },
+  { href: "/canvas-v1", label: "Canvas", icon: Zap },
+  { href: "/explore", label: "Explore", icon: Image },
+];
+
+interface SidebarProject {
+  id: string;
+  name: string;
+  color: string;
+}
+
+const SIDEBAR_PROJECTS: SidebarProject[] = [
+  { id: "acme-rebrand", name: "Acme Rebrand", color: "#F97316" },
+  { id: "fintech-dashboard", name: "FinTech Dashboard", color: "#1E5DF2" },
+  { id: "editorial-magazine", name: "Editorial Magazine", color: "#8B5CF6" },
+  { id: "personal-portfolio", name: "Personal Portfolio", color: "#1A1A1A" },
+];
+
+function DashboardSidebarContent({
+  expanded,
+  onCmdK,
+}: {
+  expanded: boolean;
+  onCmdK?: () => void;
+}) {
+  const pathname = usePathname();
+  const railPadding = expanded ? "px-2" : "px-1";
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Logo */}
+      <div className="flex h-[56px] shrink-0 items-center px-[13px]">
+        <Link href="/home" aria-label="Studio OS Home" className="flex shrink-0 items-center">
+          <StudioOSLogo size={24} />
+          <AnimatePresence initial={false}>
+            {expanded ? (
+              <motion.span
+                key="logo-label"
+                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
+                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                transition={{ duration: 0.12 }}
+                className="overflow-hidden whitespace-nowrap text-[13px] font-semibold text-[#1A1A1A]"
+              >
+                Studio OS
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
+        </Link>
       </div>
 
-      <nav className="flex flex-col gap-1">
-        {items.map(({ href, label, Icon }) => {
+      {/* Main nav */}
+      <div className={cn("flex flex-col gap-0.5", railPadding)}>
+        {DASH_NAV.map(({ href, label, icon }) => {
           const active =
             href === "/home"
               ? pathname === "/home"
               : pathname === href || pathname.startsWith(`${href}/`);
           return (
-            <motion.div
+            <NavItem
               key={href}
-              whileHover={{ x: 2, transition: springs.smooth }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Link
-                href={href}
-                className={cn(
-                  "flex h-11 items-center gap-3 rounded-2xl px-3 transition-colors duration-150 ease-out",
-                  active
-                    ? "bg-sidebar-active text-text-primary"
-                    : "text-text-tertiary hover:bg-sidebar-hover hover:text-text-secondary"
-                )}
-              >
-                <Icon className="h-[18px] w-[18px] shrink-0" bare />
-                <span className="text-sm">{label}</span>
-              </Link>
-            </motion.div>
+              icon={icon}
+              label={label}
+              active={active}
+              expanded={expanded}
+              href={href}
+            />
           );
         })}
-      </nav>
+      </div>
 
-    </motion.div>
-  );
-}
-
-function CanvasSidebarContent({
-  projectHref,
-}: {
-  projectHref: string;
-}) {
-  return (
-    <div className="flex h-full flex-col items-center justify-between px-3 py-4">
-      <div className="group relative mt-1">
-        <Link
-          href={projectHref}
-          aria-label="Back to projects"
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-bg shadow-[0_12px_32px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#3B5EFC]/25 hover:bg-white"
+      {/* Projects section */}
+      <div className="mt-5 px-[13px]">
+        <motion.span
+          animate={{ opacity: expanded ? 1 : 0 }}
+          transition={{ duration: 0.12 }}
+          className="whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.1em] text-[#A0A0A0] select-none"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-icon.svg" alt="Studio OS" className="h-7 w-7" />
-        </Link>
-        <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-border-primary bg-bg-primary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-secondary opacity-0 shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-opacity duration-150 group-hover:opacity-100">
-          Back to projects
+          Projects
+        </motion.span>
+      </div>
+      <div className={cn("mt-1 flex flex-col gap-0.5", railPadding)}>
+        {SIDEBAR_PROJECTS.map((project) => {
+          const href = `/projects/${project.id}`;
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={project.id}
+              href={href}
+              className={cn(
+                "flex h-8 items-center rounded-[4px] transition-colors duration-150",
+                expanded ? "gap-2.5 px-2" : "justify-center px-0",
+                active ? "bg-[#D1E4FC]" : "hover:bg-[#F5F5F0]"
+              )}
+            >
+              <span
+                className="h-[6px] w-[6px] shrink-0 rounded-full"
+                style={{ backgroundColor: project.color }}
+              />
+              <AnimatePresence initial={false}>
+                {expanded ? (
+                  <motion.span
+                    key={`${project.id}-label`}
+                    initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                    animate={{ opacity: 1, width: "auto", marginLeft: 0 }}
+                    exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                    transition={{ duration: 0.12 }}
+                    className={cn(
+                      "overflow-hidden whitespace-nowrap text-[13px] truncate",
+                      active ? "font-medium text-[#1E5DF2]" : "text-[#6B6B6B]"
+                    )}
+                  >
+                    {project.name}
+                  </motion.span>
+                ) : null}
+              </AnimatePresence>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Bottom: Search + Settings + Avatar */}
+      <div className={cn("flex flex-col gap-0.5 border-t border-[#E5E5E0] pt-2 pb-3", railPadding)}>
+        {/* Search / Cmd+K */}
+        <button
+          type="button"
+          onClick={onCmdK}
+          title={!expanded ? "Search (⌘K)" : undefined}
+          className="flex h-8 w-full items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0]"
+          style={{ justifyContent: expanded ? undefined : "center", paddingLeft: expanded ? 8 : 0 }}
+        >
+          <Search
+            size={18}
+            strokeWidth={1}
+            className="shrink-0 text-[#A0A0A0] transition-colors duration-150"
+          />
+          <AnimatePresence initial={false}>
+            {expanded ? (
+              <motion.span
+                key="search-label"
+                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
+                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                transition={{ duration: 0.12 }}
+                className="flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap text-[13px] text-[#6B6B6B]"
+              >
+                Search
+                <kbd className="ml-2 rounded-[2px] border border-[#E5E5E0] bg-[#F5F5F0] px-1 py-0.5 font-mono text-[9px] text-[#A0A0A0]">
+                  ⌘K
+                </kbd>
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
+        </button>
+
+        {/* Settings */}
+        <NavItem
+          icon={Settings}
+          label="Settings"
+          active={false}
+          expanded={expanded}
+          href="/settings"
+        />
+
+        {/* User row */}
+        <div
+          className={cn(
+            "flex h-9 items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0] cursor-pointer",
+            expanded ? "gap-2.5 px-2" : "justify-center px-0",
+            !expanded && "justify-center px-0"
+          )}
+        >
+          <UserAvatar size={24} />
+          <AnimatePresence initial={false}>
+            {expanded ? (
+              <motion.div
+                key="user-label"
+                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                animate={{ opacity: 1, width: "auto", marginLeft: 0 }}
+                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                transition={{ duration: 0.12 }}
+                className="flex min-w-0 flex-col overflow-hidden"
+              >
+                <span className="whitespace-nowrap text-[13px] font-medium leading-tight text-[#1A1A1A]">
+                  Nick G
+                </span>
+                <span className="whitespace-nowrap text-[11px] leading-tight text-[#A0A0A0]">
+                  Studio OS
+                </span>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Sidebar (desktop + mobile) ───────────────────────────────────────────────
+// ─── Canvas Sidebar Content ────────────────────────────────────────────────────
+
+function CanvasSidebarContent({ expanded }: { expanded: boolean }) {
+  const ctx = useCanvasStage();
+  const railPadding = expanded ? "px-2" : "px-1";
+
+  const items = [
+    {
+      label: "Collect",
+      icon: Layers,
+      stage: "collect" as const,
+      activeStages: ["collect"] as string[],
+    },
+    {
+      label: "Compose",
+      icon: Wand2,
+      stage: "compose" as const,
+      activeStages: ["compose"] as string[],
+    },
+  ];
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Logo → back to home */}
+      <div className="flex h-[56px] shrink-0 items-center px-[13px]">
+        <Link href="/home" aria-label="Studio OS Home" className="flex shrink-0 items-center">
+          <StudioOSLogo size={24} />
+          <AnimatePresence initial={false}>
+            {expanded ? (
+              <motion.span
+                key="canvas-logo-label"
+                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
+                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                transition={{ duration: 0.12 }}
+                className="overflow-hidden whitespace-nowrap text-[13px] font-semibold text-[#1A1A1A]"
+              >
+                Studio OS
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
+        </Link>
+      </div>
+
+      {/* Canvas stage nav */}
+      <div className={cn("flex flex-col gap-0.5 pt-1", railPadding)}>
+        {items.map(({ label, icon, stage, activeStages }) => {
+          const isActive = ctx ? activeStages.includes(ctx.stage) : false;
+          const isAvailable = ctx ? (ctx.availability[stage]?.available ?? true) : true;
+          const tooltip = ctx?.availability[stage]?.tooltip;
+
+          return (
+            <NavItem
+              key={stage}
+              icon={icon}
+              label={label}
+              active={isActive}
+              disabled={!isAvailable}
+              expanded={expanded}
+              tooltip={tooltip}
+              onClick={() => {
+                if (ctx && isAvailable) ctx.setStage(stage);
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Settings at bottom */}
+      <div className={cn("border-t border-[#E5E5E0] pt-2 pb-3", railPadding)}>
+        <NavItem
+          icon={Settings}
+          label="Settings"
+          active={false}
+          expanded={expanded}
+          href="/settings"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Sidebar ─────────────────────────────────────────────────────────────
 
 export function Sidebar() {
+  const [expanded, setExpanded] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [canvasSidebarVisible, setCanvasSidebarVisible] = React.useState(true);
-  const [canvasProjectHref, setCanvasProjectHref] = React.useState("/home");
   const pathname = usePathname();
-  const isCanvasRoute = pathname === "/canvas" || pathname === "/canvas-v1";
 
-  // Close mobile sidebar on route change
+  const isCanvasRoute =
+    pathname === "/canvas" ||
+    pathname.startsWith("/canvas/") ||
+    pathname === "/canvas-v1" ||
+    pathname.startsWith("/canvas-v1/");
+
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  React.useEffect(() => {
-    if (!isCanvasRoute || typeof window === "undefined") {
-      setCanvasProjectHref("/home");
-      return;
-    }
-
-    const updateProjectHref = () => {
-      const params = new URLSearchParams(window.location.search);
-      const projectId = params.get("project");
-      setCanvasProjectHref(projectId ? `/projects/${projectId}` : "/home");
-    };
-
-    updateProjectHref();
-    window.addEventListener("popstate", updateProjectHref);
-    return () => window.removeEventListener("popstate", updateProjectHref);
-  }, [isCanvasRoute, pathname]);
-
-  React.useEffect(() => {
-    if (!isCanvasRoute) {
-      setCanvasSidebarVisible(true);
-      return;
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
-        event.preventDefault();
-        setCanvasSidebarVisible((current) => !current);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCanvasRoute]);
+  // Trigger Cmd+K from sidebar search button
+  function fireCmdK() {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "k",
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  }
 
   return (
     <>
       {/* ── Desktop sidebar ── */}
-      <aside
+      <motion.aside
+        animate={{ width: expanded ? 200 : 48 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
         className={cn(
-          "hidden md:flex flex-col",
-          isCanvasRoute
-            ? canvasSidebarVisible
-              ? "w-[72px]"
-              : "w-0"
-            : "w-[220px]",
-          "shrink-0 h-screen",
-          "bg-sidebar-bg border-r border-sidebar-border",
-          "sticky top-0 overflow-hidden transition-[width] duration-200 ease-out",
-          isCanvasRoute && !canvasSidebarVisible && "border-r-transparent"
+          "relative z-20 hidden md:flex shrink-0 flex-col h-screen sticky top-0 overflow-hidden",
+          "bg-[#FAFAF8] border-r border-[#E5E5E0]"
         )}
       >
         {isCanvasRoute ? (
-          canvasSidebarVisible ? (
-            <CanvasSidebarContent projectHref={canvasProjectHref} />
-          ) : null
+          <CanvasSidebarContent expanded={expanded} />
         ) : (
-          <SidebarContent />
+          <DashboardSidebarContent expanded={expanded} onCmdK={fireCmdK} />
         )}
-      </aside>
+      </motion.aside>
 
-      {/* ── Mobile hamburger ── */}
-      {isCanvasRoute ? (
-        canvasSidebarVisible ? (
-          <div className="fixed left-4 top-4 z-50 md:hidden">
-            <CanvasSidebarContent projectHref={canvasProjectHref} />
-          </div>
-        ) : null
-      ) : (
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open sidebar"
-          className="md:hidden fixed top-4 left-4 z-50 flex items-center justify-center w-8 h-8 text-text-tertiary hover:text-text-primary transition-colors duration-150"
-        >
-          <svg
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-5 h-5"
-            aria-hidden
-          >
-            <path
-              fillRule="evenodd"
-              d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-      )}
+      {/* ── Mobile hamburger trigger ── */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open sidebar"
+        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#A0A0A0] shadow-sm transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden>
+          <path
+            fillRule="evenodd"
+            d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
 
       {/* ── Mobile overlay ── */}
-      {!isCanvasRoute && mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-30"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden
-        />
-      )}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            key="mobile-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Mobile drawer ── */}
       <aside
         className={cn(
-          "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col",
-          "w-[220px] bg-sidebar-bg border-r border-sidebar-border",
+          "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col w-[200px]",
+          "bg-[#FAFAF8] border-r border-[#E5E5E0]",
           "transform transition-transform duration-200 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {!isCanvasRoute ? <SidebarContent onClose={() => setMobileOpen(false)} /> : null}
+        {isCanvasRoute ? (
+          <CanvasSidebarContent expanded />
+        ) : (
+          <DashboardSidebarContent expanded onCmdK={() => { setMobileOpen(false); fireCmdK(); }} />
+        )}
       </aside>
     </>
   );

@@ -18,13 +18,25 @@ import {
   useNewProjectModal,
   getStoredProjects,
 } from "@/components/new-project-modal";
-import { PROJECTS_UPDATED_EVENT, getProjectState } from "@/lib/project-store";
+import {
+  PROJECTS_UPDATED_EVENT,
+  deleteProject,
+  getProjectState,
+} from "@/lib/project-store";
 import {
   DEMO_PROJECT,
   DEMO_PROJECT_ID,
   isDemoDismissed,
   dismissDemo,
 } from "@/lib/demo-project";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 function storedToProject(sp: {
   id: string;
@@ -64,7 +76,7 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
     <Link
       href={`/projects/${DEMO_PROJECT_ID}`}
           className={cn(
-            "group relative flex w-full flex-col border border-[#1a1a1a] bg-card-bg text-left rounded-xl",
+            "group relative flex w-full flex-col border border-[#1a1a1a] bg-card-bg text-left rounded-md",
             "transition-[border-color] duration-200 ease-out hover:border-accent/40"
           )}
     >
@@ -149,6 +161,7 @@ export function ProjectsPage() {
   const [showArchived, setShowArchived] = React.useState(false);
   const [localProjects, setLocalProjects] = React.useState<Project[]>([]);
   const [showDemo, setShowDemo] = React.useState(false);
+  const [projectPendingDelete, setProjectPendingDelete] = React.useState<Project | null>(null);
 
   React.useEffect(() => {
     setLocalProjects(getStoredProjects().map(storedToProject));
@@ -170,11 +183,22 @@ export function ProjectsPage() {
     setShowDemo(false);
   }
 
+  function handleConfirmDelete() {
+    if (!projectPendingDelete) return;
+    deleteProject(projectPendingDelete.id);
+    setLocalProjects((current) =>
+      current.filter((project) => project.id !== projectPendingDelete.id)
+    );
+    setProjectPendingDelete(null);
+  }
+
   const allProjects = [...localProjects, ...PROJECTS];
+  const localProjectIds = new Set(localProjects.map((project) => project.id));
 
   return (
-    <section className="space-y-6">
-      <SectionLabel>Projects</SectionLabel>
+    <>
+      <section className="space-y-6">
+        <SectionLabel>Projects</SectionLabel>
 
       <div className="space-y-6">
         <div className="space-y-2">
@@ -200,7 +224,7 @@ export function ProjectsPage() {
 
           {/* Empty state */}
           {allProjects.length === 0 && !showDemo && (
-            <div className="flex flex-col items-center gap-3 border border-dashed border-card-border bg-card-bg py-10 text-center rounded-xl">
+            <div className="flex flex-col items-center gap-3 border border-dashed border-card-border bg-card-bg py-10 text-center rounded-md">
               <p className="text-sm text-text-tertiary">No projects yet.</p>
               <div className="flex items-center gap-3">
                 <button
@@ -239,43 +263,59 @@ export function ProjectsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             {allProjects.map((project) => {
+              const canDelete = localProjectIds.has(project.id);
               return (
-                <Link
+                <div
                   key={project.id}
-                  href={`/projects/${project.id}`}
                   className={cn(
-                    "flex w-full flex-col overflow-hidden border border-card-border bg-card-bg text-left rounded-xl",
+                    "flex w-full flex-col overflow-hidden border border-card-border bg-card-bg text-left rounded-md",
                     "transition-[border-color] duration-200 ease-out hover:border-border-hover"
                   )}
                 >
-                  <div className="flex flex-col gap-2.5 p-4">
-                    {/* Color dot + Name row */}
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-3 h-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: project.palette[1] || project.palette[0] }}
-                      />
-                      <span className="text-sm font-semibold text-text-primary truncate">
-                        {project.name}
-                      </span>
+                  <div className="flex items-start justify-between gap-3 px-4 pt-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-3 h-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: project.palette[1] || project.palette[0] }}
+                        />
+                        <span className="text-sm font-semibold text-text-primary truncate">
+                          {project.name}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[11px] text-text-tertiary">
+                          {project.client}
+                        </span>
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.12em]",
+                            PHASE_STYLES[project.phase]
+                          )}
+                        >
+                          {project.phase}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Client + Phase */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-text-tertiary">
-                        {project.client}
-                      </span>
-                      <span
-                        className={cn(
-                          "px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.12em]",
-                          PHASE_STYLES[project.phase]
-                        )}
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        onClick={() => setProjectPendingDelete(project)}
+                        className="rounded-lg border border-[#EE0000]/20 px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.12em] text-[#EE0000] transition-colors hover:bg-[#EE0000]/10"
+                        aria-label={`Delete ${project.name}`}
                       >
-                        {project.phase}
-                      </span>
-                    </div>
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
 
-                    {/* Progress */}
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="flex flex-col gap-2.5 p-4 pt-3"
+                  >
+                    {/* Color dot + Name row */}
                     <div className="space-y-1">
                       <div className="h-0.5 w-full bg-bg-input overflow-hidden">
                         <div
@@ -303,8 +343,8 @@ export function ProjectsPage() {
                         {project.references} refs · {project.lastActivity}
                       </span>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               );
             })}
           </div>
@@ -340,6 +380,42 @@ export function ProjectsPage() {
         </div>
 
       </div>
-    </section>
+      </section>
+
+      <Dialog
+        open={projectPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setProjectPendingDelete(null);
+        }}
+      >
+        <DialogContent className="max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Delete project?</DialogTitle>
+            <DialogDescription>
+              {projectPendingDelete
+                ? `This will permanently remove "${projectPendingDelete.name}" from local storage, including its references, canvas state, generated variants, and tasks. This is the fastest way to free quota space.`
+                : "This will permanently remove the project from local storage."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-5 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setProjectPendingDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleConfirmDelete}
+            >
+              Delete Project
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

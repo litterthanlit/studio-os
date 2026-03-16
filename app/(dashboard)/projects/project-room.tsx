@@ -60,7 +60,7 @@ function StatPill({
   value: string;
 }) {
   return (
-    <div className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary">
+    <div className="rounded-sm border border-border-primary bg-bg-secondary px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary">
       <span className="text-text-primary">{value}</span> {label}
     </div>
   );
@@ -74,8 +74,8 @@ function EmptyOverviewState({
   body: string;
 }) {
   return (
-    <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[28px] border border-dashed border-border-primary bg-bg-secondary px-8 py-16 text-center">
-      <div className="mb-5 h-12 w-12 rounded-2xl border border-border-primary bg-card-bg" />
+    <div className="flex min-h-[320px] flex-col items-center justify-center rounded-lg border border-dashed border-border-primary bg-bg-secondary px-8 py-16 text-center">
+      <div className="mb-5 h-12 w-12 rounded-lg border border-border-primary bg-card-bg" />
       <p className="text-lg font-medium text-text-primary">{title}</p>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-text-secondary">
         {body}
@@ -129,7 +129,7 @@ function BoardOverview({ projectId }: { projectId: string }) {
         {references.map((reference) => (
           <div
             key={reference.id}
-            className="group mb-4 break-inside-avoid overflow-hidden rounded-[22px] border border-border-primary bg-card-bg"
+            className="group mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border-primary bg-card-bg"
           >
             <div className="relative overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -141,10 +141,10 @@ function BoardOverview({ projectId }: { projectId: string }) {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-4 py-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                <span className="rounded-sm border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
                   {reference.source}
                 </span>
-                <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                <span className="rounded-sm border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
                   View in Canvas
                 </span>
               </div>
@@ -170,7 +170,7 @@ function TasteSnapshot({
   tasteProfile: TasteProfile;
 }) {
   return (
-    <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+    <div className="rounded-lg border border-border-primary bg-card-bg p-5">
       <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
         Taste profile
       </p>
@@ -181,7 +181,7 @@ function TasteSnapshot({
         {tasteProfile.adjectives.map((adjective) => (
           <span
             key={adjective}
-            className="rounded-full border border-[#3B5EFC]/20 bg-[#3B5EFC]/8 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#3B5EFC]"
+            className="rounded-sm border border-[#3B5EFC]/20 bg-[#3B5EFC]/8 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#3B5EFC]"
           >
             {adjective}
           </span>
@@ -239,7 +239,7 @@ function SystemOverview({
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="space-y-5">
-        <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+        <div className="rounded-lg border border-border-primary bg-card-bg p-5">
           <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
             Color palette
           </p>
@@ -247,7 +247,7 @@ function SystemOverview({
             {palette.slice(0, 10).map((color, index) => (
               <div key={`${color}-${index}`} className="space-y-2">
                 <div
-                  className="aspect-square rounded-2xl border border-border-primary"
+                  className="aspect-square rounded-lg border border-border-primary"
                   style={{ backgroundColor: color }}
                 />
                 <p className="truncate text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
@@ -258,12 +258,12 @@ function SystemOverview({
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+        <div className="rounded-lg border border-border-primary bg-card-bg p-5">
           <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
             Typography
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+            <div className="rounded-md border border-border-primary bg-bg-secondary p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
                 Heading
               </p>
@@ -271,7 +271,7 @@ function SystemOverview({
                 {fontLabel(headingFont)}
               </p>
             </div>
-            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+            <div className="rounded-md border border-border-primary bg-bg-secondary p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
                 Body
               </p>
@@ -286,12 +286,12 @@ function SystemOverview({
       <div className="space-y-5">
         {tasteProfile ? <TasteSnapshot tasteProfile={tasteProfile} /> : null}
 
-        <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+        <div className="rounded-lg border border-border-primary bg-card-bg p-5">
           <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
             System snapshot
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+            <div className="rounded-md border border-border-primary bg-bg-secondary p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
                 Layout bias
               </p>
@@ -302,7 +302,7 @@ function SystemOverview({
                 Density {tasteProfile?.layoutBias.density ?? "—"} · whitespace {tasteProfile?.layoutBias.whitespaceIntent ?? "—"}
               </p>
             </div>
-            <div className="rounded-[20px] border border-border-primary bg-bg-secondary p-4">
+            <div className="rounded-md border border-border-primary bg-bg-secondary p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
                 CTA tone
               </p>
@@ -322,7 +322,7 @@ function SystemOverview({
         </div>
 
         {tasteProfile?.avoid?.length ? (
-          <div className="rounded-[26px] border border-red-500/20 bg-red-500/[0.04] p-5">
+          <div className="rounded-lg border border-red-500/20 bg-red-500/[0.04] p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-red-300">
               Avoid
             </p>
@@ -346,7 +346,7 @@ function VariantPreviewCard({
   tokens: DesignSystemTokens | null;
 }) {
   return (
-    <div className="overflow-hidden rounded-[24px] border border-border-primary bg-card-bg">
+    <div className="overflow-hidden rounded-lg border border-border-primary bg-card-bg">
       <div className="border-b border-border-primary px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -358,7 +358,7 @@ function VariantPreviewCard({
             </p>
           </div>
           {variant.strategy ? (
-            <span className="rounded-full border border-border-primary bg-bg-secondary px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-text-secondary">
+            <span className="rounded-sm border border-border-primary bg-bg-secondary px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-text-secondary">
               {variant.strategy}
             </span>
           ) : null}
@@ -468,11 +468,11 @@ function SiteOverview({
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+          <div className="rounded-lg border border-border-primary bg-card-bg p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
               Compose preview
             </p>
-            <div className="mt-4 overflow-hidden rounded-[22px] border border-border-primary bg-white">
+            <div className="mt-4 overflow-hidden rounded-lg border border-border-primary bg-white">
               {exportArtboard && tokens ? (
                 <ComposeDocumentView
                   pageTree={exportArtboard.pageTree}
@@ -489,7 +489,7 @@ function SiteOverview({
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-border-primary bg-card-bg p-5">
+          <div className="rounded-lg border border-border-primary bg-card-bg p-5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-text-tertiary">
               Export history
             </p>
@@ -498,7 +498,7 @@ function SiteOverview({
                 {exportHistory.map((item) => (
                   <div
                     key={`${item.label}-${item.time}`}
-                    className="rounded-[20px] border border-border-primary bg-bg-secondary p-4"
+                    className="rounded-md border border-border-primary bg-bg-secondary p-4"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -568,7 +568,7 @@ export function ProjectRoomSections({ project }: { project: Project }) {
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "rounded-full border px-4 py-2 text-left transition-colors",
+                "rounded-sm border px-4 py-2 text-left transition-colors",
                 activeTab === tab.id
                   ? "border-[#3B5EFC]/30 bg-[#3B5EFC]/10 text-text-primary"
                   : "border-border-primary bg-bg-secondary text-text-secondary hover:text-text-primary"

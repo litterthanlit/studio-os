@@ -2,10 +2,10 @@
 // Animation presets and variants for Framer Motion
 
 export const springs = {
-  smooth: { type: "spring", stiffness: 300, damping: 30 },
-  snappy: { type: "spring", stiffness: 400, damping: 25 },
-  gentle: { type: "spring", stiffness: 200, damping: 20 },
-  bouncy: { type: "spring", stiffness: 500, damping: 15 },
+  smooth: { type: "tween", duration: 0.2, ease: "easeOut" } as const,
+  snappy: { type: "tween", duration: 0.15, ease: "easeOut" } as const,
+  gentle: { type: "tween", duration: 0.25, ease: "easeOut" } as const,
+  bouncy: { type: "spring", stiffness: 400, damping: 30, duration: 0.25 } as const,
 };
 
 export const slideUp = {
@@ -25,13 +25,13 @@ export const staggerContainer = {
 };
 
 export const staggerItem = {
-  initial: { opacity: 0, transform: "translateY(10px)" },
+  initial: { opacity: 0, y: 10 },
   animate: { 
     opacity: 1, 
-    transform: "translateY(0px)",
-    transition: { type: "spring", stiffness: 300, damping: 30 }
+    y: 0,
+    transition: { type: "tween", duration: 0.2, ease: "easeOut" }
   },
-};
+} as const;
 
 export const fadeIn = {
   initial: { opacity: 0 },

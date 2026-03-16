@@ -1,44 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import {
   ANALYSIS_PROMPT,
   DESIGN_DIRECTOR_SYSTEM_PROMPT,
   type ImageAnalysis,
 } from "@/lib/canvas/analyze-images";
+import { getRouter, GEMINI_FLASH, imageUrlBlock } from "@/lib/ai/model-router";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { images } = body as { images: string[] };
 
+    console.log(`[canvas/analyze] Received ${images?.length ?? 0} images, first image type: ${images?.[0]?.slice(0, 30)}...`);
+
     if (!images || images.length === 0) {
       return NextResponse.json({ error: "No images provided" }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY not configured. Add it to your .env.local file." },
+        { error: "OPENROUTER_API_KEY not configured. Add it to your .env.local file." },
         { status: 500 }
       );
     }
 
-    const openai = new OpenAI({ apiKey });
+    const router = getRouter();
 
     // Cap at 8 images — quality gate inside the prompt handles the rest
-    const imageContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] =
-      images.slice(0, 8).map((img) => ({
-        type: "image_url" as const,
-        image_url: {
-          url: img,
-          // Use "high" detail for better colour accuracy on the quality scoring pass.
-          // Falls back gracefully on gpt-4o-mini which only supports "low" | "auto".
-          detail: "auto" as const,
-        },
-      }));
+    const imageContent = images.slice(0, 8).map((img) => imageUrlBlock(img, "auto"));
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    const response = await router.chat.completions.create({
+      model: GEMINI_FLASH,
       messages: [
         {
           role: "system",
@@ -52,9 +45,7 @@ export async function POST(req: NextRequest) {
           ],
         },
       ],
-      // Increased budget: quality scores + confidence fields add ~400 tokens to the response
       max_tokens: 2200,
-      // Lower temperature for more precise hex values and consistent scoring
       temperature: 0.15,
       response_format: { type: "json_object" },
     });
@@ -68,9 +59,11 @@ export async function POST(req: NextRequest) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON object found in response");
       analysis = JSON.parse(jsonMatch[0]) as ImageAnalysis;
-    } catch {
+    } catch (parseErr) {
+      const parseMessage = parseErr instanceof Error ? parseErr.message : "Unknown parse error";
+      console.error(`[canvas/analyze] JSON parse failed: ${parseMessage}. Raw response (first 500 chars):`, text.slice(0, 500));
       return NextResponse.json(
-        { error: "Failed to parse analysis response", raw: text },
+        { error: `Failed to parse analysis response: ${parseMessage}`, raw: text.slice(0, 500) },
         { status: 500 }
       );
     }
@@ -98,6 +91,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ analysis });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Analysis failed";
+    const stack = err instanceof Error ? err.stack : "";
+    console.error(`[canvas/analyze] Error: ${message}`);
+    if (stack) console.error(`[canvas/analyze] Stack: ${stack}`);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

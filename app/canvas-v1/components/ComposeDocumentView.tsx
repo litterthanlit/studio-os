@@ -16,7 +16,8 @@ type ComposeDocumentViewProps = {
   tokens: DesignSystemTokens;
   breakpoint: Breakpoint;
   selectedNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string | null) => void;
+  onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   className?: string;
   interactive?: boolean;
   scale?: number;
@@ -116,32 +117,87 @@ function Selectable({
   node,
   selectedNodeId,
   onSelectNode,
+  onUpdateContent,
   interactive,
   className,
   children,
 }: {
   node: PageNode;
   selectedNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string | null) => void;
+  onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   interactive?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   const selected = interactive && node.id === selectedNodeId;
+  const [hovered, setHovered] = React.useState(false);
+  const isTextNode = node.type === "heading" || node.type === "paragraph";
+
+  function handleDoubleClick(e: React.MouseEvent) {
+    if (!interactive || !isTextNode || !onUpdateContent) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    const found = el.querySelector("h2, p") as HTMLElement | null;
+    if (!found) return;
+    const textEl: HTMLElement = found;
+    textEl.contentEditable = "true";
+    textEl.focus();
+    const range = window.document.createRange();
+    range.selectNodeContents(textEl);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const commit = () => {
+      textEl.contentEditable = "false";
+      const newText = textEl.textContent ?? "";
+      onUpdateContent!(node.id, "text", newText);
+      textEl.removeEventListener("blur", commit);
+      textEl.removeEventListener("keydown", onKey);
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        textEl.blur();
+      }
+      if (ev.key === "Escape") {
+        textEl.textContent = node.content?.text ?? "";
+        textEl.blur();
+      }
+    };
+    textEl.addEventListener("blur", commit, { once: true });
+    textEl.addEventListener("keydown", onKey);
+  }
+
   return (
     <div
       data-node-id={node.id}
-      className={cn(
-        interactive && "group relative transition-shadow duration-150",
-        selected && "ring-2 ring-accent ring-offset-2 ring-offset-bg-secondary",
-        interactive && !selected && "hover:ring-1 hover:ring-border-hover",
-        className
-      )}
+      className={cn(interactive && "relative", className)}
+      style={
+        interactive
+          ? selected
+            ? { outline: "2px solid #1E5DF2", outlineOffset: -1, cursor: "default" }
+            : hovered
+            ? { outline: "1px dashed #D1E4FC", outlineOffset: -1, cursor: "default" }
+            : { cursor: "default" }
+          : undefined
+      }
+      onMouseDown={(event) => {
+        if (!interactive) return;
+        // Prevent artboard drag from starting when clicking content
+        event.stopPropagation();
+      }}
       onClick={(event) => {
         if (!interactive || !onSelectNode) return;
+        event.preventDefault();
         event.stopPropagation();
         onSelectNode(node.id);
       }}
+      onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => interactive && setHovered(true)}
+      onMouseLeave={() => interactive && setHovered(false)}
     >
       {children}
     </div>
@@ -153,12 +209,13 @@ function renderNode(
   tokens: DesignSystemTokens,
   breakpoint: Breakpoint,
   selectedNodeId?: string | null,
-  onSelectNode?: (nodeId: string) => void,
-  interactive = false
+  onSelectNode?: (nodeId: string | null) => void,
+  interactive = false,
+  onUpdateContent?: (nodeId: string, key: string, value: string) => void
 ): React.ReactNode {
   const style = getNodeStyle(node, breakpoint);
   const children = (node.children ?? []).map((child) =>
-    renderNode(child, tokens, breakpoint, selectedNodeId, onSelectNode, interactive)
+    renderNode(child, tokens, breakpoint, selectedNodeId, onSelectNode, interactive, onUpdateContent)
   );
 
   switch (node.type) {
@@ -169,6 +226,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <main
@@ -198,6 +256,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <section
@@ -237,6 +296,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <motion.h2
@@ -269,6 +329,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <p
@@ -302,6 +363,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -326,6 +388,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <button
@@ -357,6 +420,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -382,6 +446,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -432,6 +497,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -453,6 +519,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -483,6 +550,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -511,6 +579,7 @@ function renderNode(
           node={node}
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
+          onUpdateContent={onUpdateContent}
           interactive={interactive}
         >
           <div
@@ -622,6 +691,7 @@ export function ComposeDocumentView({
   breakpoint,
   selectedNodeId,
   onSelectNode,
+  onUpdateContent,
   className,
   interactive = false,
   scale = 1,
@@ -631,11 +701,18 @@ export function ComposeDocumentView({
       className={cn("origin-top-left", className)}
       style={{
         width: BREAKPOINT_WIDTHS[breakpoint],
-        transform: `scale(${scale})`,
+        transform: scale !== 1 ? `scale(${scale})` : undefined,
         transformOrigin: "top left",
       }}
+      onClick={(e) => {
+        if (!interactive || !onSelectNode) return;
+        // Click on empty area within the document → deselect
+        if (!(e.target as HTMLElement).closest("[data-node-id]")) {
+          onSelectNode(null);
+        }
+      }}
     >
-      {renderNode(pageTree, tokens, breakpoint, selectedNodeId, onSelectNode, interactive)}
+      {renderNode(pageTree, tokens, breakpoint, selectedNodeId, onSelectNode, interactive, onUpdateContent)}
     </div>
   );
 }

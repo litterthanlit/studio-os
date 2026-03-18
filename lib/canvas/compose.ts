@@ -161,7 +161,7 @@ export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
   mobile: 375,
 };
 
-export const COMPOSE_ARTBOARD_GAP = 100;
+export const COMPOSE_ARTBOARD_GAP = 200;
 
 /** Fixed canvas positions for the three breakpoint artboards created from a single variant. */
 export const BREAKPOINT_ARTBOARD_LAYOUTS: Array<{
@@ -170,9 +170,103 @@ export const BREAKPOINT_ARTBOARD_LAYOUTS: Array<{
   x: number;
 }> = [
   { breakpoint: "desktop", name: "Desktop 1440", x: 0 },
-  { breakpoint: "tablet",  name: "Tablet 768",   x: 1540 },
-  { breakpoint: "mobile",  name: "Mobile 375",   x: 2408 },
+  { breakpoint: "tablet",  name: "Tablet 768",   x: 1440 + 200 },
+  { breakpoint: "mobile",  name: "Mobile 375",   x: 1440 + 200 + 768 + 200 },
 ];
+
+// ─── Artboard creation + fit-to-view ──────────────────────────────────────────
+
+export type ArtboardSpec = {
+  id: string;
+  variantId: string;
+  name: string;
+  breakpoint: Breakpoint;
+  label: string;
+  x: number;
+  y: number;
+  pageTree: PageNode;
+  compiledCode?: string | null;
+};
+
+/**
+ * Creates three side-by-side breakpoint artboards from a single variant's page tree.
+ * Desktop is centered at the origin; Tablet and Mobile are positioned to the right
+ * with 80px gaps.
+ */
+export function createInitialArtboards(
+  pageTree: PageNode,
+  tokens: DesignSystemTokens,
+  variantId: string,
+  compiledCode?: string | null
+): ArtboardSpec[] {
+  const gap = COMPOSE_ARTBOARD_GAP;
+  const desktopX = 0;
+  const tabletX = BREAKPOINT_WIDTHS.desktop + gap;
+  const mobileX = tabletX + BREAKPOINT_WIDTHS.tablet + gap;
+
+  const layouts: Array<{ breakpoint: Breakpoint; label: string; x: number }> = [
+    { breakpoint: "desktop", label: "Desktop", x: desktopX },
+    { breakpoint: "tablet",  label: "Tablet",  x: tabletX },
+    { breakpoint: "mobile",  label: "Mobile",  x: mobileX },
+  ];
+
+  return layouts.map(({ breakpoint, label, x }) => ({
+    id: uid("artboard"),
+    variantId,
+    name: `${label} ${BREAKPOINT_WIDTHS[breakpoint]}`,
+    breakpoint,
+    label,
+    x,
+    y: 0,
+    pageTree: structuredClone(pageTree),
+    compiledCode: compiledCode ?? null,
+  }));
+}
+
+/**
+ * Returns { pan, zoom } to frame all artboards in the viewport with padding.
+ */
+export function fitArtboardsToView(
+  artboards: Array<{ x: number; y: number; breakpoint: Breakpoint }>,
+  viewportWidth: number,
+  viewportHeight: number,
+  padding = 60
+): { pan: { x: number; y: number }; zoom: number } {
+  if (artboards.length === 0 || viewportWidth <= 0 || viewportHeight <= 0) {
+    return { pan: { x: padding, y: padding }, zoom: 0.25 };
+  }
+
+  // Approximate artboard heights based on breakpoint
+  function approxHeight(bp: Breakpoint): number {
+    if (bp === "mobile") return 1320;
+    if (bp === "tablet") return 1540;
+    return 1780;
+  }
+
+  const minX = Math.min(...artboards.map((a) => a.x));
+  const minY = Math.min(...artboards.map((a) => a.y));
+  const maxX = Math.max(...artboards.map((a) => a.x + BREAKPOINT_WIDTHS[a.breakpoint]));
+  const maxY = Math.max(...artboards.map((a) => a.y + approxHeight(a.breakpoint)));
+
+  const contentWidth = maxX - minX;
+  const contentHeight = maxY - minY;
+
+  const availableWidth = viewportWidth - padding * 2;
+  const availableHeight = viewportHeight - padding * 2;
+
+  const zoom = Math.min(
+    availableWidth / contentWidth,
+    availableHeight / contentHeight,
+    1 // never zoom in beyond 100%
+  );
+
+  const pan = {
+    x: (viewportWidth - contentWidth * zoom) / 2 - minX * zoom,
+    y: padding - minY * zoom,
+  };
+
+  return { pan, zoom };
+}
 
 export function normalizeCanvasStage(value?: string | null): CanvasStage | null {
   if (!value) return null;
@@ -990,6 +1084,18 @@ export function rehydrateComposeDocument(
     safePersisted.artboards.map((artboard) => [artboard.name, artboard])
   );
 
+  // Check if persisted artboards use the old 80px gap — if so, use base positions
+  const persistedArtboards = safePersisted.artboards;
+  const hasStalePositions =
+    persistedArtboards.length >= 2 &&
+    persistedArtboards.some((a, i) => {
+      if (i === 0) return false;
+      const prev = persistedArtboards[i - 1];
+      const prevWidth = BREAKPOINT_WIDTHS[prev.breakpoint] ?? 1440;
+      const gap = a.x - (prev.x + prevWidth);
+      return gap > 0 && gap < COMPOSE_ARTBOARD_GAP;
+    });
+
   const artboards = base.artboards.map((artboard) => {
     const match =
       persistedByVariantId.get(artboard.variantId) ??
@@ -999,8 +1105,9 @@ export function rehydrateComposeDocument(
 
     return {
       ...artboard,
-      x: match.x,
-      y: match.y,
+      // Use base positions (new gap) if persisted positions are stale
+      x: hasStalePositions ? artboard.x : match.x,
+      y: hasStalePositions ? artboard.y : match.y,
       pageTree: structuredClone(match.pageTree ?? artboard.pageTree),
     };
   });

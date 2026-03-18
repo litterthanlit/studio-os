@@ -31,6 +31,7 @@ import {
   createComposeDocument,
   findNodeById,
   findNodePath,
+  fitArtboardsToView,
   flattenNodes,
   getExportArtboard,
   getSelectedArtboard,
@@ -2033,6 +2034,23 @@ function ComposeStage({
     return () => observer.disconnect();
   }, []);
 
+  // Fit all artboards into view on initial mount
+  const didFitRef = React.useRef(false);
+  React.useEffect(() => {
+    if (didFitRef.current) return;
+    if (document.artboards.length === 0) return;
+    if (viewportSize.width <= 1 || viewportSize.height <= 1) return;
+    didFitRef.current = true;
+    const { pan, zoom } = fitArtboardsToView(
+      document.artboards,
+      viewportSize.width,
+      viewportSize.height,
+      60
+    );
+    onChange({ ...document, pan, zoom });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document.artboards.length, viewportSize.width, viewportSize.height]);
+
   const selectedArtboard = React.useMemo(
     () => getSelectedArtboard(document),
     [document]
@@ -2442,7 +2460,7 @@ function ComposeStage({
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(209,228,252,0.42),transparent_24%),linear-gradient(180deg,#FAFAF8_0%,#F6F2E8_100%)] text-[#1A1A1A]">
       
       {/* ── Canvas Toolbar ── */}
-      <div className="surface-panel surface-panel-dither pattern-band tone-warm density-sm flex h-10 shrink-0 items-center gap-2 rounded-none border-x-0 border-t-0 px-3 select-none">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#E5E5E0] bg-white/95 backdrop-blur-sm px-3 select-none">
         <Link
           href={projectHref}
           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] transition-colors"
@@ -2490,7 +2508,7 @@ function ComposeStage({
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Layers panel */}
         {showLayers && (
-          <div className="w-[220px] shrink-0 overflow-hidden border-r border-[#E5E5E0]">
+          <div className="w-[240px] shrink-0 overflow-hidden">
             <LayersPanel
               artboards={document.artboards}
               selectedArtboardId={document.selectedArtboardId}
@@ -2531,141 +2549,203 @@ function ComposeStage({
             onMouseUp={clearPointerState}
             onMouseLeave={clearPointerState}
           >
-            {/* References dock */}
+            {/* ── References slide-over dock ── */}
             <AnimatePresence initial={false}>
-              {referencesDockOpen ? (
-                <motion.div
-                  initial={{ x: -24, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -24, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="surface-panel absolute bottom-16 left-4 z-20 flex h-[300px] w-[320px] flex-col overflow-hidden rounded-[4px]"
-                >
-                  <div className="surface-panel-dither pattern-grid tone-blue density-sm border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
-                    <p className="mono-kicker text-[#1A1A1A]">References</p>
-                    <p className="mt-0.5 text-[10px] text-[#A0A0A0]">
-                      Pin references and overlays onto the board.
-                    </p>
-                  </div>
-                  <div className="space-y-4 overflow-y-auto p-3 flex-1">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
+              {referencesDockOpen && (
+                <>
+                  <div
+                    className="absolute inset-0 z-30"
+                    onClick={() => setReferencesDockOpen(false)}
+                  />
+                  <motion.aside
+                    initial={{ x: 320 }}
+                    animate={{ x: 0 }}
+                    exit={{ x: 320 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="absolute inset-y-0 right-0 z-30 flex w-[320px] flex-col border-l border-[#E5E5E0] bg-white shadow-lg"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-[#E5E5E0] px-4 py-3">
+                      <span className="mono-kicker">References</span>
+                      <button
                         type="button"
-                        variant="secondary"
-                        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-                        onClick={() =>
-                          addOverlay({
-                            id: `note-${Date.now()}`,
-                            type: "note",
-                            x: (selectedArtboard?.x ?? 0) - 280,
-                            y: (selectedArtboard?.y ?? 0) + 120,
-                            width: 240,
-                            height: 180,
-                            text: "Pin a thought, content note, or feedback loop here.",
-                            color: "#FBE67A",
-                          })
-                        }
+                        onClick={() => setReferencesDockOpen(false)}
+                        className="flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
                       >
-                        Add Note
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="h-8 text-[10px] uppercase tracking-[0.12em]"
-                        onClick={() =>
-                          addOverlay({
-                            id: `arrow-${Date.now()}`,
-                            type: "arrow",
-                            x: (selectedArtboard?.x ?? 0) - 160,
-                            y: (selectedArtboard?.y ?? 0) + 80,
-                            width: 180,
-                            height: 80,
-                            color: "#F97316",
-                          })
-                        }
-                      >
-                        Add Arrow
-                      </Button>
+                        <X size={14} strokeWidth={1.5} />
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {references.slice(0, 8).map((reference) => (
+                    <div className="flex-1 overflow-y-auto p-3">
+                      {/* Overlay actions */}
+                      <div className="mb-3 flex gap-2">
                         <button
-                          key={reference.id}
                           type="button"
+                          className="flex-1 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
                           onClick={() =>
                             addOverlay({
-                              id: `overlay-${reference.id}-${Date.now()}`,
-                              type: "reference",
-                              x: (selectedArtboard?.x ?? 0) - 340,
-                              y: (selectedArtboard?.y ?? 0) + 40,
-                              width: 220,
-                              height: 160,
-                              imageUrl: reference.url,
-                              label: reference.name,
+                              id: `note-${Date.now()}`,
+                              type: "note",
+                              x: (selectedArtboard?.x ?? 0) - 280,
+                              y: (selectedArtboard?.y ?? 0) + 120,
+                              width: 240,
+                              height: 180,
+                              text: "Pin a thought here.",
+                              color: "#FBE67A",
                             })
                           }
-                          className="overflow-hidden rounded-[4px] border border-[#E5E5E0] text-left"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={reference.thumbnail || reference.url}
-                            alt={reference.name}
-                            className="h-20 w-full object-cover"
-                          />
-                          <div className="px-2 py-1.5 text-[10px] text-[#6B6B6B] truncate">
-                            {reference.name}
-                          </div>
+                          Add Note
                         </button>
-                      ))}
+                        <button
+                          type="button"
+                          className="flex-1 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                          onClick={() =>
+                            addOverlay({
+                              id: `arrow-${Date.now()}`,
+                              type: "arrow",
+                              x: (selectedArtboard?.x ?? 0) - 160,
+                              y: (selectedArtboard?.y ?? 0) + 80,
+                              width: 180,
+                              height: 80,
+                              color: "#F97316",
+                            })
+                          }
+                        >
+                          Add Arrow
+                        </button>
+                      </div>
+                      {/* Reference thumbnails — 4 column grid */}
+                      {references.length > 0 ? (
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {references.map((reference) => (
+                            <button
+                              key={reference.id}
+                              type="button"
+                              onClick={() =>
+                                addOverlay({
+                                  id: `overlay-${reference.id}-${Date.now()}`,
+                                  type: "reference",
+                                  x: (selectedArtboard?.x ?? 0) - 340,
+                                  y: (selectedArtboard?.y ?? 0) + 40,
+                                  width: 220,
+                                  height: 160,
+                                  imageUrl: reference.url,
+                                  label: reference.name,
+                                })
+                              }
+                              className="overflow-hidden rounded-[2px] border border-[#E5E5E0] hover:border-[#D1E4FC]"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={reference.thumbnail || reference.url}
+                                alt={reference.name}
+                                className="aspect-square w-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="py-8 text-center text-[11px] text-[#A0A0A0]">
+                          No references in this project.
+                        </p>
+                      )}
                     </div>
-                  </div>
-                </motion.div>
-              ) : null}
+                  </motion.aside>
+                </>
+              )}
             </AnimatePresence>
 
-            {/* System tokens dock */}
+            {/* ── System tokens slide-over dock ── */}
             <AnimatePresence initial={false}>
-              {systemDockOpen ? (
-                <motion.div
-                  initial={{ x: 24, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: 24, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="surface-panel absolute bottom-16 right-4 z-20 flex h-[300px] w-[300px] flex-col overflow-hidden rounded-[4px]"
-                >
-                  <div className="surface-panel-dither pattern-grid tone-warm density-sm border-b border-[#E5E5E0] px-3 py-2 bg-[#F5F5F0]">
-                    <p className="mono-kicker text-[#1A1A1A]">Design Tokens</p>
-                    <p className="mt-0.5 text-[10px] text-[#A0A0A0]">
-                      Palette and typography.
-                    </p>
-                  </div>
-                  <div className="space-y-4 overflow-y-auto p-3 flex-1">
-                    <div className="grid grid-cols-3 gap-2">
-                      {Object.entries(tokens.colors).map(([key, value]) => (
-                        <div key={key} className="rounded-[4px] border border-[#E5E5E0] p-2">
-                          <div className="h-7 rounded-[2px] border border-black/5" style={{ background: value }} />
-                          <p className="mt-1.5 text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">
-                            {key}
-                          </p>
+              {systemDockOpen && (
+                <>
+                  <div
+                    className="absolute inset-0 z-30"
+                    onClick={() => setSystemDockOpen(false)}
+                  />
+                  <motion.aside
+                    initial={{ x: 320 }}
+                    animate={{ x: 0 }}
+                    exit={{ x: 320 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="absolute inset-y-0 right-0 z-30 flex w-[320px] flex-col border-l border-[#E5E5E0] bg-white shadow-lg"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-[#E5E5E0] px-4 py-3">
+                      <span className="mono-kicker">Design Tokens</span>
+                      <button
+                        type="button"
+                        onClick={() => setSystemDockOpen(false)}
+                        className="flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+                      >
+                        <X size={14} strokeWidth={1.5} />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                      {/* Color palette */}
+                      <div>
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[#A0A0A0]">Colors</p>
+                        <div className="space-y-1.5">
+                          {Object.entries(tokens.colors).map(([key, value]) => (
+                            <div key={key} className="flex items-center gap-3">
+                              <span
+                                className="block h-5 w-5 shrink-0 rounded-[2px] border border-[#E5E5E0]"
+                                style={{ background: value }}
+                              />
+                              <span className="flex-1 text-[12px] text-[#1A1A1A]">{key}</span>
+                              <span className="font-mono text-[10px] text-[#A0A0A0]">{value}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                      {/* Typography */}
+                      <div>
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[#A0A0A0]">Typography</p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] text-[#1A1A1A]">Font Family</span>
+                            <span className="font-mono text-[10px] text-[#A0A0A0]">{tokens.typography.fontFamily}</span>
+                          </div>
+                          {tokens.typography.scale && Object.entries(tokens.typography.scale).map(([key, value]) => (
+                            <div key={key} className="flex items-center justify-between">
+                              <span className="text-[12px] text-[#1A1A1A]">{key}</span>
+                              <span className="font-mono text-[10px] text-[#A0A0A0]">{String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Spacing */}
+                      {tokens.spacing && (
+                        <div>
+                          <p className="mb-2 font-mono text-[10px] uppercase tracking-wide text-[#A0A0A0]">Spacing</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12px] text-[#1A1A1A]">Unit</span>
+                            <span className="font-mono text-[10px] text-[#A0A0A0]">{tokens.spacing.unit}px</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="rounded-[4px] border border-[#E5E5E0] p-2">
-                      <p className="text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">Typography</p>
-                      <p className="mt-1.5 text-sm text-[#1A1A1A]">{tokens.typography.fontFamily}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ) : null}
+                  </motion.aside>
+                </>
+              )}
             </AnimatePresence>
 
             {/* Artboard render area */}
             <div
-              className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.35),rgba(245,245,240,0.4))]"
+              className="absolute inset-0 bg-[#FAFAF8]"
               style={{
                 cursor: isPanning ? "grabbing" : spacePanActive ? "grab" : "default",
               }}
             >
+              {/* Canvas dot grid */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.015) 0.6px, transparent 0.6px)",
+                  backgroundSize: "24px 24px",
+                }}
+              />
               <div
                 style={{
                   position: "absolute",
@@ -2685,17 +2765,11 @@ function ComposeStage({
                     <React.Fragment key={artboard.id}>
                       {/* Label above artboard */}
                       <div
-                        className="absolute flex items-center gap-1.5 rounded-[3px] border border-[#E5E5E0] bg-white/88 px-2 py-1 shadow-[0_8px_16px_rgba(17,17,17,0.04)] select-none pointer-events-none"
-                        style={{ left: artboard.x, top: artboard.y - 32 }}
+                        className="absolute flex items-center gap-2 select-none"
+                        style={{ left: artboard.x, top: artboard.y - 28 }}
                       >
-                        <span className={isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]"}>
-                          <ArtboardBreakpointIcon breakpoint={artboardBp} size={14} />
-                        </span>
-                        <span
-                          className={cn("text-[11px]", isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]")}
-                          style={{ fontFamily: "'Geist Mono', monospace" }}
-                        >
-                          {artboard.name}
+                        <span className={cn("font-mono text-[10px] uppercase tracking-widest", isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]")}>
+                          {artboardBp.toUpperCase()} · {BREAKPOINT_WIDTHS[artboardBp]}PX
                         </span>
                       </div>
 
@@ -2704,17 +2778,28 @@ function ComposeStage({
                         data-artboard
                         className={cn(
                           "absolute overflow-hidden rounded-[4px] border bg-[#FAFAF8]",
-                          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
-                          isSelected ? "border-[#1E5DF2]" : "border-[#E5E5E0]"
+                          "shadow-[0_4px_16px_rgba(0,0,0,0.04)]",
+                          isSelected ? "border-[#1E5DF2]" : "border-[#E5E5E0]",
+                          artboardBp === "desktop" ? "border-t-2 border-t-[#1E5DF2]" : "border-t border-t-[#E5E5E0]"
                         )}
                         style={{
                           left: artboard.x,
                           top: artboard.y,
                           width: artboardWidth + 2,
-                          height: artboardHeight,
+                          ...(artboard.compiledCode
+                            ? { height: artboardHeight }
+                            : { minHeight: artboardHeight }),
                         }}
                         onMouseDown={(event) => {
                           if (event.button !== 0 || spacePanActive) return;
+                          // Don't start artboard drag if clicking inside rendered content
+                          if ((event.target as HTMLElement).closest("[data-node-id]")) {
+                            updateDocument({
+                              selectedArtboardId: artboard.id,
+                              breakpoint: artboardBp,
+                            });
+                            return;
+                          }
                           dragRef.current = {
                             kind: "artboard",
                             id: artboard.id,
@@ -2734,32 +2819,77 @@ function ComposeStage({
                         }}
                       >
                         {artboard.compiledCode ? (
-                          <iframe
-                            srcDoc={buildIframeHTML(artboard.compiledCode, tokens, `compose-${artboard.id}`)}
-                            className="absolute inset-0 w-full h-full border-0"
-                            sandbox="allow-scripts allow-same-origin"
-                            title={`Compose: ${artboard.name}`}
-                            style={{ width: artboardWidth, height: artboardHeight }}
-                          />
+                          <div className="relative" style={{ width: artboardWidth, height: artboardHeight }}>
+                            <iframe
+                              srcDoc={buildIframeHTML(artboard.compiledCode, tokens, `compose-${artboard.id}`)}
+                              className="absolute inset-0 w-full h-full border-0 pointer-events-none"
+                              sandbox="allow-scripts"
+                              title={`Compose: ${artboard.name}`}
+                              style={{ width: artboardWidth, height: artboardHeight }}
+                            />
+                            {/* Click-blocking overlay — prevents navigation inside iframe */}
+                            <div
+                              className="absolute inset-0 z-10 cursor-default"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        ) : !artboard.pageTree?.children?.length ? (
+                          <div className="flex flex-col items-center justify-center gap-4" style={{ minHeight: artboardHeight }}>
+                            {/* Skeleton slat bars echoing logo rhythm */}
+                            <div className="flex flex-col items-center gap-2 opacity-40">
+                              <div className="h-2 w-[60%] rounded-[1px] bg-[#E5E5E0]" />
+                              <div className="h-2 w-[40%] rounded-[1px] bg-[#E5E5E0]" />
+                              <div className="h-2 w-[75%] rounded-[1px] bg-[#E5E5E0]" />
+                              <div className="h-2 w-[35%] rounded-[1px] bg-[#E5E5E0]" />
+                              <div className="h-2 w-[55%] rounded-[1px] bg-[#E5E5E0]" />
+                            </div>
+                            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">
+                              No content yet
+                            </p>
+                          </div>
                         ) : (
-                          <ComposeDocumentView
-                            pageTree={artboard.pageTree}
-                            tokens={tokens}
-                            breakpoint={artboardBp}
-                            selectedNodeId={
-                              document.selectedArtboardId === artboard.id
-                                ? document.selectedNodeId
-                                : null
-                            }
-                            onSelectNode={(nodeId) =>
-                              updateDocument({
-                                selectedArtboardId: artboard.id,
-                                selectedNodeId: nodeId,
-                                breakpoint: artboardBp,
-                              })
-                            }
-                            interactive={document.selectedArtboardId === artboard.id}
-                          />
+                          <>
+                            <ComposeDocumentView
+                              pageTree={artboard.pageTree}
+                              tokens={tokens}
+                              breakpoint={artboardBp}
+                              selectedNodeId={
+                                document.selectedArtboardId === artboard.id
+                                  ? document.selectedNodeId
+                                  : null
+                              }
+                              onSelectNode={(nodeId) =>
+                                updateDocument({
+                                  selectedArtboardId: artboard.id,
+                                  selectedNodeId: nodeId,
+                                  breakpoint: artboardBp,
+                                })
+                              }
+                              onUpdateContent={(nodeId, key, value) => {
+                                updateDocument({ selectedArtboardId: artboard.id, selectedNodeId: nodeId, breakpoint: artboardBp });
+                                updateSelectedTree((tree) => updateNodeContent(tree, nodeId, key as keyof PageNodeContent, value));
+                              }}
+                              interactive={document.selectedArtboardId === artboard.id}
+                            />
+                            {/* AI regenerating overlay */}
+                            {aiLoading && document.selectedArtboardId === artboard.id && (
+                              <div
+                                className="pointer-events-none absolute inset-0 z-10"
+                                style={{
+                                  backgroundImage: "radial-gradient(circle, rgba(30,93,242,0.06) 0.5px, transparent 0.5px)",
+                                  backgroundSize: "3.5px 3.5px",
+                                }}
+                              >
+                                <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2">
+                                  <div className="flex items-center gap-2 rounded-[4px] border border-[#D1E4FC] bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1E5DF2]" />
+                                    <span className="font-mono text-[10px] text-[#1E5DF2]">Generating...</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </React.Fragment>
@@ -2865,7 +2995,7 @@ function ComposeStage({
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: 16, opacity: 0 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="pointer-events-none absolute bottom-16 right-5 z-10 w-[244px] rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] p-3 shadow-sm surface-panel"
+                  className="pointer-events-none absolute bottom-16 right-5 z-10 w-[244px] rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm p-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <p className="mono-kicker">
@@ -2931,7 +3061,7 @@ function ComposeStage({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.97, y: 8 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="surface-panel w-full max-w-sm rounded-[4px] p-5 shadow-lg"
+                    className="w-full max-w-sm rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm p-5 shadow-lg"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="flex items-center justify-between">
@@ -2976,7 +3106,7 @@ function ComposeStage({
 
         {/* Inspector panel */}
         {showInspector && (
-          <div className="w-[280px] shrink-0 overflow-hidden border-l border-[#E5E5E0]">
+          <div className="w-[280px] shrink-0 overflow-hidden">
             <InspectorPanel
               document={document}
               tokens={tokens}
@@ -3005,10 +3135,11 @@ function ComposeStage({
         zoom={document.zoom}
         onZoomIn={() => updateDocument({ zoom: Math.min(5, document.zoom * 1.15) })}
         onZoomOut={() => updateDocument({ zoom: Math.max(0.1, document.zoom / 1.15) })}
+        onZoomSet={(z) => updateDocument({ zoom: z })}
         showLayers={showLayers}
         onToggleLayers={() => setShowLayers((v) => !v)}
-        showMinimap={showMinimap}
-        onToggleMinimap={() => setShowMinimap((v) => !v)}
+        showInspector={showInspector}
+        onToggleInspector={() => setShowInspector((v) => !v)}
         referencesDockOpen={referencesDockOpen}
         onToggleReferences={() => setReferencesDockOpen((v) => !v)}
         systemDockOpen={systemDockOpen}

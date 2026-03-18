@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Monitor, Tablet, Smartphone, X } from "lucide-react";
+import { useRemoteCommands } from "@/lib/remote-control/use-remote-commands";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -1952,6 +1953,46 @@ function ComposeStage({
     );
   }, [showLayers, showMinimap, showInspector]);
 
+  // Remote control: handle commands from paired controller device
+  useRemoteCommands(
+    React.useMemo(
+      () => ({
+        onSelectBreakpoint: (bp: string) => {
+          if (bp === "desktop" || bp === "tablet" || bp === "mobile") {
+            updateDocument({ breakpoint: bp as Breakpoint });
+          }
+        },
+        onScrollTo: (direction: string, amount?: number) => {
+          const step = amount ?? 200;
+          if (direction === "center") {
+            updateDocument({ pan: { x: 0, y: 0 } });
+          } else if (direction === "up") {
+            updateDocument({ pan: { x: document.pan.x, y: document.pan.y + step } });
+          } else if (direction === "down") {
+            updateDocument({ pan: { x: document.pan.x, y: document.pan.y - step } });
+          } else if (direction === "left") {
+            updateDocument({ pan: { x: document.pan.x + step, y: document.pan.y } });
+          } else if (direction === "right") {
+            updateDocument({ pan: { x: document.pan.x - step, y: document.pan.y } });
+          }
+        },
+        onTogglePanel: (panel: string) => {
+          if (panel === "layers") setShowLayers((v) => !v);
+          if (panel === "inspector") setShowInspector((v) => !v);
+        },
+        onZoom: (direction: string) => {
+          const step = 0.15;
+          const next =
+            direction === "in"
+              ? Math.min(document.zoom + step, 3)
+              : Math.max(document.zoom - step, 0.1);
+          updateDocument({ zoom: next });
+        },
+      }),
+      [document.pan, document.zoom, updateDocument]
+    )
+  );
+
   React.useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
@@ -3204,6 +3245,33 @@ export function CanvasPage({
     const nextUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", nextUrl);
   }, [linkedProjectId, stage]);
+
+  // Remote control: handle stage navigation and variant selection
+  useRemoteCommands(
+    React.useMemo(
+      () => ({
+        onNavigateStage: (s: string) => {
+          if (s === "collect" || s === "compose") setStage(s);
+        },
+        onSelectVariant: (direction: string) => {
+          if (generatedVariants.length === 0) return;
+          const currentIndex = generatedVariants.findIndex(
+            (v) => v.id === selectedVariantId
+          );
+          if (direction === "next") {
+            const nextIndex = (currentIndex + 1) % generatedVariants.length;
+            setSelectedVariantId(generatedVariants[nextIndex].id);
+          } else if (direction === "prev") {
+            const prevIndex =
+              (currentIndex - 1 + generatedVariants.length) %
+              generatedVariants.length;
+            setSelectedVariantId(generatedVariants[prevIndex].id);
+          }
+        },
+      }),
+      [generatedVariants, selectedVariantId, setStage]
+    )
+  );
 
   const selectedVariant = React.useMemo(
     () =>

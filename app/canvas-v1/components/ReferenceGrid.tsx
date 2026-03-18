@@ -22,8 +22,8 @@ export function ReferenceGrid({
   if (images.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <span className="text-lg text-text-muted font-mono">[ ]</span>
-        <p className="text-xs text-text-tertiary">
+        <span className="text-lg text-[#A0A0A0] font-mono">[ ]</span>
+        <p className="text-xs text-[#A0A0A0]">
           No references yet — upload images to begin
         </p>
       </div>
@@ -54,10 +54,10 @@ export function ReferenceGrid({
                 whileHover={{ scale: 1.02, transition: springs.smooth }}
                 whileTap={{ scale: 0.98, transition: springs.snappy }}
                 className={cn(
-                  "relative w-full overflow-hidden border bg-bg-secondary aspect-square",
+                  "relative w-full overflow-hidden border bg-[#F5F5F0] aspect-square",
                   selected
-                    ? "border-accent ring-1 ring-accent"
-                    : "border-card-border hover:border-border-hover"
+                    ? "border-[#1E5DF2] ring-1 ring-[#1E5DF2]"
+                    : "border-[#E5E5E0] hover:border-[#D1E4FC]"
                 )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -99,7 +99,7 @@ export function ReferenceGrid({
                 ×
               </button>
 
-              <p className="mt-1 text-[10px] text-text-muted truncate px-0.5">
+              <p className="mt-1 text-[10px] text-[#A0A0A0] truncate px-0.5">
                 {img.name}
               </p>
             </motion.div>

@@ -1,31 +1,31 @@
 "use client";
 
 import * as React from "react";
-import { Map, BookImage, Palette, Minus, Plus, PanelLeft } from "lucide-react";
+import { Minus, Plus, PanelLeft, PanelRight, BookImage, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DitherSurface } from "@/components/ui/dither-surface";
 
 export type BottomBarProps = {
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onZoomSet?: (zoom: number) => void;
   showLayers: boolean;
   onToggleLayers: () => void;
-  showMinimap: boolean;
-  onToggleMinimap: () => void;
+  showInspector?: boolean;
+  onToggleInspector?: () => void;
   referencesDockOpen: boolean;
   onToggleReferences: () => void;
   systemDockOpen: boolean;
   onToggleSystem: () => void;
 };
 
-function ToggleBtn({
+function BarButton({
   active,
   onClick,
   title,
   children,
 }: {
-  active: boolean;
+  active?: boolean;
   onClick: () => void;
   title: string;
   children: React.ReactNode;
@@ -36,9 +36,9 @@ function ToggleBtn({
       onClick={onClick}
       title={title}
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-[4px] transition-colors duration-100",
+        "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-75",
         active
-          ? "bg-[#D1E4FC] text-[#1E5DF2]"
+          ? "bg-[#D1E4FC]/30 text-[#1E5DF2]"
           : "text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
       )}
     >
@@ -51,91 +51,91 @@ export function BottomBar({
   zoom,
   onZoomIn,
   onZoomOut,
+  onZoomSet,
   showLayers,
   onToggleLayers,
-  showMinimap,
-  onToggleMinimap,
+  showInspector,
+  onToggleInspector,
   referencesDockOpen,
   onToggleReferences,
   systemDockOpen,
   onToggleSystem,
 }: BottomBarProps) {
   const pct = Math.round(zoom * 100);
+  const [editing, setEditing] = React.useState(false);
+  const [editValue, setEditValue] = React.useState(String(pct));
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  function commitZoom() {
+    setEditing(false);
+    const parsed = parseInt(editValue, 10);
+    if (!isNaN(parsed) && parsed >= 10 && parsed <= 500 && onZoomSet) {
+      onZoomSet(parsed / 100);
+    }
+  }
 
   return (
-    <DitherSurface
-      patternVariant="band"
-      patternTone="warm"
-      patternDensity="sm"
-      muted
-      className="flex h-[44px] shrink-0 items-center rounded-none border-x-0 border-b-0 px-3"
-    >
-      {/* Left: Zoom controls */}
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onZoomOut}
-          title="Zoom out"
-          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors duration-100 hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
-        >
+    <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+      <div className="pointer-events-auto flex h-9 max-w-[480px] items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
+        {/* ── Zoom controls ── */}
+        <BarButton onClick={onZoomOut} title="Zoom out (⌘−)">
           <Minus size={14} strokeWidth={1.5} />
-        </button>
-        <span
-          className="min-w-[42px] text-center text-[12px] tabular-nums text-[#6B6B6B] select-none"
-          style={{ fontFamily: "'Geist Mono', monospace" }}
-        >
-          {pct}%
-        </span>
-        <button
-          type="button"
-          onClick={onZoomIn}
-          title="Zoom in"
-          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors duration-100 hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
-        >
+        </BarButton>
+
+        {editing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value.replace(/[^0-9]/g, ""))}
+            onBlur={commitZoom}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitZoom();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="w-10 bg-transparent text-center font-mono text-[11px] text-[#1A1A1A] outline-none"
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setEditValue(String(pct));
+              setEditing(true);
+            }}
+            className="min-w-[40px] text-center font-mono text-[11px] tabular-nums text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors"
+            title="Click to set zoom"
+          >
+            {pct}%
+          </button>
+        )}
+
+        <BarButton onClick={onZoomIn} title="Zoom in (⌘+)">
           <Plus size={14} strokeWidth={1.5} />
-        </button>
+        </BarButton>
+
+        {/* ── Divider ── */}
+        <div className="mx-1 h-4 w-px bg-[#E5E5E0]" />
+
+        {/* ── Panel toggles ── */}
+        <BarButton active={showLayers} onClick={onToggleLayers} title="Layers (L)">
+          <PanelLeft size={14} strokeWidth={1.5} />
+        </BarButton>
+
+        {onToggleInspector && (
+          <BarButton active={showInspector} onClick={onToggleInspector} title="Inspector (I)">
+            <PanelRight size={14} strokeWidth={1.5} />
+          </BarButton>
+        )}
+
+        <BarButton active={referencesDockOpen} onClick={onToggleReferences} title="References">
+          <BookImage size={14} strokeWidth={1.5} />
+        </BarButton>
+
+        <BarButton active={systemDockOpen} onClick={onToggleSystem} title="Design tokens">
+          <Palette size={14} strokeWidth={1.5} />
+        </BarButton>
       </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Center: Toggles */}
-      <div className="flex items-center gap-1">
-        <ToggleBtn
-          active={showLayers}
-          onClick={onToggleLayers}
-          title="Toggle layers (L)"
-        >
-          <PanelLeft size={16} strokeWidth={1.5} />
-        </ToggleBtn>
-        <ToggleBtn
-          active={showMinimap}
-          onClick={onToggleMinimap}
-          title="Toggle minimap (M)"
-        >
-          <Map size={16} strokeWidth={1.5} />
-        </ToggleBtn>
-        <ToggleBtn
-          active={referencesDockOpen}
-          onClick={onToggleReferences}
-          title="Toggle references"
-        >
-          <BookImage size={16} strokeWidth={1.5} />
-        </ToggleBtn>
-        <ToggleBtn
-          active={systemDockOpen}
-          onClick={onToggleSystem}
-          title="Toggle tokens"
-        >
-          <Palette size={16} strokeWidth={1.5} />
-        </ToggleBtn>
-      </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Right: empty slot (reserved for future status) */}
-      <div className="w-[88px]" />
-    </DitherSurface>
+    </div>
   );
 }

@@ -74,7 +74,7 @@ function ExportButton({
         "px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] font-medium border transition-colors",
         active
           ? "border-green-500/50 bg-green-500/10 text-green-400"
-          : "border-border-primary bg-card-bg text-text-tertiary hover:border-border-hover hover:text-text-secondary"
+          : "border-[#E5E5E0] bg-white text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#6B6B6B]"
       )}
     >
       <AnimatePresence mode="wait">

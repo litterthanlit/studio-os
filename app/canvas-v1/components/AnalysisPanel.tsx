@@ -17,11 +17,11 @@ function ColorSwatch({ color, label }: { color: string; label?: string }) {
       className="flex flex-col items-center gap-1"
     >
       <div
-        className="w-7 h-7 border border-border-primary"
+        className="w-7 h-7 border border-[#E5E5E0]"
         style={{ backgroundColor: color }}
         title={color}
       />
-      <span className="text-[9px] font-mono text-text-muted">
+      <span className="text-[9px] font-mono text-[#A0A0A0]">
         {label || color}
       </span>
     </motion.div>
@@ -31,10 +31,10 @@ function ColorSwatch({ color, label }: { color: string; label?: string }) {
 function VibeTag({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-[10px] uppercase tracking-[0.12em] text-text-muted">
+      <span className="text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">
         {label}
       </span>
-      <span className="text-[10px] font-medium text-text-secondary border border-border-primary bg-bg-tertiary px-1.5 py-0.5">
+      <span className="text-[10px] font-medium text-[#6B6B6B] border border-[#E5E5E0] bg-[#E5E5E0] px-1.5 py-0.5">
         {value}
       </span>
     </div>
@@ -48,9 +48,9 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-          className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full"
+          className="w-5 h-5 border-2 border-[#1E5DF2] border-t-transparent rounded-full"
         />
-        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+        <span className="text-[11px] uppercase tracking-[0.12em] text-[#A0A0A0]">
           Analyzing references...
         </span>
       </div>
@@ -60,8 +60,8 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
   if (!analysis) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center">
-        <span className="font-mono text-text-muted text-sm">⊘</span>
-        <p className="text-[11px] text-text-tertiary">
+        <span className="font-mono text-[#A0A0A0] text-sm">⊘</span>
+        <p className="text-[11px] text-[#A0A0A0]">
           Select references and analyze to extract design patterns
         </p>
       </div>
@@ -83,12 +83,12 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
         >
           {/* Colors */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Color Palette
             </h4>
             <div className="space-y-2">
               <div>
-                <span className="text-[9px] uppercase tracking-[0.1em] text-text-muted mb-1 block">
+                <span className="text-[9px] uppercase tracking-[0.1em] text-[#A0A0A0] mb-1 block">
                   Dominant
                 </span>
                 <div className="flex gap-1.5">
@@ -98,7 +98,7 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
                 </div>
               </div>
               <div>
-                <span className="text-[9px] uppercase tracking-[0.1em] text-text-muted mb-1 block">
+                <span className="text-[9px] uppercase tracking-[0.1em] text-[#A0A0A0] mb-1 block">
                   Accents
                 </span>
                 <div className="flex gap-1.5">
@@ -108,7 +108,7 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
                 </div>
               </div>
               <div>
-                <span className="text-[9px] uppercase tracking-[0.1em] text-text-muted mb-1 block">
+                <span className="text-[9px] uppercase tracking-[0.1em] text-[#A0A0A0] mb-1 block">
                   Neutrals
                 </span>
                 <div className="flex gap-1.5">
@@ -122,13 +122,13 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
 
           {/* Typography */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Typography
             </h4>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-text-muted">Category:</span>
-                <span className="text-[10px] font-medium text-text-secondary">
+                <span className="text-[10px] text-[#A0A0A0]">Category:</span>
+                <span className="text-[10px] font-medium text-[#6B6B6B]">
                   {analysis.typography.category}
                 </span>
               </div>
@@ -136,13 +136,13 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
                 {analysis.typography.weights.map((w) => (
                   <span
                     key={w}
-                    className="border border-border-primary bg-bg-tertiary px-1.5 py-0.5 text-[9px] font-mono text-text-muted"
+                    className="border border-[#E5E5E0] bg-[#E5E5E0] px-1.5 py-0.5 text-[9px] font-mono text-[#A0A0A0]"
                   >
                     {w}
                   </span>
                 ))}
               </div>
-              <p className="text-[10px] text-text-tertiary leading-relaxed">
+              <p className="text-[10px] text-[#A0A0A0] leading-relaxed">
                 {analysis.typography.hierarchy}
               </p>
             </div>
@@ -150,7 +150,7 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
 
           {/* Vibe */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Vibe
             </h4>
             <div className="space-y-1.5">
@@ -162,12 +162,12 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
 
           {/* Spacing */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Spacing
             </h4>
             <div className="space-y-1.5">
               <VibeTag label="Density" value={analysis.spacing.density} />
-              <p className="text-[10px] text-text-tertiary leading-relaxed">
+              <p className="text-[10px] text-[#A0A0A0] leading-relaxed">
                 {analysis.spacing.rhythm}
               </p>
             </div>
@@ -175,10 +175,10 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
 
           {/* Summary */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Summary
             </h4>
-            <p className="text-xs text-text-secondary leading-relaxed">
+            <p className="text-xs text-[#6B6B6B] leading-relaxed">
               {analysis.summary}
             </p>
           </motion.div>

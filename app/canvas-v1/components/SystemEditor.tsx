@@ -48,16 +48,16 @@ function TokenColorRow({
       <button
         type="button"
         onClick={onOpenPicker}
-        className="w-5 h-5 shrink-0 border border-border-primary cursor-pointer rounded-sm transition-[box-shadow] duration-150 hover:ring-2 hover:ring-white/20 hover:ring-offset-1 hover:ring-offset-bg-primary"
+        className="w-5 h-5 shrink-0 border border-[#E5E5E0] cursor-pointer rounded-sm transition-[box-shadow] duration-150 hover:ring-2 hover:ring-white/20 hover:ring-offset-1 hover:ring-offset-white"
         style={{ backgroundColor: value }}
         aria-label={`Pick color for ${label}`}
       />
-      <span className="text-[10px] text-text-muted flex-1 truncate">{label}</span>
+      <span className="text-[10px] text-[#A0A0A0] flex-1 truncate">{label}</span>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-[72px] bg-bg-tertiary border border-border-primary px-1.5 py-0.5 text-[10px] font-mono text-text-secondary focus:border-accent focus:outline-none"
+        className="w-[72px] bg-[#E5E5E0] border border-[#E5E5E0] px-1.5 py-0.5 text-[10px] font-mono text-[#6B6B6B] focus:border-[#D1E4FC] focus:outline-none"
       />
     </div>
   );
@@ -82,9 +82,9 @@ export function SystemEditor({
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-          className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full"
+          className="w-5 h-5 border-2 border-[#1E5DF2] border-t-transparent rounded-full"
         />
-        <span className="text-[11px] uppercase tracking-[0.12em] text-text-muted">
+        <span className="text-[11px] uppercase tracking-[0.12em] text-[#A0A0A0]">
           Generating design system...
         </span>
       </div>
@@ -94,8 +94,8 @@ export function SystemEditor({
   if (!tokens) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
-        <span className="font-mono text-lg text-text-muted">{"{ }"}</span>
-        <p className="text-[11px] text-text-tertiary">
+        <span className="font-mono text-lg text-[#A0A0A0]">{"{ }"}</span>
+        <p className="text-[11px] text-[#A0A0A0]">
           Analyze references first to generate a design system
         </p>
       </div>
@@ -121,7 +121,7 @@ export function SystemEditor({
   return (
     <motion.div {...slideUp} transition={springs.smooth} className="space-y-3">
       {/* Mode toggle */}
-      <div className="flex border border-border-primary rounded-sm overflow-hidden">
+      <div className="flex border border-[#E5E5E0] rounded-sm overflow-hidden">
         {(["visual", "markdown"] as const).map((m) => (
           <button
             key={m}
@@ -130,8 +130,8 @@ export function SystemEditor({
             className={cn(
               "flex-1 py-1.5 text-[10px] uppercase tracking-[0.12em] font-medium transition-colors",
               mode === m
-                ? "bg-bg-tertiary text-text-primary"
-                : "text-text-muted hover:text-text-secondary"
+                ? "bg-[#E5E5E0] text-[#1A1A1A]"
+                : "text-[#A0A0A0] hover:text-[#6B6B6B]"
             )}
           >
             {m}
@@ -148,7 +148,7 @@ export function SystemEditor({
         >
           {/* Colors */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Colors
             </h4>
             <div className="space-y-1.5">
@@ -166,18 +166,18 @@ export function SystemEditor({
 
           {/* Typography preview */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Typography
             </h4>
             <div
-              className="border border-border-primary bg-bg-tertiary p-3 space-y-1"
+              className="border border-[#E5E5E0] bg-[#E5E5E0] p-3 space-y-1"
               style={{ fontFamily: tokens.typography.fontFamily }}
             >
               {Object.entries(tokens.typography.scale)
                 .reverse()
                 .map(([name, size]) => (
                   <div key={name} className="flex items-baseline gap-2">
-                    <span className="text-[9px] font-mono text-text-muted w-6 shrink-0 text-right">
+                    <span className="text-[9px] font-mono text-[#A0A0A0] w-6 shrink-0 text-right">
                       {name}
                     </span>
                     <span style={{ fontSize: size, lineHeight: 1.3, color: tokens.colors.text }}>
@@ -190,7 +190,7 @@ export function SystemEditor({
 
           {/* Spacing */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Spacing &middot; {tokens.spacing.unit}px base
             </h4>
             <div className="flex items-end gap-0.5">
@@ -201,10 +201,10 @@ export function SystemEditor({
                   return (
                     <div key={name} className="flex flex-col items-center gap-0.5">
                       <div
-                        className="bg-accent/30 border border-accent/50"
+                        className="bg-accent/30 border border-[#1E5DF2]/50"
                         style={{ width: 12, height: Math.min(px, 60) }}
                       />
-                      <span className="text-[8px] font-mono text-text-muted">{name}</span>
+                      <span className="text-[8px] font-mono text-[#A0A0A0]">{name}</span>
                     </div>
                   );
                 })}
@@ -213,11 +213,11 @@ export function SystemEditor({
 
           {/* Component preview */}
           <motion.div variants={staggerItem} className="space-y-2">
-            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">
+            <h4 className="text-[11px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">
               Component Preview
             </h4>
             <div
-              className="border border-border-primary p-4 space-y-3"
+              className="border border-[#E5E5E0] p-4 space-y-3"
               style={{ backgroundColor: tokens.colors.background }}
             >
               <button
@@ -271,9 +271,9 @@ export function SystemEditor({
             value={markdown}
             onChange={(e) => onMarkdownChange(e.target.value)}
             className={cn(
-              "w-full min-h-[400px] bg-bg-tertiary border border-border-primary p-3",
-              "font-mono text-[11px] text-text-secondary leading-relaxed",
-              "resize-y focus:border-accent focus:outline-none"
+              "w-full min-h-[400px] bg-[#E5E5E0] border border-[#E5E5E0] p-3",
+              "font-mono text-[11px] text-[#6B6B6B] leading-relaxed",
+              "resize-y focus:border-[#D1E4FC] focus:outline-none"
             )}
             spellCheck={false}
           />

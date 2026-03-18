@@ -36,8 +36,8 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
         "relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-4 py-8 cursor-pointer",
         "transition-colors duration-200",
         isDragActive
-          ? "border-accent bg-accent-subtle"
-          : "border-border-primary bg-bg-secondary hover:border-border-hover",
+          ? "border-[#1E5DF2] bg-accent-subtle"
+          : "border-[#E5E5E0] bg-[#F5F5F0] hover:border-[#D1E4FC]",
         disabled && "cursor-not-allowed opacity-50",
         className
       )}
@@ -64,7 +64,7 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
             transition={springs.smooth}
             className="flex flex-col items-center gap-2 text-center"
           >
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg border border-border-primary bg-bg-tertiary">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg border border-[#E5E5E0] bg-[#E5E5E0]">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -72,7 +72,7 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-5 h-5 text-text-muted"
+                className="w-5 h-5 text-[#A0A0A0]"
               >
                 <rect x="5" y="6" width="14" height="12" rx="1.5" />
                 <circle cx="9.5" cy="10" r="1.5" fill="currentColor" stroke="none" opacity="0.6" />
@@ -80,10 +80,10 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
               </svg>
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">
+              <p className="text-xs font-medium text-[#6B6B6B]">
                 Drop images or click to browse
               </p>
-              <p className="text-[10px] text-text-muted mt-0.5">
+              <p className="text-[10px] text-[#A0A0A0] mt-0.5">
                 PNG, JPG, WebP — Pinterest, Are.na, local files
               </p>
             </div>

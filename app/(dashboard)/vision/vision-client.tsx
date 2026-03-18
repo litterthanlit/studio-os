@@ -329,8 +329,8 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
           <span
             key={`${referenceId}-tag-${tag}`}
             className={cn(
-              "border bg-sidebar-active px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em]",
-              isConfirmed ? "border-card-border text-text-secondary" : "border-border-subtle text-text-tertiary"
+              "border bg-[#F5F5F0] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em]",
+              isConfirmed ? "border-[#E5E5E0] text-[#6B6B6B]" : "border-[#E5E5E0] text-[#A0A0A0]"
             )}
           >
             {tag}
@@ -343,7 +343,7 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
         possible.map((tag) => (
           <span
             key={`${referenceId}-possible-${tag}`}
-            className="border border-[#222] bg-bg-secondary px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-placeholder"
+            className="border border-[#222] bg-[#F5F5F0] px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-[#A0A0A0]"
           >
             {tag}
           </span>
@@ -357,7 +357,7 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
             e.stopPropagation();
             setShowMore(true);
           }}
-          className="pointer-events-auto px-1 text-[10px] text-text-tertiary transition-colors hover:text-text-secondary"
+          className="pointer-events-auto px-1 text-[10px] text-[#A0A0A0] transition-colors hover:text-[#6B6B6B]"
         >
           +{primaryOverflow + possible.length} more
         </button>
@@ -369,7 +369,7 @@ function TagOverlay({ referenceId, tags }: TagOverlayProps) {
             e.stopPropagation();
             setShowMore(false);
           }}
-          className="pointer-events-auto px-1 text-[10px] text-text-placeholder transition-colors hover:text-text-secondary"
+          className="pointer-events-auto px-1 text-[10px] text-[#A0A0A0] transition-colors hover:text-[#6B6B6B]"
         >
           less
         </button>
@@ -831,34 +831,42 @@ export function VisionPage() {
   }
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="text-[8px] leading-none text-text-tertiary">■</span>
-        <span className="text-[11px] uppercase tracking-[0.15em] font-medium text-text-tertiary">Vision</span>
-      </div>
+    <section className="relative">
+      {/* Board dot-grid background */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.04) 0.6px, transparent 0.6px)",
+          backgroundSize: "20px 20px",
+        }}
+      />
 
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-[42px] font-semibold text-text-primary tracking-tight">
-            Moodboard
-          </h2>
-          <p className="text-sm text-text-secondary">
-            Vision is your evolving visual field — references, palettes, layouts
+      <div className="relative z-10 mx-auto max-w-[960px] animate-in fade-in slide-in-from-bottom-2 pt-16 pb-16 duration-300 ease-out space-y-6">
+        {/* V2 Header */}
+        <div className="mb-2">
+          <span className="mono-kicker mb-3 block">Studio OS</span>
+          <h1 className="font-serif text-[28px] font-normal tracking-[-0.02em] text-[#1A1A1A] leading-[1.1]">
+            Vision Board
+          </h1>
+          <p className="mt-2 max-w-[520px] text-[14px] text-[#6B6B6B] leading-relaxed">
+            Your evolving visual field — references, palettes, layouts
             and artifacts that define the studio&apos;s current gravity.
           </p>
         </div>
 
         <div className="space-y-3">
-          <Input
+          <input
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search references... try 'blue minimal serif'"
-            className="h-12 text-sm"
+            className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2.5 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
           />
 
-          {/* Board tabs + source imports — underline indicator */}
+          {/* Board tabs + source imports */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-0 overflow-x-auto pb-0 border-b border-border-subtle">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
               {BOARDS.map((board) => {
                 const active = !isStockActive && activeBoard === board;
                 return (
@@ -870,12 +878,10 @@ export function VisionPage() {
                       setIsStockActive(false);
                     }}
                     className={cn(
-                      "px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
-                      "transition-colors duration-200 whitespace-nowrap",
-                      "border-b-2 -mb-px",
+                      "rounded-[4px] px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
                       active
-                        ? "border-text-primary text-text-primary"
-                        : "border-transparent text-text-tertiary hover:text-text-secondary"
+                        ? "bg-[#1E5DF2] text-white"
+                        : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
                     )}
                   >
                     {board}
@@ -883,35 +889,33 @@ export function VisionPage() {
                 );
               })}
 
-              {/* Stock tab — only shown when Lummi is configured */}
+              {/* Stock tab */}
               {lummiConfigured && (
                 <button
                   type="button"
                   onClick={() => setIsStockActive(true)}
                   className={cn(
-                    "flex items-center gap-1 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em]",
-                    "transition-colors duration-200 whitespace-nowrap border-b-2 -mb-px",
+                    "flex items-center gap-1 rounded-[4px] px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
                     isStockActive
-                      ? "border-text-primary text-text-primary"
-                      : "border-transparent text-text-tertiary hover:text-text-secondary"
+                      ? "bg-[#1E5DF2] text-white"
+                      : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
                   )}
                 >
                   Stock
-                  <span className="text-[10px] leading-none" aria-hidden>✦</span>
                 </button>
               )}
             </div>
             <button
               type="button"
               onClick={() => setArenaOpen(true)}
-              className="border border-border-primary bg-card-bg px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-[border-color] duration-200 ease-out hover:border-border-hover hover:text-white"
+              className="rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
             >
-              Import from Are.na
+              Are.na
             </button>
             <button
               type="button"
               onClick={() => setPinterestOpen(true)}
-              className="flex items-center gap-1.5 border border-border-primary bg-card-bg px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-[border-color,color] duration-200 ease-out hover:border-[#E60023]/40 hover:text-[#E60023]"
+              className="flex items-center gap-1.5 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors hover:border-[#E60023]/40 hover:text-[#E60023]"
             >
               <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="currentColor">
                 <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
@@ -937,7 +941,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => setActiveTags([])}
-                    className="shrink-0 border border-border-primary bg-bg-secondary px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white"
+                    className="shrink-0 border border-[#E5E5E0] bg-[#F5F5F0] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-white"
                   >
                     Clear
                   </button>
@@ -953,7 +957,7 @@ export function VisionPage() {
                         "shrink-0 border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition-colors duration-150 whitespace-nowrap",
                         isActive
                           ? "border-white bg-white text-black"
-                          : "border-border-primary bg-bg-secondary text-text-tertiary hover:border-border-hover hover:text-white"
+                          : "border-[#E5E5E0] bg-[#F5F5F0] text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-white"
                       )}
                     >
                       {tag}
@@ -965,20 +969,20 @@ export function VisionPage() {
           )}
 
           {/* Keyboard curation hint */}
-          <div className="flex items-center gap-4 text-[10px] text-text-tertiary">
+          <div className="flex items-center gap-4 text-[10px] text-[#A0A0A0]">
             <span className="flex items-center gap-1.5">
-              <kbd className="border border-border-primary bg-bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">P</kbd>
+              <kbd className="border border-[#E5E5E0] bg-[#F5F5F0] px-1.5 py-0.5 font-mono text-[9px] text-[#A0A0A0]">P</kbd>
               Flag
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="border border-border-primary bg-bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">X</kbd>
+              <kbd className="border border-[#E5E5E0] bg-[#F5F5F0] px-1.5 py-0.5 font-mono text-[9px] text-[#A0A0A0]">X</kbd>
               Reject
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="border border-border-primary bg-bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-text-tertiary">U</kbd>
+              <kbd className="border border-[#E5E5E0] bg-[#F5F5F0] px-1.5 py-0.5 font-mono text-[9px] text-[#A0A0A0]">U</kbd>
               Undo
             </span>
-            <span className="text-text-muted">— hover a card first</span>
+            <span className="text-[#A0A0A0]">— hover a card first</span>
           </div>
         </div>
 
@@ -1013,12 +1017,12 @@ export function VisionPage() {
                         onClick={() => importArenaChannel(ch.slug)}
                         disabled={arenaImporting !== null}
                         className={cn(
-                          "flex w-full items-center gap-3 border border-[#1a1a1a] bg-card-bg p-3 text-left transition-[border-color] duration-200 ease-out hover:border-[#252525]",
+                          "flex w-full items-center gap-3 border border-[#1a1a1a] bg-white p-3 text-left transition-[border-color] duration-200 ease-out hover:border-[#252525]",
                           arenaImporting === ch.slug && "opacity-60"
                         )}
                       >
                         {ch.thumb ? (
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-border-primary bg-card-bg">
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-[#E5E5E0] bg-white">
                             <Image
                               src={ch.thumb}
                               alt=""
@@ -1029,7 +1033,7 @@ export function VisionPage() {
                             />
                           </div>
                         ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border-primary bg-card-bg text-[10px] uppercase text-text-tertiary">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-[#E5E5E0] bg-white text-[10px] uppercase text-[#A0A0A0]">
                             —
                           </div>
                         )}
@@ -1044,7 +1048,7 @@ export function VisionPage() {
                         {arenaImporting === ch.slug ? (
                           <span className="text-[11px] text-gray-500">Importing…</span>
                         ) : (
-                          <span className="text-[11px] text-accent">Import</span>
+                          <span className="text-[11px] text-[#1E5DF2]">Import</span>
                         )}
                       </button>
                     </li>
@@ -1082,7 +1086,7 @@ export function VisionPage() {
               <button
                 type="submit"
                 disabled={lummiLoading}
-                className="border border-border-primary bg-card-bg px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white disabled:opacity-50"
+                className="border border-[#E5E5E0] bg-white px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-white disabled:opacity-50"
               >
                 {lummiLoading ? "…" : "Search"}
               </button>
@@ -1118,7 +1122,7 @@ export function VisionPage() {
                     return (
                       <div
                         key={img.id}
-                        className="group relative mb-2 break-inside-avoid overflow-hidden bg-card-bg"
+                        className="group relative mb-2 break-inside-avoid overflow-hidden bg-white"
                       >
                         <Image
                           src={img.thumbnailUrl || img.imageUrl}
@@ -1160,10 +1164,10 @@ export function VisionPage() {
                     Array.from({ length: 8 }).map((_, i) => (
                       <div
                         key={`skel-${i}`}
-                        className="mb-2 break-inside-avoid bg-card-bg"
+                        className="mb-2 break-inside-avoid bg-white"
                         style={{ height: `${140 + (i % 3) * 60}px` }}
                       >
-                        <div className="h-full w-full animate-pulse bg-sidebar-active" />
+                        <div className="h-full w-full animate-pulse bg-[#F5F5F0]" />
                       </div>
                     ))}
                 </div>
@@ -1173,7 +1177,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => fetchLummi(lummiQuery, lummiPage + 1, true)}
-                    className="w-full border border-border-primary bg-card-bg py-2.5 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white"
+                    className="w-full border border-[#E5E5E0] bg-white py-2.5 text-[11px] font-medium uppercase tracking-[0.15em] text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-white"
                   >
                     Load more
                   </button>
@@ -1188,7 +1192,7 @@ export function VisionPage() {
                   <button
                     type="button"
                     onClick={() => fetchLummi("", 0, false)}
-                    className="border border-border-primary bg-card-bg px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-text-tertiary transition-colors hover:border-border-hover hover:text-white"
+                    className="border border-[#E5E5E0] bg-white px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-white"
                   >
                   Browse random images
                 </button>
@@ -1210,7 +1214,7 @@ export function VisionPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-accent bg-accent/10 text-xs font-medium uppercase tracking-[0.15em] text-accent"
+                  className="absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-[#1E5DF2] bg-[#1E5DF2]/10 text-xs font-medium uppercase tracking-[0.15em] text-[#1E5DF2]"
                 >
                   Drop images here
                 </motion.div>
@@ -1219,56 +1223,37 @@ export function VisionPage() {
 
             {/* ── True empty state ── */}
             {references.length === 0 && (
-              <div className="flex flex-col items-center gap-6 py-24 text-center">
-                <svg
-                  viewBox="0 0 48 48"
-                  className="h-12 w-12 text-text-muted"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <rect x="4" y="10" width="40" height="28" rx="3" />
-                  <circle cx="24" cy="24" r="6" />
-                  <circle cx="24" cy="24" r="2" fill="currentColor" stroke="none" />
-                  <line x1="4" y1="16" x2="44" y2="16" />
+              <div className="flex flex-col items-center gap-5 py-24 text-center">
+                {/* Muted slat-logo SVG */}
+                <svg width="48" height="32" viewBox="0 0 127 83" fill="none" className="opacity-20" aria-hidden>
+                  <path d="M0 16C0 7.16 7.16 0 16 0h36l12 16h47c8.84 0 16 7.16 16 16v35c0 8.84-7.16 16-16 16H16C7.16 83 0 75.84 0 67V16z" fill="#A0A0A0"/>
                 </svg>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-text-primary">
-                    Your moodboard is empty
-                  </h3>
-                  <p className="text-sm text-text-secondary">
-                    Start collecting visual references
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3">
+                <p className="text-[14px] text-[#A0A0A0]">
+                  Start collecting references
+                </p>
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setPinterestOpen(true)}
-                    className="bg-white px-4 py-2 text-sm font-medium text-black transition-opacity duration-200 hover:opacity-90"
+                    className="rounded-[4px] bg-[#1E5DF2] px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[#1A4FD6]"
                   >
-                    Connect Pinterest
+                    Upload Images
                   </button>
-                  {lummiConfigured && (
-                    <button
-                      type="button"
-                      onClick={() => setIsStockActive(true)}
-                      className="border border-border-primary px-4 py-2 text-sm font-medium text-white transition-[border-color] duration-200 hover:border-border-hover"
-                    >
-                      Browse Stock
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setArenaOpen(true)}
+                    className="rounded-[4px] border border-[#E5E5E0] px-4 py-2.5 text-[13px] text-[#6B6B6B] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                  >
+                    Paste a URL
+                  </button>
                 </div>
-                <p className="text-xs text-text-placeholder">or drag images here</p>
               </div>
             )}
 
             {/* ── Filtered empty state ── */}
             {references.length > 0 && filtered.length === 0 && (
               <div className="flex flex-col items-center gap-3 py-20 text-center">
-                <p className="text-sm text-text-secondary">
+                <p className="text-sm text-[#6B6B6B]">
                   No references
                   {activeBoard !== "All" ? ` in ${activeBoard}` : ""}
                   {activeTags.length > 0 ? " matching these tags" : ""}.
@@ -1278,7 +1263,7 @@ export function VisionPage() {
                     <button
                       type="button"
                       onClick={() => setActiveBoard("All")}
-                      className="text-xs text-accent transition-opacity hover:opacity-70"
+                      className="text-xs text-[#1E5DF2] transition-opacity hover:opacity-70"
                     >
                       Show all boards
                     </button>
@@ -1287,7 +1272,7 @@ export function VisionPage() {
                     <button
                       type="button"
                       onClick={() => setActiveTags([])}
-                      className="text-xs text-accent transition-opacity hover:opacity-70"
+                      className="text-xs text-[#1E5DF2] transition-opacity hover:opacity-70"
                     >
                       Clear filters
                     </button>
@@ -1312,14 +1297,14 @@ export function VisionPage() {
                   >
                     <div
                       className={cn(
-                        "group relative overflow-hidden border bg-bg-secondary",
+                        "group relative overflow-hidden rounded-[4px] border bg-white shadow-sm transition-all duration-150",
                         ref.curationStatus === "flag"
                           ? "border-amber-500/60"
                           : ref.curationStatus === "reject"
                           ? "border-red-700/50"
                           : hoveredRefId === ref.id
-                          ? "border-white/20"
-                          : "border-card-border"
+                          ? "border-[#1E5DF2] shadow-md scale-[1.01]"
+                          : "border-[#E5E5E0]"
                       )}
                     >
                       <div className="relative w-full">
@@ -1339,8 +1324,8 @@ export function VisionPage() {
                         {ref.isTagging && (
                           <div className="absolute right-2 top-2 z-10 flex items-center gap-1 border border-white/10 bg-black/80 px-1.5 py-0.5">
                             <span className="relative flex h-1.5 w-1.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
-                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#1E5DF2] opacity-75" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#1E5DF2]" />
                             </span>
                             <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-gray-400">
                               tagging
@@ -1410,7 +1395,65 @@ export function VisionPage() {
         )}
       </div>
 
-      {/* ── Toast notification ─────────────────────────────────── */}
+      {/* ── Floating toolbar ── */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-20 flex justify-center">
+        <div className="pointer-events-auto flex h-10 items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white/90 px-2 shadow-sm backdrop-blur-sm max-w-[360px]">
+          <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[2px] text-[#6B6B6B] transition-colors hover:bg-[#F5F5F0] hover:text-[#1E5DF2]">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                if (!files.length) return;
+                const now = new Date();
+                const next: Reference[] = files.map((file, i) => ({
+                  id: `local-${now.getTime()}-${i}`,
+                  imageUrl: URL.createObjectURL(file),
+                  board: activeBoard === "All" ? "Brand" : activeBoard,
+                  tags: { style: [], colors: [], contentType: [], mood: [], ai: [] },
+                  createdAt: now,
+                  notes: file.name,
+                  isTagging: false,
+                }));
+                setReferences((prev) => [...next, ...prev]);
+                e.target.value = "";
+              }}
+            />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </label>
+          <button
+            type="button"
+            onClick={() => setArenaOpen(true)}
+            title="Import from URL"
+            className="flex h-8 w-8 items-center justify-center rounded-[2px] text-[#6B6B6B] transition-colors hover:bg-[#F5F5F0] hover:text-[#1E5DF2]"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </button>
+          <div className="mx-1 h-4 w-px bg-[#E5E5E0]" />
+          <button
+            type="button"
+            onClick={() => setPinterestOpen(true)}
+            title="Pinterest import"
+            className="flex h-8 w-8 items-center justify-center rounded-[2px] text-[#6B6B6B] transition-colors hover:bg-[#F5F5F0] hover:text-[#1E5DF2]"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+          </button>
+          {lummiConfigured && (
+            <button
+              type="button"
+              onClick={() => setIsStockActive(true)}
+              title="Browse stock"
+              className="flex h-8 w-8 items-center justify-center rounded-[2px] text-[#6B6B6B] transition-colors hover:bg-[#F5F5F0] hover:text-[#1E5DF2]"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Toast notification ── */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -1423,21 +1466,20 @@ export function VisionPage() {
           >
             <div
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium shadow-xl",
+                "flex items-center gap-2 rounded-[4px] border px-4 py-2.5 text-[13px] font-medium shadow-lg",
                 toast.type === "error"
-                  ? "bg-red-950 text-red-200"
-                  : "bg-card-bg text-white"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-[#E5E5E0] bg-white text-[#1A1A1A]"
               )}
-              style={{ border: "1px solid rgba(255,255,255,0.1)" }}
             >
               {toast.type === "loading" && (
-                <span className="h-3 w-3 animate-spin border border-white/25 border-t-white" />
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#E5E5E0] border-t-[#1E5DF2]" />
               )}
               {toast.type === "success" && (
-                <span className="text-[11px] text-green-400">✓</span>
+                <span className="text-[11px] text-emerald-600">✓</span>
               )}
               {toast.type === "error" && (
-                <span className="text-[11px] text-red-400">✕</span>
+                <span className="text-[11px] text-red-500">✕</span>
               )}
               {toast.message}
             </div>

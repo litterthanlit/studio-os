@@ -201,31 +201,31 @@ function __run(){
 function LoadingSkeleton() {
   return (
     <div className="flex-1 flex flex-col">
-      <div className="flex items-center justify-center gap-1 py-3 border-b border-border-subtle">
+      <div className="flex items-center justify-center gap-1 py-3 border-b border-[#E5E5E0]">
         {DEVICES.map((d) => (
-          <div key={d.key} className="w-20 h-6 bg-bg-tertiary rounded animate-pulse" />
+          <div key={d.key} className="w-20 h-6 bg-[#E5E5E0] rounded animate-pulse" />
         ))}
       </div>
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-[140px] shrink-0 border-r border-border-subtle p-3 space-y-2">
+        <div className="w-[140px] shrink-0 border-r border-[#E5E5E0] p-3 space-y-2">
           {[75, 90, 60, 85, 70].map((w, i) => (
-            <div key={i} className="h-5 bg-bg-tertiary rounded animate-pulse" style={{ width: `${w}%` }} />
+            <div key={i} className="h-5 bg-[#E5E5E0] rounded animate-pulse" style={{ width: `${w}%` }} />
           ))}
         </div>
-        <div className="flex-1 flex items-center justify-center bg-bg-tertiary/30">
+        <div className="flex-1 flex items-center justify-center bg-[#E5E5E0]/30">
           <div className="text-center space-y-4">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-              className="w-8 h-8 mx-auto border-2 border-accent border-t-transparent rounded-full"
+              className="w-8 h-8 mx-auto border-2 border-[#1E5DF2] border-t-transparent rounded-full"
             />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-text-secondary">Generating page...</p>
-              <p className="text-[10px] text-text-muted font-mono">AI is writing a full React + Framer Motion site</p>
+              <p className="text-sm font-medium text-[#6B6B6B]">Generating page...</p>
+              <p className="text-[10px] text-[#A0A0A0] font-mono">AI is writing a full React + Framer Motion site</p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2">
               {["Hero", "Features", "Pricing", "CTA"].map((s) => (
-                <span key={s} className="px-2 py-0.5 bg-bg-tertiary border border-border-primary text-[9px] font-mono text-text-muted uppercase tracking-wider animate-pulse">
+                <span key={s} className="px-2 py-0.5 bg-[#E5E5E0] border border-[#E5E5E0] text-[9px] font-mono text-[#A0A0A0] uppercase tracking-wider animate-pulse">
                   {s}
                 </span>
               ))}
@@ -279,12 +279,12 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
   if (!code) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <div className="font-mono text-text-muted/20 text-[52px] leading-none select-none tracking-tight">
+        <div className="font-mono text-[#A0A0A0]/20 text-[52px] leading-none select-none tracking-tight">
           {"<page />"}
         </div>
         <div className="text-center space-y-1 max-w-xs">
-          <p className="text-sm text-text-tertiary">Your generated site will preview here</p>
-          <p className="text-[10px] text-text-muted leading-relaxed">
+          <p className="text-sm text-[#A0A0A0]">Your generated site will preview here</p>
+          <p className="text-[10px] text-[#A0A0A0] leading-relaxed">
             Describe a full page &mdash; the AI will generate a scrollable, multi-section
             site using your design system tokens and Framer Motion
           </p>
@@ -298,7 +298,7 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
   return (
     <motion.div {...slideUp} transition={springs.smooth} className="flex-1 flex flex-col min-h-0">
       {/* Device toggle */}
-      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border-subtle">
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-[#E5E5E0]">
         <div className="flex items-center gap-1">
           {DEVICES.map((d) => (
             <button
@@ -308,13 +308,13 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1 text-[10px] uppercase tracking-[0.12em] font-medium transition-colors rounded-sm",
                 device === d.key
-                  ? "bg-bg-tertiary text-text-primary border border-border-primary"
-                  : "text-text-muted hover:text-text-secondary"
+                  ? "bg-[#E5E5E0] text-[#1A1A1A] border border-[#E5E5E0]"
+                  : "text-[#A0A0A0] hover:text-[#6B6B6B]"
               )}
             >
               <span className="font-mono text-[9px] opacity-60">{d.icon}</span>
               {d.label}
-              <span className="font-mono text-[9px] text-text-muted/50">{d.width}</span>
+              <span className="font-mono text-[9px] text-[#A0A0A0]/50">{d.width}</span>
             </button>
           ))}
         </div>
@@ -339,10 +339,10 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
               animate={{ width: 140, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={springs.smooth}
-              className="shrink-0 border-r border-border-subtle bg-bg-primary overflow-y-auto overflow-x-hidden"
+              className="shrink-0 border-r border-[#E5E5E0] bg-white overflow-y-auto overflow-x-hidden"
             >
               <div className="p-2 space-y-0.5">
-                <span className="block px-2 py-1 text-[9px] uppercase tracking-[0.15em] font-medium text-text-muted">Sections</span>
+                <span className="block px-2 py-1 text-[9px] uppercase tracking-[0.15em] font-medium text-[#A0A0A0]">Sections</span>
                 {sections.map((s, i) => (
                   <button
                     key={s.id}
@@ -352,10 +352,10 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
                       "flex items-center gap-2 w-full px-2 py-1.5 text-left text-[10px] rounded-sm transition-colors truncate",
                       activeSection === s.id
                         ? "bg-accent-subtle text-accent font-medium"
-                        : "text-text-tertiary hover:text-text-secondary hover:bg-bg-secondary"
+                        : "text-[#A0A0A0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
                     )}
                   >
-                    <span className="font-mono text-[8px] text-text-muted/50 shrink-0 w-3">{i + 1}</span>
+                    <span className="font-mono text-[8px] text-[#A0A0A0]/50 shrink-0 w-3">{i + 1}</span>
                     <span className="truncate">{s.label}</span>
                   </button>
                 ))}
@@ -364,7 +364,7 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
           )}
         </AnimatePresence>
 
-        <div className="flex-1 overflow-auto bg-bg-tertiary/30">
+        <div className="flex-1 overflow-auto bg-[#E5E5E0]/30">
           <div className="mx-auto h-full" style={{ width: device === "desktop" ? "100%" : activeDevice.width }}>
             <AnimatePresence mode="wait">
               <motion.div
@@ -373,7 +373,7 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.99 }}
                 transition={springs.smooth}
-                className={cn("h-full mx-auto overflow-hidden", device !== "desktop" && "border-x border-border-primary shadow-lg")}
+                className={cn("h-full mx-auto overflow-hidden", device !== "desktop" && "border-x border-[#E5E5E0] shadow-lg")}
                 style={{ maxWidth: activeDevice.width, width: "100%" }}
               >
                 {iframeHTML && (

@@ -10,7 +10,7 @@ import {
   CheckIcon as Check,
 } from "@/components/ui/icon";
 import { SectionLabel } from "@/components/ui/section-label";
-import { DitherSurface } from "@/components/ui/dither-surface";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import {
   getStoredProjects,
@@ -140,13 +140,7 @@ function IdeasSection({
       <SectionLabel>Ideas</SectionLabel>
 
       {/* Input */}
-      <DitherSurface
-        patternVariant="grid"
-        patternTone="warm"
-        patternDensity="sm"
-        muted
-        className="flex items-center border-dashed"
-      >
+      <div className="flex items-center rounded-[4px] border border-dashed border-[#E5E5E0] bg-white/70">
         <input
           type="text"
           placeholder="Quick idea..."
@@ -161,24 +155,20 @@ function IdeasSection({
           className="h-11 flex-1 bg-transparent px-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
         />
         <span className="pr-3 font-mono text-[11px] text-text-muted select-none">↵</span>
-      </DitherSurface>
+      </div>
 
       {/* Empty state */}
       {sorted.length === 0 && (
-        <p className="pt-0.5 font-mono text-[11px] text-text-muted">
-          Capture ideas as they come. Set reminders so they resurface.
-        </p>
+        <EmptyState
+          title="No ideas yet"
+          description="Capture ideas as they come. Set reminders so they resurface."
+          variant="warm"
+        />
       )}
 
       {/* List */}
       {sorted.length > 0 && (
-        <DitherSurface
-          patternVariant="band"
-          patternTone="warm"
-          patternDensity="sm"
-          muted
-          className="overflow-hidden"
-        >
+        <div className="overflow-hidden rounded-[4px] border border-[#E5E5E0] bg-white/70">
           {visible.map((idea, idx) => {
             const isLast = idx === visible.length - 1 && !shouldCollapse;
             const hasMenu = menu?.ideaId === idea.id;
@@ -326,7 +316,7 @@ function IdeasSection({
                 : `↓ Show ${hiddenCount} more idea${hiddenCount !== 1 ? "s" : ""}`}
             </button>
           )}
-        </DitherSurface>
+        </div>
       )}
 
       {/* Summary */}
@@ -480,13 +470,7 @@ export function BriefPage() {
     <section className="space-y-12 pb-8">
 
       {/* Header */}
-      <DitherSurface
-        patternVariant="fade"
-        patternTone="warm"
-        patternDensity="sm"
-        muted
-        className="space-y-3 px-6 py-6"
-      >
+      <div className="space-y-3 px-6 py-6">
         <p className="mono-kicker">{dateStr}</p>
         <h1 className="text-[42px] font-medium leading-tight text-text-primary tracking-tight">
           {greeting}, {USER_NAME}.
@@ -494,7 +478,7 @@ export function BriefPage() {
         <p className="max-w-2xl text-sm leading-6 text-text-secondary">
           Briefing for the day: what needs focus, what needs taste, and what should resurface before momentum gets lost.
         </p>
-      </DitherSurface>
+      </div>
 
       {/* Section 0 — Ideas */}
       <IdeasSection onTodayReminders={handleTodayReminders} />
@@ -503,12 +487,7 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Today&apos;s Focus</SectionLabel>
         {activeProject ? (
-          <DitherSurface
-            patternVariant="fade"
-            patternTone="blue"
-            patternDensity="sm"
-            className="flex items-center justify-between gap-4 p-5 transition-transform duration-200 hover:-translate-y-0.5"
-          >
+          <div className="flex items-center justify-between gap-4 rounded-[4px] border border-[#E5E5E0] bg-white/70 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D1E4FC]">
             <div className="flex min-w-0 flex-1 items-center gap-4">
               <div
                 className="halftone-preview h-16 w-24 flex-none border border-border-subtle"
@@ -525,17 +504,13 @@ export function BriefPage() {
             >
               Open →
             </Link>
-          </DitherSurface>
+          </div>
         ) : (
-          <DitherSurface
-            patternVariant="grid"
-            patternTone="warm"
-            patternDensity="sm"
-            muted
-            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
-          >
-            No projects in progress. Create one from Home or Projects.
-          </DitherSurface>
+          <EmptyState
+            title="No active project"
+            description="Create one from Home or Projects to set your daily focus."
+            variant="warm"
+          />
         )}
       </div>
 
@@ -552,30 +527,14 @@ export function BriefPage() {
           </button>
         </div>
         {scheduleBlocks.length === 0 ? (
-          <DitherSurface
-            patternVariant="grid"
-            patternTone="warm"
-            patternDensity="sm"
-            muted
-            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
-          >
-            No events today.{" "}
-            <button
-              type="button"
-              onClick={() => setScheduleAddOpen(true)}
-              className="text-accent hover:underline"
-            >
-              + Add time block
-            </button>
-          </DitherSurface>
+          <EmptyState
+            title="No events today"
+            description="Your schedule is clear. Add a time block to structure the day."
+            action={{ label: "+ Add time block", onClick: () => setScheduleAddOpen(true) }}
+            variant="warm"
+          />
         ) : (
-          <DitherSurface
-            patternVariant="band"
-            patternTone="warm"
-            patternDensity="sm"
-            muted
-            className="overflow-hidden"
-          >
+          <div className="overflow-hidden rounded-[4px] border border-[#E5E5E0] bg-white/70">
             {scheduleBlocks.map((block, index) => (
               <div
                 key={block.id}
@@ -605,7 +564,7 @@ export function BriefPage() {
                 </button>
               </div>
             ))}
-          </DitherSurface>
+          </div>
         )}
         {scheduleAddOpen && (
           <ScheduleBlockForm
@@ -619,15 +578,11 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Inspiration Pulse</SectionLabel>
         {recentRefs.length === 0 ? (
-          <DitherSurface
-            patternVariant="grid"
-            patternTone="blue"
-            patternDensity="sm"
-            muted
-            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
-          >
-            No references yet. Save from Vision to see them here.
-          </DitherSurface>
+          <EmptyState
+            title="No references yet"
+            description="Save images from Vision to see them here."
+            variant="warm"
+          />
         ) : (
           <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
             {recentRefs.map((r) => (
@@ -649,20 +604,13 @@ export function BriefPage() {
         <SectionLabel>Creative Pulse</SectionLabel>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {STAT_LABELS.map(({ key, label, icon: Icon }) => (
-            <DitherSurface
-              key={key}
-              patternVariant="grid"
-              patternTone={key === "references" ? "blue" : "warm"}
-              patternDensity="sm"
-              muted
-              className="flex flex-col gap-1.5 p-5"
-            >
+            <div key={key} className="flex flex-col gap-1.5 rounded-[4px] border border-[#E5E5E0] bg-white/70 p-5">
               <Icon className="h-3.5 w-3.5 text-text-tertiary" />
               <div className="text-2xl font-medium text-text-primary font-mono">
                 {key === "focus" ? stats.focus : key === "references" ? stats.references : key === "reviews" ? stats.reviews : stats.dayStreak}
               </div>
               <div className="mono-kicker text-text-tertiary">{label}</div>
-            </DitherSurface>
+            </div>
           ))}
         </div>
       </div>
@@ -671,15 +619,11 @@ export function BriefPage() {
       <div className="space-y-3">
         <SectionLabel>Needs Attention</SectionLabel>
         {todayIdeaReminders.length === 0 ? (
-          <DitherSurface
-            patternVariant="grid"
-            patternTone="warm"
-            patternDensity="sm"
-            muted
-            className="border-dashed px-4 py-6 text-center text-[11px] text-text-muted font-mono"
-          >
-            No items needing attention. Ideas with &ldquo;Today&rdquo; reminders will show here.
-          </DitherSurface>
+          <EmptyState
+            title="Nothing needs attention"
+            description={`Ideas with "Today" reminders will show here.`}
+            variant="warm"
+          />
         ) : (
           <ul className="space-y-2">
             {todayIdeaReminders.map((idea) => (
@@ -718,13 +662,7 @@ function ScheduleBlockForm({
   const [tag, setTag] = React.useState<ScheduleTag | "">("");
 
   return (
-    <DitherSurface
-      patternVariant="grid"
-      patternTone="warm"
-      patternDensity="sm"
-      muted
-      className="space-y-3 p-4"
-    >
+    <div className="space-y-3 rounded-[4px] border border-[#E5E5E0] bg-white/70 p-4">
       <input
         type="text"
         placeholder="Title"
@@ -785,6 +723,6 @@ function ScheduleBlockForm({
           Add block
         </button>
       </div>
-    </DitherSurface>
+    </div>
   );
 }

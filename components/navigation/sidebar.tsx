@@ -4,42 +4,74 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Layers, Wand2, Home, FolderOpen, Zap, Image, Settings, Search } from "lucide-react";
+import {
+  Layers,
+  Wand2,
+  Home,
+  FolderOpen,
+  Zap,
+  Image,
+  Settings,
+  Search,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasStage } from "@/lib/canvas-stage-context";
 
-// ─── Studio OS Logo ────────────────────────────────────────────────────────────
+// ─── V2 Logo Mark — Vertical-slat folder ─────────────────────────────────────
 
-function StudioOSLogo({ size = 28 }: { size?: number }) {
+function LogoMark({ size = 28 }: { size?: number }) {
+  const id = React.useId();
+  const clipId = `folderClip-${id}`;
+  // Aspect ratio of viewBox: 127:83 ≈ 1.53:1
+  const h = Math.round(size / 1.53);
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 32 32"
+      height={h}
+      viewBox="0 0 127 83"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
+      className="shrink-0"
     >
-      <rect x="4" y="8" width="24" height="18" rx="3" fill="#1E5DF2" opacity="0.2" />
-      <path
-        d="M4 11C4 9.34315 5.34315 8 7 8H13L15.5 5.5H25C26.6569 5.5 28 6.84315 28 8.5V23C28 24.6569 26.6569 26 25 26H7C5.34315 26 4 24.6569 4 23V11Z"
-        fill="#1E5DF2"
-        opacity="0.45"
-      />
-      <rect x="4" y="12" width="24" height="14" rx="3" fill="#1E5DF2" />
-      <line x1="10" y1="18" x2="22" y2="18" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.7" />
-      <line x1="10" y1="22" x2="22" y2="22" stroke="white" strokeWidth="1.8" strokeLinecap="round" opacity="0.4" />
+      <defs>
+        <clipPath id={clipId}>
+          <path d="M2 0 H53 Q57 0 57 4 V11 H119 Q121 11 121 13 V79 Q121 81 119 81 H2 Q0 81 0 79 V2 Q0 0 2 0Z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <polygon points="2,0 4,0 4,81 2,81" fill="#071D5C" />
+        <polygon points="7,0 10,0 11,40 10,81 7,81 6,40" fill="#0A2A7A" />
+        <polygon points="14,0 18,0 20,40 18,81 14,81 12,40" fill="#0D3BA8" />
+        <polygon points="23,0 28,0 31,40 28,81 23,81 20,40" fill="#1045BA" />
+        <polygon points="33,0 39,0 42,40 39,81 33,81 30,40" fill="#1248C4" />
+        <polygon points="44,0 51,0 54,40 51,81 44,81 41,40" fill="#1652D6" />
+        <polygon points="56,0 64,0 67,40 64,81 56,81 53,40" fill="#1A58E0" />
+        <polygon points="69,0 77,0 80,40 77,81 69,81 66,40" fill="#1E5DF2" />
+        <polygon points="82,0 90,0 92,40 90,81 82,81 80,40" fill="#1E5DF2" />
+        <polygon points="95,0 101,0 103,40 101,81 95,81 93,40" fill="#1A58E0" />
+        <polygon points="106,0 111,0 112,40 111,81 106,81 105,40" fill="#1652D6" />
+        <polygon points="114,0 118,0 119,40 118,81 114,81 113,40" fill="#1248C4" />
+        <polygon points="120,0 121,0 121,81 120,81" fill="#0D3BA8" />
+      </g>
     </svg>
   );
 }
 
 // ─── User Avatar ──────────────────────────────────────────────────────────────
 
-function UserAvatar({ size = 28 }: { size?: number }) {
+function UserAvatar({ size = 24 }: { size?: number }) {
   return (
     <div
       className="flex shrink-0 items-center justify-center rounded-full bg-[#D1E4FC] font-medium text-[#1E5DF2] select-none"
-      style={{ width: size, height: size, fontSize: size * 0.38, letterSpacing: "0.02em" }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.38,
+        letterSpacing: "0.02em",
+      }}
     >
       NG
     </div>
@@ -68,14 +100,19 @@ function NavItem({
   tooltip?: string;
 }) {
   const cls = cn(
-    "flex h-8 w-full items-center rounded-[4px] transition-colors duration-150",
-    expanded ? "px-2" : "justify-center px-0",
+    "group relative flex h-8 w-full items-center rounded-[4px] transition-colors duration-150",
+    expanded ? "px-2 gap-2.5" : "justify-center px-0",
     active
-      ? "bg-[#D1E4FC]"
+      ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
       : disabled
       ? "opacity-40 cursor-not-allowed"
       : "hover:bg-[#F5F5F0]"
   );
+
+  // 2px left accent bar for active state
+  const accentBar = active ? (
+    <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#1E5DF2]" />
+  ) : null;
 
   const iconEl = (
     <Icon
@@ -83,7 +120,7 @@ function NavItem({
       strokeWidth={1}
       className={cn(
         "shrink-0 transition-colors duration-150",
-        active ? "text-[#1E5DF2]" : "text-[#A0A0A0]"
+        active ? "text-[#1E5DF2]" : "text-[#A0A0A0] group-hover:text-[#6B6B6B]"
       )}
     />
   );
@@ -93,10 +130,10 @@ function NavItem({
       {expanded ? (
         <motion.span
           key="label"
-          initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-          animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
-          exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-          transition={{ duration: 0.12 }}
+          initial={{ opacity: 0, width: 0 }}
+          animate={{ opacity: 1, width: "auto" }}
+          exit={{ opacity: 0, width: 0 }}
+          transition={{ duration: 0.15 }}
           className={cn(
             "overflow-hidden whitespace-nowrap text-[13px]",
             active ? "font-medium text-[#1E5DF2]" : "text-[#6B6B6B]"
@@ -108,11 +145,18 @@ function NavItem({
     </AnimatePresence>
   );
 
+  const content = (
+    <>
+      {accentBar}
+      {iconEl}
+      {labelEl}
+    </>
+  );
+
   if (href && !disabled) {
     return (
       <Link href={href} className={cls} title={!expanded ? label : undefined}>
-        {iconEl}
-        {labelEl}
+        {content}
       </Link>
     );
   }
@@ -124,13 +168,12 @@ function NavItem({
       title={(!expanded ? label : undefined) ?? tooltip}
       className={cls}
     >
-      {iconEl}
-      {labelEl}
+      {content}
     </button>
   );
 }
 
-// ─── Dashboard Sidebar Content ─────────────────────────────────────────────────
+// ─── Dashboard Sidebar Content ────────────────────────────────────────────────
 
 const DASH_NAV = [
   { href: "/home", label: "Home", icon: Home },
@@ -155,38 +198,82 @@ const SIDEBAR_PROJECTS: SidebarProject[] = [
 function DashboardSidebarContent({
   expanded,
   onCmdK,
+  onToggle,
 }: {
   expanded: boolean;
   onCmdK?: () => void;
+  onToggle?: () => void;
 }) {
   const pathname = usePathname();
-  const railPadding = expanded ? "px-2" : "px-1";
+  const railPx = expanded ? "px-3" : "px-1.5";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Logo */}
-      <div className="flex h-[56px] shrink-0 items-center px-[13px]">
-        <Link href="/home" aria-label="Studio OS Home" className="flex shrink-0 items-center">
-          <StudioOSLogo size={24} />
+      {/* ── Logo area ── */}
+      <div
+        className={cn(
+          "flex h-[52px] shrink-0 items-center border-b border-[#E5E5E0]/60",
+          expanded ? "justify-between px-3" : "justify-center px-0"
+        )}
+      >
+        <Link
+          href="/home"
+          aria-label="Studio OS Home"
+          className="flex shrink-0 items-center gap-2.5"
+        >
+          <LogoMark size={expanded ? 32 : 24} />
           <AnimatePresence initial={false}>
             {expanded ? (
               <motion.span
-                key="logo-label"
-                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
-                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                transition={{ duration: 0.12 }}
-                className="overflow-hidden whitespace-nowrap text-[13px] font-semibold text-[#1A1A1A]"
+                key="wordmark"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-[#1A1A1A]"
               >
                 Studio OS
               </motion.span>
             ) : null}
           </AnimatePresence>
         </Link>
+
+        {/* Collapse toggle (expanded only) */}
+        <AnimatePresence initial={false}>
+          {expanded && onToggle ? (
+            <motion.button
+              key="collapse-btn"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              type="button"
+              onClick={onToggle}
+              title="Collapse sidebar"
+              className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+            >
+              <ChevronsLeft size={14} strokeWidth={1.5} />
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
       </div>
 
-      {/* Main nav */}
-      <div className={cn("flex flex-col gap-0.5", railPadding)}>
+      {/* Expand toggle (collapsed only) */}
+      {!expanded && onToggle ? (
+        <div className="flex justify-center pt-2 pb-1">
+          <button
+            type="button"
+            onClick={onToggle}
+            title="Expand sidebar"
+            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+          >
+            <ChevronsRight size={14} strokeWidth={1.5} />
+          </button>
+        </div>
+      ) : null}
+
+      {/* ── Main nav ── */}
+      <div className={cn("mt-2 flex flex-col gap-0.5", railPx)}>
         {DASH_NAV.map(({ href, label, icon }) => {
           const active =
             href === "/home"
@@ -205,30 +292,38 @@ function DashboardSidebarContent({
         })}
       </div>
 
-      {/* Projects section */}
-      <div className="mt-5 px-[13px]">
-        <motion.span
-          animate={{ opacity: expanded ? 1 : 0 }}
-          transition={{ duration: 0.12 }}
-          className="whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.1em] text-[#A0A0A0] select-none"
-        >
-          Projects
-        </motion.span>
-      </div>
-      <div className={cn("mt-1 flex flex-col gap-0.5", railPadding)}>
+      {/* ── Projects section ── */}
+      {expanded ? (
+        <div className="mt-5 px-3">
+          <span className="mono-kicker whitespace-nowrap select-none">
+            Projects
+          </span>
+        </div>
+      ) : (
+        <div className="mx-auto mt-5 mb-1 h-px w-5 bg-[#E5E5E0]" />
+      )}
+
+      <div className={cn("mt-1.5 flex flex-col gap-0.5", railPx)}>
         {SIDEBAR_PROJECTS.map((project) => {
           const href = `/projects/${project.id}`;
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active =
+            pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={project.id}
               href={href}
+              title={!expanded ? project.name : undefined}
               className={cn(
-                "flex h-8 items-center rounded-[4px] transition-colors duration-150",
+                "group relative flex h-8 items-center rounded-[4px] transition-colors duration-150",
                 expanded ? "gap-2.5 px-2" : "justify-center px-0",
-                active ? "bg-[#D1E4FC]" : "hover:bg-[#F5F5F0]"
+                active
+                  ? "bg-[#D1E4FC]/40"
+                  : "hover:bg-[#F5F5F0]"
               )}
             >
+              {active ? (
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#1E5DF2]" />
+              ) : null}
               <span
                 className="h-[6px] w-[6px] shrink-0 rounded-full"
                 style={{ backgroundColor: project.color }}
@@ -237,13 +332,15 @@ function DashboardSidebarContent({
                 {expanded ? (
                   <motion.span
                     key={`${project.id}-label`}
-                    initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                    animate={{ opacity: 1, width: "auto", marginLeft: 0 }}
-                    exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                    transition={{ duration: 0.12 }}
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.15 }}
                     className={cn(
                       "overflow-hidden whitespace-nowrap text-[13px] truncate",
-                      active ? "font-medium text-[#1E5DF2]" : "text-[#6B6B6B]"
+                      active
+                        ? "font-medium text-[#1E5DF2]"
+                        : "text-[#6B6B6B]"
                     )}
                   >
                     {project.name}
@@ -258,29 +355,36 @@ function DashboardSidebarContent({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom: Search + Settings + Avatar */}
-      <div className={cn("flex flex-col gap-0.5 border-t border-[#E5E5E0] pt-2 pb-3", railPadding)}>
+      {/* ── Bottom: Search + Settings + Avatar ── */}
+      <div
+        className={cn(
+          "flex flex-col gap-0.5 border-t border-[#E5E5E0] pt-2 pb-3",
+          railPx
+        )}
+      >
         {/* Search / Cmd+K */}
         <button
           type="button"
           onClick={onCmdK}
           title={!expanded ? "Search (⌘K)" : undefined}
-          className="flex h-8 w-full items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0]"
-          style={{ justifyContent: expanded ? undefined : "center", paddingLeft: expanded ? 8 : 0 }}
+          className={cn(
+            "group flex h-8 w-full items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0]",
+            expanded ? "px-2 gap-2.5" : "justify-center px-0"
+          )}
         >
           <Search
             size={18}
             strokeWidth={1}
-            className="shrink-0 text-[#A0A0A0] transition-colors duration-150"
+            className="shrink-0 text-[#A0A0A0] transition-colors duration-150 group-hover:text-[#6B6B6B]"
           />
           <AnimatePresence initial={false}>
             {expanded ? (
               <motion.span
                 key="search-label"
-                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
-                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                transition={{ duration: 0.12 }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
                 className="flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap text-[13px] text-[#6B6B6B]"
               >
                 Search
@@ -296,7 +400,7 @@ function DashboardSidebarContent({
         <NavItem
           icon={Settings}
           label="Settings"
-          active={false}
+          active={pathname === "/settings" || pathname.startsWith("/settings/")}
           expanded={expanded}
           href="/settings"
         />
@@ -305,8 +409,7 @@ function DashboardSidebarContent({
         <div
           className={cn(
             "flex h-9 items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0] cursor-pointer",
-            expanded ? "gap-2.5 px-2" : "justify-center px-0",
-            !expanded && "justify-center px-0"
+            expanded ? "gap-2.5 px-2" : "justify-center px-0"
           )}
         >
           <UserAvatar size={24} />
@@ -314,10 +417,10 @@ function DashboardSidebarContent({
             {expanded ? (
               <motion.div
                 key="user-label"
-                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                animate={{ opacity: 1, width: "auto", marginLeft: 0 }}
-                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                transition={{ duration: 0.12 }}
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
                 className="flex min-w-0 flex-col overflow-hidden"
               >
                 <span className="whitespace-nowrap text-[13px] font-medium leading-tight text-[#1A1A1A]">
@@ -335,11 +438,18 @@ function DashboardSidebarContent({
   );
 }
 
-// ─── Canvas Sidebar Content ────────────────────────────────────────────────────
+// ─── Canvas Sidebar Content ─────────────────────────────────────────────────
 
-function CanvasSidebarContent({ expanded }: { expanded: boolean }) {
+function CanvasSidebarContent({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean;
+  onToggle?: () => void;
+}) {
   const ctx = useCanvasStage();
-  const railPadding = expanded ? "px-2" : "px-1";
+  const pathname = usePathname();
+  const railPx = expanded ? "px-3" : "px-1.5";
 
   const items = [
     {
@@ -358,32 +468,67 @@ function CanvasSidebarContent({ expanded }: { expanded: boolean }) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Logo → back to home */}
-      <div className="flex h-[56px] shrink-0 items-center px-[13px]">
-        <Link href="/home" aria-label="Studio OS Home" className="flex shrink-0 items-center">
-          <StudioOSLogo size={24} />
+      {/* ── Logo area ── */}
+      <div
+        className={cn(
+          "flex h-[52px] shrink-0 items-center border-b border-[#E5E5E0]/60",
+          expanded ? "justify-between px-3" : "justify-center px-0"
+        )}
+      >
+        <Link
+          href="/home"
+          aria-label="Studio OS Home"
+          className="flex shrink-0 items-center gap-2.5"
+        >
+          <LogoMark size={expanded ? 32 : 24} />
           <AnimatePresence initial={false}>
             {expanded ? (
               <motion.span
-                key="canvas-logo-label"
-                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                animate={{ opacity: 1, width: "auto", marginLeft: 10 }}
-                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                transition={{ duration: 0.12 }}
-                className="overflow-hidden whitespace-nowrap text-[13px] font-semibold text-[#1A1A1A]"
+                key="canvas-wordmark"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.15 }}
+                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-[#1A1A1A]"
               >
                 Studio OS
               </motion.span>
             ) : null}
           </AnimatePresence>
         </Link>
+
+        {expanded && onToggle ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            title="Collapse sidebar"
+            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+          >
+            <ChevronsLeft size={14} strokeWidth={1.5} />
+          </button>
+        ) : null}
       </div>
 
+      {!expanded && onToggle ? (
+        <div className="flex justify-center pt-2 pb-1">
+          <button
+            type="button"
+            onClick={onToggle}
+            title="Expand sidebar"
+            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+          >
+            <ChevronsRight size={14} strokeWidth={1.5} />
+          </button>
+        </div>
+      ) : null}
+
       {/* Canvas stage nav */}
-      <div className={cn("flex flex-col gap-0.5 pt-1", railPadding)}>
+      <div className={cn("mt-2 flex flex-col gap-0.5", railPx)}>
         {items.map(({ label, icon, stage, activeStages }) => {
           const isActive = ctx ? activeStages.includes(ctx.stage) : false;
-          const isAvailable = ctx ? (ctx.availability[stage]?.available ?? true) : true;
+          const isAvailable = ctx
+            ? (ctx.availability[stage]?.available ?? true)
+            : true;
           const tooltip = ctx?.availability[stage]?.tooltip;
 
           return (
@@ -407,11 +552,13 @@ function CanvasSidebarContent({ expanded }: { expanded: boolean }) {
       <div className="flex-1" />
 
       {/* Settings at bottom */}
-      <div className={cn("border-t border-[#E5E5E0] pt-2 pb-3", railPadding)}>
+      <div
+        className={cn("border-t border-[#E5E5E0] pt-2 pb-3", railPx)}
+      >
         <NavItem
           icon={Settings}
           label="Settings"
-          active={false}
+          active={pathname === "/settings" || pathname.startsWith("/settings/")}
           expanded={expanded}
           href="/settings"
         />
@@ -422,9 +569,12 @@ function CanvasSidebarContent({ expanded }: { expanded: boolean }) {
 
 // ─── Main Sidebar ─────────────────────────────────────────────────────────────
 
+const COLLAPSED_WIDTH = 48;
+const EXPANDED_WIDTH = 240;
+
 export function Sidebar() {
-  const [expanded, setExpanded] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [desktopExpanded, setDesktopExpanded] = React.useState(true);
   const pathname = usePathname();
 
   const isCanvasRoute =
@@ -437,7 +587,6 @@ export function Sidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Trigger Cmd+K from sidebar search button
   function fireCmdK() {
     window.dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -449,23 +598,32 @@ export function Sidebar() {
     );
   }
 
+  const toggleDesktop = React.useCallback(() => {
+    setDesktopExpanded((prev) => !prev);
+  }, []);
+
   return (
     <>
       {/* ── Desktop sidebar ── */}
       <motion.aside
-        animate={{ width: expanded ? 200 : 48 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
         className={cn(
           "relative z-20 hidden md:flex shrink-0 flex-col h-screen sticky top-0 overflow-hidden",
-          "bg-[#FAFAF8] border-r border-[#E5E5E0]"
+          "bg-[#FAFAF8]/95 backdrop-blur-sm border-r border-[#E5E5E0]"
         )}
+        animate={{ width: desktopExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+        transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       >
         {isCanvasRoute ? (
-          <CanvasSidebarContent expanded={expanded} />
+          <CanvasSidebarContent
+            expanded={desktopExpanded}
+            onToggle={toggleDesktop}
+          />
         ) : (
-          <DashboardSidebarContent expanded={expanded} onCmdK={fireCmdK} />
+          <DashboardSidebarContent
+            expanded={desktopExpanded}
+            onCmdK={fireCmdK}
+            onToggle={toggleDesktop}
+          />
         )}
       </motion.aside>
 
@@ -474,9 +632,14 @@ export function Sidebar() {
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open sidebar"
-        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#A0A0A0] shadow-sm transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8]/95 backdrop-blur-sm text-[#A0A0A0] shadow-sm transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
       >
-        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden>
+        <svg
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4"
+          aria-hidden
+        >
           <path
             fillRule="evenodd"
             d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"
@@ -501,19 +664,26 @@ export function Sidebar() {
         )}
       </AnimatePresence>
 
-      {/* ── Mobile drawer ── */}
+      {/* ── Mobile drawer (always expanded) ── */}
       <aside
         className={cn(
-          "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col w-[200px]",
-          "bg-[#FAFAF8] border-r border-[#E5E5E0]",
+          "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col",
+          "bg-[#FAFAF8]/95 backdrop-blur-sm border-r border-[#E5E5E0]",
           "transform transition-transform duration-200 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        style={{ width: EXPANDED_WIDTH }}
       >
         {isCanvasRoute ? (
           <CanvasSidebarContent expanded />
         ) : (
-          <DashboardSidebarContent expanded onCmdK={() => { setMobileOpen(false); fireCmdK(); }} />
+          <DashboardSidebarContent
+            expanded
+            onCmdK={() => {
+              setMobileOpen(false);
+              fireCmdK();
+            }}
+          />
         )}
       </aside>
     </>

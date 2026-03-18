@@ -14,7 +14,6 @@ import { buildIframeHTML } from "./ComponentPreview";
 import { ComposeDocumentView } from "./ComposeDocumentView";
 import type { GeneratedVariant } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
-import { DitherSurface } from "@/components/ui/dither-surface";
 
 type ImportMode = "upload" | "arena" | "pinterest" | "url";
 
@@ -63,10 +62,8 @@ type CollectViewProps = {
 
 function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3 rounded-lg border border-border-primary bg-bg-secondary/70 p-4">
-      <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-text-tertiary">
-        {title}
-      </p>
+    <section className="space-y-3 rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-4">
+      <span className="mono-kicker">{title}</span>
       {children}
     </section>
   );
@@ -75,12 +72,12 @@ function PanelSection({ title, children }: { title: string; children: React.Reac
 function TasteSkeletonSection() {
   return (
     <div className="space-y-3">
-      <div className="h-3 w-24 animate-pulse rounded-full bg-bg-tertiary" />
+      <div className="h-3 w-24 animate-pulse rounded-full bg-[#E5E5E0]" />
       <div className="grid grid-cols-4 gap-2">
         {[0, 1, 2, 3].map((item) => (
           <div key={item} className="space-y-2">
-            <div className="h-12 animate-pulse rounded-lg bg-bg-tertiary" />
-            <div className="h-2 w-full animate-pulse rounded-full bg-bg-tertiary" />
+            <div className="h-12 animate-pulse rounded-lg bg-[#E5E5E0]" />
+            <div className="h-2 w-full animate-pulse rounded-full bg-[#E5E5E0]" />
           </div>
         ))}
       </div>
@@ -91,24 +88,24 @@ function TasteSkeletonSection() {
 function TasteDetailSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border-primary bg-bg-primary p-4">
+      <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 p-4">
         <div className="space-y-2">
-          <div className="h-3 w-20 animate-pulse rounded-full bg-bg-tertiary" />
-          <div className="h-4 w-full animate-pulse rounded-full bg-bg-tertiary" />
-          <div className="h-4 w-[92%] animate-pulse rounded-full bg-bg-tertiary" />
-          <div className="h-4 w-[75%] animate-pulse rounded-full bg-bg-tertiary" />
+          <div className="h-3 w-20 animate-pulse rounded-full bg-[#E5E5E0]" />
+          <div className="h-4 w-full animate-pulse rounded-full bg-[#E5E5E0]" />
+          <div className="h-4 w-[92%] animate-pulse rounded-full bg-[#E5E5E0]" />
+          <div className="h-4 w-[75%] animate-pulse rounded-full bg-[#E5E5E0]" />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-7 w-20 animate-pulse rounded-full bg-bg-tertiary" />
+            <div key={item} className="h-7 w-20 animate-pulse rounded-full bg-[#E5E5E0]" />
           ))}
         </div>
       </div>
-      <div className="rounded-lg border border-border-primary bg-bg-primary p-4">
-        <div className="h-3 w-28 animate-pulse rounded-full bg-bg-tertiary" />
+      <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 p-4">
+        <div className="h-3 w-28 animate-pulse rounded-full bg-[#E5E5E0]" />
         <div className="mt-4 grid gap-3">
           {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-16 animate-pulse rounded-md bg-bg-tertiary" />
+            <div key={item} className="h-16 animate-pulse rounded-md bg-[#E5E5E0]" />
           ))}
         </div>
       </div>
@@ -118,13 +115,13 @@ function TasteDetailSkeleton() {
 
 function TasteMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border-primary bg-bg-primary p-3">
+    <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.12em] text-text-muted">{label}</p>
-          <p className="mt-2 text-sm font-medium leading-snug text-text-primary">{value}</p>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">{label}</p>
+          <p className="mt-2 text-sm font-medium leading-snug text-[#1A1A1A]">{value}</p>
         </div>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border-primary bg-bg-secondary text-text-secondary">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#6B6B6B]">
           {icon}
         </div>
       </div>
@@ -184,12 +181,12 @@ function TasteProfileDisplay({
 
   if (!tasteProfile) {
     return (
-      <div className="rounded-lg border border-dashed border-border-primary bg-bg-primary/60 px-4 py-6 text-center">
-        <p className="text-[10px] uppercase tracking-[0.16em] text-text-tertiary">Taste profile</p>
-        <p className="mt-3 text-sm font-medium text-text-primary">
+      <div className="rounded-[4px] border border-dashed border-[#E5E5E0] bg-white/80 px-4 py-6 text-center">
+        <span className="mono-kicker">Taste profile</span>
+        <p className="mt-3 text-sm font-medium text-[#1A1A1A]">
           {canExtract ? "Studio OS is ready to extract direction." : "Add 3+ references for taste extraction"}
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-text-muted">
+        <p className="mt-2 text-xs leading-relaxed text-[#A0A0A0]">
           {canExtract
             ? "Keep refining the board and the extracted direction will update live."
             : "A stronger cluster of references gives the AI enough signal to describe layout, type, and mood with confidence."}
@@ -205,21 +202,21 @@ function TasteProfileDisplay({
       transition={springs.smooth}
       className="space-y-4"
     >
-      <div className="rounded-lg border border-border-primary bg-[linear-gradient(180deg,rgba(59,94,252,0.08),rgba(59,94,252,0.01))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+      <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-4">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-text-tertiary">Taste summary</p>
-          <div className="rounded-full border border-[#3B5EFC]/20 bg-[#3B5EFC]/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#6e86ff]">
+          <span className="mono-kicker">Taste summary</span>
+          <div className="rounded-[2px] border border-[#D1E4FC] bg-[#D1E4FC]/30 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#1E5DF2]">
             {Math.round(tasteProfile.confidence * 100)}%
           </div>
         </div>
-        <blockquote className="mt-4 border-l-2 border-[#3B5EFC]/40 pl-4 text-sm leading-relaxed text-text-primary">
+        <blockquote className="mt-4 border-l-2 border-[#1E5DF2]/40 pl-4 text-sm leading-relaxed text-[#1A1A1A]">
           {tasteProfile.summary}
         </blockquote>
         <div className="mt-4 flex flex-wrap gap-2">
           {tasteProfile.adjectives.map((adjective) => (
             <span
               key={adjective}
-              className="rounded-full border border-[#3B5EFC]/18 bg-[#3B5EFC]/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[#6e86ff]"
+              className="rounded-[2px] border border-[#D1E4FC] bg-[#D1E4FC]/30 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[#1E5DF2]"
             >
               {adjective}
             </span>
@@ -227,9 +224,9 @@ function TasteProfileDisplay({
         </div>
       </div>
 
-      <div className="rounded-lg border border-border-primary bg-bg-primary p-4">
-        <p className="text-[10px] uppercase tracking-[0.16em] text-text-tertiary">Layout preferences</p>
-        <p className="mt-1 text-xs text-text-muted">The AI uses these tendencies to steer structure and pacing.</p>
+      <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-4">
+        <span className="mono-kicker">Layout preferences</span>
+        <p className="mt-1 text-xs text-[#A0A0A0]">The AI uses these tendencies to steer structure and pacing.</p>
         <div className="mt-4 grid gap-3">
           <TasteMetric label="Density" value={tasteProfile.layoutBias.density} icon={<LayoutMetricIcon type="density" />} />
           <TasteMetric label="Grid behavior" value={tasteProfile.layoutBias.gridBehavior} icon={<LayoutMetricIcon type="grid" />} />
@@ -239,12 +236,12 @@ function TasteProfileDisplay({
       </div>
 
       {tasteProfile.avoid.length > 0 && (
-        <div className="rounded-lg border border-red-500/18 bg-[linear-gradient(180deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02))] p-4">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-red-300/90">Anti-patterns</p>
-          <p className="mt-1 text-xs text-red-200/80">The AI will avoid these patterns in generation.</p>
+        <div className="rounded-[4px] border border-red-500/20 bg-red-50/50 p-4">
+          <span className="mono-kicker text-red-600/70">Anti-patterns</span>
+          <p className="mt-1 text-xs text-red-500/60">The AI will avoid these patterns in generation.</p>
           <div className="mt-4 space-y-2">
             {tasteProfile.avoid.map((item) => (
-              <div key={item} className="rounded-md border border-red-500/15 bg-red-500/[0.045] px-3 py-2 text-xs leading-relaxed text-red-100/90">
+              <div key={item} className="rounded-[2px] border border-red-500/15 bg-red-50/40 px-3 py-2 text-xs leading-relaxed text-red-700/70">
                 {item}
               </div>
             ))}
@@ -338,18 +335,18 @@ function TastePanel({
               {paletteEntries.map(([label, value]) => (
                 <div key={label} className="space-y-2">
                   <div
-                    className="h-14 rounded-md border border-border-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    className="h-14 rounded-md border border-[#E5E5E0] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     style={{ backgroundColor: value }}
                   />
                   <div className="space-y-1">
-                    <p className="truncate text-[10px] uppercase tracking-[0.12em] text-text-muted">{label}</p>
-                    <p className="font-mono text-[10px] text-text-secondary">{value}</p>
+                    <p className="truncate text-[10px] uppercase tracking-[0.12em] text-[#A0A0A0]">{label}</p>
+                    <p className="font-mono text-[10px] text-[#6B6B6B]">{value}</p>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs leading-relaxed text-text-muted">Add references to extract a usable palette.</p>
+            <p className="text-xs leading-relaxed text-[#A0A0A0]">Add references to extract a usable palette.</p>
           )}
         </PanelSection>
 
@@ -361,14 +358,14 @@ function TastePanel({
               {typographyLines.map((line, i) => (
                 <p
                   key={`${line}-${i}`}
-                  className={cn("leading-relaxed text-text-secondary", i === 0 ? "text-sm font-medium" : "text-xs")}
+                  className={cn("leading-relaxed text-[#6B6B6B]", i === 0 ? "text-sm font-medium" : "text-xs")}
                 >
                   {line}
                 </p>
               ))}
             </div>
           ) : (
-            <p className="text-xs leading-relaxed text-text-muted">Typography pairings will appear after taste extraction.</p>
+            <p className="text-xs leading-relaxed text-[#A0A0A0]">Typography pairings will appear after taste extraction.</p>
           )}
         </PanelSection>
 
@@ -380,28 +377,28 @@ function TastePanel({
               {moodKeywords.map((keyword) => (
                 <span
                   key={keyword}
-                  className="rounded-full border border-border-primary bg-bg-primary px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-text-secondary"
+                  className="rounded-[2px] border border-[#E5E5E0] bg-white px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[#6B6B6B]"
                 >
                   {keyword}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-xs leading-relaxed text-text-muted">Tone and adjectives will appear once Studio OS reads the board.</p>
+            <p className="text-xs leading-relaxed text-[#A0A0A0]">Tone and adjectives will appear once Studio OS reads the board.</p>
           )}
         </PanelSection>
 
         <PanelSection title="Taste summary">
           {processing && !summary ? (
             <div className="space-y-2">
-              <div className="h-3 w-full animate-pulse rounded-full bg-bg-tertiary" />
-              <div className="h-3 w-[92%] animate-pulse rounded-full bg-bg-tertiary" />
-              <div className="h-3 w-[68%] animate-pulse rounded-full bg-bg-tertiary" />
+              <div className="h-3 w-full animate-pulse rounded-full bg-[#E5E5E0]" />
+              <div className="h-3 w-[92%] animate-pulse rounded-full bg-[#E5E5E0]" />
+              <div className="h-3 w-[68%] animate-pulse rounded-full bg-[#E5E5E0]" />
             </div>
           ) : summary ? (
-            <p className="text-xs leading-relaxed text-text-secondary">{summary}</p>
+            <p className="text-xs leading-relaxed text-[#6B6B6B]">{summary}</p>
           ) : (
-            <p className="text-xs leading-relaxed text-text-muted">
+            <p className="text-xs leading-relaxed text-[#A0A0A0]">
               Studio OS will summarize the visual direction after analyzing your references.
             </p>
           )}
@@ -452,13 +449,12 @@ function TasteStrip({
   if (colors.length === 0 && fontNames.length === 0 && moodTags.length === 0) return null;
 
   return (
-    <div className="border-y border-[#E5E5E0]">
+    <div className="border border-[#E5E5E0] rounded-[4px] bg-white/80">
       {/* Collapsed strip */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-4 px-6 py-3.5 hover:bg-[#F5F5F0] transition-colors"
-        style={{ minHeight: 64 }}
+        className="flex w-full items-center gap-4 rounded-[4px] px-4 py-3 hover:bg-[#F5F5F0] transition-colors"
       >
         {/* Color swatches */}
         {colors.length > 0 && (
@@ -466,7 +462,8 @@ function TasteStrip({
             {colors.slice(0, 5).map((color, i) => (
               <span
                 key={i}
-                style={{ backgroundColor: color, width: 20, height: 20, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.08)", flexShrink: 0 }}
+                className="block h-5 w-5 shrink-0 rounded-full border border-black/8"
+                style={{ backgroundColor: color }}
               />
             ))}
           </div>
@@ -474,7 +471,7 @@ function TasteStrip({
 
         {/* Divider dot */}
         {colors.length > 0 && fontNames.length > 0 && (
-          <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#D1D1CC", flexShrink: 0 }} />
+          <span className="block h-[3px] w-[3px] shrink-0 rounded-full bg-[#D1D1CC]" />
         )}
 
         {/* Font names */}
@@ -488,8 +485,7 @@ function TasteStrip({
             {moodTags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em]"
-                style={{ background: "#F5F5F0", color: "#6B6B6B" }}
+                className="inline-flex shrink-0 items-center rounded-[2px] bg-[#F5F5F0] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[#6B6B6B]"
               >
                 {tag}
               </span>
@@ -512,7 +508,7 @@ function TasteStrip({
             transition={{ duration: 0.22, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="border-t border-[#E5E5E0] px-6 py-5">
+            <div className="border-t border-[#E5E5E0] px-4 py-5">
               <TasteProfileDisplay tasteProfile={tasteProfile} loading={false} canExtract={true} />
             </div>
           </motion.div>
@@ -562,10 +558,10 @@ function CollectVariantCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
-        "overflow-hidden rounded-[4px] transition-all duration-150 surface-panel",
+        "group/variant overflow-hidden rounded-[4px] border bg-white/70 cursor-pointer transition-all duration-150",
         active
-          ? "border-[#1E5DF2] shadow-[0_0_0_1px_#1E5DF2,0_16px_40px_rgba(30,93,242,0.12)]"
-          : "border-[#E5E5E0] hover:border-[#D1E4FC] hover:shadow-[0_12px_24px_rgba(17,17,17,0.05)] hover:-translate-y-px"
+          ? "border-[#1E5DF2] shadow-sm"
+          : "border-[#E5E5E0] hover:border-[#1E5DF2] hover:shadow-sm"
       )}
     >
       {/* 16:10 Preview */}
@@ -596,7 +592,7 @@ function CollectVariantCard({
             />
           </div>
         ) : (
-          <div className="halftone-preview absolute inset-0 overflow-y-auto">
+          <div className="absolute inset-0 overflow-y-auto bg-[#FAFAF8]">
             <ComposeDocumentView
               pageTree={variant.pageTree}
               tokens={tokens}
@@ -616,15 +612,10 @@ function CollectVariantCard({
       </div>
 
       {/* Footer */}
-      <div
-        className={cn(
-          "border-t border-[#E5E5E0] px-4 py-3 transition-colors",
-          active ? "bg-[#F3F7FF]" : "bg-white/90"
-        )}
-      >
+      <div className="border-t border-[#E5E5E0] px-4 py-3 bg-white/90">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-[10px] font-medium uppercase tracking-[0.1em] text-[#A0A0A0]">
+            <p className="truncate text-[13px] font-medium text-[#1A1A1A]">
               {variant.strategyLabel ?? variant.name}
             </p>
             {variant.description && (
@@ -634,14 +625,9 @@ function CollectVariantCard({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onOpenCompose(); }}
-            className={cn(
-              "shrink-0 rounded-sm px-3 py-1.5 text-[12px] font-medium transition-all duration-150",
-              active
-                ? "bg-[#1E5DF2] text-white"
-                : "bg-[#D1E4FC] text-[#1E5DF2] hover:bg-[#BDD5FC]"
-            )}
+            className="shrink-0 rounded-[4px] border border-[#E5E5E0] px-3 py-1.5 text-[12px] text-[#6B6B6B] opacity-0 transition-all duration-150 group-hover/variant:opacity-100 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
           >
-            Select
+            Edit
           </button>
         </div>
       </div>
@@ -743,12 +729,7 @@ function GenerationSection({
   const isGenerating = generateLoading;
 
   return (
-    <DitherSurface
-      patternVariant="band"
-      patternTone="warm"
-      patternDensity="sm"
-      className="rounded-none border-x-0 border-b-0 border-t"
-    >
+    <div className="rounded-[4px] border border-[#E5E5E0] bg-white/70">
       {/* Generation controls */}
       <div className="px-6 py-5">
         <p className="mono-kicker mb-4">
@@ -790,10 +771,10 @@ function GenerationSection({
                     type="button"
                     onClick={() => onSiteTypeChange(type as SiteType)}
                     className={cn(
-                      "rounded-sm px-3 py-1.5 text-[11px] font-medium transition-colors",
+                      "rounded-[4px] px-3 py-2 text-[12px] font-medium transition-colors",
                       siteType === type
                         ? "bg-[#1E5DF2] text-white"
-                        : "border border-[#E5E5E0] bg-white/90 text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                        : "border border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
                     )}
                   >
                     {SITE_TYPE_LABELS[type] ?? type}
@@ -808,52 +789,20 @@ function GenerationSection({
                   onChange={(e) => onSitePromptChange(e.target.value)}
                   rows={2}
                   placeholder="describe the direction, audience, tone..."
-                  style={{
-                    flex: 1,
-                    fontSize: 14,
-                    fontFamily: "'Geist Sans', ui-sans-serif, system-ui, sans-serif",
-                    border: "1px solid #E5E5E0",
-                    borderRadius: 2,
-                    padding: "10px 12px",
-                    outline: "none",
-                    resize: "none",
-                    lineHeight: 1.5,
-                    color: "#1A1A1A",
-                    background: "rgba(255,255,255,0.92)",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "#D1E4FC"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(209,228,252,0.4)"; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E5E0"; e.currentTarget.style.boxShadow = "none"; }}
+                  className="border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] text-[#1A1A1A] leading-relaxed resize-none outline-none placeholder:text-[#A0A0A0] transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
                 />
                 <button
                   type="button"
                   disabled={!canGenerate}
                   onClick={onGenerate}
-                  style={{
-                    background: canGenerate ? "#1E5DF2" : "#D1D1CC",
-                    color: "#fff",
-                    borderRadius: 2,
-                    border: "none",
-                    padding: "0 20px",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    fontFamily: "'Geist Sans', ui-sans-serif, system-ui, sans-serif",
-                    cursor: canGenerate ? "pointer" : "not-allowed",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                    transition: "background 0.15s",
-                    minHeight: 44,
-                    alignSelf: "stretch",
-                  }}
-                  onMouseEnter={(e) => { if (canGenerate) e.currentTarget.style.background = "#1A4FD6"; }}
-                  onMouseLeave={(e) => { if (canGenerate) e.currentTarget.style.background = "#1E5DF2"; }}
+                  className="shrink-0 self-stretch whitespace-nowrap rounded-[4px] bg-[#1E5DF2] px-5 text-[13px] font-medium text-white transition-colors hover:bg-[#1A4FD6] disabled:cursor-not-allowed disabled:bg-[#D1D1CC]"
                 >
                   Generate
                 </button>
               </div>
 
               {generateError && (
-                <div className="rounded-sm border border-red-500/30 bg-red-500/5 px-4 py-2.5 text-[11px] text-red-400">
+                <div className="rounded-[4px] border border-red-500/30 bg-red-50/50 px-4 py-2.5 text-[11px] text-red-600/70">
                   {generateError}
                 </div>
               )}
@@ -902,11 +851,28 @@ function GenerationSection({
                   />
                 </motion.div>
               ))}
+            {/* Open in Compose CTA */}
+            {selectedVariantId && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: 0.15 }}
+                className="mt-6"
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenCompose(selectedVariantId)}
+                  className="w-full rounded-[4px] bg-[#1E5DF2] px-6 py-3.5 text-[14px] font-medium text-white transition-colors duration-150 hover:bg-[#1A4FD6] focus:outline-none focus:ring-2 focus:ring-[#D1E4FC] focus:ring-offset-2"
+                >
+                  Open in Compose
+                </button>
+              </motion.div>
+            )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </DitherSurface>
+    </div>
   );
 }
 
@@ -962,12 +928,7 @@ export function CollectView({
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
               {/* Header card */}
-              <DitherSurface
-                patternVariant="fade"
-                patternTone="warm"
-                patternDensity="sm"
-                className="flex flex-col gap-4 rounded-[4px] px-5 py-5"
-              >
+              <div className="flex flex-col gap-4 rounded-[4px] border border-[#E5E5E0] bg-white/70 px-5 py-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div className="space-y-2">
                     <p className="mono-kicker">Collect</p>
@@ -1008,13 +969,7 @@ export function CollectView({
                     disabled={false}
                     className="min-h-[220px] rounded-[4px] border border-dashed border-[#E5E5E0] bg-white/70"
                   />
-                  <DitherSurface
-                    patternVariant="grid"
-                    patternTone="blue"
-                    patternDensity="sm"
-                    muted
-                    className="rounded-[4px] p-4"
-                  >
+                  <div className="rounded-[4px] border border-[#E5E5E0] bg-white/70 p-4">
                     <p className="mono-kicker">Stats</p>
                     <div className="mt-3 space-y-3 text-xs text-[#6B6B6B]">
                       <div className="flex items-center justify-between">
@@ -1026,7 +981,7 @@ export function CollectView({
                         <span className="font-medium text-[#1A1A1A]">{selectedIds.size}</span>
                       </div>
                     </div>
-                  </DitherSurface>
+                  </div>
                 </div>
 
                 {error && (
@@ -1034,7 +989,7 @@ export function CollectView({
                     {error}
                   </div>
                 )}
-              </DitherSurface>
+              </div>
 
               {/* Reference grid (masonry) */}
               {images.length > 0 ? (
@@ -1107,12 +1062,7 @@ export function CollectView({
                   })}
                 </div>
               ) : (
-                <DitherSurface
-                  patternVariant="grid"
-                  patternTone="blue"
-                  patternDensity="md"
-                  className="rounded-[4px] border-2 border-dashed p-10 text-center"
-                >
+                <div className="rounded-[4px] border-2 border-dashed border-[#E5E5E0] bg-white/70 p-10 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[4px] border border-[#D1E4FC] bg-[#F4F8FF] text-[#1E5DF2]">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10 13V4M10 4L7 7M10 4L13 7" />
@@ -1124,7 +1074,7 @@ export function CollectView({
                   <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#6B6B6B]">
                     Bring in 6–20 references that share a visual direction. Studio OS will extract palette, typography, mood, and a concise creative reading from that cluster.
                   </p>
-                </DitherSurface>
+                </div>
               )}
             </div>
 
@@ -1132,12 +1082,12 @@ export function CollectView({
             <motion.aside
               animate={{ width: panelCollapsed ? 64 : 320 }}
               transition={springs.smooth}
-              className="sticky top-0 hidden h-fit shrink-0 overflow-hidden rounded-[4px] border border-border-primary bg-bg-primary shadow-[0_18px_48px_rgba(0,0,0,0.12)] xl:block surface-panel"
+              className="sticky top-0 hidden h-fit shrink-0 overflow-hidden rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm shadow-[0_18px_48px_rgba(0,0,0,0.08)] xl:block"
             >
-              <div className="flex items-center justify-between border-b border-border-subtle px-4 py-4 surface-panel-dither pattern-grid tone-blue density-sm">
+              <div className="flex items-center justify-between border-b border-[#E5E5E0] px-4 py-4 bg-[#FAFAF8]">
                 <div className={cn("min-w-0", panelCollapsed && "sr-only")}>
-                  <p className="mono-kicker">Extracted taste</p>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
+                  <span className="mono-kicker">Extracted taste</span>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-[#A0A0A0]">
                     {tasteProfileLoading ? (
                       <>
                         <span className="h-1.5 w-1.5 rounded-full bg-[#1E5DF2] animate-pulse" />
@@ -1151,7 +1101,7 @@ export function CollectView({
                 <button
                   type="button"
                   onClick={() => setPanelCollapsed((v) => !v)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border-primary bg-bg-secondary text-text-secondary transition-colors hover:text-text-primary"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-white text-[#6B6B6B] transition-colors hover:text-[#1A1A1A]"
                   aria-label={panelCollapsed ? "Expand taste panel" : "Collapse taste panel"}
                 >
                   <svg
@@ -1165,7 +1115,7 @@ export function CollectView({
 
               {panelCollapsed ? (
                 <div className="flex min-h-[360px] items-center justify-center">
-                  <span className="rotate-180 text-[10px] uppercase tracking-[0.22em] text-text-muted [writing-mode:vertical-rl]">
+                  <span className="rotate-180 text-[10px] uppercase tracking-[0.22em] text-[#A0A0A0] [writing-mode:vertical-rl]">
                     Taste panel
                   </span>
                 </div>
@@ -1184,15 +1134,15 @@ export function CollectView({
             </motion.aside>
           </div>
 
+          {/* ── Spacer: reference board → taste strip ── */}
+
           {/* ── TasteStrip (ribbon between references and generation) */}
           {hasAnalysis && (
-            <div className="mt-6 -mx-6">
-              <TasteStrip tasteProfile={tasteProfile} analysis={analysis} tokens={tokens} />
-            </div>
+            <TasteStrip tasteProfile={tasteProfile} analysis={analysis} tokens={tokens} />
           )}
 
           {/* ── Generation controls + Variant gallery */}
-          <div className="-mx-6">
+          <div>
             <GenerationSection
               tokens={tokens}
               siteType={siteType}

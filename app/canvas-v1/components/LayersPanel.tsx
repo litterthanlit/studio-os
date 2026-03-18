@@ -1,14 +1,167 @@
 "use client";
 
 import * as React from "react";
-import { Monitor, Tablet, Smartphone } from "lucide-react";
+import {
+  Monitor,
+  Tablet,
+  Smartphone,
+  ChevronRight,
+  Layout,
+  Type,
+  AlignLeft,
+  RectangleHorizontal,
+  Grid3X3,
+  Star,
+  MessageSquare,
+  CreditCard,
+  Layers,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import type { ComposeDocument, PageNode } from "@/lib/canvas/compose";
-import { DitherSurface } from "@/components/ui/dither-surface";
 
 type Artboard = ComposeDocument["artboards"][number];
-type LayerItem = { node: PageNode; depth: number };
+
+// ─── Node type → Lucide icon mapping ─────────────────────────────────────────
+
+function NodeIcon({ type }: { type: PageNode["type"] }) {
+  const cls = "shrink-0 text-[#A0A0A0]";
+  const props = { size: 14, strokeWidth: 1.5, className: cls } as const;
+
+  switch (type) {
+    case "page":
+      return <Layout {...props} />;
+    case "section":
+      return <Layers {...props} />;
+    case "heading":
+      return <Type {...props} />;
+    case "paragraph":
+      return <AlignLeft {...props} />;
+    case "button":
+    case "button-row":
+      return <RectangleHorizontal {...props} />;
+    case "feature-grid":
+    case "feature-card":
+      return <Grid3X3 {...props} />;
+    case "metric-row":
+    case "metric-item":
+      return <Star {...props} />;
+    case "testimonial-grid":
+    case "testimonial-card":
+      return <MessageSquare {...props} />;
+    case "pricing-grid":
+    case "pricing-tier":
+      return <CreditCard {...props} />;
+    default:
+      return <RectangleHorizontal {...props} />;
+  }
+}
+
+function formatNodeLabel(node: PageNode): string {
+  const content = node.content?.text || node.content?.label || node.name;
+  return content.length > 32 ? `${content.slice(0, 32)}…` : content;
+}
+
+// ─── Recursive tree node ─────────────────────────────────────────────────────
+
+function TreeNode({
+  node,
+  depth,
+  selectedNodeId,
+  onSelectNode,
+  defaultExpanded,
+  expandedRef,
+}: {
+  node: PageNode;
+  depth: number;
+  selectedNodeId: string | null;
+  onSelectNode: (nodeId: string) => void;
+  defaultExpanded: boolean;
+  expandedRef: React.MutableRefObject<Set<string>>;
+}) {
+  const hasChildren = node.children && node.children.length > 0;
+  const [expanded, setExpanded] = React.useState(() => {
+    if (expandedRef.current.has(node.id)) return true;
+    if (expandedRef.current.has(`collapsed:${node.id}`)) return false;
+    return defaultExpanded;
+  });
+
+  const isSelected = selectedNodeId === node.id;
+
+  function toggleExpand(e: React.MouseEvent) {
+    e.stopPropagation();
+    setExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        expandedRef.current.add(node.id);
+        expandedRef.current.delete(`collapsed:${node.id}`);
+      } else {
+        expandedRef.current.delete(node.id);
+        expandedRef.current.add(`collapsed:${node.id}`);
+      }
+      return next;
+    });
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onSelectNode(node.id)}
+        className={cn(
+          "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
+          isSelected
+            ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
+            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+        )}
+        style={{
+          height: 28,
+          paddingLeft: depth * 16 + (hasChildren ? 4 : 20),
+        }}
+      >
+        {/* Disclosure triangle */}
+        {hasChildren && (
+          <span
+            onClick={toggleExpand}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm hover:bg-[#E5E5E0] transition-colors"
+          >
+            <ChevronRight
+              size={12}
+              strokeWidth={1.5}
+              className={cn(
+                "transition-transform duration-100",
+                expanded && "rotate-90"
+              )}
+            />
+          </span>
+        )}
+        <NodeIcon type={node.type} />
+        <span className="min-w-0 flex-1 truncate text-[13px]">
+          {formatNodeLabel(node)}
+        </span>
+      </button>
+
+      {/* Children */}
+      {hasChildren && expanded && (
+        <>
+          {node.children!.map((child) => (
+            <TreeNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={onSelectNode}
+              defaultExpanded={depth + 1 < 2}
+              expandedRef={expandedRef}
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export type LayersPanelProps = {
   artboards: Artboard[];
@@ -16,66 +169,10 @@ export type LayersPanelProps = {
   selectedNodeId: string | null;
   primaryArtboardId: string | null;
   breakpoint: ComposeDocument["breakpoint"];
-  layers: LayerItem[];
+  layers: Array<{ node: PageNode; depth: number }>;
   onSelectArtboard: (artboardId: string, nodeId: string) => void;
   onSelectNode: (nodeId: string) => void;
 };
-
-// ─── Node type icons (12px) ───────────────────────────────────────────────────
-
-function NodeTypeIcon({ type }: { type: PageNode["type"] }) {
-  if (type === "page") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.25" className="shrink-0 opacity-50">
-        <rect x="1.5" y="1.5" width="9" height="9" rx="1" />
-      </svg>
-    );
-  }
-  if (type === "section") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.25" className="shrink-0 opacity-50">
-        <rect x="1" y="3" width="10" height="6" rx="1" />
-        <line x1="1" y1="1.5" x2="11" y2="1.5" />
-      </svg>
-    );
-  }
-  if (type === "heading") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.25" className="shrink-0 opacity-50">
-        <path d="M2 2.5v7M10 2.5v7M2 6h8" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (type === "paragraph") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.25" className="shrink-0 opacity-50">
-        <line x1="2" y1="3.5" x2="10" y2="3.5" strokeLinecap="round" />
-        <line x1="2" y1="6" x2="10" y2="6" strokeLinecap="round" />
-        <line x1="2" y1="8.5" x2="7" y2="8.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (type === "button" || type === "button-row") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.25" className="shrink-0 opacity-50">
-        <rect x="1.5" y="3.5" width="9" height="5" rx="1.5" />
-      </svg>
-    );
-  }
-  // default: generic block
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.25" className="shrink-0 opacity-50">
-      <rect x="2" y="2" width="8" height="8" rx="1" />
-    </svg>
-  );
-}
-
-function formatNodeLabel(node: PageNode): string {
-  const content = node.content?.text || node.content?.label || node.name;
-  return content.length > 28 ? `${content.slice(0, 28)}…` : content;
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export function LayersPanel({
   artboards,
@@ -83,123 +180,65 @@ export function LayersPanel({
   selectedNodeId,
   primaryArtboardId,
   breakpoint,
-  layers,
   onSelectArtboard,
   onSelectNode,
 }: LayersPanelProps) {
-  return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#FAFAF8]">
-      {/* ── Artboards ── */}
-      <DitherSurface
-        patternVariant="grid"
-        patternTone="warm"
-        patternDensity="sm"
-        muted
-        className="shrink-0 rounded-none border-x-0 border-t-0 px-2 py-2"
-      >
-        <p className="mono-kicker mb-1.5 px-1">
-          Artboards
-        </p>
-        {artboards.map((artboard) => {
-          const active = selectedArtboardId === artboard.id;
-          const BreakpointIcon =
-            (artboard.breakpoint ?? breakpoint) === "mobile"
-              ? Smartphone
-              : (artboard.breakpoint ?? breakpoint) === "tablet"
-              ? Tablet
-              : Monitor;
-          return (
-            <button
-              key={artboard.id}
-              type="button"
-              onClick={() => onSelectArtboard(artboard.id, artboard.pageTree.id)}
-              className={cn(
-                "flex h-8 w-full items-center gap-2 rounded-[4px] px-2 text-left transition-colors duration-100",
-                active ? "bg-[#D1E4FC]" : "hover:bg-[#F5F5F0]"
-              )}
-            >
-              <BreakpointIcon
-                size={14}
-                strokeWidth={1}
-                className={cn(
-                  "shrink-0 transition-colors",
-                  active ? "text-[#1E5DF2]" : "text-[#A0A0A0]"
-                )}
-              />
-              <span
-                className={cn(
-                  "min-w-0 flex-1 truncate text-[12px]",
-                  active ? "font-medium text-[#1E5DF2]" : "text-[#1A1A1A]"
-                )}
-              >
-                {artboard.name}
-              </span>
-              {primaryArtboardId === artboard.id && (
-                <span className="shrink-0 text-[9px] font-medium uppercase tracking-[0.1em] text-[#1E5DF2] opacity-70">
-                  Primary
-                </span>
-              )}
-              <span
-                className="shrink-0 font-mono text-[10px] text-[#A0A0A0]"
-                style={{ fontFamily: "'Geist Mono', monospace" }}
-              >
-                {BREAKPOINT_WIDTHS[artboard.breakpoint ?? breakpoint]}
-              </span>
-            </button>
-          );
-        })}
-      </DitherSurface>
+  const expandedRef = React.useRef(new Set<string>());
 
-      {/* ── Node Tree ── */}
-      <div className="flex-1 overflow-y-auto px-2 py-2">
-        <p className="mono-kicker mb-1.5 px-1">
-          Layers
-        </p>
-        {layers.length === 0 ? (
-          <p className="px-1 text-[11px] text-[#A0A0A0]">
-            Select an artboard to see its layers.
-          </p>
+  const activeArtboard = artboards.find((a) => a.id === selectedArtboardId) ?? artboards[0];
+
+  return (
+    <div className="flex h-full w-[240px] flex-col overflow-hidden bg-white/95 backdrop-blur-sm border-r border-[#E5E5E0]">
+      {/* ── Header ── */}
+      <div className="shrink-0 px-4 pt-3 pb-2">
+        <span className="mono-kicker">Layers</span>
+      </div>
+
+      {/* ── Artboard switcher ── */}
+      <div className="shrink-0 px-3 pb-2">
+        <div className="flex flex-wrap gap-1">
+          {artboards.map((artboard) => {
+            const active = selectedArtboardId === artboard.id;
+            const bp = artboard.breakpoint ?? breakpoint;
+            const Icon = bp === "mobile" ? Smartphone : bp === "tablet" ? Tablet : Monitor;
+            return (
+              <button
+                key={artboard.id}
+                type="button"
+                onClick={() => onSelectArtboard(artboard.id, artboard.pageTree.id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-[4px] px-3 py-1 text-[11px] transition-colors duration-100",
+                  active
+                    ? "bg-[#D1E4FC]/50 font-medium text-[#1E5DF2]"
+                    : "text-[#6B6B6B] hover:bg-[#F5F5F0]"
+                )}
+              >
+                <Icon size={12} strokeWidth={1.5} />
+                {BREAKPOINT_WIDTHS[bp]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="mx-3 border-t border-[#E5E5E0]" />
+
+      {/* ── Node tree ── */}
+      <div className="flex-1 overflow-y-auto py-1">
+        {activeArtboard ? (
+          <TreeNode
+            node={activeArtboard.pageTree}
+            depth={0}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={onSelectNode}
+            defaultExpanded={true}
+            expandedRef={expandedRef}
+          />
         ) : (
-          <div className="relative space-y-px">
-            {layers.map(({ node, depth }) => {
-              const active = selectedNodeId === node.id;
-              const indent = Math.min(depth, 5) * 12;
-              return (
-                <button
-                  key={node.id}
-                  type="button"
-                  onClick={() => onSelectNode(node.id)}
-                  className={cn(
-                    "flex h-7 w-full items-center gap-1.5 rounded-[4px] px-2 text-left text-[12px] transition-colors duration-100",
-                    active
-                      ? "bg-[#D1E4FC] text-[#1E5DF2]"
-                      : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
-                  )}
-                  style={{ paddingLeft: 8 + indent }}
-                >
-                  {/* Connecting line for hierarchy */}
-                  {depth > 0 && (
-                    <span
-                      className="absolute"
-                      style={{
-                        left: 8 + (depth - 1) * 12 + 5,
-                        width: 7,
-                        borderLeft: "1px solid #E5E5E0",
-                        borderBottom: "1px solid #E5E5E0",
-                        height: "50%",
-                        top: 0,
-                        pointerEvents: "none",
-                      }}
-                    />
-                  )}
-                  <NodeTypeIcon type={node.type} />
-                  <span className="min-w-0 flex-1 truncate">
-                    {formatNodeLabel(node)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <p className="px-4 py-3 text-[11px] text-[#A0A0A0]">
+            No artboard selected.
+          </p>
         )}
       </div>
     </div>

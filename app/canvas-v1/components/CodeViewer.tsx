@@ -16,7 +16,7 @@ export function CodeViewer({ code, className }: CodeViewerProps) {
   if (!code) {
     return (
       <div className={cn("flex items-center justify-center py-12", className)}>
-        <p className="text-[11px] text-text-muted font-mono">
+        <p className="text-[11px] text-[#A0A0A0] font-mono">
           {"// No code generated yet"}
         </p>
       </div>

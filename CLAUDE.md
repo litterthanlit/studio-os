@@ -95,43 +95,133 @@ Theme is stored in `localStorage` as `'light'` or `'dark'` and set on `<html dat
 - TypeScript `ignoreBuildErrors: true` is intentional — do not treat TS errors as blockers during development.
 - Marketing section background images (`public/marketing/*.webp`) are gitignored — run `npm run generate:marketing-images` locally.
 
-## Design System (Studio OS Redesign V1)
- 
+## Design System
+
 Light mode only. No dark theme for V1.
- 
-### Colors
-- Accent: #1E5DF2 (primary blue)
-- Accent light: #D1E4FC (highlights, badges, active backgrounds)
-- Accent hover: #1A4FD6
-- Backgrounds: #FAFAF8 (primary), #F5F5F0 (secondary/panels), #FAFAFA (tertiary)
-- Surface: #FFFFFF (cards, inputs), hover: #F5F5F0
-- Borders: #E5E5E0 (default), #D1E4FC (active/focus)
-- Text: #1A1A1A (primary), #6B6B6B (secondary), #A0A0A0 (muted)
- 
+
+### Colors (hex values used directly — no CSS variable indirection in V2 components)
+- Accent: `#1E5DF2` (primary blue)
+- Accent light: `#D1E4FC` (highlights, badges, active backgrounds, focus rings)
+- Accent hover: `#1A4FD6`
+- Backgrounds: `#FAFAF8` (primary), `#F5F5F0` (secondary/panels), `#FFFFFF` (surfaces/inputs)
+- Borders: `#E5E5E0` (default), `#D1E4FC` (active/focus)
+- Text: `#1A1A1A` (primary), `#6B6B6B` (secondary), `#A0A0A0` (muted)
+
 ### Radius
-Sharp corners, Cursor-style: 2px (sm), 4px (md), 6px (lg), 8px (xl).
-No rounded-xl (12px+), no pill shapes except avatars/dots.
- 
+Sharp corners: `rounded-[2px]` (inputs), `rounded-[4px]` (cards/buttons/panels), `rounded-[6px]` (section containers).
+No `rounded-xl` (12px+), no pill shapes except avatars/status dots.
+
 ### Typography
-Geist Sans for UI. Geist Mono for code/ASCII elements.
-Scale: Display 28px, H1 22px, H2 17px, Body 14px, Small 13px, Caption 11px, Overline 10px.
- 
+- **Bespoke Serif** (`font-serif` / `--font-instrument-serif`) — display headings only (page greetings, section titles). Loaded via Google Fonts `<link>` in `app/layout.tsx`. NEVER for body copy or UI labels.
+- **Geist Sans** — all UI text, body copy, buttons, labels.
+- **Geist Mono** — overline kickers (`.mono-kicker`), code, data values, mono labels.
+- Scale: Display 28–36px → H1 22px → H2 17px → Body 14px → Small 13px → Caption 11px → Mono overline 10px.
+
 ### Icons
-Lucide only. Sidebar: 18x18 strokeWidth=1. Elsewhere: 16x16 strokeWidth=1.5.
- 
-### Architecture
-Two stages: "collect" (references + generate) and "compose" (Framer-style canvas).
-Compose has fixed LayersPanel (left 220px), InspectorPanel (right 280px), BottomBar.
-Breakpoints as side-by-side artboards: Desktop 1440, Tablet 768, Mobile 375.
- 
-### Key files
-- app/globals.css — all design tokens
-- app/canvas-v1/canvas-client.tsx — main canvas (~4800 lines)
-- app/canvas-v1/components/AppSidebar.tsx — global sidebar
-- app/canvas-v1/components/LayersPanel.tsx — Compose left panel
-- app/canvas-v1/components/InspectorPanel.tsx — Compose right panel
-- app/canvas-v1/components/BottomBar.tsx — Compose bottom toolbar
-- app/canvas-v1/components/AsciiLoader.tsx — generation loading animation
-- app/canvas-v1/components/CollectView.tsx — references + generation UI
-- lib/canvas/compose.ts — ComposeDocument types and utilities
-- See studio-os-redesign-plan.md for full redesign specification.
+Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={1.5}` (14px in compact contexts like BottomBar).
+
+### Key Patterns
+- **`.mono-kicker`** — Geist Mono 10px uppercase tracking-widest `#A0A0A0`. Used for all section headers, panel labels, overline text.
+- **Panel chrome** — `bg-white/95 backdrop-blur-sm border-[#E5E5E0]`. No dither, no decorative elements inside panels.
+- **Form inputs** — `border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40`.
+- **Ghost buttons** — `border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]`.
+- **Primary buttons** — `bg-[#1E5DF2] text-white rounded-[4px] hover:bg-[#1A4FD6]`.
+- **Filter pills** — Active: `bg-[#1E5DF2] text-white`. Inactive: `bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0]`.
+- **List items** — compact rows (not big cards), 40px thumbnail, hover borders only.
+- **Destructive actions** — `text-red-500 hover:text-red-600` link-style text, no red buttons.
+
+### V2 Redesign Status
+
+**Completed screens** (all use V2 hex tokens, mono-kicker headers, Bespoke Serif display headings):
+- `app/(dashboard)/home/home-client.tsx` — greeting, search bar, project list, quick actions
+- `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact row list, "New Project" CTA
+- `app/(dashboard)/type/type-client.tsx` — specimen panels, search/filter, font grid, detail slide-over
+- `app/(dashboard)/settings/page.tsx` — grouped sections, appearance toggle, ghost buttons, destructive links
+- `components/navigation/sidebar.tsx` — V2 logo mark, Bespoke Serif wordmark, blue active accent bar
+- `app/canvas-v1/components/CollectView.tsx` — mono-kicker headers, V2 taste panel, generation controls, variant gallery, "Open in Compose" CTA
+- `app/canvas-v1/components/LayersPanel.tsx` — 240px tree navigator, artboard switcher pills, recursive expand/collapse, selection sync
+- `app/canvas-v1/components/InspectorPanel.tsx` — 280px, 4-tab bar, Content/Style/Layout/AI tabs, color swatches, empty state
+- `app/canvas-v1/components/BottomBar.tsx` — 36px floating transport strip, editable zoom, panel toggle icons
+- `app/canvas-v1/components/ComposeDocumentView.tsx` — point-and-edit selection (2px solid outline), hover (1px dashed), double-click inline text editing
+- `app/canvas-v1/canvas-client.tsx` — side-by-side breakpoint artboards with fit-to-view, artboard headers ("DESKTOP · 1440PX"), blue top-border accent on desktop, bg-[#FAFAF8] canvas, AI regenerating halftone overlay, skeleton empty states, Reference/System slide-over docks (320px, right-edge, click-outside-to-close)
+
+**Supporting components cleaned** (old semantic tokens replaced with V2 hex values):
+- AnalysisPanel, CodeViewer, ComponentPreview, ExportActions, ReferenceGrid, SystemEditor, UploadZone
+
+**Not yet redesigned** (still use old CSS variable tokens — functional but visually V1):
+- `app/(dashboard)/explore/page.tsx`
+- `app/(dashboard)/brief/brief-client.tsx`
+- `app/(dashboard)/vision/vision-client.tsx`
+- `app/(dashboard)/flow/flow-client.tsx`
+- `app/(dashboard)/projects/project-room.tsx` + `[id]/project-room-page-client.tsx`
+
+### V2 Visual Identity
+
+Inspired by Op Art, Panasonic Design Kyoto, Vasarely, and Swiss International Style.
+
+Three visual systems at different scales — **bars become dots become pixels**:
+- **Bars** (macro): Vertical tapered slats — the logo motif, loading indicators
+- **Dots** (meso): Halftone dot-matrix grid — full-page background texture (`app-shell::before`), AI regenerating overlay (`3.5px` spacing)
+- **Pixels** (micro): Scattered squares that dissolve — AsciiLoader generative states
+
+### Logo Mark
+Folder silhouette filled with vertical tapered diamond slats. Navy `#071D5C` at edges → bright blue `#1E5DF2` at center. SVG uses `clipPath` for the folder shape with polygon slats. Implemented in `components/navigation/sidebar.tsx` as `LogoMark` component (not exported — inline to sidebar).
+
+### V2 Design Rules
+1. **Bespoke Serif for display text only** — page greetings, marketing headlines, section titles
+2. **Blue (#1E5DF2) is the ONLY accent color** — everything else is grayscale
+3. **Halftone dot texture is background only** — never on interactive components, only canvas bg + empty/loading states
+4. **No decorative elements** — no gradients on buttons, no heavy shadows, no emojis
+5. **Panel headers use `.mono-kicker`** — Geist Mono 10px uppercase wide letter-spacing `#A0A0A0`
+6. **List items are compact rows, not big cards** — thin rows with 40px thumbnail, hover borders only
+7. **Panels use `bg-white/95 backdrop-blur-sm`** so halftone texture bleeds through
+8. **All inputs have focus rings** — `focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40`
+9. **No old CSS variable tokens in V2 components** — use hex values directly (`#1A1A1A`, `#E5E5E0`, etc.)
+10. **Overall mood: serious, architectural, tool-like, editorial** — Framer meets Swiss poster
+
+### Canvas Architecture (Compose Stage)
+Framer-style spatial editor with parallel breakpoint artboards.
+Three artboards per variant: Desktop (1440), Tablet (768), Mobile (375) with 80px gap.
+Desktop artboard: `border-t-2 border-t-[#1E5DF2]`. Others: `border-t border-t-[#E5E5E0]`.
+Artboard headers: `font-mono text-[10px] uppercase tracking-widest` showing "DESKTOP · 1440PX".
+`fitArtboardsToView()` auto-frames all artboards on mount with 60px padding.
+
+Panel widths: LayersPanel 240px, InspectorPanel 280px, Docks 320px.
+All Compose panels: `bg-white/95 backdrop-blur-sm`, no dither.
+References/System are right-edge slide-over drawers (320px, `shadow-lg`, click-outside closes).
+BottomBar: floating centered transport strip, 36px, `max-w-[480px]`, editable zoom %.
+
+Point-and-edit: click to select (`outline: 2px solid #1E5DF2`), double-click heading/paragraph for inline `contentEditable`.
+Hover: `outline: 1px dashed #D1E4FC`. Escape deselects.
+AI regenerating: halftone dot overlay on selected artboard + pulsing "Generating..." badge.
+
+Canvas stages:
+  collect = expressive, warm (halftone textures, editorial feel, warm gradient background)
+  compose = precise, quiet (clean panels, tool-like, Framer aesthetic, `bg-[#FAFAF8]`)
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `app/globals.css` | Design tokens, `.mono-kicker`, `.app-shell::before` halftone, animations |
+| `app/layout.tsx` | Google Fonts link for Bespoke Serif (Instrument Serif) |
+| `components/navigation/sidebar.tsx` | V2 sidebar with LogoMark, Bespoke Serif wordmark, blue accent bar |
+| `app/(dashboard)/home/home-client.tsx` | V2 home screen — greeting, search, project list, quick actions |
+| `app/(dashboard)/projects/projects-client.tsx` | V2 projects list — filter pills, compact rows, "New Project" |
+| `app/(dashboard)/type/type-client.tsx` | V2 type explorer — specimen panels, font grid, detail slide-over |
+| `app/(dashboard)/settings/page.tsx` | V2 settings — grouped sections, appearance toggle, destructive links |
+| `app/canvas-v1/canvas-client.tsx` | Main canvas (~5000 lines) — ComposeStage, artboards, docks, selection |
+| `app/canvas-v1/components/CollectView.tsx` | Collect stage — references, taste panel, generation, variant gallery |
+| `app/canvas-v1/components/LayersPanel.tsx` | 240px tree navigator with recursive expand/collapse |
+| `app/canvas-v1/components/InspectorPanel.tsx` | 280px property editor — Content/Style/Layout/AI tabs |
+| `app/canvas-v1/components/BottomBar.tsx` | Floating 36px transport strip — zoom + panel toggles |
+| `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing |
+| `app/canvas-v1/components/AsciiLoader.tsx` | Generation loading animation (pixel dissolve) |
+| `lib/canvas/compose.ts` | ComposeDocument types, `createInitialArtboards()`, `fitArtboardsToView()` |
+| `lib/project-store.ts` | localStorage API for all project/reference/state data |
+| `lib/ai/model-router.ts` | Multi-model AI router via OpenRouter |
+
+### Pre-existing TypeScript Errors (not regressions)
+- `canvas-client.tsx:525` — token merge type mismatch (`Record<string, unknown>` vs `Record<string, string>`)
+- `UploadZone.tsx:31` — framer-motion `HTMLMotionProps` typing
+- ~32 other errors across hooks, preloader, etc. — all pre-existing, `ignoreBuildErrors: true` in next.config.ts

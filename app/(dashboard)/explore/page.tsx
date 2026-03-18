@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { useCuratedInspiration } from "@/hooks/use-curated-inspiration";
-import { DitherSurface } from "@/components/ui/dither-surface";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function ExplorePage() {
   const {
@@ -16,13 +16,7 @@ export default function ExplorePage() {
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-16 sm:px-8">
-      <DitherSurface
-        patternVariant="fade"
-        patternTone="warm"
-        patternDensity="sm"
-        muted
-        className="max-w-3xl px-6 py-6"
-      >
+      <div className="max-w-3xl px-6 py-6">
         <p className="mono-kicker text-text-tertiary">
           Explore
         </p>
@@ -32,45 +26,25 @@ export default function ExplorePage() {
         <p className="mt-4 text-sm leading-relaxed text-text-secondary sm:text-base">
           A curated feed of references Studio OS scores for composition, color, and mood.
         </p>
-      </DitherSurface>
+      </div>
 
       <div className="mt-10">
         {loading ? (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 9 }).map((_, index) => (
-              <DitherSurface
-                key={index}
-                patternVariant="grid"
-                patternTone="blue"
-                patternDensity="sm"
-                muted
-                className="aspect-[4/5] animate-pulse"
-              />
+              <div key={index} className="aspect-[4/5] animate-pulse rounded-[4px] bg-[#F5F5F0]" />
             ))}
           </div>
         ) : error ? (
-          <DitherSurface
-            patternVariant="grid"
-            patternTone="warm"
-            patternDensity="sm"
-            muted
-            className="px-6 py-10 text-sm text-red-500"
-          >
+          <div className="rounded-[4px] border border-[#E5E5E0] bg-white/70 px-6 py-10 text-sm text-red-500">
             {error}
-          </DitherSurface>
+          </div>
         ) : images.length === 0 ? (
-          <DitherSurface
-            patternVariant="grid"
-            patternTone="blue"
-            patternDensity="md"
-            muted
-            className="border-dashed px-8 py-16 text-center"
-          >
-            <p className="text-lg font-medium text-text-primary">No inspiration yet</p>
-            <p className="mt-3 text-sm text-text-secondary">
-              Connect a source in Settings to populate Explore.
-            </p>
-          </DitherSurface>
+          <EmptyState
+            title="No inspiration yet"
+            description="Connect a source in Settings to populate Explore."
+            variant="blue"
+          />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {images.map((item, index) => (
@@ -90,7 +64,7 @@ export default function ExplorePage() {
                     loading="lazy"
                   />
                   {item.scores ? (
-                    <div className="absolute right-3 top-3 rounded-[2px] border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                    <div className="pixel-kicker absolute right-3 top-3 rounded-[2px] border border-white/15 bg-black/45 px-3 py-1 text-white backdrop-blur-sm">
                       Score {item.scores.overall}
                     </div>
                   ) : null}

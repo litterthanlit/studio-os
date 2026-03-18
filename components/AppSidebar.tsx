@@ -85,7 +85,7 @@ export function AppSidebar({ stage, onStageChange, availability }: AppSidebarPro
                 isActive
                   ? "bg-[#D1E4FC]"
                   : isAvailable
-                  ? "hover:bg-[#F5F5F0]"
+                  ? ""
                   : "cursor-not-allowed opacity-40"
               )}
             >
@@ -117,7 +117,7 @@ export function AppSidebar({ stage, onStageChange, availability }: AppSidebarPro
         <button
           type="button"
           className={cn(
-            "flex h-8 w-full items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0]",
+            "flex h-8 w-full items-center rounded-[4px] transition-colors duration-150",
             expanded ? "px-2" : "justify-center px-0"
           )}
         >

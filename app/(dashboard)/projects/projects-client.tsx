@@ -1,19 +1,17 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronDownIcon as ChevronDown,
-  ChevronRightIcon as ChevronRight,
-  PlusIcon as Plus,
-  CloseIcon as X,
-} from "@/components/ui/icon";
-import { SectionLabel } from "@/components/ui/section-label";
+  Plus,
+  Search,
+  ArrowRight,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PROJECTS, PHASE_STYLES } from "./projects-data";
-import type { Project } from "./projects-data";
+import type { Project, Phase } from "./projects-data";
 import {
   useNewProjectModal,
   getStoredProjects,
@@ -22,9 +20,9 @@ import {
   PROJECTS_UPDATED_EVENT,
   deleteProject,
   getProjectState,
+  listProjectReferences,
 } from "@/lib/project-store";
 import {
-  DEMO_PROJECT,
   DEMO_PROJECT_ID,
   isDemoDismissed,
   dismissDemo,
@@ -37,7 +35,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { DitherSurface } from "@/components/ui/dither-surface";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function storedToProject(sp: {
   id: string;
@@ -47,10 +46,24 @@ function storedToProject(sp: {
   createdAt: string;
 }): Project {
   const state = getProjectState(sp.id);
+  const refs = listProjectReferences(sp.id);
   const palette =
     state.palette && state.palette.length > 0
       ? state.palette
       : ["#111111", sp.color, "#222222", "#333333", "#999999"];
+
+  // Calculate relative time
+  const created = new Date(sp.createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - created.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  let lastActivity = "Just created";
+  if (diffDays > 7) lastActivity = `${Math.floor(diffDays / 7)}w ago`;
+  else if (diffDays > 0) lastActivity = `${diffDays}d ago`;
+  else {
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours > 0) lastActivity = `${diffHours}h ago`;
+  }
 
   return {
     id: sp.id,
@@ -58,99 +71,180 @@ function storedToProject(sp: {
     client: "—",
     phase: "Discovery",
     progress: 0,
-    leadImage: state.coverImage ?? `https://picsum.photos/seed/${sp.id}/400/300`,
+    leadImage:
+      state.coverImage ?? `https://picsum.photos/seed/${sp.id}/400/300`,
     palette,
-    lastActivity: "Just created",
-    references: 0,
+    lastActivity,
+    references: refs.length,
     fontsSelected: [
       state.typography?.headingFont,
       state.typography?.bodyFont,
     ].filter(Boolean).length,
-    daysActive: 0,
+    daysActive: diffDays,
   };
 }
 
-// ─── Demo Project Card ────────────────────────────────────────────────────────
+function StatusDot({ phase }: { phase: Phase }) {
+  const color =
+    phase === "Discovery"
+      ? "bg-amber-400"
+      : phase === "Concept"
+      ? "bg-purple-400"
+      : phase === "Refine"
+      ? "bg-sky-400"
+      : "bg-emerald-400";
+  return <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />;
+}
 
-function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
+// ─── Logo Mark (muted, for empty state) ───────────────────────────────────────
+
+function LogoMarkMuted({ size = 48 }: { size?: number }) {
+  const id = React.useId();
+  const clipId = `folderClip-empty-${id}`;
+  const h = Math.round(size / 1.53);
   return (
-    <Link
-      href={`/projects/${DEMO_PROJECT_ID}`}
+    <svg
+      width={size}
+      height={h}
+      viewBox="0 0 127 83"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className="opacity-20"
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <path d="M2 0 H53 Q57 0 57 4 V11 H119 Q121 11 121 13 V79 Q121 81 119 81 H2 Q0 81 0 79 V2 Q0 0 2 0Z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <polygon points="2,0 4,0 4,81 2,81" fill="#071D5C" />
+        <polygon points="7,0 10,0 11,40 10,81 7,81 6,40" fill="#0A2A7A" />
+        <polygon points="14,0 18,0 20,40 18,81 14,81 12,40" fill="#0D3BA8" />
+        <polygon points="23,0 28,0 31,40 28,81 23,81 20,40" fill="#1045BA" />
+        <polygon points="33,0 39,0 42,40 39,81 33,81 30,40" fill="#1248C4" />
+        <polygon points="44,0 51,0 54,40 51,81 44,81 41,40" fill="#1652D6" />
+        <polygon points="56,0 64,0 67,40 64,81 56,81 53,40" fill="#1A58E0" />
+        <polygon points="69,0 77,0 80,40 77,81 69,81 66,40" fill="#1E5DF2" />
+        <polygon points="82,0 90,0 92,40 90,81 82,81 80,40" fill="#1E5DF2" />
+        <polygon points="95,0 101,0 103,40 101,81 95,81 93,40" fill="#1A58E0" />
+        <polygon points="106,0 111,0 112,40 111,81 106,81 105,40" fill="#1652D6" />
+        <polygon points="114,0 118,0 119,40 118,81 114,81 113,40" fill="#1248C4" />
+        <polygon points="120,0 121,0 121,81 120,81" fill="#0D3BA8" />
+      </g>
+    </svg>
+  );
+}
+
+// ─── Filter Pill ──────────────────────────────────────────────────────────────
+
+type FilterStatus = "All" | "Draft" | "Active" | "Completed";
+
+function FilterPill({
+  label,
+  active,
+  count,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "surface-panel group relative flex w-full flex-col rounded-[4px] text-left transition-[border-color,transform] duration-200 ease-out hover:-translate-y-[1px] hover:border-accent/40"
+        "flex items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
+        active
+          ? "bg-[#1E5DF2] text-white"
+          : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
       )}
     >
-      {/* Demo badge */}
-      <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5 border border-accent/25 bg-accent/10 px-2 py-0.5">
-        <span className="text-[9px] font-medium uppercase tracking-[0.15em] text-accent">
-          Demo Project
+      {label}
+      {count !== undefined && count > 0 ? (
+        <span
+          className={cn(
+            "font-mono text-[10px]",
+            active ? "text-white/70" : "text-[#A0A0A0]"
+          )}
+        >
+          {count}
         </span>
-      </div>
+      ) : null}
+    </button>
+  );
+}
 
-      {/* Dismiss */}
-      <button
-        type="button"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDismiss(); }}
-        aria-label="Dismiss demo project"
-        className="absolute right-2 top-2 z-10 rounded p-1 text-text-muted transition-colors duration-150 hover:bg-white/[0.05] hover:text-white"
+// ─── Project Row ──────────────────────────────────────────────────────────────
+
+function ProjectRow({
+  project,
+  canDelete,
+  onDelete,
+}: {
+  project: Project;
+  canDelete: boolean;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-[#E5E5E0] hover:bg-white/70">
+      <Link
+        href={`/projects/${project.id}`}
+        className="flex flex-1 items-center gap-4 min-w-0"
       >
-        <X className="h-3.5 w-3.5" />
-      </button>
-
-      <div className="flex gap-3 p-3 pt-10">
-        {/* Color palette strip as "lead image" */}
-        <div className="relative h-20 w-32 flex-none overflow-hidden border border-border-subtle bg-card-bg">
-          <div className="flex h-full">
-            {DEMO_PROJECT.palette.map((c, i) => (
-              <div key={i} className="flex-1" style={{ backgroundColor: c }} />
-            ))}
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="grid grid-cols-3 gap-0.5 p-1">
-              {DEMO_PROJECT.references.slice(0, 6).map((ref) => (
-                <div
-                  key={ref.imageUrl}
-                  className="h-4 w-6 overflow-hidden bg-bg-secondary"
-                >
-                  <Image src={ref.imageUrl} alt="" width={24} height={16} className="h-full w-full object-cover opacity-70" unoptimized />
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Thumbnail */}
+        <div className="thumb-halftone-placeholder h-10 w-10 shrink-0 overflow-hidden rounded-[4px] border border-[#E5E5E0]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={project.leadImage}
+            alt={project.name}
+            className="h-full w-full object-cover"
+          />
         </div>
 
-        <div className="flex flex-1 flex-col justify-between gap-1">
-          <div>
-            <div className="text-sm font-bold text-text-primary">{DEMO_PROJECT.name}</div>
-            <div className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
-              {DEMO_PROJECT.brief}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span>Explore Studio OS →</span>
-          </div>
+        {/* Name + meta */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-[14px] font-medium text-[#1A1A1A]">
+            {project.name}
+          </span>
+          <span className="text-[11px] text-[#A0A0A0]">
+            {project.lastActivity} · {project.references} refs
+          </span>
         </div>
-      </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-3 py-2 text-[11px] text-text-muted">
-        <div className="flex items-center gap-3">
-          <span>{DEMO_PROJECT.references.length} references</span>
-          <span>·</span>
-          <span>{DEMO_PROJECT.fonts.length} font pairings</span>
-          <span>·</span>
-          <span>Full palette included</span>
+        {/* Phase badge */}
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusDot phase={project.phase} />
+          <span className="font-mono text-[11px] text-[#6B6B6B]">
+            {project.phase}
+          </span>
         </div>
-        <div className="flex items-center gap-1">
-          {DEMO_PROJECT.palette.slice(0, 6).map((color) => (
-            <span
-              key={color}
-              className="h-3 w-3 rounded-full border border-white/5"
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-      </div>
-    </Link>
+
+        {/* Arrow */}
+        <ArrowRight
+          size={14}
+          strokeWidth={1.5}
+          className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#1E5DF2]"
+        />
+      </Link>
+
+      {/* Delete */}
+      {canDelete ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="shrink-0 rounded-[4px] p-1.5 text-[#A0A0A0] opacity-0 transition-all duration-150 hover:bg-red-50 hover:text-red-500 group-hover/row:opacity-100"
+          aria-label={`Delete ${project.name}`}
+        >
+          <Trash2 size={14} strokeWidth={1.5} />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -158,14 +252,17 @@ function DemoProjectCard({ onDismiss }: { onDismiss: () => void }) {
 
 export function ProjectsPage() {
   const { openModal } = useNewProjectModal();
-  const [showArchived, setShowArchived] = React.useState(false);
   const [localProjects, setLocalProjects] = React.useState<Project[]>([]);
   const [showDemo, setShowDemo] = React.useState(false);
-  const [projectPendingDelete, setProjectPendingDelete] = React.useState<Project | null>(null);
+  const [filter, setFilter] = React.useState<FilterStatus>("All");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [projectPendingDelete, setProjectPendingDelete] =
+    React.useState<Project | null>(null);
 
   React.useEffect(() => {
     setLocalProjects(getStoredProjects().map(storedToProject));
     setShowDemo(!isDemoDismissed());
+
     function syncProjects() {
       setLocalProjects(getStoredProjects().map(storedToProject));
     }
@@ -187,204 +284,222 @@ export function ProjectsPage() {
     if (!projectPendingDelete) return;
     deleteProject(projectPendingDelete.id);
     setLocalProjects((current) =>
-      current.filter((project) => project.id !== projectPendingDelete.id)
+      current.filter((p) => p.id !== projectPendingDelete.id)
     );
     setProjectPendingDelete(null);
   }
 
   const allProjects = [...localProjects, ...PROJECTS];
-  const localProjectIds = new Set(localProjects.map((project) => project.id));
+  const localProjectIds = new Set(localProjects.map((p) => p.id));
+
+  // Map phase to filter status
+  function phaseToFilter(phase: Phase): FilterStatus {
+    if (phase === "Deliver") return "Completed";
+    if (phase === "Discovery") return "Draft";
+    return "Active";
+  }
+
+  // Filter + search
+  const filteredProjects = allProjects.filter((p) => {
+    if (filter !== "All" && phaseToFilter(p.phase) !== filter) return false;
+    if (
+      searchQuery &&
+      !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !p.client.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+      return false;
+    return true;
+  });
+
+  // Counts for filter pills
+  const counts = {
+    All: allProjects.length,
+    Draft: allProjects.filter((p) => phaseToFilter(p.phase) === "Draft").length,
+    Active: allProjects.filter((p) => phaseToFilter(p.phase) === "Active")
+      .length,
+    Completed: allProjects.filter(
+      (p) => phaseToFilter(p.phase) === "Completed"
+    ).length,
+  };
+
+  const isEmpty = allProjects.length === 0 && !showDemo;
 
   return (
     <>
-      <section className="space-y-6">
-        <SectionLabel>Projects</SectionLabel>
-
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-3xl font-semibold text-text-primary tracking-tight">Project Rooms</h2>
-          <p className="text-sm text-text-secondary">
-            Each room is a self-contained project spine — context, decisions,
-            references and tasks in one place, without the Notion overhead.
-          </p>
+      <div className="relative z-10 mx-auto max-w-[860px] animate-in fade-in slide-in-from-bottom-2 pt-16 pb-16 duration-300 ease-out">
+        {/* ── Header ── */}
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <span className="mono-kicker mb-3 block">Studio OS</span>
+            <h1 className="font-serif text-[28px] font-normal tracking-[-0.02em] text-[#1A1A1A] leading-[1.1]">
+              Projects
+            </h1>
+            <p className="mt-2 text-[14px] text-[#6B6B6B] leading-relaxed">
+              Each project is a self-contained workspace — references, palette,
+              typography, and canvas in one room.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openModal}
+            className="flex shrink-0 items-center gap-1.5 rounded-[4px] bg-[#1E5DF2] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#1A4FD6]"
+          >
+            <Plus size={14} strokeWidth={2} />
+            New Project
+          </button>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <SectionLabel>Active Projects</SectionLabel>
+        {/* ── Filter Bar ── */}
+        {!isEmpty ? (
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Status pills */}
+            <div className="flex items-center gap-1.5">
+              {(["All", "Draft", "Active", "Completed"] as FilterStatus[]).map(
+                (status) => (
+                  <FilterPill
+                    key={status}
+                    label={status}
+                    active={filter === status}
+                    count={counts[status]}
+                    onClick={() => setFilter(status)}
+                  />
+                )
+              )}
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search
+                size={14}
+                strokeWidth={1.5}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A0A0A0]"
+              />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-full rounded-[2px] border border-[#E5E5E0] bg-white pl-8 pr-3 text-[13px] text-[#1A1A1A] outline-none placeholder:text-[#A0A0A0] transition-colors duration-150 focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 sm:w-[200px]"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── Empty State ── */}
+        {isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-24">
+            <LogoMarkMuted size={48} />
+            <p className="mt-5 text-[14px] font-medium text-[#1A1A1A]">
+              No projects yet
+            </p>
+            <p className="mt-1 text-[13px] text-[#A0A0A0]">
+              Create your first project to start collecting references.
+            </p>
             <button
               type="button"
               onClick={openModal}
-              className="flex items-center gap-1 border border-border-primary bg-card-bg px-2.5 py-1.5 text-[10px] font-medium text-text-tertiary font-mono transition-[border-color,color] duration-150 hover:border-border-hover hover:text-white rounded-lg"
+              className="mt-5 flex items-center gap-1.5 rounded-[4px] bg-[#1E5DF2] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#1A4FD6]"
             >
-              <Plus className="h-3 w-3" />
-              New Project
+              <Plus size={14} strokeWidth={2} />
+              Create Project
             </button>
           </div>
+        ) : null}
 
-          {/* Empty state */}
-          {allProjects.length === 0 && !showDemo && (
-            <div className="flex flex-col items-center gap-3 border border-dashed border-card-border bg-card-bg py-10 text-center rounded-md">
-              <p className="text-sm text-text-tertiary">No projects yet.</p>
-              <div className="flex items-center gap-3">
+        {/* ── Project List ── */}
+        {!isEmpty ? (
+          <div className="flex flex-col gap-0.5">
+            {/* Demo project row */}
+            <AnimatePresence>
+              {showDemo ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-[#E5E5E0] hover:bg-white/70">
+                    <Link
+                      href={`/projects/${DEMO_PROJECT_ID}`}
+                      className="flex flex-1 items-center gap-4 min-w-0"
+                    >
+                      {/* Demo thumbnail */}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-[#D1E4FC] bg-[#D1E4FC]/20">
+                        <span className="font-mono text-[9px] font-medium uppercase tracking-wider text-[#1E5DF2]">
+                          Demo
+                        </span>
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-[14px] font-medium text-[#1A1A1A]">
+                          Studio OS Demo
+                        </span>
+                        <span className="text-[11px] text-[#A0A0A0]">
+                          Explore the full workflow
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1E5DF2]" />
+                        <span className="font-mono text-[11px] text-[#6B6B6B]">
+                          Demo
+                        </span>
+                      </div>
+                      <ArrowRight
+                        size={14}
+                        strokeWidth={1.5}
+                        className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#1E5DF2]"
+                      />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleDismissDemo}
+                      className="shrink-0 rounded-[4px] p-1.5 text-[#A0A0A0] opacity-0 transition-all duration-150 hover:bg-[#F5F5F0] hover:text-[#6B6B6B] group-hover/row:opacity-100"
+                      aria-label="Dismiss demo"
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {/* Project rows */}
+            {filteredProjects.map((project) => (
+              <ProjectRow
+                key={project.id}
+                project={project}
+                canDelete={localProjectIds.has(project.id)}
+                onDelete={() => setProjectPendingDelete(project)}
+              />
+            ))}
+
+            {/* No results from filter */}
+            {filteredProjects.length === 0 && allProjects.length > 0 ? (
+              <div className="flex flex-col items-center py-16 text-center">
+                <p className="text-[13px] text-[#A0A0A0]">
+                  No projects match{" "}
+                  {searchQuery
+                    ? `"${searchQuery}"`
+                    : `the "${filter}" filter`}
+                  .
+                </p>
                 <button
                   type="button"
-                  onClick={openModal}
-                  className="border border-border-primary bg-bg-secondary px-4 py-2 text-[12px] font-medium text-white transition-[border-color] duration-150 hover:border-white/30 rounded-lg"
+                  onClick={() => {
+                    setFilter("All");
+                    setSearchQuery("");
+                  }}
+                  className="mt-2 text-[13px] text-[#1E5DF2] transition-opacity hover:opacity-70"
                 >
-                  + Create Project
-                </button>
-                <span className="text-[11px] text-gray-700">or</span>
-                <button
-                  type="button"
-                  onClick={() => setShowDemo(true)}
-                  className="text-[12px] text-accent transition-opacity hover:opacity-70"
-                >
-                  Explore Demo →
+                  Clear filters
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Demo project card */}
-          <AnimatePresence>
-            {showDemo && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <DemoProjectCard onDismiss={handleDismissDemo} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {allProjects.map((project) => {
-              const canDelete = localProjectIds.has(project.id);
-              return (
-                <DitherSurface
-                  key={project.id}
-                  patternVariant="band"
-                  patternTone="ink"
-                  patternDensity="sm"
-                  className={cn(
-                    "flex w-full flex-col overflow-hidden rounded-[4px] text-left",
-                    "transition-[border-color,transform] duration-200 ease-out hover:-translate-y-[1px] hover:border-border-hover"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3 px-4 pt-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className="w-3 h-3 shrink-0 rounded-full"
-                          style={{ backgroundColor: project.palette[1] || project.palette[0] }}
-                        />
-                        <span className="text-sm font-semibold text-text-primary truncate">
-                          {project.name}
-                        </span>
-                      </div>
-
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-[11px] text-text-tertiary">
-                          {project.client}
-                        </span>
-                        <span
-                          className={cn(
-                            "px-1.5 py-0.5 text-[10px] font-mono font-medium uppercase tracking-[0.12em]",
-                            PHASE_STYLES[project.phase]
-                          )}
-                        >
-                          {project.phase}
-                        </span>
-                      </div>
-                    </div>
-
-                    {canDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => setProjectPendingDelete(project)}
-                        className="rounded-lg border border-[#EE0000]/20 px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.12em] text-[#EE0000] transition-colors hover:bg-[#EE0000]/10"
-                        aria-label={`Delete ${project.name}`}
-                      >
-                        Delete
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <Link
-                    href={`/projects/${project.id}`}
-                    className="flex flex-col gap-2.5 p-4 pt-3"
-                  >
-                    {/* Color dot + Name row */}
-                    <div className="space-y-1">
-                      <div className="h-0.5 w-full bg-bg-input overflow-hidden">
-                        <div
-                          className="h-full bg-accent"
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                      <div className="text-[11px] text-text-secondary">
-                        {project.progress}%
-                      </div>
-                    </div>
-
-                    {/* Palette + meta */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        {project.palette.slice(0, 5).map((color, i) => (
-                          <span
-                            key={`${project.id}-${color}-${i}`}
-                            className="h-3 w-3 rounded-full border border-white/10"
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-[11px] text-text-muted font-mono">
-                        {project.references} refs · {project.lastActivity}
-                      </span>
-                    </div>
-                  </Link>
-                </DitherSurface>
-              );
-            })}
+            ) : null}
           </div>
-        </div>
-
-        <div className="border-t border-[#151515] pt-4">
-          <button
-            type="button"
-            onClick={() => setShowArchived((prev) => !prev)}
-            className="flex w-full items-center justify-between text-left text-xs text-gray-500 transition-colors duration-200 hover:text-white"
-          >
-            <SectionLabel>Archived</SectionLabel>
-            {showArchived ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-          </button>
-          <AnimatePresence initial={false}>
-            {showArchived && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                className="mt-3 overflow-hidden text-[11px] text-gray-500"
-              >
-                No archived projects yet. Rooms you mark as complete will land
-                here.
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
+        ) : null}
       </div>
-      </section>
 
+      {/* ── Delete Confirmation Dialog ── */}
       <Dialog
         open={projectPendingDelete !== null}
         onOpenChange={(open) => {
@@ -396,7 +511,7 @@ export function ProjectsPage() {
             <DialogTitle>Delete project?</DialogTitle>
             <DialogDescription>
               {projectPendingDelete
-                ? `This will permanently remove "${projectPendingDelete.name}" from local storage, including its references, canvas state, generated variants, and tasks. This is the fastest way to free quota space.`
+                ? `This will permanently remove "${projectPendingDelete.name}" from local storage, including its references, canvas state, generated variants, and tasks.`
                 : "This will permanently remove the project from local storage."}
             </DialogDescription>
           </DialogHeader>

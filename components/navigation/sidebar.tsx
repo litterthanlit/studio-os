@@ -9,8 +9,6 @@ import {
   Wand2,
   Home,
   FolderOpen,
-  Zap,
-  Image,
   Settings,
   Search,
   ChevronsLeft,
@@ -178,8 +176,6 @@ function NavItem({
 const DASH_NAV = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/projects", label: "Projects", icon: FolderOpen },
-  { href: "/canvas-v1", label: "Canvas", icon: Zap },
-  { href: "/explore", label: "Explore", icon: Image },
 ];
 
 interface SidebarProject {

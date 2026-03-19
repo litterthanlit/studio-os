@@ -1,11 +1,9 @@
-import { TypeLibraryPage } from "./type-client";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Type — Studio OS",
 };
 
-export default function Page() {
-  return <TypeLibraryPage />;
+export default function TypePage() {
+  redirect("/projects");
 }
-
-

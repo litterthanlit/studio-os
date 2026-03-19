@@ -1,9 +1,9 @@
-import { FlowPage } from "./flow-client";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Flow — Studio OS",
 };
 
-export default function Page() {
-  return <FlowPage />;
+export default function FlowPage() {
+  redirect("/projects");
 }

@@ -191,7 +191,7 @@ function ProjectRow({
   return (
     <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-[#E5E5E0] hover:bg-white/70">
       <Link
-        href={`/projects/${project.id}`}
+        href={`/canvas?project=${project.id}`}
         className="flex flex-1 items-center gap-4 min-w-0"
       >
         {/* Thumbnail */}
@@ -421,7 +421,7 @@ export function ProjectsPage() {
                 >
                   <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-[#E5E5E0] hover:bg-white/70">
                     <Link
-                      href={`/projects/${DEMO_PROJECT_ID}`}
+                      href={`/canvas?project=${DEMO_PROJECT_ID}`}
                       className="flex flex-1 items-center gap-4 min-w-0"
                     >
                       {/* Demo thumbnail */}

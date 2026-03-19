@@ -130,30 +130,30 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - **List items** — compact rows (not big cards), 40px thumbnail, hover borders only.
 - **Destructive actions** — `text-red-500 hover:text-red-600` link-style text, no red buttons.
 
-### V2 Redesign Status
+### V3 Redesign Status
 
-**Completed screens** (all use V2 hex tokens, mono-kicker headers, Bespoke Serif display headings):
-- `app/(dashboard)/home/home-client.tsx` — greeting, search bar, project list, quick actions
-- `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact row list, "New Project" CTA
-- `app/(dashboard)/type/type-client.tsx` — specimen panels, search/filter, font grid, detail slide-over
-- `app/(dashboard)/settings/page.tsx` — grouped sections, appearance toggle, ghost buttons, destructive links
-- `components/navigation/sidebar.tsx` — V2 logo mark, Bespoke Serif wordmark, blue active accent bar
-- `app/canvas-v1/components/CollectView.tsx` — mono-kicker headers, V2 taste panel, generation controls, variant gallery, "Open in Compose" CTA
-- `app/canvas-v1/components/LayersPanel.tsx` — 240px tree navigator, artboard switcher pills, recursive expand/collapse, selection sync
-- `app/canvas-v1/components/InspectorPanel.tsx` — 280px, 4-tab bar, Content/Style/Layout/AI tabs, color swatches, empty state
-- `app/canvas-v1/components/BottomBar.tsx` — 36px floating transport strip, editable zoom, panel toggle icons
-- `app/canvas-v1/components/ComposeDocumentView.tsx` — point-and-edit selection (2px solid outline), hover (1px dashed), double-click inline text editing
-- `app/canvas-v1/canvas-client.tsx` — side-by-side breakpoint artboards with fit-to-view, artboard headers ("DESKTOP · 1440PX"), blue top-border accent on desktop, bg-[#FAFAF8] canvas, AI regenerating halftone overlay, skeleton empty states, Reference/System slide-over docks (320px, right-edge, click-outside-to-close)
+**V3 Unified Canvas** (complete):
+- `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds
+- `app/canvas-v1/components/PromptPanel.tsx` — floating generation panel, replaces CollectView
+- `app/canvas-v1/components/InspectorPanelV3.tsx` — single scroll, selection-adaptive, replaces tabbed inspector
+- `app/canvas-v1/components/LayersPanelV3.tsx` — grouped tree (Site/References/Notes)
+- `app/canvas-v1/components/BottomBarV3.tsx` — zoom, undo/redo, panel toggles
+- `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence
+- `lib/canvas/canvas-reducer.ts` + `canvas-context.tsx` + `history.ts` — state engine
 
-**Supporting components cleaned** (old semantic tokens replaced with V2 hex values):
-- AnalysisPanel, CodeViewer, ComponentPreview, ExportActions, ReferenceGrid, SystemEditor, UploadZone
+**Dashboard screens** (V2 design, unchanged in V3):
+- `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
+- `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact rows → routes to canvas
+- `app/(dashboard)/settings/page.tsx` — grouped sections, appearance toggle
+- `components/navigation/sidebar.tsx` — Home + Projects only (V3 simplified)
 
-**Not yet redesigned** (still use old CSS variable tokens — functional but visually V1):
-- `app/(dashboard)/explore/page.tsx`
-- `app/(dashboard)/brief/brief-client.tsx`
-- `app/(dashboard)/vision/vision-client.tsx`
-- `app/(dashboard)/flow/flow-client.tsx`
-- `app/(dashboard)/projects/project-room.tsx` + `[id]/project-room-page-client.tsx`
+**Legacy routes** (redirects only — not deleted):
+- `/explore`, `/brief`, `/vision`, `/flow`, `/type` → redirect to `/projects`
+- `/projects/:id` → redirect to `/canvas?project=:id`
+- `/canvas-v1` → redirect to `/canvas`
+
+**Legacy canvas components** (preserved for rollback, not rendered in V3):
+- `CollectView.tsx`, `LayersPanel.tsx`, `InspectorPanel.tsx`, `BottomBar.tsx` — still in codebase but unused by `UnifiedCanvasPage`
 
 ### V2 Visual Identity
 
@@ -179,25 +179,31 @@ Folder silhouette filled with vertical tapered diamond slats. Navy `#071D5C` at 
 9. **No old CSS variable tokens in V2 components** — use hex values directly (`#1A1A1A`, `#E5E5E0`, etc.)
 10. **Overall mood: serious, architectural, tool-like, editorial** — Framer meets Swiss poster
 
-### Canvas Architecture (Compose Stage)
-Framer-style spatial editor with parallel breakpoint artboards.
-Three artboards per variant: Desktop (1440), Tablet (768), Mobile (375) with 80px gap.
-Desktop artboard: `border-t-2 border-t-[#1E5DF2]`. Others: `border-t border-t-[#E5E5E0]`.
-Artboard headers: `font-mono text-[10px] uppercase tracking-widest` showing "DESKTOP · 1440PX".
-`fitArtboardsToView()` auto-frames all artboards on mount with 60px padding.
+### Canvas Architecture (V3 Unified Canvas)
 
-Panel widths: LayersPanel 240px, InspectorPanel 280px, Docks 320px.
-All Compose panels: `bg-white/95 backdrop-blur-sm`, no dither.
-References/System are right-edge slide-over drawers (320px, `shadow-lg`, click-outside closes).
-BottomBar: floating centered transport strip, 36px, `max-w-[480px]`, editable zoom %.
+Single infinite canvas per project. References, generation, and composition on one spatial surface. No stages, no tabs.
 
-Point-and-edit: click to select (`outline: 2px solid #1E5DF2`), double-click heading/paragraph for inline `contentEditable`.
-Hover: `outline: 1px dashed #D1E4FC`. Escape deselects.
-AI regenerating: halftone dot overlay on selected artboard + pulsing "Generating..." badge.
+**Data model:** `UnifiedCanvasState` with flat `items: CanvasItem[]` array. Four item kinds: `reference`, `artboard`, `note`, `arrow`. Single-variant: one active site per project (desktop/tablet/mobile artboards). State persisted to `studio-os:canvas-v3:${projectId}`.
 
-Canvas stages:
-  collect = expressive, warm (halftone textures, editorial feel, warm gradient background)
-  compose = precise, quiet (clean panels, tool-like, Framer aesthetic, `bg-[#FAFAF8]`)
+**State engine:** `useReducer`-style reducer (`canvas-reducer.ts`) with 20+ action types. Snapshot-based undo/redo history (`history.ts`) — max 50 entries, in-memory only. Coalescing: drag commits on pointer-up, text edits on 400ms debounce, AI actions once per response.
+
+**Layout:** References cluster on the left (3-column grid at x=100). Artboards positioned on the right (desktop at x=1200, tablet at x=2720, mobile at x=3568). Desktop artboard: `border-t-2 border-t-[#1E5DF2]`. Others: `border-t border-t-[#E5E5E0]`. Headers: `font-mono text-[10px] uppercase tracking-widest`.
+
+**Panels:**
+- LayersPanelV3: 240px left, grouped tree (Site/References/Notes), recursive expand/collapse
+- InspectorPanelV3: 280px right, single scroll, adapts by selection type (reference/artboard/node/empty)
+- PromptPanel: floating bottom-right 340px, generation + history + restore
+- BottomBarV3: floating centered strip — zoom, undo/redo, panel toggles (L/I/P)
+
+**Interactions:** `useDrag` (pointer cycle, shift-axis lock), `useCanvasGestures` (wheel zoom, space+drag pan, middle-mouse pan), file drop, clipboard paste, `useCanvasKeyboard` (full shortcut set).
+
+**Migration:** `migrateToV3()` hydrates from legacy `references`, `composeDocument`, `generatedVariants`, `canvasSession`, and `composeWorkspace`. Error-tolerant (try/catch per step). Bi-directional sync: reference items projected back to legacy storage for project card counts.
+
+**Generation:** PromptPanel calls same API routes (`/api/canvas/analyze` → `/api/canvas/generate-system` → `/api/canvas/generate-component`). Single-variant normalization: pick `safe` strategy, else first. `REPLACE_SITE` action removes old artboards, adds new, pushes history.
+
+**Reference intelligence:** `useReferenceExtractor` auto-calls `/api/ai/tag` for new references. Extracted colors/fonts/tags shown in inspector and as color dots below reference cards.
+
+**Routes:** `/canvas?project=:id` is canonical. `/projects/:id` → redirect to canvas. `/canvas-v1` → redirect to canvas. `/explore`, `/brief`, `/vision`, `/flow`, `/type` → redirect to `/projects`.
 
 ### Key Files
 
@@ -205,18 +211,26 @@ Canvas stages:
 |------|---------|
 | `app/globals.css` | Design tokens, `.mono-kicker`, `.app-shell::before` halftone, animations |
 | `app/layout.tsx` | Google Fonts link for Bespoke Serif (Instrument Serif) |
-| `components/navigation/sidebar.tsx` | V2 sidebar with LogoMark, Bespoke Serif wordmark, blue accent bar |
-| `app/(dashboard)/home/home-client.tsx` | V2 home screen — greeting, search, project list, quick actions |
-| `app/(dashboard)/projects/projects-client.tsx` | V2 projects list — filter pills, compact rows, "New Project" |
-| `app/(dashboard)/type/type-client.tsx` | V2 type explorer — specimen panels, font grid, detail slide-over |
-| `app/(dashboard)/settings/page.tsx` | V2 settings — grouped sections, appearance toggle, destructive links |
-| `app/canvas-v1/canvas-client.tsx` | Main canvas (~5000 lines) — ComposeStage, artboards, docks, selection |
-| `app/canvas-v1/components/CollectView.tsx` | Collect stage — references, taste panel, generation, variant gallery |
-| `app/canvas-v1/components/LayersPanel.tsx` | 240px tree navigator with recursive expand/collapse |
-| `app/canvas-v1/components/InspectorPanel.tsx` | 280px property editor — Content/Style/Layout/AI tabs |
-| `app/canvas-v1/components/BottomBar.tsx` | Floating 36px transport strip — zoom + panel toggles |
+| `components/navigation/sidebar.tsx` | Sidebar — Home, Projects only (V3 simplified) |
+| `app/(canvas-view)/canvas/page.tsx` | Canvas route — V3 entry point, redirects legacy `step` param |
+| `app/canvas-v1/canvas-client.tsx` | Legacy CanvasPage + V3 UnifiedCanvasPage export |
+| `app/canvas-v1/components/UnifiedCanvasView.tsx` | V3 canvas renderer — items, drag, gestures, drop, paste |
+| `app/canvas-v1/components/CanvasReference.tsx` | Reference card — image, annotation pin, color dots, style badge |
+| `app/canvas-v1/components/CanvasArtboard.tsx` | Artboard wrapper — header, ComposeDocumentView, click overlay |
+| `app/canvas-v1/components/PromptPanel.tsx` | Floating generation panel — prompt, site type, history, restore |
+| `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px property editor — single scroll, selection-adaptive |
+| `app/canvas-v1/components/LayersPanelV3.tsx` | 240px tree navigator — Site/References/Notes groups |
+| `app/canvas-v1/components/BottomBarV3.tsx` | Transport strip — zoom, undo/redo, panel toggles |
+| `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — document colors, hex input, basic grid |
 | `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing |
-| `app/canvas-v1/components/AsciiLoader.tsx` | Generation loading animation (pixel dissolve) |
+| `app/canvas-v1/hooks/useDrag.ts` | Drag hook — pointer cycle, zoom-aware, shift-axis lock |
+| `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |
+| `app/canvas-v1/hooks/useCanvasKeyboard.ts` | Full keyboard shortcut set |
+| `app/canvas-v1/hooks/useReferenceExtractor.ts` | Auto-extraction via /api/ai/tag |
+| `lib/canvas/unified-canvas-state.ts` | V3 types, migration, persistence (load/save) |
+| `lib/canvas/canvas-reducer.ts` | Reducer — 20+ actions, history integration |
+| `lib/canvas/canvas-context.tsx` | React provider — load, debounced save, useCanvas hook |
+| `lib/canvas/history.ts` | Snapshot-based undo/redo engine (pure functions) |
 | `lib/canvas/compose.ts` | ComposeDocument types, `createInitialArtboards()`, `fitArtboardsToView()` |
 | `lib/project-store.ts` | localStorage API for all project/reference/state data |
 | `lib/ai/model-router.ts` | Multi-model AI router via OpenRouter |

@@ -4018,3 +4018,25 @@ export function CanvasPage({
     </div>
   );
 }
+
+// ─── V3 Unified Canvas Page ──────────────────────────────────────────────────
+// New entry point that replaces the Collect/Compose stage split with a single
+// unified canvas. Wraps everything in CanvasProvider and renders UnifiedCanvasView.
+// The legacy CanvasPage is preserved above for reference/rollback.
+
+import { CanvasProvider } from "@/lib/canvas/canvas-context";
+import { UnifiedCanvasView } from "./components/UnifiedCanvasView";
+
+export function UnifiedCanvasPage({
+  projectId,
+}: {
+  projectId: string;
+}) {
+  return (
+    <CanvasProvider projectId={projectId}>
+      <div className="relative flex h-full flex-col overflow-hidden">
+        <UnifiedCanvasView projectId={projectId} />
+      </div>
+    </CanvasProvider>
+  );
+}

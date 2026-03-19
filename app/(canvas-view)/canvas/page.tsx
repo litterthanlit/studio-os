@@ -1,5 +1,4 @@
-import { CanvasPage } from "@/app/canvas-v1/canvas-client";
-import { normalizeCanvasStage } from "@/lib/canvas/compose";
+import { UnifiedCanvasPage } from "@/app/canvas-v1/canvas-client";
 import { redirect } from "next/navigation";
 
 export const metadata = {
@@ -15,9 +14,11 @@ export default async function Page({
   if (!params.project) {
     redirect("/home");
   }
-  const normalizedStep = normalizeCanvasStage(params.step);
-  if (params.step && normalizedStep && normalizedStep !== params.step) {
-    redirect(`/canvas?project=${encodeURIComponent(params.project)}&step=${normalizedStep}`);
+
+  // V3: If URL has legacy `step` param, redirect once to clean URL without it
+  if (params.step) {
+    redirect(`/canvas?project=${encodeURIComponent(params.project)}`);
   }
-  return <CanvasPage projectId={params.project} initialStep={normalizedStep ?? undefined} />;
+
+  return <UnifiedCanvasPage projectId={params.project} />;
 }

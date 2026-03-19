@@ -1,10 +1,9 @@
-import { BriefPage } from "./brief-client";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Brief — Studio OS",
 };
 
-export default function Page() {
-  return <BriefPage />;
+export default function BriefPage() {
+  redirect("/projects");
 }
-

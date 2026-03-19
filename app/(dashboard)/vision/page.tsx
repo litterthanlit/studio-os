@@ -1,11 +1,9 @@
-import { VisionPage } from "./vision-client";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Vision — Studio OS",
-  description: "Your evolving moodboard — references, palettes, layouts and artifacts that define the studio's current gravity.",
 };
 
-export default function Page() {
-  return <VisionPage />;
+export default function VisionPage() {
+  redirect("/projects");
 }
-

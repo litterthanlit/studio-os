@@ -3003,7 +3003,7 @@ function ComposeStage({
                     </p>
                     <span
                       className="text-[10px] text-[#A0A0A0]"
-                      style={{ fontFamily: "'Geist Mono', monospace" }}
+                      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                     >
                       {Math.round(document.zoom * 100)}%
                     </span>

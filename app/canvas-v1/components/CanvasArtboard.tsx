@@ -12,10 +12,13 @@ type CanvasArtboardProps = {
   item: ArtboardItem;
   tokens: DesignSystemTokens | null;
   isDragging?: boolean;
+  isGenerating?: boolean;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
 };
 
-export function CanvasArtboard({ item, tokens, isDragging, onPointerDown }: CanvasArtboardProps) {
+const SKELETON_WIDTHS = ["60%", "80%", "40%", "90%", "50%"];
+
+export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPointerDown }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeArtboardId === item.id;
@@ -55,9 +58,10 @@ export function CanvasArtboard({ item, tokens, isDragging, onPointerDown }: Canv
       {/* Artboard body */}
       <div
         className={cn(
-          "bg-white",
+          "canvas-artboard relative bg-white",
           isDesktop ? "border-t-2 border-t-[#1E5DF2]" : "border-t border-t-[#E5E5E0]",
-          isSelected && "ring-2 ring-[#1E5DF2] ring-offset-2"
+          isSelected && "ring-2 ring-[#1E5DF2] ring-offset-2",
+          isActiveArtboard && "editing"
         )}
         onClick={(e) => {
           e.stopPropagation();
@@ -78,7 +82,33 @@ export function CanvasArtboard({ item, tokens, isDragging, onPointerDown }: Canv
             }
           }}
         >
-          {tokens ? (
+          {isGenerating ? (
+            <div style={{ width: breakpointWidth, minHeight: 400, position: "relative" }}>
+              {/* Progress bar */}
+              <div
+                className="h-[2px]"
+                style={{
+                  background: "linear-gradient(90deg, #071D5C, #1E5DF2, #4B83F7)",
+                  animation: "generation-progress 8s ease-out forwards",
+                }}
+              />
+              {/* Skeleton bars */}
+              <div className="p-8 space-y-3">
+                {SKELETON_WIDTHS.map((w, i) => (
+                  <div
+                    key={i}
+                    className="h-[8px] rounded-[2px] bg-[#F5F5F0]"
+                    style={{ width: w }}
+                  />
+                ))}
+              </div>
+              <div className="px-8">
+                <span className="text-[11px] font-mono text-[#A0A0A0] animate-pulse">
+                  GENERATING...
+                </span>
+              </div>
+            </div>
+          ) : tokens ? (
             <ComposeDocumentView
               pageTree={item.pageTree}
               tokens={tokens}

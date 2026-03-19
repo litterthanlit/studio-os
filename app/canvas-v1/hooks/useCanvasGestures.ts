@@ -109,6 +109,7 @@ export function useCanvasGestures(options: GestureCallbacks) {
       if (!isMiddle && !isSpacePan) return;
 
       e.preventDefault();
+      e.stopPropagation();
       isPanningRef.current = true;
       panStartRef.current = { x: e.clientX, y: e.clientY };
 

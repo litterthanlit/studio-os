@@ -36,6 +36,7 @@ export type UnifiedCanvasState = {
     siteType: SiteType;
     isOpen: boolean;
     history: PromptRun[];
+    splitRatio?: number;
   };
   exportArtifact: ExportArtifact | null;
   updatedAt: string;

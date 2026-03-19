@@ -15,6 +15,7 @@ type KeyboardOptions = {
   dispatch: React.Dispatch<CanvasAction>;
   onToggleLayers: () => void;
   onToggleInspector: () => void;
+  onFocusPrompt: () => void;
 };
 
 export function useCanvasKeyboard({
@@ -22,6 +23,7 @@ export function useCanvasKeyboard({
   dispatch,
   onToggleLayers,
   onToggleInspector,
+  onFocusPrompt,
 }: KeyboardOptions) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -92,10 +94,10 @@ export function useCanvasKeyboard({
 
       // Single key shortcuts (no modifier)
       if (!isMeta && !e.altKey) {
-        // P — Toggle prompt panel
+        // P — Focus prompt (opens inspector if hidden, expands prompt section, focuses textarea)
         if (e.key === "p" || e.key === "P") {
           e.preventDefault();
-          dispatch({ type: "TOGGLE_PROMPT_PANEL" });
+          onFocusPrompt();
           return;
         }
 
@@ -117,5 +119,5 @@ export function useCanvasKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state, dispatch, onToggleLayers, onToggleInspector]);
+  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt]);
 }

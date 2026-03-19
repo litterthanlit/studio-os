@@ -122,7 +122,7 @@ export function Hero() {
         "rgba(120,120,120,1)";
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.font = `${FONT_SIZE}px "Geist Mono", monospace`;
+      ctx.font = `${FONT_SIZE}px "IBM Plex Mono", monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 

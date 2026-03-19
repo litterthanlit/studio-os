@@ -132,8 +132,42 @@ function Selectable({
 }) {
   const selected = interactive && node.id === selectedNodeId;
   const [hovered, setHovered] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [tooltipPhase, setTooltipPhase] = React.useState<"hidden" | "visible" | "fading">("hidden");
   const isTextNode = node.type === "heading" || node.type === "paragraph";
 
+  // ── Double-click to edit tooltip ────────────────────────────────────
+  React.useEffect(() => {
+    setTooltipPhase("hidden");
+    if (!selected || !isTextNode || editing) return;
+    if (typeof window !== "undefined" && localStorage.getItem("studio-os:edit-hint-seen") === "true") return;
+
+    const showTimer = setTimeout(() => {
+      const count = parseInt(localStorage.getItem("studio-os:edit-hint-count") || "0", 10);
+      if (count >= 3) {
+        localStorage.setItem("studio-os:edit-hint-seen", "true");
+        return;
+      }
+      localStorage.setItem("studio-os:edit-hint-count", String(count + 1));
+      setTooltipPhase("visible");
+    }, 600);
+
+    return () => clearTimeout(showTimer);
+  }, [selected, isTextNode, editing]);
+
+  // Tooltip auto-fade: visible 1.5s → fading 0.5s → hidden
+  React.useEffect(() => {
+    if (tooltipPhase === "visible") {
+      const timer = setTimeout(() => setTooltipPhase("fading"), 1500);
+      return () => clearTimeout(timer);
+    }
+    if (tooltipPhase === "fading") {
+      const timer = setTimeout(() => setTooltipPhase("hidden"), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [tooltipPhase]);
+
+  // ── Double-click to enter edit mode ─────────────────────────────────
   function handleDoubleClick(e: React.MouseEvent) {
     if (!interactive || !isTextNode || !onUpdateContent) return;
     e.stopPropagation();
@@ -143,6 +177,10 @@ function Selectable({
     if (!found) return;
     const textEl: HTMLElement = found;
     textEl.contentEditable = "true";
+    // Edit mode styling — inline styles to avoid conflicts with generated site styles
+    textEl.style.caretColor = "#1E5DF2";
+    textEl.style.outline = "none";
+
     textEl.focus();
     const range = window.document.createRange();
     range.selectNodeContents(textEl);
@@ -150,10 +188,16 @@ function Selectable({
     sel?.removeAllRanges();
     sel?.addRange(range);
 
+    setEditing(true);
+    setTooltipPhase("hidden");
+
     const commit = () => {
       textEl.contentEditable = "false";
+      textEl.style.caretColor = "";
+      textEl.style.outline = "";
       const newText = textEl.textContent ?? "";
       onUpdateContent!(node.id, "text", newText);
+      setEditing(false);
       textEl.removeEventListener("blur", commit);
       textEl.removeEventListener("keydown", onKey);
     };
@@ -171,22 +215,24 @@ function Selectable({
     textEl.addEventListener("keydown", onKey);
   }
 
+  // ── Outline styles ──────────────────────────────────────────────────
+  const outlineStyle = interactive
+    ? selected
+      ? editing
+        ? { outline: "2px solid #4B83F7", outlineOffset: -1, cursor: "text" as const }
+        : { outline: "2px solid #1E5DF2", outlineOffset: -1, cursor: "default" as const }
+      : hovered
+      ? { outline: "1px dashed #D1E4FC", outlineOffset: -1, cursor: "default" as const }
+      : { cursor: "default" as const }
+    : undefined;
+
   return (
     <div
       data-node-id={node.id}
       className={cn(interactive && "relative", className)}
-      style={
-        interactive
-          ? selected
-            ? { outline: "2px solid #1E5DF2", outlineOffset: -1, cursor: "default" }
-            : hovered
-            ? { outline: "1px dashed #D1E4FC", outlineOffset: -1, cursor: "default" }
-            : { cursor: "default" }
-          : undefined
-      }
+      style={outlineStyle}
       onMouseDown={(event) => {
         if (!interactive) return;
-        // Prevent artboard drag from starting when clicking content
         event.stopPropagation();
       }}
       onClick={(event) => {
@@ -200,6 +246,31 @@ function Selectable({
       onMouseLeave={() => interactive && setHovered(false)}
     >
       {children}
+      {/* Double-click to edit tooltip */}
+      {tooltipPhase !== "hidden" && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            bottom: "-24px",
+            zIndex: 50,
+            whiteSpace: "nowrap",
+            fontSize: "10px",
+            color: "#A0A0A0",
+            background: "rgba(255,255,255,0.9)",
+            border: "1px solid #E5E5E0",
+            borderRadius: "2px",
+            padding: "2px 8px",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            pointerEvents: "none",
+            opacity: tooltipPhase === "fading" ? 0 : 1,
+            transition: "opacity 0.5s ease-out",
+          }}
+        >
+          Double-click to edit
+        </div>
+      )}
     </div>
   );
 }

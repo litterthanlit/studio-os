@@ -4,15 +4,34 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
+import type { HandlePosition } from "../hooks/useResize";
+import { ResizeHandles } from "./ResizeHandles";
 
 type CanvasReferenceProps = {
   item: ReferenceItem;
   isDragging?: boolean;
+  isResizing?: boolean;
   isAnalyzing?: boolean;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
+  onResizeHandlePointerDown?: (
+    e: React.PointerEvent,
+    itemId: string,
+    handle: HandlePosition,
+    itemX: number,
+    itemY: number,
+    itemW: number,
+    itemH: number
+  ) => void;
 };
 
-export function CanvasReference({ item, isDragging, isAnalyzing, onPointerDown }: CanvasReferenceProps) {
+export function CanvasReference({
+  item,
+  isDragging,
+  isResizing,
+  isAnalyzing,
+  onPointerDown,
+  onResizeHandlePointerDown,
+}: CanvasReferenceProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const extractedColors = item.extracted?.colors ?? [];
@@ -30,11 +49,11 @@ export function CanvasReference({ item, isDragging, isAnalyzing, onPointerDown }
       {/* Reference card */}
       <div
         className={cn(
-          "cursor-pointer rounded-[4px] border overflow-hidden bg-white transition-[border-color,box-shadow,shadow] duration-150",
+          "canvas-reference relative cursor-pointer rounded-[4px] border overflow-hidden bg-white transition-[border-color,box-shadow,shadow] duration-150",
           isSelected
             ? "ring-2 ring-[#1E5DF2] ring-offset-2 border-[#1E5DF2]"
             : "border-[#E5E5E0] hover:border-[#1E5DF2]",
-          isDragging ? "shadow-md" : "shadow-sm"
+          (isDragging || isResizing) ? "shadow-md" : "shadow-sm"
         )}
         style={{
           width: item.width,
@@ -75,6 +94,17 @@ export function CanvasReference({ item, isDragging, isAnalyzing, onPointerDown }
           </div>
         )}
       </div>
+
+      {/* Resize handles — visible only when selected */}
+      {isSelected && onResizeHandlePointerDown && (
+        <ResizeHandles
+          width={item.width}
+          height={item.height}
+          onHandlePointerDown={(e, handle) =>
+            onResizeHandlePointerDown(e, item.id, handle, item.x, item.y, item.width, item.height)
+          }
+        />
+      )}
 
       {/* Extracted color dots — below the card, outside the border */}
       {extractedColors.length > 0 && (

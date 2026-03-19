@@ -14,6 +14,7 @@ type BottomBarV3Props = {
   onToggleLayers: () => void;
   showInspector: boolean;
   onToggleInspector: () => void;
+  onFocusPrompt: () => void;
 };
 
 function BarButton({
@@ -55,6 +56,7 @@ export function BottomBarV3({
   onToggleLayers,
   showInspector,
   onToggleInspector,
+  onFocusPrompt,
 }: BottomBarV3Props) {
   const { state, dispatch, canUndo, canRedo } = useCanvas();
   const zoom = state.viewport.zoom;
@@ -71,7 +73,7 @@ export function BottomBarV3({
 
   return (
     <div className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2">
-      <div className="flex items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm px-2 py-1 shadow-sm">
+      <div className="flex items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm">
         {/* Left: zoom controls */}
         <BarButton onClick={handleZoomOut} title="Zoom out">
           <Minus size={14} strokeWidth={1.5} />
@@ -102,7 +104,7 @@ export function BottomBarV3({
         <BarButton active={showInspector} onClick={onToggleInspector} title="Inspector (I)">
           <PanelRight size={14} strokeWidth={1.5} />
         </BarButton>
-        <BarButton active={state.prompt.isOpen} onClick={() => dispatch({ type: "TOGGLE_PROMPT_PANEL" })} title="Prompt (P)">
+        <BarButton active={state.prompt.isOpen} onClick={onFocusPrompt} title="Focus Prompt (P)">
           <MessageSquareText size={14} strokeWidth={1.5} />
         </BarButton>
       </div>

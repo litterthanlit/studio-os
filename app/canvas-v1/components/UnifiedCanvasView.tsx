@@ -15,12 +15,12 @@ import { getProjectState } from "@/lib/project-store";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
 import { useDrag } from "../hooks/useDrag";
+import { useResize } from "../hooks/useResize";
 import { useCanvasGestures } from "../hooks/useCanvasGestures";
 import { CanvasReference } from "./CanvasReference";
 import { CanvasArtboard } from "./CanvasArtboard";
 import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
-import { PromptPanel } from "./PromptPanel";
 import { InspectorPanelV3 } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
 import { BottomBarV3 } from "./BottomBarV3";
@@ -55,12 +55,26 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const [showLayers, setShowLayers] = React.useState(false);
   const [showInspector, setShowInspector] = React.useState(true);
 
+  // Prompt textarea ref for focus management
+  const promptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Focus prompt: ensure inspector is visible, prompt expanded, textarea focused
+  const handleFocusPrompt = React.useCallback(() => {
+    setShowInspector(true);
+    if (!state.prompt.isOpen) {
+      dispatch({ type: "TOGGLE_PROMPT_PANEL" });
+    }
+    // Focus after state updates render
+    setTimeout(() => promptTextareaRef.current?.focus(), 0);
+  }, [state.prompt.isOpen, dispatch]);
+
   // Keyboard shortcuts
   useCanvasKeyboard({
     state,
     dispatch,
     onToggleLayers: () => setShowLayers((v) => !v),
     onToggleInspector: () => setShowInspector((v) => !v),
+    onFocusPrompt: handleFocusPrompt,
   });
 
   // Load design tokens from project state for artboard rendering
@@ -96,6 +110,25 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     onDragEnd: (itemId, finalPos) => {
       dispatch({ type: "MOVE_ITEM", itemId, x: finalPos.x, y: finalPos.y });
       setDraggingId(null);
+    },
+  });
+
+  // ── Resize handlers for references ───────────────────────────────────
+
+  const [resizingId, setResizingId] = React.useState<string | null>(null);
+
+  const resizeHandlers = useResize({
+    zoom: viewport.zoom,
+    onResizeStart: (itemId) => {
+      setResizingId(itemId);
+      dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
+    },
+    onResize: (itemId, bounds) => {
+      dispatch({ type: "UPDATE_ITEM", itemId, changes: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } });
+    },
+    onResizeEnd: (itemId, bounds) => {
+      dispatch({ type: "UPDATE_ITEM", itemId, changes: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } });
+      setResizingId(null);
     },
   });
 
@@ -269,11 +302,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       )}
       style={{
         backgroundImage:
-          "radial-gradient(circle, #D5D5D0 0.75px, transparent 0.75px)",
+          "radial-gradient(circle, rgba(0,0,0,0.04) 0.6px, transparent 0.6px)",
         backgroundSize: "20px 20px",
       }}
       onClick={handleCanvasClick}
-      onPointerDown={gestureHandlers.handlePointerDown}
+      onPointerDownCapture={gestureHandlers.handlePointerDown}
+      onAuxClick={(e) => { if (e.button === 1) e.preventDefault(); }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -313,8 +347,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   key={item.id}
                   item={item}
                   isDragging={draggingId === item.id}
+                  isResizing={resizingId === item.id}
                   isAnalyzing={isAnalyzing(item.id)}
                   onPointerDown={dragHandlers.onPointerDown}
+                  onResizeHandlePointerDown={resizeHandlers.onHandlePointerDown}
                 />
               );
             case "artboard":
@@ -354,11 +390,13 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       {/* Layers panel */}
       {showLayers && <LayersPanelV3 />}
 
-      {/* Inspector panel */}
-      {showInspector && <InspectorPanelV3 projectId={projectId} />}
-
-      {/* Floating prompt panel */}
-      <PromptPanel />
+      {/* Inspector panel (now includes embedded prompt) */}
+      {showInspector && (
+        <InspectorPanelV3
+          projectId={projectId}
+          promptTextareaRef={promptTextareaRef}
+        />
+      )}
 
       {/* Bottom bar */}
       <BottomBarV3
@@ -366,6 +404,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         onToggleLayers={() => setShowLayers((v) => !v)}
         showInspector={showInspector}
         onToggleInspector={() => setShowInspector((v) => !v)}
+        onFocusPrompt={handleFocusPrompt}
       />
     </div>
   );

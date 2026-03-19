@@ -114,14 +114,14 @@ No `rounded-xl` (12px+), no pill shapes except avatars/status dots.
 ### Typography
 - **Bespoke Serif** (`font-serif` / `--font-instrument-serif`) — display headings only (page greetings, section titles). Loaded via Google Fonts `<link>` in `app/layout.tsx`. NEVER for body copy or UI labels.
 - **Geist Sans** — all UI text, body copy, buttons, labels.
-- **Geist Mono** — overline kickers (`.mono-kicker`), code, data values, mono labels.
+- **IBM Plex Mono** — overline kickers (`.mono-kicker`), code, data values, mono labels. Loaded via `next/font/google` in `app/layout.tsx`. Replaces Geist Mono as of V3.1.
 - Scale: Display 28–36px → H1 22px → H2 17px → Body 14px → Small 13px → Caption 11px → Mono overline 10px.
 
 ### Icons
 Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={1.5}` (14px in compact contexts like BottomBar).
 
 ### Key Patterns
-- **`.mono-kicker`** — Geist Mono 10px uppercase tracking-widest `#A0A0A0`. Used for all section headers, panel labels, overline text.
+- **`.mono-kicker`** — IBM Plex Mono 10px uppercase tracking-widest `#A0A0A0`. Used for all section headers, panel labels, overline text.
 - **Panel chrome** — `bg-white/95 backdrop-blur-sm border-[#E5E5E0]`. No dither, no decorative elements inside panels.
 - **Form inputs** — `border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40`.
 - **Ghost buttons** — `border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]`.
@@ -134,12 +134,21 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 
 **V3 Unified Canvas** (complete):
 - `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds
-- `app/canvas-v1/components/PromptPanel.tsx` — floating generation panel, replaces CollectView
-- `app/canvas-v1/components/InspectorPanelV3.tsx` — single scroll, selection-adaptive, replaces tabbed inspector
+- `app/canvas-v1/components/InspectorPanelV3.tsx` — split panel: inspector (top) + embedded prompt composer (bottom), replaces floating PromptPanel
 - `app/canvas-v1/components/LayersPanelV3.tsx` — grouped tree (Site/References/Notes)
 - `app/canvas-v1/components/BottomBarV3.tsx` — zoom, undo/redo, panel toggles
 - `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence
 - `lib/canvas/canvas-reducer.ts` + `canvas-context.tsx` + `history.ts` — state engine
+
+**V3.1 Polish** (complete):
+- Middle-mouse pan fix — capture phase on canvas root, `onAuxClick` suppression
+- Embedded prompt — floating PromptPanel removed, prompt/history/chips/generation embedded in inspector right rail split panel with draggable divider
+- Live editing feel — instant visual updates from inspector, debounced history (400ms/blur), blue caret in contentEditable, lighter edit-mode outline
+- Reference resize — 8 handles (corners + edges), aspect-ratio lock, inspector W/H with lock toggle
+- Visual polish — V2 dot grid, scan-line sweep on references, halftone on artboards, generation skeleton + agent log steps
+- IBM Plex Mono — replaces Geist Mono globally via `next/font/google` + CSS variable cascade
+- `app/canvas-v1/hooks/useResize.ts` — resize hook (zoom-aware, aspect-ratio, min size)
+- `app/canvas-v1/components/ResizeHandles.tsx` — 8-handle resize UI
 
 **Dashboard screens** (V2 design, unchanged in V3):
 - `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
@@ -154,6 +163,7 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 
 **Legacy canvas components** (preserved for rollback, not rendered in V3):
 - `CollectView.tsx`, `LayersPanel.tsx`, `InspectorPanel.tsx`, `BottomBar.tsx` — still in codebase but unused by `UnifiedCanvasPage`
+- `PromptPanel.tsx` — preserved for rollback, replaced by embedded prompt in InspectorPanelV3 as of V3.1
 
 ### V2 Visual Identity
 
@@ -192,7 +202,7 @@ Single infinite canvas per project. References, generation, and composition on o
 **Panels:**
 - LayersPanelV3: 240px left, grouped tree (Site/References/Notes), recursive expand/collapse
 - InspectorPanelV3: 280px right, single scroll, adapts by selection type (reference/artboard/node/empty)
-- PromptPanel: floating bottom-right 340px, generation + history + restore
+- Prompt Composer: embedded in InspectorPanelV3 bottom split, generation + history + suggestion chips + agent log
 - BottomBarV3: floating centered strip — zoom, undo/redo, panel toggles (L/I/P)
 
 **Interactions:** `useDrag` (pointer cycle, shift-axis lock), `useCanvasGestures` (wheel zoom, space+drag pan, middle-mouse pan), file drop, clipboard paste, `useCanvasKeyboard` (full shortcut set).
@@ -217,8 +227,10 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/UnifiedCanvasView.tsx` | V3 canvas renderer — items, drag, gestures, drop, paste |
 | `app/canvas-v1/components/CanvasReference.tsx` | Reference card — image, annotation pin, color dots, style badge |
 | `app/canvas-v1/components/CanvasArtboard.tsx` | Artboard wrapper — header, ComposeDocumentView, click overlay |
-| `app/canvas-v1/components/PromptPanel.tsx` | Floating generation panel — prompt, site type, history, restore |
-| `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px property editor — single scroll, selection-adaptive |
+| `app/canvas-v1/components/PromptPanel.tsx` | Legacy floating prompt (preserved for rollback, not rendered in V3.1) |
+| `app/canvas-v1/hooks/useResize.ts` | Resize hook — pointer cycle, zoom-aware, aspect-ratio lock |
+| `app/canvas-v1/components/ResizeHandles.tsx` | 8-handle resize UI for reference items |
+| `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px split panel — inspector (top) + embedded prompt composer (bottom), selection-adaptive |
 | `app/canvas-v1/components/LayersPanelV3.tsx` | 240px tree navigator — Site/References/Notes groups |
 | `app/canvas-v1/components/BottomBarV3.tsx` | Transport strip — zoom, undo/redo, panel toggles |
 | `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — document colors, hex input, basic grid |

@@ -1,21 +1,27 @@
 "use client";
 
 /**
- * V3 Inspector Panel — single scrollable property panel that adapts by selection type.
+ * V3 Inspector Panel — split panel: inspector (top) + embedded prompt composer (bottom).
  *
- * Replaces the 4-tab inspector. No tabs, one scroll.
- * Content → Typography → Colors → Spacing → Size → AI.
+ * Replaces the old floating PromptPanel. Contains selection-adaptive property
+ * editing in the top section and generation, history, suggestion chips in the
+ * bottom section. Draggable divider between sections; split ratio persisted.
  */
 
 import * as React from "react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { findNodeById } from "@/lib/canvas/compose";
+import { findNodeById, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
+import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
 import { ColorPickerPopover } from "./ColorPickerPopover";
+import type { SiteType } from "@/lib/canvas/templates";
 import type {
   CanvasItem,
   ReferenceItem,
   ArtboardItem,
   NoteItem,
+  PromptRun,
+  Breakpoint,
 } from "@/lib/canvas/unified-canvas-state";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 
@@ -69,6 +75,59 @@ function useDebouncedCallback<T extends (...args: unknown[]) => void>(
   );
 }
 
+// ─── Hex validation ──────────────────────────────────────────────────────────
+
+function isValidHex(hex: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
+}
+
+// ─── Debounced history push (instant visual, delayed history) ────────────────
+
+function useDebouncedHistoryPush(
+  pushHistory: (description: string) => void,
+  delay: number
+) {
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = React.useRef<string | null>(null);
+  const callbackRef = React.useRef(pushHistory);
+  callbackRef.current = pushHistory;
+
+  const schedule = React.useCallback(
+    (description: string) => {
+      pendingRef.current = description;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        if (pendingRef.current) {
+          callbackRef.current(pendingRef.current);
+          pendingRef.current = null;
+        }
+      }, delay);
+    },
+    [delay]
+  );
+
+  const flush = React.useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    if (pendingRef.current) {
+      callbackRef.current(pendingRef.current);
+      pendingRef.current = null;
+    }
+  }, []);
+
+  // Flush on unmount so pending edits aren't lost
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (pendingRef.current) {
+        callbackRef.current(pendingRef.current);
+      }
+    };
+  }, []);
+
+  return { schedule, flush };
+}
+
 // ─── Color Swatch ────────────────────────────────────────────────────────────
 
 function ColorSwatch({
@@ -100,9 +159,9 @@ function ColorSwatch({
   );
 }
 
-// ─── Sub-panels ──────────────────────────────────────────────────────────────
+// ─── Inspector Sub-panels ────────────────────────────────────────────────────
 
-function EmptySelection({ projectId }: { projectId?: string }) {
+function EmptySelection() {
   const { state } = useCanvas();
   const refCount = state.items.filter((i) => i.kind === "reference").length;
   const artboardCount = state.items.filter((i) => i.kind === "artboard").length;
@@ -117,6 +176,78 @@ function EmptySelection({ projectId }: { projectId?: string }) {
         <div>{refCount} reference{refCount !== 1 ? "s" : ""}</div>
         <div>{artboardCount} artboard{artboardCount !== 1 ? "s" : ""}</div>
         <div>{zoom}% zoom</div>
+      </div>
+    </div>
+  );
+}
+
+function ReferenceSize({
+  item,
+  dispatch,
+}: {
+  item: ReferenceItem;
+  dispatch: (action: import("@/lib/canvas/canvas-reducer").CanvasAction) => void;
+}) {
+  const [locked, setLocked] = React.useState(true);
+  const aspectRatio = item.width / (item.height || 1);
+
+  return (
+    <div className="flex items-end gap-1">
+      <div className="flex-1">
+        <FieldLabel>W</FieldLabel>
+        <input
+          type="number"
+          value={Math.round(item.width)}
+          className={numInputCls}
+          onChange={(e) => {
+            const newW = Number(e.target.value);
+            dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
+            if (locked) {
+              const newH = Math.round(newW / aspectRatio);
+              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW, height: newH } });
+            } else {
+              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW } });
+            }
+          }}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={() => setLocked((v) => !v)}
+        className="mb-1 flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1E5DF2] hover:bg-[#F5F5F0] transition-colors"
+        title={locked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+          {locked ? (
+            <>
+              <path d="M2 5.5V3a4 4 0 0 1 8 0v2.5" />
+              <rect x="1" y="5.5" width="10" height="5.5" rx="1" />
+            </>
+          ) : (
+            <>
+              <path d="M2 5.5V3a4 4 0 0 1 8 0" />
+              <rect x="1" y="5.5" width="10" height="5.5" rx="1" />
+            </>
+          )}
+        </svg>
+      </button>
+      <div className="flex-1">
+        <FieldLabel>H</FieldLabel>
+        <input
+          type="number"
+          value={Math.round(item.height)}
+          className={numInputCls}
+          onChange={(e) => {
+            const newH = Number(e.target.value);
+            dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
+            if (locked) {
+              const newW = Math.round(newH * aspectRatio);
+              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW, height: newH } });
+            } else {
+              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { height: newH } });
+            }
+          }}
+        />
       </div>
     </div>
   );
@@ -212,21 +343,11 @@ function ReferenceInspector({ item }: { item: ReferenceItem }) {
             dispatch({ type: "MOVE_ITEM", itemId: item.id, x: item.x, y: Number(e.target.value) });
           }} />
         </div>
-        <div>
-          <FieldLabel>W</FieldLabel>
-          <input type="number" value={Math.round(item.width)} className={numInputCls} onChange={(e) => {
-            dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
-            dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: Number(e.target.value) } });
-          }} />
-        </div>
-        <div>
-          <FieldLabel>H</FieldLabel>
-          <input type="number" value={Math.round(item.height)} className={numInputCls} onChange={(e) => {
-            dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
-            dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { height: Number(e.target.value) } });
-          }} />
-        </div>
       </div>
+
+      {/* Size with aspect ratio lock */}
+      <SectionHeader>Size</SectionHeader>
+      <ReferenceSize item={item} dispatch={dispatch} />
 
       {/* Actions */}
       <div className="mt-4 space-y-2">
@@ -312,42 +433,48 @@ function NodeInspector({
   const isTextNode = ["heading", "paragraph", "button"].includes(node.type);
   const isImageNode = node.type === "section" && Boolean(content.mediaUrl);
 
-  // Debounced content update
-  const debouncedUpdate = useDebouncedCallback((...args: unknown[]) => {
-    const key = args[0] as string;
-    const value = args[1] as string;
-    dispatch({ type: "PUSH_HISTORY", description: `Edited ${node.type} ${key}` });
+  // Debounced history push — visual updates fire instantly, history commits after 400ms/blur
+  const history = useDebouncedHistoryPush(
+    (desc) => dispatch({ type: "PUSH_HISTORY", description: desc }),
+    400
+  );
+
+  // Instant content update + schedule history
+  function updateContent(key: string, value: string) {
     dispatch({
       type: "UPDATE_NODE",
       artboardId: artboard.id,
       nodeId: node.id,
       changes: { content: { ...content, [key]: value } },
     });
-  }, 400);
+    history.schedule(`Edited ${node.type} ${key}`);
+  }
 
-  // Debounced style update
-  const debouncedStyleUpdate = useDebouncedCallback((...args: unknown[]) => {
-    const key = args[0] as string;
-    const value = args[1];
-    dispatch({ type: "PUSH_HISTORY", description: `Styled ${node.type}` });
+  // Instant style update + schedule history
+  function updateStyle(key: string, value: unknown) {
     dispatch({
       type: "UPDATE_NODE_STYLE",
       artboardId: artboard.id,
       nodeId: node.id,
       style: { [key]: value } as Partial<PageNodeStyle>,
     });
-  }, 400);
+    history.schedule(`Styled ${node.type}`);
+  }
 
+  // Local draft states
   const [textDraft, setTextDraft] = React.useState(content.text || "");
+  const [fgColorDraft, setFgColorDraft] = React.useState(style.foreground || "#1A1A1A");
+  const [bgColorDraft, setBgColorDraft] = React.useState(style.background || "");
   const [aiPrompt, setAiPrompt] = React.useState("");
 
-  React.useEffect(() => {
-    setTextDraft(content.text || "");
-  }, [content.text]);
+  // Sync drafts when node changes externally
+  React.useEffect(() => { setTextDraft(content.text || ""); }, [content.text]);
+  React.useEffect(() => { setFgColorDraft(style.foreground || "#1A1A1A"); }, [style.foreground]);
+  React.useEffect(() => { setBgColorDraft(style.background || ""); }, [style.background]);
 
   return (
     <div className="space-y-1">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+      <span data-inspector-first-section className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
         {node.type.toUpperCase()}
       </span>
 
@@ -359,8 +486,9 @@ function NodeInspector({
             value={textDraft}
             onChange={(e) => {
               setTextDraft(e.target.value);
-              debouncedUpdate("text", e.target.value);
+              updateContent("text", e.target.value);
             }}
+            onBlur={() => history.flush()}
             rows={node.type === "heading" ? 2 : 3}
             className={inputCls + " resize-none"}
           />
@@ -376,14 +504,16 @@ function NodeInspector({
               value={content.mediaUrl || ""}
               placeholder="Image URL"
               className={inputCls}
-              onChange={(e) => debouncedUpdate("mediaUrl", e.target.value)}
+              onChange={(e) => updateContent("mediaUrl", e.target.value)}
+              onBlur={() => history.flush()}
             />
             <input
               type="text"
               value={content.mediaAlt || ""}
               placeholder="Alt text"
               className={inputCls}
-              onChange={(e) => debouncedUpdate("mediaAlt", e.target.value)}
+              onChange={(e) => updateContent("mediaAlt", e.target.value)}
+              onBlur={() => history.flush()}
             />
           </div>
         </>
@@ -395,13 +525,16 @@ function NodeInspector({
           <SectionHeader>Typography</SectionHeader>
           <select
             value={style.fontFamily || ""}
-            onChange={(e) => debouncedStyleUpdate("fontFamily", e.target.value)}
+            onChange={(e) => {
+              dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { fontFamily: e.target.value } });
+              dispatch({ type: "PUSH_HISTORY", description: "Changed font" });
+            }}
             className={inputCls}
           >
             <option value="">Default</option>
             <option value="'Inter', sans-serif">Inter</option>
             <option value="'Instrument Serif', serif">Bespoke Serif</option>
-            <option value="'Geist Mono', monospace">Geist Mono</option>
+            <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
           </select>
 
           <div className="grid grid-cols-2 gap-2 mt-2">
@@ -412,7 +545,8 @@ function NodeInspector({
                 value={style.fontSize ?? ""}
                 placeholder="auto"
                 className={numInputCls}
-                onChange={(e) => debouncedStyleUpdate("fontSize", e.target.value ? Number(e.target.value) : undefined)}
+                onChange={(e) => updateStyle("fontSize", e.target.value ? Number(e.target.value) : undefined)}
+                onBlur={() => history.flush()}
               />
             </div>
             <div>
@@ -423,7 +557,8 @@ function NodeInspector({
                 placeholder="400"
                 className={numInputCls}
                 step={100}
-                onChange={(e) => debouncedStyleUpdate("fontWeight", e.target.value ? Number(e.target.value) : undefined)}
+                onChange={(e) => updateStyle("fontWeight", e.target.value ? Number(e.target.value) : undefined)}
+                onBlur={() => history.flush()}
               />
             </div>
           </div>
@@ -437,7 +572,8 @@ function NodeInspector({
                 placeholder="1.5"
                 className={numInputCls}
                 step={0.1}
-                onChange={(e) => debouncedStyleUpdate("lineHeight", e.target.value ? Number(e.target.value) : undefined)}
+                onChange={(e) => updateStyle("lineHeight", e.target.value ? Number(e.target.value) : undefined)}
+                onBlur={() => history.flush()}
               />
             </div>
             <div>
@@ -448,7 +584,8 @@ function NodeInspector({
                 placeholder="0"
                 className={numInputCls}
                 step={0.1}
-                onChange={(e) => debouncedStyleUpdate("letterSpacing", e.target.value ? Number(e.target.value) : undefined)}
+                onChange={(e) => updateStyle("letterSpacing", e.target.value ? Number(e.target.value) : undefined)}
+                onBlur={() => history.flush()}
               />
             </div>
           </div>
@@ -457,18 +594,25 @@ function NodeInspector({
           <FieldRow>
             <FieldLabel>Col</FieldLabel>
             <ColorSwatch
-              color={style.foreground || "#1A1A1A"}
+              color={fgColorDraft}
               documentColors={documentColors}
               onChange={(c) => {
+                setFgColorDraft(c);
                 dispatch({ type: "PUSH_HISTORY", description: "Changed text color" });
                 dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { foreground: c } });
               }}
             />
             <input
               type="text"
-              value={style.foreground || "#1A1A1A"}
+              value={fgColorDraft}
               className={numInputCls + " flex-1"}
-              onChange={(e) => debouncedStyleUpdate("foreground", e.target.value)}
+              onChange={(e) => {
+                setFgColorDraft(e.target.value);
+                if (isValidHex(e.target.value)) {
+                  updateStyle("foreground", e.target.value);
+                }
+              }}
+              onBlur={() => history.flush()}
             />
           </FieldRow>
         </>
@@ -478,19 +622,26 @@ function NodeInspector({
       <SectionHeader>Fill</SectionHeader>
       <FieldRow>
         <ColorSwatch
-          color={style.background || "transparent"}
+          color={bgColorDraft || "transparent"}
           documentColors={documentColors}
           onChange={(c) => {
+            setBgColorDraft(c);
             dispatch({ type: "PUSH_HISTORY", description: "Changed background" });
             dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { background: c } });
           }}
         />
         <input
           type="text"
-          value={style.background || ""}
+          value={bgColorDraft}
           placeholder="none"
           className={numInputCls + " flex-1"}
-          onChange={(e) => debouncedStyleUpdate("background", e.target.value)}
+          onChange={(e) => {
+            setBgColorDraft(e.target.value);
+            if (isValidHex(e.target.value) || e.target.value === "" || e.target.value === "transparent") {
+              updateStyle("background", e.target.value);
+            }
+          }}
+          onBlur={() => history.flush()}
         />
       </FieldRow>
 
@@ -504,7 +655,8 @@ function NodeInspector({
             value={style.paddingY ?? ""}
             placeholder="0"
             className={numInputCls + " w-16 text-center"}
-            onChange={(e) => debouncedStyleUpdate("paddingY", e.target.value ? Number(e.target.value) : undefined)}
+            onChange={(e) => updateStyle("paddingY", e.target.value ? Number(e.target.value) : undefined)}
+            onBlur={() => history.flush()}
           />
           <div className="flex items-center gap-1">
             {/* Left */}
@@ -513,7 +665,8 @@ function NodeInspector({
               value={style.paddingX ?? ""}
               placeholder="0"
               className={numInputCls + " w-16 text-center"}
-              onChange={(e) => debouncedStyleUpdate("paddingX", e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) => updateStyle("paddingX", e.target.value ? Number(e.target.value) : undefined)}
+              onBlur={() => history.flush()}
             />
             {/* Center box */}
             <div className="h-10 w-16 rounded-[2px] border border-dashed border-[#E5E5E0]" />
@@ -547,7 +700,8 @@ function NodeInspector({
             value={style.maxWidth ?? ""}
             placeholder="auto"
             className={numInputCls}
-            onChange={(e) => debouncedStyleUpdate("maxWidth", e.target.value ? Number(e.target.value) : undefined)}
+            onChange={(e) => updateStyle("maxWidth", e.target.value ? Number(e.target.value) : undefined)}
+            onBlur={() => history.flush()}
           />
         </div>
         <div>
@@ -557,7 +711,8 @@ function NodeInspector({
             value={style.minHeight ?? ""}
             placeholder="fit"
             className={numInputCls}
-            onChange={(e) => debouncedStyleUpdate("minHeight", e.target.value ? Number(e.target.value) : undefined)}
+            onChange={(e) => updateStyle("minHeight", e.target.value ? Number(e.target.value) : undefined)}
+            onBlur={() => history.flush()}
           />
         </div>
       </div>
@@ -586,13 +741,412 @@ function NodeInspector({
   );
 }
 
+// ─── Prompt Helpers ──────────────────────────────────────────────────────────
+
+function uid(prefix: string): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function artboardHeight(breakpoint: Breakpoint): number {
+  if (breakpoint === "mobile") return 1320;
+  if (breakpoint === "tablet") return 1540;
+  return 1780;
+}
+
+const ARTBOARD_START_X = 1200;
+const ARTBOARD_START_Y = 100;
+const ARTBOARD_GAP = 80;
+
+function createArtboardItems(
+  pageTree: PageNode,
+  siteId: string,
+  compiledCode?: string | null
+): ArtboardItem[] {
+  const layouts: Array<{ breakpoint: Breakpoint; label: string; xOffset: number }> = [
+    { breakpoint: "desktop", label: "Desktop", xOffset: 0 },
+    { breakpoint: "tablet", label: "Tablet", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP },
+    { breakpoint: "mobile", label: "Mobile", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP + BREAKPOINT_WIDTHS.tablet + ARTBOARD_GAP },
+  ];
+
+  return layouts.map(({ breakpoint, label, xOffset }, i) => ({
+    id: uid("artboard"),
+    kind: "artboard" as const,
+    x: ARTBOARD_START_X + xOffset,
+    y: ARTBOARD_START_Y,
+    width: BREAKPOINT_WIDTHS[breakpoint],
+    height: artboardHeight(breakpoint),
+    zIndex: 1000 + i,
+    locked: false,
+    siteId,
+    breakpoint,
+    name: `${label} ${BREAKPOINT_WIDTHS[breakpoint]}`,
+    pageTree: structuredClone(pageTree),
+    compiledCode: compiledCode ?? null,
+  }));
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function getSuggestionChips(
+  selectedNode: PageNode | null,
+  hasArtboards: boolean
+): string[] {
+  if (selectedNode) {
+    const isText = ["heading", "paragraph", "button"].includes(selectedNode.type);
+    if (isText) return ["Rewrite this text", "Change font", "Make this darker"];
+    return ["Redesign this section", "Add more whitespace", "Change the layout"];
+  }
+  if (hasArtboards) return ["Add a pricing section", "Tighten the layout", "Improve mobile"];
+  return ["Generate a landing page", "Add a hero section", "Change the color scheme"];
+}
+
+// ─── Prompt Composer (embedded) ──────────────────────────────────────────────
+
+function PromptComposer({
+  textareaRef,
+  selectedNode,
+}: {
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  selectedNode: PageNode | null;
+}) {
+  const { state, dispatch } = useCanvas();
+  const { prompt, items, selection } = state;
+
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [agentSteps, setAgentSteps] = React.useState<string[]>([]);
+  const historyEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Reference context: selected references, or all references if none selected
+  const referenceItems = React.useMemo(() => {
+    const selectedRefs = items.filter(
+      (item): item is ReferenceItem =>
+        item.kind === "reference" &&
+        selection.selectedItemIds.includes(item.id)
+    );
+    if (selectedRefs.length > 0) return selectedRefs;
+    return items.filter(
+      (item): item is ReferenceItem => item.kind === "reference"
+    );
+  }, [items, selection.selectedItemIds]);
+
+  const hasArtboards = items.some((i) => i.kind === "artboard");
+  const chips = getSuggestionChips(selectedNode, hasArtboards);
+
+  const refSummary = referenceItems.length > 0
+    ? `${referenceItems.length} ref${referenceItems.length !== 1 ? "s" : ""} as context`
+    : "No references";
+
+  // Scroll history to bottom on new entry
+  React.useEffect(() => {
+    historyEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [prompt.history.length]);
+
+  // ── Generation pipeline ────────────────────────────────────────────
+
+  const handleGenerate = React.useCallback(async () => {
+    if (!prompt.value.trim()) {
+      setError("Add a prompt before generating.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setAgentSteps(["Analyzing references..."]);
+
+    try {
+      // Step 1: Analyze reference images
+      const imageUrls = referenceItems.slice(0, 6).map((ref) => ref.imageUrl);
+
+      let tokens = null;
+
+      if (imageUrls.length > 0) {
+        const analyzeRes = await fetch("/api/canvas/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ images: imageUrls }),
+        });
+
+        if (!analyzeRes.ok) {
+          const data = await analyzeRes.json().catch(() => ({}));
+          throw new Error(data.error || `Analysis failed (${analyzeRes.status})`);
+        }
+
+        const analyzeData = await analyzeRes.json();
+
+        // Step 2: Generate design system from analysis
+        setAgentSteps((s) => [...s, "Extracting design tokens..."]);
+        const systemRes = await fetch("/api/canvas/generate-system", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ analysis: analyzeData.analysis, mode: "auto" }),
+        });
+
+        if (systemRes.ok) {
+          const systemData = await systemRes.json();
+          tokens = systemData.tokens;
+        }
+      }
+
+      // Step 3: Generate component/site
+      setAgentSteps((s) => [...s, "Generating layout..."]);
+      const generateRes = await fetch("/api/canvas/generate-component", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "variants",
+          prompt: prompt.value.trim(),
+          tokens,
+          referenceUrls: imageUrls,
+          siteType: prompt.siteType,
+          siteName: prompt.value.trim().slice(0, 50),
+        }),
+      });
+
+      const generateData = await generateRes.json();
+      if (!generateRes.ok) {
+        throw new Error(generateData.error || "Generation failed");
+      }
+
+      setAgentSteps((s) => [...s, "Building components..."]);
+
+      // Single-variant normalization
+      const variants = Array.isArray(generateData.variants) ? generateData.variants : [];
+      if (variants.length === 0) {
+        throw new Error("No variants returned from generation");
+      }
+
+      const safeVariant = variants.find(
+        (v: { strategy?: string }) => v.strategy === "safe"
+      );
+      const chosenVariant = safeVariant ?? variants[0];
+
+      if (!chosenVariant.pageTree) {
+        throw new Error("Chosen variant has no page tree");
+      }
+
+      // Create artboard items
+      const siteId = uid("site");
+      const artboards = createArtboardItems(
+        chosenVariant.pageTree,
+        siteId,
+        chosenVariant.compiledCode
+      );
+
+      // Build prompt run entry
+      const promptEntry: PromptRun = {
+        id: uid("run"),
+        createdAt: new Date().toISOString(),
+        prompt: prompt.value.trim(),
+        siteType: prompt.siteType,
+        referenceItemIds: referenceItems.map((ref) => ref.id),
+        siteId,
+        label: prompt.value.trim().length > 40
+          ? prompt.value.trim().slice(0, 40) + "..."
+          : prompt.value.trim(),
+      };
+
+      dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setLoading(false);
+      setAgentSteps([]);
+    }
+  }, [prompt.value, prompt.siteType, referenceItems, dispatch]);
+
+  // ── Restore from history ───────────────────────────────────────────
+
+  const handleRestore = React.useCallback(
+    (run: PromptRun) => {
+      const existingArtboards = items.filter(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.siteId === run.siteId
+      );
+
+      if (existingArtboards.length > 0) {
+        dispatch({
+          type: "REPLACE_SITE",
+          artboards: existingArtboards,
+          promptEntry: run,
+        });
+      }
+    },
+    [items, dispatch]
+  );
+
+  // ── Textarea auto-grow ─────────────────────────────────────────────
+
+  const adjustTextareaHeight = React.useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const lineHeight = 20;
+    const maxHeight = lineHeight * 4; // max 4 rows
+    el.style.height = Math.min(el.scrollHeight, maxHeight) + "px";
+  }, [textareaRef]);
+
+  React.useEffect(() => {
+    adjustTextareaHeight();
+  }, [prompt.value, adjustTextareaHeight]);
+
+  // ── Render ─────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="shrink-0 px-3 pt-3 pb-1">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+          Prompt
+        </span>
+      </div>
+
+      {/* Scrollable area: history + chips */}
+      <div className="flex-1 overflow-y-auto px-3 min-h-0">
+        {/* Prompt history */}
+        {prompt.history.length > 0 && (
+          <div className="space-y-1 mb-3">
+            {prompt.history.map((run) => (
+              <div
+                key={run.id}
+                className="rounded-[2px] px-2 py-1.5 hover:bg-[#F5F5F0] transition-colors"
+              >
+                <div className="text-[12px] text-[#1A1A1A] truncate">
+                  &ldquo;{run.label}&rdquo;
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[10px] text-[#A0A0A0] font-mono">
+                    {run.referenceItemIds.length} ref{run.referenceItemIds.length !== 1 ? "s" : ""} · {relativeTime(run.createdAt)}
+                  </span>
+                  <button
+                    onClick={() => handleRestore(run)}
+                    className="text-[11px] text-[#1E5DF2] hover:underline"
+                  >
+                    Restore
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div ref={historyEndRef} />
+          </div>
+        )}
+
+        {/* Suggestion chips */}
+        <div className="flex flex-wrap gap-1.5 py-2">
+          {chips.map((chip) => (
+            <button
+              key={chip}
+              onClick={() => dispatch({ type: "SET_PROMPT", value: chip })}
+              className="bg-[#F5F5F0] text-[#6B6B6B] rounded-[4px] px-2.5 py-1 text-[11px] hover:bg-[#E5E5E0] hover:text-[#1A1A1A] cursor-pointer transition-colors"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        {/* Context row: refs + site type */}
+        <div className="flex items-center gap-2 py-1">
+          <span className="text-[10px] text-[#A0A0A0]">{refSummary}</span>
+          <select
+            value={prompt.siteType}
+            onChange={(e) => dispatch({ type: "SET_SITE_TYPE", siteType: e.target.value as SiteType })}
+            className="ml-auto rounded-[2px] border border-[#E5E5E0] bg-white px-1.5 py-0.5 text-[10px] text-[#6B6B6B] outline-none focus:border-[#D1E4FC]"
+          >
+            {SITE_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="text-[11px] text-red-500 py-1">{error}</div>
+        )}
+      </div>
+
+      {/* Input area (pinned to bottom) */}
+      <div className="shrink-0 px-3 pb-3 pt-2">
+        {loading ? (
+          <div className="space-y-1.5 py-2">
+            {/* Agent log steps */}
+            {agentSteps.map((step, i) => (
+              <div
+                key={i}
+                className="text-[10px] font-mono text-[#A0A0A0]"
+                style={{ animation: "agent-step-fade 300ms ease-out forwards" }}
+              >
+                {step}
+              </div>
+            ))}
+            <div className="flex items-center gap-2 pt-1">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1E5DF2]" />
+              <span className="text-[11px] font-mono text-[#A0A0A0] animate-pulse">
+                GENERATING...
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              id="prompt-textarea"
+              value={prompt.value}
+              onChange={(e) => {
+                dispatch({ type: "SET_PROMPT", value: e.target.value });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGenerate();
+                }
+              }}
+              placeholder="What would you like to change?"
+              rows={1}
+              disabled={loading}
+              className="w-full border border-[#E5E5E0] rounded-[4px] bg-white px-3 py-2 pr-9 text-[13px] resize-none outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 disabled:opacity-50"
+            />
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !prompt.value.trim()}
+              className="absolute right-2 bottom-2 text-[#1E5DF2] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
+            >
+              <ArrowRight size={14} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
-export function InspectorPanelV3({ projectId }: { projectId?: string }) {
-  const { state } = useCanvas();
-  const { selection, items } = state;
+const MIN_SECTION_HEIGHT = 120;
 
-  // Collect document colors from all reference extracted data
+type InspectorPanelV3Props = {
+  projectId?: string;
+  promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+};
+
+export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPanelV3Props) {
+  const { state, dispatch } = useCanvas();
+  const { selection, items, prompt } = state;
+
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = promptTextareaRef ?? internalTextareaRef;
+
+  // ── Inspector content logic ────────────────────────────────────────
+
   const documentColors = React.useMemo(() => {
     const colors: string[] = [];
     for (const item of items) {
@@ -600,29 +1154,25 @@ export function InspectorPanelV3({ projectId }: { projectId?: string }) {
         colors.push(...item.extracted.colors);
       }
     }
-    // Deduplicate
     return [...new Set(colors)];
   }, [items]);
 
-  // Determine what's selected
   const selectedItems = items.filter((item) =>
     selection.selectedItemIds.includes(item.id)
   );
   const singleSelected: CanvasItem | null =
     selectedItems.length === 1 ? selectedItems[0] : null;
 
-  // If a node is selected within an artboard
   const activeArtboard = singleSelected?.kind === "artboard" ? singleSelected : null;
   const selectedNode: PageNode | null =
     activeArtboard && selection.selectedNodeId
       ? findNodeById(activeArtboard.pageTree, selection.selectedNodeId)
       : null;
 
-  // Render the appropriate sub-panel
-  let content: React.ReactNode;
+  let inspectorContent: React.ReactNode;
 
   if (selectedNode && activeArtboard) {
-    content = (
+    inspectorContent = (
       <NodeInspector
         artboard={activeArtboard}
         node={selectedNode}
@@ -630,16 +1180,105 @@ export function InspectorPanelV3({ projectId }: { projectId?: string }) {
       />
     );
   } else if (singleSelected?.kind === "reference") {
-    content = <ReferenceInspector item={singleSelected} />;
+    inspectorContent = <ReferenceInspector item={singleSelected} />;
   } else if (singleSelected?.kind === "artboard") {
-    content = <ArtboardInspector item={singleSelected} />;
+    inspectorContent = <ArtboardInspector item={singleSelected} />;
   } else {
-    content = <EmptySelection projectId={projectId} />;
+    inspectorContent = <EmptySelection />;
   }
 
+  // ── Scroll-to on node selection ──────────────────────────────────────
+  const inspectorScrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!selection.selectedNodeId) return;
+    const scrollEl = inspectorScrollRef.current;
+    if (!scrollEl) return;
+    const target = scrollEl.querySelector("[data-inspector-first-section]");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selection.selectedNodeId]);
+
+  // ── Split ratio ────────────────────────────────────────────────────
+
+  const hasSelection = selection.selectedItemIds.length > 0;
+  const defaultRatio = hasSelection ? 0.6 : 0.4;
+  const splitRatio = prompt.splitRatio ?? defaultRatio;
+
+  // Divider drag
+  const isDraggingDivider = React.useRef(false);
+
+  const handleDividerPointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      isDraggingDivider.current = true;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        if (!isDraggingDivider.current || !panel) return;
+        const panelRect = panel.getBoundingClientRect();
+        const panelHeight = panelRect.height;
+        const pointerY = moveEvent.clientY - panelRect.top;
+
+        // Clamp so both sections are >= MIN_SECTION_HEIGHT
+        const minRatio = MIN_SECTION_HEIGHT / panelHeight;
+        const maxRatio = 1 - MIN_SECTION_HEIGHT / panelHeight;
+        const newRatio = Math.max(minRatio, Math.min(maxRatio, pointerY / panelHeight));
+
+        dispatch({ type: "SET_SPLIT_RATIO", ratio: newRatio });
+      };
+
+      const handleUp = () => {
+        isDraggingDivider.current = false;
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    },
+    [dispatch]
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────
+
   return (
-    <div className="absolute right-0 top-0 bottom-0 z-20 w-[280px] overflow-y-auto border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm">
-      <div className="p-4">{content}</div>
+    <div
+      ref={panelRef}
+      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
+    >
+      {/* Inspector section (top) */}
+      <div
+        ref={inspectorScrollRef}
+        className="overflow-y-auto shrink-0"
+        style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : "100%" }}
+      >
+        <div className="p-4">{inspectorContent}</div>
+      </div>
+
+      {/* Divider + Prompt section (bottom) */}
+      {prompt.isOpen && (
+        <>
+          {/* Draggable divider */}
+          <div
+            className="h-1 cursor-row-resize group relative shrink-0"
+            onPointerDown={handleDividerPointerDown}
+          >
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-[#E5E5E0] group-hover:h-[2px] group-hover:bg-[#D1E4FC] transition-all" />
+          </div>
+
+          {/* Prompt composer section (bottom) */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <PromptComposer
+              textareaRef={textareaRef}
+              selectedNode={selectedNode}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

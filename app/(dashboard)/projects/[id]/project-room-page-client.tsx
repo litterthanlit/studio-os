@@ -206,7 +206,7 @@ export function ProjectRoomPageClient({
                   <span className="text-[12px] text-text-secondary">Typography</span>
                   <div className="flex flex-col gap-1">
                     <span className="text-[14px] font-medium text-text-primary">{project.headingFont?.family || "Geist Sans"} (Heading)</span>
-                    <span className="text-[14px] font-medium text-text-primary">{project.bodyFont?.family || "Geist Mono"} (Mono)</span>
+                    <span className="text-[14px] font-medium text-text-primary">{project.bodyFont?.family || "IBM Plex Mono"} (Mono)</span>
                   </div>
                 </div>
               </CardContent>

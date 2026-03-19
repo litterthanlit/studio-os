@@ -55,6 +55,7 @@ export type CanvasAction =
   | { type: "SET_PROMPT"; value: string }
   | { type: "SET_SITE_TYPE"; siteType: import("./templates").SiteType }
   | { type: "TOGGLE_PROMPT_PANEL" }
+  | { type: "SET_SPLIT_RATIO"; ratio: number }
   | { type: "ADD_PROMPT_HISTORY"; entry: PromptRun }
 
   // Generation
@@ -377,6 +378,13 @@ export function canvasReducer(
       return {
         ...state,
         prompt: { ...state.prompt, isOpen: !state.prompt.isOpen },
+      };
+    }
+
+    case "SET_SPLIT_RATIO": {
+      return {
+        ...state,
+        prompt: { ...state.prompt, splitRatio: action.ratio },
       };
     }
 

@@ -136,7 +136,7 @@ export const webRedesignTemplate: Template = {
   palette: ["#0a0a0a", "#1c1c1c", "#0070f3", "#ffffff", "#888888", "#3333ff"],
   fonts: [
     { heading: "Inter", body: "Inter" },
-    { heading: "Geist", body: "Geist Mono" },
+    { heading: "Geist", body: "IBM Plex Mono" },
   ],
   references: [
     {

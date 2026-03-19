@@ -11,7 +11,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { getProjectState } from "@/lib/project-store";
+import { getProjectState, PROJECT_STATE_UPDATED_EVENT } from "@/lib/project-store";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
 import { useDrag } from "../hooks/useDrag";
@@ -47,9 +47,36 @@ type UnifiedCanvasViewProps = {
   projectId: string;
 };
 
+function createLoadingArtboards() {
+  const emptyPage = {
+    id: "loading-page",
+    type: "page" as const,
+    name: "Loading",
+    children: [],
+  };
+
+  return [
+    { id: "loading-desktop", breakpoint: "desktop" as const, width: 1440, x: 1200, name: "Desktop 1440" },
+    { id: "loading-tablet", breakpoint: "tablet" as const, width: 768, x: 2720, name: "Tablet 768" },
+    { id: "loading-mobile", breakpoint: "mobile" as const, width: 390, x: 3568, name: "Mobile 390" },
+  ].map((artboard, index) => ({
+    ...artboard,
+    kind: "artboard" as const,
+    y: 100,
+    height: artboard.breakpoint === "desktop" ? 1780 : artboard.breakpoint === "tablet" ? 1540 : 1320,
+    zIndex: 1000 + index,
+    locked: true,
+    siteId: "loading-site",
+    pageTree: emptyPage,
+    compiledCode: null,
+  }));
+}
+
 export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const { state, dispatch } = useCanvas();
   const { viewport, items } = state;
+  const loadingArtboards = React.useMemo(() => createLoadingArtboards(), []);
+  const hasArtboards = items.some((item) => item.kind === "artboard");
 
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(false);
@@ -80,10 +107,14 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // Load design tokens from project state for artboard rendering
   const [tokens, setTokens] = React.useState<DesignSystemTokens | null>(null);
   React.useEffect(() => {
-    const projectState = getProjectState(projectId);
-    if (projectState.canvas?.designTokens) {
-      setTokens(projectState.canvas.designTokens);
-    }
+    const syncTokens = () => {
+      const projectState = getProjectState(projectId);
+      setTokens(projectState.canvas?.designTokens ?? null);
+    };
+
+    syncTokens();
+    window.addEventListener(PROJECT_STATE_UPDATED_EVENT, syncTokens);
+    return () => window.removeEventListener(PROJECT_STATE_UPDATED_EVENT, syncTokens);
   }, [projectId]);
 
   // ── Drag state for visual feedback ─────────────────────────────────
@@ -159,6 +190,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       });
     },
   });
+  const { containerRef, handlePointerDown } = gestureHandlers;
 
   // ── File drop support ──────────────────────────────────────────────
 
@@ -166,7 +198,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   const screenToCanvas = React.useCallback(
     (screenX: number, screenY: number) => {
-      const container = gestureHandlers.containerRef.current;
+      const container = containerRef.current;
       if (!container) return { x: 0, y: 0 };
       const rect = container.getBoundingClientRect();
       return {
@@ -174,7 +206,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         y: (screenY - rect.top - viewport.pan.y) / viewport.zoom,
       };
     },
-    [viewport, gestureHandlers.containerRef]
+    [containerRef, viewport]
   );
 
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
@@ -242,7 +274,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       e.preventDefault();
 
       // Paste at viewport center
-      const container = gestureHandlers.containerRef.current;
+      const container = containerRef.current;
       const centerX = container ? container.clientWidth / 2 : 500;
       const centerY = container ? container.clientHeight / 2 : 400;
       const canvasPos = {
@@ -278,7 +310,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [dispatch, items.length, viewport, gestureHandlers.containerRef]);
+  }, [containerRef, dispatch, items.length, viewport]);
 
   // ── Click on empty canvas → deselect ───────────────────────────────
 
@@ -295,7 +327,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   return (
     <div
-      ref={gestureHandlers.containerRef}
+      ref={containerRef}
       className={cn(
         "relative h-full w-full overflow-hidden bg-[#FAFAF8]",
         isDragOver && "ring-2 ring-inset ring-[#1E5DF2] ring-dashed"
@@ -306,7 +338,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         backgroundSize: "20px 20px",
       }}
       onClick={handleCanvasClick}
-      onPointerDownCapture={gestureHandlers.handlePointerDown}
+      onPointerDownCapture={handlePointerDown}
       onAuxClick={(e) => { if (e.button === 1) e.preventDefault(); }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -360,6 +392,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   item={item}
                   tokens={tokens}
                   isDragging={draggingId === item.id}
+                  isGenerating={state.prompt.isGenerating}
                   onPointerDown={dragHandlers.onPointerDown}
                 />
               );
@@ -385,6 +418,17 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               return null;
           }
         })}
+
+        {!hasArtboards &&
+          state.prompt.isGenerating &&
+          loadingArtboards.map((item) => (
+            <CanvasArtboard
+              key={item.id}
+              item={item}
+              tokens={tokens}
+              isGenerating
+            />
+          ))}
       </div>
 
       {/* Layers panel */}

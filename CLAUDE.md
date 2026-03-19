@@ -114,7 +114,7 @@ No `rounded-xl` (12px+), no pill shapes except avatars/status dots.
 ### Typography
 - **Bespoke Serif** (`font-serif` / `--font-instrument-serif`) — display headings only (page greetings, section titles). Loaded via Google Fonts `<link>` in `app/layout.tsx`. NEVER for body copy or UI labels.
 - **Geist Sans** — all UI text, body copy, buttons, labels.
-- **IBM Plex Mono** — overline kickers (`.mono-kicker`), code, data values, mono labels. Loaded via `next/font/google` in `app/layout.tsx`. Replaces Geist Mono as of V3.1.
+- **IBM Plex Mono** — overline kickers (`.mono-kicker`), code, data values, mono labels. Loaded via Google Fonts runtime stylesheet in `app/layout.tsx`. Replaces Geist Mono as of V3.1.
 - Scale: Display 28–36px → H1 22px → H2 17px → Body 14px → Small 13px → Caption 11px → Mono overline 10px.
 
 ### Icons
@@ -140,13 +140,15 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence
 - `lib/canvas/canvas-reducer.ts` + `canvas-context.tsx` + `history.ts` — state engine
 
-**V3.1 Polish** (complete):
+**V3.1 Polish** (complete, verified 2026-03-19):
 - Middle-mouse pan fix — capture phase on canvas root, `onAuxClick` suppression
 - Embedded prompt — floating PromptPanel removed, prompt/history/chips/generation embedded in inspector right rail split panel with draggable divider
 - Live editing feel — instant visual updates from inspector, debounced history (400ms/blur), blue caret in contentEditable, lighter edit-mode outline
 - Reference resize — 8 handles (corners + edges), aspect-ratio lock, inspector W/H with lock toggle
 - Visual polish — V2 dot grid, scan-line sweep on references, halftone on artboards, generation skeleton + agent log steps
-- IBM Plex Mono — replaces Geist Mono globally via `next/font/google` + CSS variable cascade
+- Prompt resilience — generation now falls back to local/default design tokens when remote image analysis is unavailable, so prompt runs still create artboards/history in demo or offline-ish environments
+- Prompt history restore — each run stores an artboard snapshot so Restore can reinstate prior generations even after newer site replacements
+- IBM Plex Mono — replaces Geist Mono globally via Google Fonts runtime stylesheet + CSS variable/fallback cascade
 - `app/canvas-v1/hooks/useResize.ts` — resize hook (zoom-aware, aspect-ratio, min size)
 - `app/canvas-v1/components/ResizeHandles.tsx` — 8-handle resize UI
 

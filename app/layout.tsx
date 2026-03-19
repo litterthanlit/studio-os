@@ -2,14 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelCircle } from "geist/font/pixel";
-import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-ibm-plex-mono",
-});
 import { ThemeProvider } from "@/components/theme-provider";
 import { Preloader } from "@/components/preloader";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -68,12 +61,13 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable} ${ibmPlexMono.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable}`}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Bespoke+Serif:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        {/* Runtime stylesheet avoids build-time font fetches while keeping the V3.1 mono stack available everywhere. */}
+        <link href="https://fonts.googleapis.com/css2?family=Bespoke+Serif:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
         {/* Prevent flash of wrong theme — runs before React hydrates */}
         <script
           dangerouslySetInnerHTML={{

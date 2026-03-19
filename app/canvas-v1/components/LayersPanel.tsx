@@ -80,11 +80,19 @@ function TreeNode({
   expandedRef: React.MutableRefObject<Set<string>>;
 }) {
   const hasChildren = node.children && node.children.length > 0;
-  const [expanded, setExpanded] = React.useState(() => {
-    if (expandedRef.current.has(node.id)) return true;
-    if (expandedRef.current.has(`collapsed:${node.id}`)) return false;
-    return defaultExpanded;
-  });
+  const [expanded, setExpanded] = React.useState(defaultExpanded);
+
+  React.useEffect(() => {
+    if (expandedRef.current.has(node.id)) {
+      setExpanded(true);
+      return;
+    }
+    if (expandedRef.current.has(`collapsed:${node.id}`)) {
+      setExpanded(false);
+      return;
+    }
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded, expandedRef, node.id]);
 
   const isSelected = selectedNodeId === node.id;
 

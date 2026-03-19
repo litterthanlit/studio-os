@@ -6,6 +6,58 @@ import {
 } from "@/lib/canvas/analyze-images";
 import { getRouter, GEMINI_FLASH, imageUrlBlock } from "@/lib/ai/model-router";
 
+function fallbackAnalysis(images: string[]): ImageAnalysis {
+  const usedImageCount = Math.min(images.length, 8);
+
+  return {
+    colors: {
+      dominant: ["#1E5DF2", "#0F172A", "#FAFAF8"],
+      accents: ["#4B83F7"],
+      neutrals: ["#FAFAF8", "#FFFFFF", "#E5E5E0"],
+      confidence: {
+        dominant: 0.45,
+        accents: 0.4,
+        neutrals: 0.5,
+      },
+    },
+    typography: {
+      category: "sans-serif",
+      weights: ["400", "500", "700"],
+      hierarchy: "Large editorial hero with structured supporting copy.",
+      confidence: 0.35,
+    },
+    spacing: {
+      density: "comfortable",
+      rhythm: "modular",
+      confidence: 0.4,
+    },
+    vibe: {
+      density: "balanced",
+      tone: "neutral",
+      energy: "moderate",
+    },
+    designDirection: "Clean product marketing with an editorial blue accent and generous spacing.",
+    summary:
+      "Fallback analysis generated locally because the remote provider was unavailable. Use this as a steady baseline rather than a literal extraction from the references.",
+    quality: {
+      scores: Array.from({ length: usedImageCount }, () => ({
+        composition: 6,
+        colorHarmony: 6,
+        visualNoise: 3,
+        designRelevance: 6,
+        overall: 6,
+        usedForExtraction: true,
+      })),
+      dominantVibe: {
+        label: "fallback",
+        description: "Local fallback analysis generated because the remote provider was unavailable.",
+        matchingImageIndices: images.map((_, index) => index).slice(0, usedImageCount),
+      },
+      usableImageCount: usedImageCount,
+    },
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -19,10 +71,9 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "OPENROUTER_API_KEY not configured. Add it to your .env.local file." },
-        { status: 500 }
-      );
+      // Demo/offline mode: keep the V3.1 prompt flow alive with a deterministic
+      // local analysis instead of hard-failing the entire generation request.
+      return NextResponse.json({ analysis: fallbackAnalysis(images), fallback: true });
     }
 
     const router = getRouter();
@@ -92,8 +143,8 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Analysis failed";
     const stack = err instanceof Error ? err.stack : "";
-    console.error(`[canvas/analyze] Error: ${message}`);
-    if (stack) console.error(`[canvas/analyze] Stack: ${stack}`);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.warn(`[canvas/analyze] Falling back after error: ${message}`);
+    if (stack) console.warn(`[canvas/analyze] Stack: ${stack}`);
+    return NextResponse.json({ analysis: fallbackAnalysis([]), fallback: true });
   }
 }

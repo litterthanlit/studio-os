@@ -37,6 +37,8 @@ export type UnifiedCanvasState = {
     isOpen: boolean;
     history: PromptRun[];
     splitRatio?: number;
+    isGenerating: boolean;
+    agentSteps: string[];
   };
   exportArtifact: ExportArtifact | null;
   updatedAt: string;
@@ -94,7 +96,13 @@ export type PromptRun = {
   referenceItemIds: string[];
   siteId: string;
   label: string;
+  artboards?: PromptRunArtboard[];
 };
+
+export type PromptRunArtboard = Pick<
+  ArtboardItem,
+  "breakpoint" | "name" | "pageTree" | "compiledCode"
+>;
 
 export type ExportArtifact = {
   siteId: string;
@@ -135,7 +143,14 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     viewport: { pan: { x: 0, y: 0 }, zoom: 0.5 },
     items: [],
     selection: { selectedItemIds: [], activeArtboardId: null, selectedNodeId: null },
-    prompt: { value: "", siteType: "auto", history: [], isOpen: true },
+    prompt: {
+      value: "",
+      siteType: "auto",
+      history: [],
+      isOpen: true,
+      isGenerating: false,
+      agentSteps: [],
+    },
     exportArtifact: null,
     updatedAt: new Date().toISOString(),
   };
@@ -500,6 +515,13 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
   const toSave: UnifiedCanvasState = {
     ...state,
     items: strippedItems,
+    // Never persist an in-flight generation session. Reloads should reopen in
+    // a stable idle state, not with stale spinners or agent logs.
+    prompt: {
+      ...state.prompt,
+      isGenerating: false,
+      agentSteps: [],
+    },
   };
 
   try {
@@ -557,7 +579,15 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.schemaVersion === 3 && Array.isArray(parsed.items)) {
-        return parsed as UnifiedCanvasState;
+        return {
+          ...(parsed as UnifiedCanvasState),
+          prompt: {
+            ...createEmptyCanvas().prompt,
+            ...(parsed as UnifiedCanvasState).prompt,
+            isGenerating: false,
+            agentSteps: [],
+          },
+        };
       }
     }
   } catch {

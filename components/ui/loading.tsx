@@ -42,7 +42,7 @@ export function ProgressBar({ progress = 0, className, ...props }: ProgressBarPr
 }
 
 // --- Spinner ---
-export interface SpinnerProps extends React.SVGAttributes<SVGSVGElement> {}
+export type SpinnerProps = React.SVGAttributes<SVGSVGElement>;
 
 export function Spinner({ className, ...props }: SpinnerProps) {
   return (

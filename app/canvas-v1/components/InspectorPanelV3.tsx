@@ -13,16 +13,18 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { findNodeById, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
+import { getProjectState, upsertProjectState } from "@/lib/project-store";
 import { ColorPickerPopover } from "./ColorPickerPopover";
 import type { SiteType } from "@/lib/canvas/templates";
 import type {
   CanvasItem,
   ReferenceItem,
   ArtboardItem,
-  NoteItem,
   PromptRun,
+  PromptRunArtboard,
   Breakpoint,
 } from "@/lib/canvas/unified-canvas-state";
+import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 
 // ─── Shared classes ──────────────────────────────────────────────────────────
@@ -64,15 +66,18 @@ function useDebouncedCallback<T extends (...args: unknown[]) => void>(
 ): T {
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRef = React.useRef(callback);
-  callbackRef.current = callback;
+
+  React.useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   return React.useCallback(
-    ((...args: unknown[]) => {
+    (...args: unknown[]) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => callbackRef.current(...args), delay);
-    }) as T,
+    },
     [delay]
-  );
+  ) as T;
 }
 
 // ─── Hex validation ──────────────────────────────────────────────────────────
@@ -90,7 +95,10 @@ function useDebouncedHistoryPush(
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = React.useRef<string | null>(null);
   const callbackRef = React.useRef(pushHistory);
-  callbackRef.current = pushHistory;
+
+  React.useEffect(() => {
+    callbackRef.current = pushHistory;
+  }, [pushHistory]);
 
   const schedule = React.useCallback(
     (description: string) => {
@@ -785,6 +793,101 @@ function createArtboardItems(
   }));
 }
 
+function createArtboardItemsFromSnapshot(
+  siteId: string,
+  artboards: PromptRunArtboard[]
+): ArtboardItem[] {
+  return artboards.map((artboard, i) => ({
+    id: uid("artboard"),
+    kind: "artboard" as const,
+    x: ARTBOARD_START_X +
+      (artboard.breakpoint === "desktop"
+        ? 0
+        : artboard.breakpoint === "tablet"
+        ? BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP
+        : BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP + BREAKPOINT_WIDTHS.tablet + ARTBOARD_GAP),
+    y: ARTBOARD_START_Y,
+    width: BREAKPOINT_WIDTHS[artboard.breakpoint],
+    height: artboardHeight(artboard.breakpoint),
+    zIndex: 1000 + i,
+    locked: false,
+    siteId,
+    breakpoint: artboard.breakpoint,
+    name: artboard.name,
+    pageTree: structuredClone(artboard.pageTree),
+    compiledCode: artboard.compiledCode ?? null,
+  }));
+}
+
+function snapshotArtboards(artboards: ArtboardItem[]): PromptRunArtboard[] {
+  return artboards.map((artboard) => ({
+    breakpoint: artboard.breakpoint,
+    name: artboard.name,
+    pageTree: structuredClone(artboard.pageTree),
+    compiledCode: artboard.compiledCode ?? null,
+  }));
+}
+
+function buildFallbackTokens(existingTokens: DesignSystemTokens | null): DesignSystemTokens {
+  if (existingTokens) return existingTokens;
+
+  return {
+    colors: {
+      primary: "#1E5DF2",
+      secondary: "#0F172A",
+      accent: "#4B83F7",
+      background: "#FAFAF8",
+      surface: "#FFFFFF",
+      text: "#1A1A1A",
+      textMuted: "#6B6B6B",
+      border: "#E5E5E0",
+    },
+    typography: {
+      fontFamily: "'IBM Plex Sans', 'Helvetica Neue', sans-serif",
+      scale: {
+        xs: "0.75rem",
+        sm: "0.875rem",
+        base: "1rem",
+        lg: "1.125rem",
+        xl: "1.25rem",
+        "2xl": "1.5rem",
+        "3xl": "1.875rem",
+        "4xl": "2.25rem",
+      },
+      weights: { normal: 400, medium: 500, semibold: 600, bold: 700 },
+      lineHeight: { tight: "1.25", normal: "1.5", relaxed: "1.75" },
+    },
+    spacing: {
+      unit: 8,
+      scale: {
+        "0": "0",
+        "1": "8px",
+        "2": "16px",
+        "3": "24px",
+        "4": "32px",
+        "6": "48px",
+        "8": "64px",
+        "12": "96px",
+        "16": "128px",
+      },
+    },
+    radii: { sm: "8px", md: "16px", lg: "24px", xl: "32px", full: "9999px" },
+    shadows: {
+      sm: "0 6px 16px rgba(15, 23, 42, 0.08)",
+      md: "0 18px 40px rgba(15, 23, 42, 0.12)",
+      lg: "0 28px 60px rgba(15, 23, 42, 0.16)",
+    },
+    animation: {
+      spring: {
+        smooth: { stiffness: 120, damping: 16 },
+        snappy: { stiffness: 220, damping: 18 },
+        gentle: { stiffness: 90, damping: 20 },
+        bouncy: { stiffness: 260, damping: 14 },
+      },
+    },
+  };
+}
+
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -814,17 +917,23 @@ function getSuggestionChips(
 function PromptComposer({
   textareaRef,
   selectedNode,
+  projectId,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   selectedNode: PageNode | null;
+  projectId?: string;
 }) {
   const { state, dispatch } = useCanvas();
   const { prompt, items, selection } = state;
+  const agentSteps = prompt.agentSteps ?? [];
+  const isGenerating = prompt.isGenerating ?? false;
 
-  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [agentSteps, setAgentSteps] = React.useState<string[]>([]);
   const historyEndRef = React.useRef<HTMLDivElement>(null);
+  const projectTokens = React.useMemo(
+    () => (projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null),
+    [projectId]
+  );
 
   // Reference context: selected references, or all references if none selected
   const referenceItems = React.useMemo(() => {
@@ -859,46 +968,83 @@ function PromptComposer({
       return;
     }
 
-    setLoading(true);
     setError(null);
-    setAgentSteps(["Analyzing references..."]);
+    dispatch({
+      type: "SET_PROMPT_STATUS",
+      isGenerating: true,
+      agentSteps: ["Preparing generation..."],
+    });
 
     try {
-      // Step 1: Analyze reference images
       const imageUrls = referenceItems.slice(0, 6).map((ref) => ref.imageUrl);
+      let tokens = buildFallbackTokens(projectTokens);
 
-      let tokens = null;
-
+      // Keep generation working in local/demo environments by falling back to
+      // project/default tokens whenever remote image analysis is unavailable.
       if (imageUrls.length > 0) {
-        const analyzeRes = await fetch("/api/canvas/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ images: imageUrls }),
+        dispatch({
+          type: "SET_PROMPT_STATUS",
+          agentSteps: ["Analyzing references..."],
         });
+        try {
+          const analyzeRes = await fetch("/api/canvas/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ images: imageUrls }),
+          });
 
-        if (!analyzeRes.ok) {
-          const data = await analyzeRes.json().catch(() => ({}));
-          throw new Error(data.error || `Analysis failed (${analyzeRes.status})`);
-        }
+          if (!analyzeRes.ok) {
+            const data = await analyzeRes.json().catch(() => ({}));
+            throw new Error(data.error || `Analysis failed (${analyzeRes.status})`);
+          }
 
-        const analyzeData = await analyzeRes.json();
+          const analyzeData = await analyzeRes.json();
+          dispatch({
+            type: "SET_PROMPT_STATUS",
+            agentSteps: ["Analyzing references...", "Extracting design tokens..."],
+          });
 
-        // Step 2: Generate design system from analysis
-        setAgentSteps((s) => [...s, "Extracting design tokens..."]);
-        const systemRes = await fetch("/api/canvas/generate-system", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ analysis: analyzeData.analysis, mode: "auto" }),
-        });
+          const systemRes = await fetch("/api/canvas/generate-system", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ analysis: analyzeData.analysis, mode: "auto" }),
+          });
 
-        if (systemRes.ok) {
+          if (!systemRes.ok) {
+            const data = await systemRes.json().catch(() => ({}));
+            throw new Error(data.error || `Token generation failed (${systemRes.status})`);
+          }
+
           const systemData = await systemRes.json();
-          tokens = systemData.tokens;
+          if (systemData.tokens) {
+            tokens = systemData.tokens;
+          }
+        } catch (analysisErr) {
+          console.warn("[prompt] Falling back to local tokens:", analysisErr);
+          dispatch({
+            type: "SET_PROMPT_STATUS",
+            agentSteps: ["Analyzing references...", "Using local design defaults..."],
+          });
         }
+      } else {
+        dispatch({
+          type: "SET_PROMPT_STATUS",
+          agentSteps: ["Using local design defaults..."],
+        });
+      }
+
+      if (projectId) {
+        // Keep the artboard renderer in sync with the freshly chosen token set
+        // so generated pages immediately render instead of falling back to
+        // "No design tokens available" on first paint.
+        upsertProjectState(projectId, { canvas: { designTokens: tokens } });
       }
 
       // Step 3: Generate component/site
-      setAgentSteps((s) => [...s, "Generating layout..."]);
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        agentSteps: [...(imageUrls.length > 0 ? ["Analyzing references..."] : []), "Generating layout..."],
+      });
       const generateRes = await fetch("/api/canvas/generate-component", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -917,7 +1063,10 @@ function PromptComposer({
         throw new Error(generateData.error || "Generation failed");
       }
 
-      setAgentSteps((s) => [...s, "Building components..."]);
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        agentSteps: [...(imageUrls.length > 0 ? ["Analyzing references..."] : []), "Generating layout...", "Building artboards..."],
+      });
 
       // Single-variant normalization
       const variants = Array.isArray(generateData.variants) ? generateData.variants : [];
@@ -953,32 +1102,39 @@ function PromptComposer({
         label: prompt.value.trim().length > 40
           ? prompt.value.trim().slice(0, 40) + "..."
           : prompt.value.trim(),
+        artboards: snapshotArtboards(artboards),
       };
 
       dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
-      setLoading(false);
-      setAgentSteps([]);
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        isGenerating: false,
+        agentSteps: [],
+      });
     }
-  }, [prompt.value, prompt.siteType, referenceItems, dispatch]);
+  }, [dispatch, projectId, projectTokens, prompt.siteType, prompt.value, referenceItems]);
 
   // ── Restore from history ───────────────────────────────────────────
 
   const handleRestore = React.useCallback(
     (run: PromptRun) => {
-      const existingArtboards = items.filter(
-        (item): item is ArtboardItem =>
-          item.kind === "artboard" && item.siteId === run.siteId
-      );
-
-      if (existingArtboards.length > 0) {
+      if (run.artboards?.length) {
         dispatch({
-          type: "REPLACE_SITE",
-          artboards: existingArtboards,
-          promptEntry: run,
+          type: "RESTORE_SITE",
+          artboards: createArtboardItemsFromSnapshot(run.siteId, run.artboards),
         });
+      } else {
+        const existingArtboards = items.filter(
+          (item): item is ArtboardItem =>
+            item.kind === "artboard" && item.siteId === run.siteId
+        );
+
+        if (existingArtboards.length > 0) {
+          dispatch({ type: "RESTORE_SITE", artboards: existingArtboards });
+        }
       }
     },
     [items, dispatch]
@@ -1075,52 +1231,54 @@ function PromptComposer({
 
       {/* Input area (pinned to bottom) */}
       <div className="shrink-0 px-3 pb-3 pt-2">
-        {loading ? (
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            id="prompt-textarea"
+            value={prompt.value}
+            onChange={(e) => {
+              dispatch({ type: "SET_PROMPT", value: e.target.value });
+            }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!isGenerating) {
+                    handleGenerate();
+                  }
+                }
+              }}
+            placeholder="What would you like to change?"
+            rows={1}
+            disabled={isGenerating}
+            className="w-full border border-[#E5E5E0] rounded-[4px] bg-white px-3 py-2 pr-9 text-[13px] resize-none outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 disabled:cursor-wait disabled:opacity-60"
+          />
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !prompt.value.trim()}
+            className="absolute right-2 bottom-2 text-[#1E5DF2] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
+          >
+            <ArrowRight size={14} strokeWidth={1.5} />
+          </button>
+        </div>
+        {(isGenerating || agentSteps.length > 0) && (
           <div className="space-y-1.5 py-2">
-            {/* Agent log steps */}
             {agentSteps.map((step, i) => (
               <div
-                key={i}
+                key={`${step}-${i}`}
                 className="text-[10px] font-mono text-[#A0A0A0]"
                 style={{ animation: "agent-step-fade 300ms ease-out forwards" }}
               >
                 {step}
               </div>
             ))}
-            <div className="flex items-center gap-2 pt-1">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1E5DF2]" />
-              <span className="text-[11px] font-mono text-[#A0A0A0] animate-pulse">
-                GENERATING...
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              id="prompt-textarea"
-              value={prompt.value}
-              onChange={(e) => {
-                dispatch({ type: "SET_PROMPT", value: e.target.value });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleGenerate();
-                }
-              }}
-              placeholder="What would you like to change?"
-              rows={1}
-              disabled={loading}
-              className="w-full border border-[#E5E5E0] rounded-[4px] bg-white px-3 py-2 pr-9 text-[13px] resize-none outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 disabled:opacity-50"
-            />
-            <button
-              onClick={handleGenerate}
-              disabled={loading || !prompt.value.trim()}
-              className="absolute right-2 bottom-2 text-[#1E5DF2] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
-            >
-              <ArrowRight size={14} strokeWidth={1.5} />
-            </button>
+            {isGenerating && (
+              <div className="flex items-center gap-2 pt-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1E5DF2]" />
+                <span className="text-[11px] text-[#A0A0A0] animate-pulse">
+                  Generating...
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1275,6 +1433,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
             <PromptComposer
               textareaRef={textareaRef}
               selectedNode={selectedNode}
+              projectId={projectId}
             />
           </div>
         </>

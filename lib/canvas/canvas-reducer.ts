@@ -57,9 +57,11 @@ export type CanvasAction =
   | { type: "TOGGLE_PROMPT_PANEL" }
   | { type: "SET_SPLIT_RATIO"; ratio: number }
   | { type: "ADD_PROMPT_HISTORY"; entry: PromptRun }
+  | { type: "SET_PROMPT_STATUS"; isGenerating?: boolean; agentSteps?: string[] }
 
   // Generation
   | { type: "REPLACE_SITE"; artboards: ArtboardItem[]; promptEntry: PromptRun }
+  | { type: "RESTORE_SITE"; artboards: ArtboardItem[] }
 
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
@@ -398,6 +400,19 @@ export function canvasReducer(
       };
     }
 
+    case "SET_PROMPT_STATUS": {
+      return {
+        ...state,
+        prompt: {
+          ...state.prompt,
+          ...(typeof action.isGenerating === "boolean"
+            ? { isGenerating: action.isGenerating }
+            : {}),
+          ...(action.agentSteps ? { agentSteps: action.agentSteps } : {}),
+        },
+      };
+    }
+
     // ── Generation ────────────────────────────────────────────────────────
 
     case "REPLACE_SITE": {
@@ -419,6 +434,29 @@ export function canvasReducer(
           ...state.prompt,
           history: [...state.prompt.history, action.promptEntry],
         },
+        selection: {
+          selectedItemIds: [],
+          activeArtboardId: null,
+          selectedNodeId: null,
+        },
+        history: historyAfterPush,
+        updatedAt: now(),
+      };
+    }
+
+    case "RESTORE_SITE": {
+      const historyAfterPush = pushHistory(
+        state.history,
+        "Restored site",
+        state.items,
+        state.selection
+      );
+
+      const nonArtboards = state.items.filter((item) => item.kind !== "artboard");
+
+      return {
+        ...state,
+        items: [...nonArtboards, ...action.artboards],
         selection: {
           selectedItemIds: [],
           activeArtboardId: null,

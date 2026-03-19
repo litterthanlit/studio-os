@@ -9,12 +9,34 @@
  */
 
 import * as React from "react";
-import { ArrowRight, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  ArrowDownUp,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { findNodeById, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
-import { getProjectState, upsertProjectState } from "@/lib/project-store";
-import { ColorPickerPopover } from "./ColorPickerPopover";
+import { getProjectState, getProjectById, upsertProjectState } from "@/lib/project-store";
+import {
+  InspectorSection,
+  InspectorLabel,
+  InspectorTextInput,
+  InspectorTextarea,
+  InspectorNumberInput,
+  InspectorSelect,
+  InspectorColorField,
+  InspectorRow,
+  InspectorDivider,
+} from "./inspector/InspectorField";
+import { SpacingDiagram } from "./inspector/SpacingDiagram";
 import type { SiteType } from "@/lib/canvas/templates";
 import type {
   CanvasItem,
@@ -29,34 +51,8 @@ import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
-const inputCls =
-  "w-full border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40";
-
-const numInputCls =
-  "w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none";
-
 const ghostBtnCls =
   "border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors";
-
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-4 mb-2 font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
-      {children}
-    </p>
-  );
-}
-
-function FieldRow({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-2">{children}</div>;
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="shrink-0 w-8 text-[10px] font-mono uppercase text-[#A0A0A0]">
-      {children}
-    </span>
-  );
-}
 
 // ─── Debounce hook ───────────────────────────────────────────────────────────
 
@@ -80,10 +76,31 @@ function useDebouncedCallback<T extends (...args: unknown[]) => void>(
   ) as T;
 }
 
-// ─── Hex validation ──────────────────────────────────────────────────────────
+function normalizeHexColor(color: string): string | null {
+  const value = color.trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(value)) return null;
 
-function isValidHex(hex: string): boolean {
-  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
+  const expanded =
+    value.length === 3
+      ? value
+          .split("")
+          .map((char) => `${char}${char}`)
+          .join("")
+      : value;
+
+  return `#${expanded.toUpperCase()}`;
+}
+
+function dedupeDocumentColors(colors: string[]): string[] {
+  const uniqueColors = new Map<string, string>();
+
+  for (const color of colors) {
+    const normalized = normalizeHexColor(color);
+    if (!normalized || uniqueColors.has(normalized)) continue;
+    uniqueColors.set(normalized, normalized);
+  }
+
+  return [...uniqueColors.values()];
 }
 
 // ─── Debounced history push (instant visual, delayed history) ────────────────
@@ -136,127 +153,91 @@ function useDebouncedHistoryPush(
   return { schedule, flush };
 }
 
-// ─── Color Swatch ────────────────────────────────────────────────────────────
+// ─── Icon Toggle Group ───────────────────────────────────────────────────────
 
-function ColorSwatch({
-  color,
-  documentColors,
+function IconToggleGroup({
+  options,
+  value,
   onChange,
 }: {
-  color: string;
-  documentColors: string[];
-  onChange: (color: string) => void;
+  options: Array<{ value: string; icon: React.ReactNode; title: string }>;
+  value: string | undefined;
+  onChange: (value: string) => void;
 }) {
-  const [open, setOpen] = React.useState(false);
-
   return (
-    <div className="relative">
-      <button
-        className="h-4 w-4 rounded-[2px] border border-[#E5E5E0]"
-        style={{ backgroundColor: color || "#FFFFFF" }}
-        onClick={() => setOpen(!open)}
-      />
-      <ColorPickerPopover
-        open={open}
-        value={color || "#FFFFFF"}
-        documentColors={documentColors}
-        onSelect={onChange}
-        onClose={() => setOpen(false)}
-      />
+    <div className="flex gap-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          title={opt.title}
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
+            value === opt.value
+              ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+              : "text-[#A0A0A0] hover:bg-[#F5F5F0]"
+          )}
+        >
+          {opt.icon}
+        </button>
+      ))}
     </div>
   );
 }
 
 // ─── Inspector Sub-panels ────────────────────────────────────────────────────
 
-function EmptySelection() {
-  const { state } = useCanvas();
+function EmptySelection({ projectId }: { projectId?: string }) {
+  const { state, dispatch } = useCanvas();
   const refCount = state.items.filter((i) => i.kind === "reference").length;
   const artboardCount = state.items.filter((i) => i.kind === "artboard").length;
+  const noteCount = state.items.filter((i) => i.kind === "note").length;
   const zoom = Math.round(state.viewport.zoom * 100);
+  const projectName = projectId ? (getProjectById(projectId)?.name ?? "Project") : "Project";
 
   return (
-    <div className="space-y-3">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
-        Canvas
-      </span>
-      <div className="space-y-1 text-[12px] text-[#6B6B6B]">
-        <div>{refCount} reference{refCount !== 1 ? "s" : ""}</div>
-        <div>{artboardCount} artboard{artboardCount !== 1 ? "s" : ""}</div>
-        <div>{zoom}% zoom</div>
-      </div>
-    </div>
-  );
-}
+    <div>
+      <InspectorSection label="Canvas">
+        <InspectorLabel>Project</InspectorLabel>
+        <div className="text-[13px] text-[#1A1A1A] mb-3">{projectName}</div>
 
-function ReferenceSize({
-  item,
-  dispatch,
-}: {
-  item: ReferenceItem;
-  dispatch: (action: import("@/lib/canvas/canvas-reducer").CanvasAction) => void;
-}) {
-  const [locked, setLocked] = React.useState(true);
-  const aspectRatio = item.width / (item.height || 1);
+        <InspectorLabel>Items</InspectorLabel>
+        <div className="text-[12px] text-[#6B6B6B] mb-3">
+          {refCount} reference{refCount !== 1 ? "s" : ""} · {artboardCount} artboard{artboardCount !== 1 ? "s" : ""} · {noteCount} note{noteCount !== 1 ? "s" : ""}
+        </div>
 
-  return (
-    <div className="flex items-end gap-1">
-      <div className="flex-1">
-        <FieldLabel>W</FieldLabel>
-        <input
-          type="number"
-          value={Math.round(item.width)}
-          className={numInputCls}
-          onChange={(e) => {
-            const newW = Number(e.target.value);
-            dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
-            if (locked) {
-              const newH = Math.round(newW / aspectRatio);
-              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW, height: newH } });
-            } else {
-              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW } });
-            }
-          }}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={() => setLocked((v) => !v)}
-        className="mb-1 flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1E5DF2] hover:bg-[#F5F5F0] transition-colors"
-        title={locked ? "Unlock aspect ratio" : "Lock aspect ratio"}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-          {locked ? (
-            <>
-              <path d="M2 5.5V3a4 4 0 0 1 8 0v2.5" />
-              <rect x="1" y="5.5" width="10" height="5.5" rx="1" />
-            </>
-          ) : (
-            <>
-              <path d="M2 5.5V3a4 4 0 0 1 8 0" />
-              <rect x="1" y="5.5" width="10" height="5.5" rx="1" />
-            </>
-          )}
-        </svg>
-      </button>
-      <div className="flex-1">
-        <FieldLabel>H</FieldLabel>
-        <input
-          type="number"
-          value={Math.round(item.height)}
-          className={numInputCls}
-          onChange={(e) => {
-            const newH = Number(e.target.value);
-            dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
-            if (locked) {
-              const newW = Math.round(newH * aspectRatio);
-              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW, height: newH } });
-            } else {
-              dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { height: newH } });
-            }
-          }}
-        />
-      </div>
+        <InspectorLabel>Zoom</InspectorLabel>
+        <div className="flex items-center gap-2">
+          <InspectorNumberInput
+            value={zoom}
+            onChange={(e) => {
+              const pct = Number((e.target as HTMLInputElement).value);
+              if (pct > 0) {
+                dispatch({
+                  type: "SET_VIEWPORT",
+                  pan: state.viewport.pan,
+                  zoom: pct / 100,
+                });
+              }
+            }}
+            className="w-[60px]"
+          />
+          <button
+            type="button"
+            className={ghostBtnCls}
+            onClick={() => {
+              dispatch({
+                type: "SET_VIEWPORT",
+                pan: { x: 0, y: 0 },
+                zoom: 0.5,
+              });
+            }}
+          >
+            Fit to View
+          </button>
+        </div>
+      </InspectorSection>
     </div>
   );
 }
@@ -264,6 +245,8 @@ function ReferenceSize({
 function ReferenceInspector({ item }: { item: ReferenceItem }) {
   const { dispatch } = useCanvas();
   const [annotation, setAnnotation] = React.useState(item.annotation || "");
+  const [locked, setLocked] = React.useState(true);
+  const aspectRatio = item.width / (item.height || 1);
 
   const debouncedSave = useDebouncedCallback((...args: unknown[]) => {
     const text = args[0] as string;
@@ -272,37 +255,33 @@ function ReferenceInspector({ item }: { item: ReferenceItem }) {
   }, 400);
 
   return (
-    <div className="space-y-1">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
-        Reference
-      </span>
+    <div>
+      <InspectorSection label="Reference">
+        {/* Image preview */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.imageUrl}
+          alt={item.title || "Reference"}
+          className="w-full rounded-[2px] border border-[#E5E5E0] object-cover"
+          style={{ maxHeight: 180 }}
+        />
+      </InspectorSection>
 
-      {/* Image preview */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={item.imageUrl}
-        alt={item.title || "Reference"}
-        className="w-full rounded-[2px] border border-[#E5E5E0] object-cover"
-        style={{ maxHeight: 180 }}
-      />
-
-      {/* Annotation */}
-      <SectionHeader>Annotation</SectionHeader>
-      <textarea
-        value={annotation}
-        onChange={(e) => {
-          setAnnotation(e.target.value);
-          debouncedSave(e.target.value);
-        }}
-        placeholder="Add notes..."
-        rows={2}
-        className={inputCls + " resize-none"}
-      />
+      <InspectorSection label="Annotation">
+        <InspectorTextarea
+          value={annotation}
+          onChange={(e) => {
+            setAnnotation(e.target.value);
+            debouncedSave(e.target.value);
+          }}
+          placeholder="Add notes..."
+          rows={2}
+        />
+      </InspectorSection>
 
       {/* Extracted data */}
       {item.extracted && (
-        <>
-          <SectionHeader>Extracted</SectionHeader>
+        <InspectorSection label="Extracted">
           {item.extracted.colors.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {item.extracted.colors.map((color, i) => (
@@ -331,34 +310,98 @@ function ReferenceInspector({ item }: { item: ReferenceItem }) {
               ))}
             </div>
           )}
-        </>
+        </InspectorSection>
       )}
 
-      {/* Position */}
-      <SectionHeader>Position</SectionHeader>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <FieldLabel>X</FieldLabel>
-          <input type="number" value={Math.round(item.x)} className={numInputCls} onChange={(e) => {
-            dispatch({ type: "PUSH_HISTORY", description: "Moved reference" });
-            dispatch({ type: "MOVE_ITEM", itemId: item.id, x: Number(e.target.value), y: item.y });
-          }} />
-        </div>
-        <div>
-          <FieldLabel>Y</FieldLabel>
-          <input type="number" value={Math.round(item.y)} className={numInputCls} onChange={(e) => {
-            dispatch({ type: "PUSH_HISTORY", description: "Moved reference" });
-            dispatch({ type: "MOVE_ITEM", itemId: item.id, x: item.x, y: Number(e.target.value) });
-          }} />
-        </div>
-      </div>
+      <InspectorSection label="Position">
+        <InspectorRow>
+          <div>
+            <InspectorLabel>X</InspectorLabel>
+            <InspectorNumberInput
+              value={Math.round(item.x)}
+              className="w-full"
+              onChange={(e) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Moved reference" });
+                dispatch({ type: "MOVE_ITEM", itemId: item.id, x: Number((e.target as HTMLInputElement).value), y: item.y });
+              }}
+            />
+          </div>
+          <div>
+            <InspectorLabel>Y</InspectorLabel>
+            <InspectorNumberInput
+              value={Math.round(item.y)}
+              className="w-full"
+              onChange={(e) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Moved reference" });
+                dispatch({ type: "MOVE_ITEM", itemId: item.id, x: item.x, y: Number((e.target as HTMLInputElement).value) });
+              }}
+            />
+          </div>
+        </InspectorRow>
+      </InspectorSection>
 
-      {/* Size with aspect ratio lock */}
-      <SectionHeader>Size</SectionHeader>
-      <ReferenceSize item={item} dispatch={dispatch} />
+      <InspectorSection label="Size">
+        <div className="flex items-end gap-1">
+          <div className="flex-1">
+            <InspectorLabel>W</InspectorLabel>
+            <InspectorNumberInput
+              value={Math.round(item.width)}
+              className="w-full"
+              onChange={(e) => {
+                const newW = Number((e.target as HTMLInputElement).value);
+                dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
+                if (locked) {
+                  const newH = Math.round(newW / aspectRatio);
+                  dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW, height: newH } });
+                } else {
+                  dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW } });
+                }
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setLocked((v) => !v)}
+            className="mb-1 flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1E5DF2] hover:bg-[#F5F5F0] transition-colors"
+            title={locked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              {locked ? (
+                <>
+                  <path d="M2 5.5V3a4 4 0 0 1 8 0v2.5" />
+                  <rect x="1" y="5.5" width="10" height="5.5" rx="1" />
+                </>
+              ) : (
+                <>
+                  <path d="M2 5.5V3a4 4 0 0 1 8 0" />
+                  <rect x="1" y="5.5" width="10" height="5.5" rx="1" />
+                </>
+              )}
+            </svg>
+          </button>
+          <div className="flex-1">
+            <InspectorLabel>H</InspectorLabel>
+            <InspectorNumberInput
+              value={Math.round(item.height)}
+              className="w-full"
+              onChange={(e) => {
+                const newH = Number((e.target as HTMLInputElement).value);
+                dispatch({ type: "PUSH_HISTORY", description: "Resized reference" });
+                if (locked) {
+                  const newW = Math.round(newH * aspectRatio);
+                  dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { width: newW, height: newH } });
+                } else {
+                  dispatch({ type: "UPDATE_ITEM", itemId: item.id, changes: { height: newH } });
+                }
+              }}
+            />
+          </div>
+        </div>
+      </InspectorSection>
 
       {/* Actions */}
-      <div className="mt-4 space-y-2">
+      <InspectorDivider />
+      <div className="space-y-2">
         <button
           className={ghostBtnCls + " w-full" + (item.isStyleRef ? " border-[#1E5DF2] text-[#1E5DF2]" : "")}
           onClick={() => {
@@ -389,41 +432,148 @@ function ArtboardInspector({ item }: { item: ArtboardItem }) {
   const { dispatch } = useCanvas();
 
   return (
-    <div className="space-y-1">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
-        Artboard · {item.breakpoint.charAt(0).toUpperCase() + item.breakpoint.slice(1)}
-      </span>
-
-      <div className="text-[12px] text-[#6B6B6B] space-y-0.5">
-        <div>{item.name}</div>
-        <div className="font-mono text-[10px]">Site: {item.siteId.slice(0, 12)}…</div>
-      </div>
-
-      <SectionHeader>Position</SectionHeader>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <FieldLabel>X</FieldLabel>
-          <input type="number" value={Math.round(item.x)} className={numInputCls} onChange={(e) => {
-            dispatch({ type: "PUSH_HISTORY", description: "Moved artboard" });
-            dispatch({ type: "MOVE_ITEM", itemId: item.id, x: Number(e.target.value), y: item.y });
-          }} />
+    <div>
+      <InspectorSection label={`Artboard · ${item.breakpoint.charAt(0).toUpperCase() + item.breakpoint.slice(1)}`}>
+        <div className="text-[12px] text-[#6B6B6B] space-y-0.5">
+          <div>{item.name}</div>
+          <div className="font-mono text-[10px]">Site: {item.siteId.slice(0, 12)}…</div>
         </div>
-        <div>
-          <FieldLabel>Y</FieldLabel>
-          <input type="number" value={Math.round(item.y)} className={numInputCls} onChange={(e) => {
-            dispatch({ type: "PUSH_HISTORY", description: "Moved artboard" });
-            dispatch({ type: "MOVE_ITEM", itemId: item.id, x: item.x, y: Number(e.target.value) });
-          }} />
-        </div>
-      </div>
+      </InspectorSection>
 
-      <div className="mt-4 flex gap-2">
+      <InspectorSection label="Position">
+        <InspectorRow>
+          <div>
+            <InspectorLabel>X</InspectorLabel>
+            <InspectorNumberInput
+              value={Math.round(item.x)}
+              className="w-full"
+              onChange={(e) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Moved artboard" });
+                dispatch({ type: "MOVE_ITEM", itemId: item.id, x: Number((e.target as HTMLInputElement).value), y: item.y });
+              }}
+            />
+          </div>
+          <div>
+            <InspectorLabel>Y</InspectorLabel>
+            <InspectorNumberInput
+              value={Math.round(item.y)}
+              className="w-full"
+              onChange={(e) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Moved artboard" });
+                dispatch({ type: "MOVE_ITEM", itemId: item.id, x: item.x, y: Number((e.target as HTMLInputElement).value) });
+              }}
+            />
+          </div>
+        </InspectorRow>
+      </InspectorSection>
+
+      <InspectorSection label="Size">
+        <InspectorRow>
+          <div>
+            <InspectorLabel>Width</InspectorLabel>
+            <InspectorNumberInput value={BREAKPOINT_WIDTHS[item.breakpoint]} className="w-full" readOnly />
+          </div>
+          <div />
+        </InspectorRow>
+      </InspectorSection>
+
+      <InspectorDivider />
+      <div className="flex gap-2">
         <button className={ghostBtnCls + " flex-1"}>View Code</button>
         <button className={ghostBtnCls + " flex-1"}>Export</button>
       </div>
     </div>
   );
 }
+
+// ─── Shared Fill / Spacing / Size sections ───────────────────────────────────
+
+function FillSection({
+  style,
+  documentColors,
+  onStyleChange,
+  onHistoryFlush,
+}: {
+  style: PageNodeStyle;
+  documentColors: string[];
+  onStyleChange: (key: string, value: unknown) => void;
+  onHistoryFlush: () => void;
+}) {
+  return (
+    <InspectorSection label="Fill">
+      <InspectorLabel>Background</InspectorLabel>
+      <InspectorColorField
+        color={style.background || ""}
+        documentColors={documentColors}
+        onCommit={onHistoryFlush}
+        onChange={(c) => {
+          onStyleChange("background", c);
+        }}
+      />
+      <div className="mt-2">
+        <InspectorLabel>Opacity</InspectorLabel>
+        <InspectorNumberInput
+          value={style.opacity ?? ""}
+          placeholder="1"
+          step={0.1}
+          min={0}
+          max={1}
+          className="w-[60px]"
+          onChange={(e) => {
+            const val = (e.target as HTMLInputElement).value;
+            onStyleChange("opacity", val ? Number(val) : undefined);
+          }}
+          onBlur={() => onHistoryFlush()}
+        />
+      </div>
+    </InspectorSection>
+  );
+}
+
+function SizeSection({
+  style,
+  onStyleChange,
+  onHistoryFlush,
+}: {
+  style: PageNodeStyle;
+  onStyleChange: (key: string, value: unknown) => void;
+  onHistoryFlush: () => void;
+}) {
+  return (
+    <InspectorSection label="Size">
+      <InspectorRow>
+        <div>
+          <InspectorLabel>Max Width</InspectorLabel>
+          <InspectorNumberInput
+            value={style.maxWidth ?? ""}
+            placeholder="auto"
+            className="w-full"
+            onChange={(e) => {
+              const val = (e.target as HTMLInputElement).value;
+              onStyleChange("maxWidth", val ? Number(val) : undefined);
+            }}
+            onBlur={() => onHistoryFlush()}
+          />
+        </div>
+        <div>
+          <InspectorLabel>Min Height</InspectorLabel>
+          <InspectorNumberInput
+            value={style.minHeight ?? ""}
+            placeholder="fit"
+            className="w-full"
+            onChange={(e) => {
+              const val = (e.target as HTMLInputElement).value;
+              onStyleChange("minHeight", val ? Number(val) : undefined);
+            }}
+            onBlur={() => onHistoryFlush()}
+          />
+        </div>
+      </InspectorRow>
+    </InspectorSection>
+  );
+}
+
+// ─── NodeInspector ───────────────────────────────────────────────────────────
 
 function NodeInspector({
   artboard,
@@ -439,7 +589,8 @@ function NodeInspector({
   const content = node.content || {};
 
   const isTextNode = ["heading", "paragraph", "button"].includes(node.type);
-  const isImageNode = node.type === "section" && Boolean(content.mediaUrl);
+  const isMediaNode = node.type === "section" && Boolean(content.mediaUrl);
+  const isContainerNode = !isTextNode && !isMediaNode && (node.type === "section" || node.type === "page" || node.type === "button-row" || node.type === "feature-grid" || node.type === "metric-row" || node.type === "logo-row" || node.type === "testimonial-grid" || node.type === "pricing-grid");
 
   // Debounced history push — visual updates fire instantly, history commits after 400ms/blur
   const history = useDebouncedHistoryPush(
@@ -447,7 +598,6 @@ function NodeInspector({
     400
   );
 
-  // Instant content update + schedule history
   function updateContent(key: string, value: string) {
     dispatch({
       type: "UPDATE_NODE",
@@ -458,7 +608,6 @@ function NodeInspector({
     history.schedule(`Edited ${node.type} ${key}`);
   }
 
-  // Instant style update + schedule history
   function updateStyle(key: string, value: unknown) {
     dispatch({
       type: "UPDATE_NODE_STYLE",
@@ -469,282 +618,214 @@ function NodeInspector({
     history.schedule(`Styled ${node.type}`);
   }
 
-  // Local draft states
-  const [textDraft, setTextDraft] = React.useState(content.text || "");
-  const [fgColorDraft, setFgColorDraft] = React.useState(style.foreground || "#1A1A1A");
-  const [bgColorDraft, setBgColorDraft] = React.useState(style.background || "");
-  const [aiPrompt, setAiPrompt] = React.useState("");
-
-  // Sync drafts when node changes externally
-  React.useEffect(() => { setTextDraft(content.text || ""); }, [content.text]);
-  React.useEffect(() => { setFgColorDraft(style.foreground || "#1A1A1A"); }, [style.foreground]);
-  React.useEffect(() => { setBgColorDraft(style.background || ""); }, [style.background]);
-
   return (
-    <div className="space-y-1">
-      <span data-inspector-first-section className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+    <div>
+      <span data-inspector-first-section className="mono-kicker block">
         {node.type.toUpperCase()}
       </span>
 
-      {/* CONTENT */}
+      {/* ── TEXT NODE ───────────────────────────────────────────────────── */}
       {isTextNode && (
         <>
-          <SectionHeader>Content</SectionHeader>
-          <textarea
-            value={textDraft}
-            onChange={(e) => {
-              setTextDraft(e.target.value);
-              updateContent("text", e.target.value);
-            }}
-            onBlur={() => history.flush()}
-            rows={node.type === "heading" ? 2 : 3}
-            className={inputCls + " resize-none"}
-          />
+          <InspectorSection label="Content">
+            <InspectorTextarea
+              value={content.text || ""}
+              onChange={(e) => updateContent("text", e.target.value)}
+              onBlur={() => history.flush()}
+              rows={node.type === "heading" ? 2 : 3}
+            />
+          </InspectorSection>
+
+          <InspectorSection label="Typography">
+            <InspectorLabel>Font Family</InspectorLabel>
+            <InspectorSelect
+              value={style.fontFamily || ""}
+              onChange={(e) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Changed font" });
+                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { fontFamily: (e.target as HTMLSelectElement).value } });
+              }}
+            >
+              <option value="">Default</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Instrument Serif', serif">Bespoke Serif</option>
+              <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+            </InspectorSelect>
+
+            <InspectorRow className="mt-2">
+              <div>
+                <InspectorLabel>Weight</InspectorLabel>
+                <InspectorSelect
+                  value={String(style.fontWeight ?? "")}
+                  onChange={(e) => {
+                    const val = (e.target as HTMLSelectElement).value;
+                    updateStyle("fontWeight", val ? Number(val) : undefined);
+                  }}
+                >
+                  <option value="">Auto</option>
+                  <option value="300">300 Light</option>
+                  <option value="400">400 Regular</option>
+                  <option value="500">500 Medium</option>
+                  <option value="600">600 Semi</option>
+                  <option value="700">700 Bold</option>
+                </InspectorSelect>
+              </div>
+              <div>
+                <InspectorLabel>Size</InspectorLabel>
+                <InspectorNumberInput
+                  value={style.fontSize ?? ""}
+                  placeholder="auto"
+                  className="w-full"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle("fontSize", val ? Number(val) : undefined);
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              </div>
+            </InspectorRow>
+
+            <InspectorRow className="mt-2">
+              <div>
+                <InspectorLabel>Tracking</InspectorLabel>
+                <InspectorNumberInput
+                  value={style.letterSpacing ?? ""}
+                  placeholder="0"
+                  step={0.1}
+                  className="w-full"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle("letterSpacing", val ? Number(val) : undefined);
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              </div>
+              <div>
+                <InspectorLabel>Leading</InspectorLabel>
+                <InspectorNumberInput
+                  value={style.lineHeight ?? ""}
+                  placeholder="1.5"
+                  step={0.1}
+                  className="w-full"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle("lineHeight", val ? Number(val) : undefined);
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              </div>
+            </InspectorRow>
+
+            <div className="mt-2">
+              <InspectorLabel>Color</InspectorLabel>
+              <InspectorColorField
+                color={style.foreground || "#1A1A1A"}
+                documentColors={documentColors}
+                onCommit={() => history.flush()}
+                onChange={(c) => {
+                  updateStyle("foreground", c);
+                }}
+              />
+            </div>
+          </InspectorSection>
         </>
       )}
 
-      {isImageNode && (
-        <>
-          <SectionHeader>Content</SectionHeader>
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={content.mediaUrl || ""}
-              placeholder="Image URL"
-              className={inputCls}
-              onChange={(e) => updateContent("mediaUrl", e.target.value)}
-              onBlur={() => history.flush()}
-            />
-            <input
-              type="text"
+      {/* ── MEDIA NODE ─────────────────────────────────────────────────── */}
+      {isMediaNode && (
+        <InspectorSection label="Image">
+          <InspectorLabel>Src</InspectorLabel>
+          <InspectorTextInput
+            value={content.mediaUrl || ""}
+            placeholder="Image URL"
+            onChange={(e) => updateContent("mediaUrl", (e.target as HTMLInputElement).value)}
+            onBlur={() => history.flush()}
+          />
+          <div className="mt-2">
+            <InspectorLabel>Alt</InspectorLabel>
+            <InspectorTextInput
               value={content.mediaAlt || ""}
               placeholder="Alt text"
-              className={inputCls}
-              onChange={(e) => updateContent("mediaAlt", e.target.value)}
+              onChange={(e) => updateContent("mediaAlt", (e.target as HTMLInputElement).value)}
               onBlur={() => history.flush()}
             />
           </div>
-        </>
+        </InspectorSection>
       )}
 
-      {/* TYPOGRAPHY */}
-      {isTextNode && (
-        <>
-          <SectionHeader>Typography</SectionHeader>
-          <select
-            value={style.fontFamily || ""}
+      {/* ── CONTAINER / LAYOUT NODE ────────────────────────────────────── */}
+      {isContainerNode && (
+        <InspectorSection label="Layout">
+          <InspectorLabel>Direction</InspectorLabel>
+          <InspectorSelect
+            value={style.direction || "column"}
             onChange={(e) => {
-              dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { fontFamily: e.target.value } });
-              dispatch({ type: "PUSH_HISTORY", description: "Changed font" });
+              dispatch({ type: "PUSH_HISTORY", description: "Changed direction" });
+              dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { direction: (e.target as HTMLSelectElement).value as "row" | "column" } });
             }}
-            className={inputCls}
           >
-            <option value="">Default</option>
-            <option value="'Inter', sans-serif">Inter</option>
-            <option value="'Instrument Serif', serif">Bespoke Serif</option>
-            <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
-          </select>
+            <option value="column">Column</option>
+            <option value="row">Row</option>
+          </InspectorSelect>
 
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div>
-              <FieldLabel>Size</FieldLabel>
-              <input
-                type="number"
-                value={style.fontSize ?? ""}
-                placeholder="auto"
-                className={numInputCls}
-                onChange={(e) => updateStyle("fontSize", e.target.value ? Number(e.target.value) : undefined)}
-                onBlur={() => history.flush()}
-              />
-            </div>
-            <div>
-              <FieldLabel>Wt</FieldLabel>
-              <input
-                type="number"
-                value={style.fontWeight ?? ""}
-                placeholder="400"
-                className={numInputCls}
-                step={100}
-                onChange={(e) => updateStyle("fontWeight", e.target.value ? Number(e.target.value) : undefined)}
-                onBlur={() => history.flush()}
-              />
-            </div>
+          <div className="mt-2">
+            <InspectorLabel>Align</InspectorLabel>
+            <IconToggleGroup
+              value={style.align || "left"}
+              onChange={(v) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Changed alignment" });
+                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { align: v as PageNodeStyle["align"] } });
+              }}
+              options={[
+                { value: "left", icon: <AlignLeft size={14} />, title: "Start" },
+                { value: "center", icon: <AlignCenter size={14} />, title: "Center" },
+                { value: "right", icon: <AlignRight size={14} />, title: "End" },
+              ]}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <div>
-              <FieldLabel>LH</FieldLabel>
-              <input
-                type="number"
-                value={style.lineHeight ?? ""}
-                placeholder="1.5"
-                className={numInputCls}
-                step={0.1}
-                onChange={(e) => updateStyle("lineHeight", e.target.value ? Number(e.target.value) : undefined)}
-                onBlur={() => history.flush()}
-              />
-            </div>
-            <div>
-              <FieldLabel>LS</FieldLabel>
-              <input
-                type="number"
-                value={style.letterSpacing ?? ""}
-                placeholder="0"
-                className={numInputCls}
-                step={0.1}
-                onChange={(e) => updateStyle("letterSpacing", e.target.value ? Number(e.target.value) : undefined)}
-                onBlur={() => history.flush()}
-              />
-            </div>
+          <div className="mt-2">
+            <InspectorLabel>Justify</InspectorLabel>
+            <IconToggleGroup
+              value={style.justify || "start"}
+              onChange={(v) => {
+                dispatch({ type: "PUSH_HISTORY", description: "Changed justify" });
+                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { justify: v as PageNodeStyle["justify"] } });
+              }}
+              options={[
+                { value: "start", icon: <AlignStartVertical size={14} />, title: "Start" },
+                { value: "center", icon: <AlignCenterVertical size={14} />, title: "Center" },
+                { value: "end", icon: <AlignEndVertical size={14} />, title: "End" },
+                { value: "between", icon: <ArrowDownUp size={14} />, title: "Space Between" },
+              ]}
+            />
           </div>
-
-          {/* Text color */}
-          <FieldRow>
-            <FieldLabel>Col</FieldLabel>
-            <ColorSwatch
-              color={fgColorDraft}
-              documentColors={documentColors}
-              onChange={(c) => {
-                setFgColorDraft(c);
-                dispatch({ type: "PUSH_HISTORY", description: "Changed text color" });
-                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { foreground: c } });
-              }}
-            />
-            <input
-              type="text"
-              value={fgColorDraft}
-              className={numInputCls + " flex-1"}
-              onChange={(e) => {
-                setFgColorDraft(e.target.value);
-                if (isValidHex(e.target.value)) {
-                  updateStyle("foreground", e.target.value);
-                }
-              }}
-              onBlur={() => history.flush()}
-            />
-          </FieldRow>
-        </>
+        </InspectorSection>
       )}
 
-      {/* FILL */}
-      <SectionHeader>Fill</SectionHeader>
-      <FieldRow>
-        <ColorSwatch
-          color={bgColorDraft || "transparent"}
-          documentColors={documentColors}
-          onChange={(c) => {
-            setBgColorDraft(c);
-            dispatch({ type: "PUSH_HISTORY", description: "Changed background" });
-            dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { background: c } });
-          }}
-        />
-        <input
-          type="text"
-          value={bgColorDraft}
-          placeholder="none"
-          className={numInputCls + " flex-1"}
-          onChange={(e) => {
-            setBgColorDraft(e.target.value);
-            if (isValidHex(e.target.value) || e.target.value === "" || e.target.value === "transparent") {
-              updateStyle("background", e.target.value);
-            }
-          }}
-          onBlur={() => history.flush()}
-        />
-      </FieldRow>
-
-      {/* SPACING — visual box model */}
-      <SectionHeader>Spacing</SectionHeader>
-      <div className="relative mx-auto w-[200px]">
-        <div className="flex flex-col items-center gap-1">
-          {/* Top */}
-          <input
-            type="number"
-            value={style.paddingY ?? ""}
-            placeholder="0"
-            className={numInputCls + " w-16 text-center"}
-            onChange={(e) => updateStyle("paddingY", e.target.value ? Number(e.target.value) : undefined)}
-            onBlur={() => history.flush()}
-          />
-          <div className="flex items-center gap-1">
-            {/* Left */}
-            <input
-              type="number"
-              value={style.paddingX ?? ""}
-              placeholder="0"
-              className={numInputCls + " w-16 text-center"}
-              onChange={(e) => updateStyle("paddingX", e.target.value ? Number(e.target.value) : undefined)}
-              onBlur={() => history.flush()}
-            />
-            {/* Center box */}
-            <div className="h-10 w-16 rounded-[2px] border border-dashed border-[#E5E5E0]" />
-            {/* Right */}
-            <input
-              type="number"
-              value={style.paddingX ?? ""}
-              placeholder="0"
-              className={numInputCls + " w-16 text-center"}
-              readOnly
-            />
-          </div>
-          {/* Bottom */}
-          <input
-            type="number"
-            value={style.paddingY ?? ""}
-            placeholder="0"
-            className={numInputCls + " w-16 text-center"}
-            readOnly
-          />
-        </div>
-      </div>
-
-      {/* SIZE */}
-      <SectionHeader>Size</SectionHeader>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <FieldLabel>W</FieldLabel>
-          <input
-            type="number"
-            value={style.maxWidth ?? ""}
-            placeholder="auto"
-            className={numInputCls}
-            onChange={(e) => updateStyle("maxWidth", e.target.value ? Number(e.target.value) : undefined)}
-            onBlur={() => history.flush()}
-          />
-        </div>
-        <div>
-          <FieldLabel>H</FieldLabel>
-          <input
-            type="number"
-            value={style.minHeight ?? ""}
-            placeholder="fit"
-            className={numInputCls}
-            onChange={(e) => updateStyle("minHeight", e.target.value ? Number(e.target.value) : undefined)}
-            onBlur={() => history.flush()}
-          />
-        </div>
-      </div>
-
-      {/* AI */}
-      <SectionHeader>AI</SectionHeader>
-      <textarea
-        value={aiPrompt}
-        onChange={(e) => setAiPrompt(e.target.value)}
-        placeholder="Describe changes..."
-        rows={2}
-        className={inputCls + " resize-none"}
+      {/* ── SHARED: Fill / Spacing / Size ──────────────────────────────── */}
+      <FillSection
+        style={style}
+        documentColors={documentColors}
+        onStyleChange={updateStyle}
+        onHistoryFlush={() => history.flush()}
       />
-      <div className="mt-2 flex flex-wrap gap-2">
-        {node.type === "section" && (
-          <button className={ghostBtnCls}>Regenerate section</button>
-        )}
-        {isImageNode && (
-          <button className={ghostBtnCls}>Swap image</button>
-        )}
-        {isTextNode && (
-          <button className={ghostBtnCls}>Rewrite text</button>
-        )}
-      </div>
+
+      <InspectorSection label="Spacing">
+        <SpacingDiagram
+          artboardId={artboard.id}
+          nodeId={node.id}
+          nodeType={node.type}
+          style={style}
+          onHistorySchedule={history.schedule}
+          onHistoryFlush={history.flush}
+        />
+      </InspectorSection>
+
+      <SizeSection
+        style={style}
+        onStyleChange={updateStyle}
+        onHistoryFlush={() => history.flush()}
+      />
     </div>
   );
 }
@@ -1298,6 +1379,7 @@ type InspectorPanelV3Props = {
 export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPanelV3Props) {
   const { state, dispatch } = useCanvas();
   const { selection, items, prompt } = state;
+  const projectTokens = projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null;
 
   const panelRef = React.useRef<HTMLDivElement>(null);
   const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -1312,8 +1394,11 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
         colors.push(...item.extracted.colors);
       }
     }
-    return [...new Set(colors)];
-  }, [items]);
+    if (projectTokens) {
+      colors.push(...Object.values(projectTokens.colors));
+    }
+    return dedupeDocumentColors(colors);
+  }, [items, projectTokens]);
 
   const selectedItems = items.filter((item) =>
     selection.selectedItemIds.includes(item.id)
@@ -1342,7 +1427,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
   } else if (singleSelected?.kind === "artboard") {
     inspectorContent = <ArtboardInspector item={singleSelected} />;
   } else {
-    inspectorContent = <EmptySelection />;
+    inspectorContent = <EmptySelection projectId={projectId} />;
   }
 
   // ── Scroll-to on node selection ──────────────────────────────────────

@@ -10,6 +10,7 @@ import type {
 } from "@/lib/canvas/compose";
 import { BREAKPOINT_WIDTHS, getNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
+import { SectionDragHandle } from "./SectionDragHandle";
 
 type ComposeDocumentViewProps = {
   pageTree: PageNode;
@@ -18,10 +19,126 @@ type ComposeDocumentViewProps = {
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string | null) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
+  onReorderSection?: (nodeId: string, newIndex: number) => void;
   className?: string;
   interactive?: boolean;
   scale?: number;
 };
+
+type SectionMetrics = {
+  id: string;
+  top: number;
+  height: number;
+};
+
+type SectionReorderState = {
+  nodeId: string;
+  startIndex: number;
+  currentIndex: number;
+  pointerY: number;
+  pointerOffsetY: number;
+  sections: SectionMetrics[];
+};
+
+type RenderContext = {
+  breakpoint: Breakpoint;
+  selectedNodeId?: string | null;
+  onSelectNode?: (nodeId: string | null) => void;
+  onUpdateContent?: (nodeId: string, key: string, value: string) => void;
+  interactive: boolean;
+  reorderableSectionIds: Set<string>;
+  sectionOrder: string[];
+  sectionReorderState: SectionReorderState | null;
+  registerSectionElement: (nodeId: string, element: HTMLDivElement | null) => void;
+  onSectionHandlePointerDown?: (
+    event: React.PointerEvent<HTMLButtonElement>,
+    nodeId: string
+  ) => void;
+};
+
+function reorderSectionIds(
+  sectionOrder: string[],
+  draggedId: string,
+  newIndex: number
+) {
+  const reordered = sectionOrder.filter((id) => id !== draggedId);
+  reordered.splice(newIndex, 0, draggedId);
+  return reordered;
+}
+
+function getTargetSectionIndex(
+  pointerY: number,
+  sections: SectionMetrics[],
+  draggedId: string
+) {
+  const siblings = sections.filter((section) => section.id !== draggedId);
+  let targetIndex = siblings.length;
+
+  for (let index = 0; index < siblings.length; index += 1) {
+    const midpoint = siblings[index].top + siblings[index].height / 2;
+    if (pointerY < midpoint) {
+      targetIndex = index;
+      break;
+    }
+  }
+
+  return targetIndex;
+}
+
+function getSectionOffsetY(
+  nodeId: string,
+  sectionOrder: string[],
+  sectionReorderState: SectionReorderState | null
+) {
+  if (!sectionReorderState) return 0;
+
+  const originalIndex = sectionReorderState.sections.findIndex(
+    (section) => section.id === nodeId
+  );
+  if (originalIndex === -1) return 0;
+
+  if (nodeId === sectionReorderState.nodeId) {
+    return (
+      sectionReorderState.pointerY -
+      sectionReorderState.pointerOffsetY -
+      sectionReorderState.sections[originalIndex].top
+    );
+  }
+
+  const reorderedIds = reorderSectionIds(
+    sectionOrder,
+    sectionReorderState.nodeId,
+    sectionReorderState.currentIndex
+  );
+  const targetIndex = reorderedIds.indexOf(nodeId);
+  if (targetIndex === -1 || targetIndex === originalIndex) return 0;
+
+  return (
+    sectionReorderState.sections[targetIndex].top -
+    sectionReorderState.sections[originalIndex].top
+  );
+}
+
+function getInsertionLineTop(sectionReorderState: SectionReorderState | null) {
+  if (!sectionReorderState) return null;
+
+  const siblings = sectionReorderState.sections.filter(
+    (section) => section.id !== sectionReorderState.nodeId
+  );
+
+  if (siblings.length === 0) return null;
+  if (sectionReorderState.currentIndex <= 0) {
+    return Math.max(0, siblings[0].top - 8);
+  }
+  if (sectionReorderState.currentIndex >= siblings.length) {
+    const lastSibling = siblings[siblings.length - 1];
+    return lastSibling.top + lastSibling.height + 8;
+  }
+
+  const previousSibling = siblings[sectionReorderState.currentIndex - 1];
+  const nextSibling = siblings[sectionReorderState.currentIndex];
+  return (previousSibling.top + previousSibling.height + nextSibling.top) / 2;
+}
 
 function shadowValue(tokens: DesignSystemTokens, shadow: PageNodeStyle["shadow"]) {
   if (shadow === "medium") return tokens.shadows.md;
@@ -278,15 +395,12 @@ function Selectable({
 function renderNode(
   node: PageNode,
   tokens: DesignSystemTokens,
-  breakpoint: Breakpoint,
-  selectedNodeId?: string | null,
-  onSelectNode?: (nodeId: string | null) => void,
-  interactive = false,
-  onUpdateContent?: (nodeId: string, key: string, value: string) => void
+  context: RenderContext
 ): React.ReactNode {
+  const { breakpoint } = context;
   const style = getNodeStyle(node, breakpoint);
   const children = (node.children ?? []).map((child) =>
-    renderNode(child, tokens, breakpoint, selectedNodeId, onSelectNode, interactive, onUpdateContent)
+    renderNode(child, tokens, context)
   );
 
   switch (node.type) {
@@ -295,10 +409,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <main
             style={{
@@ -312,23 +426,46 @@ function renderNode(
               gap: style.gap ?? 18,
               fontFamily: style.fontFamily || tokens.typography.fontFamily,
               textAlign: textAlignValue(style.align),
+              position: "relative",
               ...effectStyles(style),
             }}
           >
             <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
             {children}
+            {context.sectionReorderState ? (
+              <div
+                style={{
+                  position: "absolute",
+                  top: getInsertionLineTop(context.sectionReorderState) ?? 0,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  background: "#1E5DF2",
+                  pointerEvents: "none",
+                  transform: "translateY(-1px)",
+                }}
+              />
+            ) : null}
           </main>
         </Selectable>
       );
-    case "section":
-      return (
+    case "section": {
+      const sectionOffsetY = getSectionOffsetY(
+        node.id,
+        context.sectionOrder,
+        context.sectionReorderState
+      );
+      const isTopLevelReorderableSection =
+        context.interactive && context.reorderableSectionIds.has(node.id);
+      const isSectionDragging = context.sectionReorderState?.nodeId === node.id;
+
+      const sectionElement = (
         <Selectable
-          key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <section
             id={node.id}
@@ -360,19 +497,60 @@ function renderNode(
           </section>
         </Selectable>
       );
+
+      if (!isTopLevelReorderableSection) {
+        return React.cloneElement(sectionElement, { key: node.id });
+      }
+
+      return (
+        <div
+          key={node.id}
+          ref={(element) => context.registerSectionElement(node.id, element)}
+          className="group relative"
+          style={{
+            transform:
+              sectionOffsetY !== 0
+                ? `translateY(${sectionOffsetY}px)${
+                    isSectionDragging ? " scale(1.01)" : ""
+                  }`
+                : isSectionDragging
+                ? "scale(1.01)"
+                : undefined,
+            transition: isSectionDragging
+              ? "none"
+              : "transform 150ms ease-out, box-shadow 150ms ease-out, opacity 150ms ease-out",
+            boxShadow: isSectionDragging
+              ? "0 18px 36px rgba(26, 26, 26, 0.16)"
+              : undefined,
+            opacity: isSectionDragging ? 0.9 : 1,
+            zIndex: isSectionDragging ? 40 : 1,
+            willChange: context.sectionReorderState ? "transform" : undefined,
+          }}
+        >
+          <SectionDragHandle
+            selected={context.selectedNodeId === node.id}
+            dragging={isSectionDragging}
+            onPointerDown={(event) =>
+              context.onSectionHandlePointerDown?.(event, node.id)
+            }
+          />
+          {React.cloneElement(sectionElement, { key: node.id })}
+        </div>
+      );
+    }
     case "heading":
       return (
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <motion.h2
-            initial={interactive ? false : { opacity: 0, y: 18 }}
-            whileInView={interactive ? undefined : { opacity: 1, y: 0 }}
+            initial={context.interactive ? false : { opacity: 0, y: 18 }}
+            whileInView={context.interactive ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.45 }}
             style={{
@@ -398,10 +576,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <p
             style={{
@@ -432,10 +610,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -457,10 +635,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <button
             type="button"
@@ -489,10 +667,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -515,10 +693,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -566,10 +744,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -588,10 +766,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -619,10 +797,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -648,10 +826,10 @@ function renderNode(
         <Selectable
           key={node.id}
           node={node}
-          selectedNodeId={selectedNodeId}
-          onSelectNode={onSelectNode}
-          onUpdateContent={onUpdateContent}
-          interactive={interactive}
+          selectedNodeId={context.selectedNodeId}
+          onSelectNode={context.onSelectNode}
+          onUpdateContent={context.onUpdateContent}
+          interactive={context.interactive}
         >
           <div
             style={{
@@ -763,12 +941,199 @@ export function ComposeDocumentView({
   selectedNodeId,
   onSelectNode,
   onUpdateContent,
+  onReorderSection,
   className,
   interactive = false,
   scale = 1,
 }: ComposeDocumentViewProps) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  // Stable mutable map for section element registrations (callback refs).
+  // Using useMemo instead of useRef avoids React Compiler's ref-during-render tracking,
+  // since registerSectionElement is passed through render context for callback ref use.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sectionElements = React.useMemo(() => new Map<string, HTMLDivElement>(), []);
+  const [sectionReorderState, setSectionReorderState] =
+    React.useState<SectionReorderState | null>(null);
+  const sectionReorderStateRef = React.useRef<SectionReorderState | null>(null);
+  const topLevelSectionIds = React.useMemo(
+    () =>
+      (pageTree.children ?? [])
+        .filter((child) => child.type === "section")
+        .map((child) => child.id),
+    [pageTree.children]
+  );
+  const reorderableSectionIds = React.useMemo(
+    () => new Set(topLevelSectionIds),
+    [topLevelSectionIds]
+  );
+  const canReorderSections =
+    interactive && Boolean(onReorderSection) && topLevelSectionIds.length > 1;
+
+  React.useEffect(() => {
+    sectionReorderStateRef.current = sectionReorderState;
+  }, [sectionReorderState]);
+
+  const clearSectionReorderState = React.useCallback(() => {
+    sectionReorderStateRef.current = null;
+    setSectionReorderState(null);
+  }, []);
+
+  const registerSectionElement = React.useCallback(
+    (nodeId: string, element: HTMLDivElement | null) => {
+      if (element) {
+        sectionElements.set(nodeId, element);
+      } else {
+        sectionElements.delete(nodeId);
+      }
+    },
+    []
+  );
+
+  const handleSectionHandlePointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>, nodeId: string) => {
+      if (!canReorderSections || !rootRef.current) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const startIndex = topLevelSectionIds.indexOf(nodeId);
+      if (startIndex === -1) return;
+
+      const rootRect = rootRef.current.getBoundingClientRect();
+      const sections = topLevelSectionIds
+        .map((sectionId) => {
+          const element = sectionElements.get(sectionId);
+          if (!element) return null;
+
+          const rect = element.getBoundingClientRect();
+          return {
+            id: sectionId,
+            top: rect.top - rootRect.top,
+            height: rect.height,
+          };
+        })
+        .filter((section): section is SectionMetrics => Boolean(section));
+
+      if (sections.length !== topLevelSectionIds.length) return;
+
+      const draggedSection = sections.find((section) => section.id === nodeId);
+      if (!draggedSection) return;
+
+      const pointerY = event.clientY - rootRect.top;
+
+      const nextState = {
+        nodeId,
+        startIndex,
+        currentIndex: startIndex,
+        pointerY,
+        pointerOffsetY: pointerY - draggedSection.top,
+        sections,
+      };
+
+      sectionReorderStateRef.current = nextState;
+      setSectionReorderState(nextState);
+    },
+    [canReorderSections, topLevelSectionIds]
+  );
+
+  React.useEffect(() => {
+    if (!sectionReorderState) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const currentState = sectionReorderStateRef.current;
+      const rootElement = rootRef.current;
+      if (!currentState || !rootElement) return;
+
+      const rootRect = rootElement.getBoundingClientRect();
+      const pointerY = event.clientY - rootRect.top;
+      const nextIndex = getTargetSectionIndex(
+        pointerY,
+        currentState.sections,
+        currentState.nodeId
+      );
+
+      setSectionReorderState((previousState) => {
+        if (!previousState) return previousState;
+        if (
+          previousState.pointerY === pointerY &&
+          previousState.currentIndex === nextIndex
+        ) {
+          return previousState;
+        }
+
+        return {
+          ...previousState,
+          pointerY,
+          currentIndex: nextIndex,
+        };
+      });
+    };
+
+    const handlePointerUp = () => {
+      const currentState = sectionReorderStateRef.current;
+      if (
+        currentState &&
+        onReorderSection &&
+        currentState.currentIndex !== currentState.startIndex
+      ) {
+        onReorderSection(currentState.nodeId, currentState.currentIndex);
+      }
+      clearSectionReorderState();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        clearSectionReorderState();
+      }
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [clearSectionReorderState, onReorderSection, sectionReorderState]);
+
+  const renderContext = React.useMemo<RenderContext>(
+    () => ({
+      breakpoint,
+      selectedNodeId,
+      onSelectNode,
+      onUpdateContent,
+      interactive,
+      reorderableSectionIds: canReorderSections
+        ? reorderableSectionIds
+        : new Set<string>(),
+      sectionOrder: topLevelSectionIds,
+      sectionReorderState,
+      registerSectionElement,
+      onSectionHandlePointerDown: canReorderSections
+        ? handleSectionHandlePointerDown
+        : undefined,
+    }),
+    [
+      breakpoint,
+      canReorderSections,
+      handleSectionHandlePointerDown,
+      interactive,
+      onSelectNode,
+      onUpdateContent,
+      registerSectionElement,
+      reorderableSectionIds,
+      sectionReorderState,
+      selectedNodeId,
+      topLevelSectionIds,
+    ]
+  );
+
   return (
     <div
+      ref={rootRef}
       className={cn("origin-top-left", className)}
       style={{
         width: BREAKPOINT_WIDTHS[breakpoint],
@@ -783,7 +1148,7 @@ export function ComposeDocumentView({
         }
       }}
     >
-      {renderNode(pageTree, tokens, breakpoint, selectedNodeId, onSelectNode, interactive, onUpdateContent)}
+      {renderNode(pageTree, tokens, renderContext)}
     </div>
   );
 }

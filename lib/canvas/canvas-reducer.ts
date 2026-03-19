@@ -36,6 +36,7 @@ export type CanvasAction =
   // Artboard node editing
   | { type: "UPDATE_NODE"; artboardId: string; nodeId: string; changes: Partial<PageNode> }
   | { type: "UPDATE_NODE_STYLE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
+  | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number }
 
   // Selection
   | { type: "SELECT_ITEM"; itemId: string; addToSelection?: boolean }
@@ -110,6 +111,39 @@ function updateNodeInTree(
   }
 
   return { ...node, children: updatedChildren };
+}
+
+function reorderTopLevelSections(
+  pageTree: PageNode,
+  nodeId: string,
+  newIndex: number
+): PageNode | null {
+  const children = pageTree.children ?? [];
+  const topLevelSections = children.filter((child) => child.type === "section");
+  const currentIndex = topLevelSections.findIndex((child) => child.id === nodeId);
+
+  if (
+    currentIndex === -1 ||
+    newIndex < 0 ||
+    newIndex >= topLevelSections.length ||
+    currentIndex === newIndex
+  ) {
+    return null;
+  }
+
+  const reorderedSections = [...topLevelSections];
+  const [movedSection] = reorderedSections.splice(currentIndex, 1);
+  reorderedSections.splice(newIndex, 0, movedSection);
+
+  let sectionCursor = 0;
+  const nextChildren = children.map((child) =>
+    child.type === "section" ? reorderedSections[sectionCursor++] : child
+  );
+
+  return {
+    ...pageTree,
+    children: nextChildren,
+  };
 }
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -247,6 +281,63 @@ export function canvasReducer(
             })),
           };
         }),
+        updatedAt: now(),
+      };
+    }
+
+    case "REORDER_NODE": {
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+
+      if (!artboard) return state;
+
+      const reorderedPageTree = reorderTopLevelSections(
+        artboard.pageTree,
+        action.nodeId,
+        action.newIndex
+      );
+
+      if (!reorderedPageTree) return state;
+
+      const historyAfterPush = pushHistory(
+        state.history,
+        "Reordered section",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) {
+            return item;
+          }
+
+          if (item.id === artboard.id) {
+            return {
+              ...item,
+              pageTree: reorderedPageTree,
+            };
+          }
+
+          const syncedReorder = reorderTopLevelSections(
+            item.pageTree,
+            action.nodeId,
+            action.newIndex
+          );
+
+          if (!syncedReorder) {
+            return item;
+          }
+
+          return {
+            ...item,
+            pageTree: syncedReorder,
+          };
+        }),
+        history: historyAfterPush,
         updatedAt: now(),
       };
     }

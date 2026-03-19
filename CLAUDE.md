@@ -152,6 +152,13 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - `app/canvas-v1/hooks/useResize.ts` — resize hook (zoom-aware, aspect-ratio, min size)
 - `app/canvas-v1/components/ResizeHandles.tsx` — 8-handle resize UI
 
+**V3.2 Inspector + Reorder** (complete, verified 2026-03-19):
+- Inspector overhaul — shared V2-style primitives (`app/canvas-v1/components/inspector/InspectorField.tsx`), all 6 selection states rebuilt (text/media/container/reference/artboard/empty)
+- Spacing box model — `app/canvas-v1/components/inspector/SpacingDiagram.tsx`, two-axis paddingX/paddingY sync, collapsed single-padding mode, independent gap
+- Color picker refinement — portal rendering (`createPortal`), viewport clamping, anchor positioning, document colors deduplication (references + design tokens), hex 3→6 expansion, preview strip, defaults grid
+- Top-level section drag-reorder — `REORDER_NODE` reducer action, `SectionDragHandle.tsx` (GripVertical), midpoint-based insertion, CSS-transform visual drag (no optimistic state), cross-artboard siteId sync, Escape cancel, layers panel read-only
+- Scoping: no `PageNodeStyle` expansion, no new node types, no `UnifiedCanvasState` change
+
 **Dashboard screens** (V2 design, unchanged in V3):
 - `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
 - `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact rows → routes to canvas
@@ -235,8 +242,11 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px split panel — inspector (top) + embedded prompt composer (bottom), selection-adaptive |
 | `app/canvas-v1/components/LayersPanelV3.tsx` | 240px tree navigator — Site/References/Notes groups |
 | `app/canvas-v1/components/BottomBarV3.tsx` | Transport strip — zoom, undo/redo, panel toggles |
-| `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — document colors, hex input, basic grid |
-| `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing |
+| `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — portal, viewport clamping, document colors, hex input, defaults grid |
+| `app/canvas-v1/components/inspector/InspectorField.tsx` | Shared inspector primitives — Section, Label, TextInput, Textarea, NumberInput, Select, ColorField, Row, Divider |
+| `app/canvas-v1/components/inspector/SpacingDiagram.tsx` | Spacing box model — two-axis paddingX/paddingY sync, collapsed mode, gap |
+| `app/canvas-v1/components/SectionDragHandle.tsx` | Drag handle for top-level section reorder — GripVertical, hover/selected visibility |
+| `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder |
 | `app/canvas-v1/hooks/useDrag.ts` | Drag hook — pointer cycle, zoom-aware, shift-axis lock |
 | `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |
 | `app/canvas-v1/hooks/useCanvasKeyboard.ts` | Full keyboard shortcut set |

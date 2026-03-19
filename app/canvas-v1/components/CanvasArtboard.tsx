@@ -38,6 +38,18 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
     [dispatch, item.id]
   );
 
+  const handleSectionReorder = React.useCallback(
+    (nodeId: string, newIndex: number) => {
+      dispatch({
+        type: "REORDER_NODE",
+        artboardId: item.id,
+        nodeId,
+        newIndex,
+      });
+    },
+    [dispatch, item.id]
+  );
+
   return (
     <div
       data-canvas-item-id={item.id}
@@ -115,6 +127,7 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
               breakpoint={item.breakpoint}
               selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
               onSelectNode={handleNodeSelect}
+              onReorderSection={handleSectionReorder}
               interactive
             />
           ) : (

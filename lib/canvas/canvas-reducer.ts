@@ -36,7 +36,10 @@ export type CanvasAction =
   // Artboard node editing
   | { type: "UPDATE_NODE"; artboardId: string; nodeId: string; changes: Partial<PageNode> }
   | { type: "UPDATE_NODE_STYLE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
-  | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number }
+  | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number; parentNodeId?: string }
+  | { type: "INSERT_SECTION"; artboardId: string; afterNodeId: string | null; section: import("./compose").PageNode }
+  | { type: "DUPLICATE_SECTION"; artboardId: string; nodeId: string }
+  | { type: "DELETE_SECTION"; artboardId: string; nodeId: string }
 
   // Selection
   | { type: "SELECT_ITEM"; itemId: string; addToSelection?: boolean }
@@ -144,6 +147,45 @@ function reorderTopLevelSections(
     ...pageTree,
     children: nextChildren,
   };
+}
+
+function deepCloneWithNewIds(node: PageNode): PageNode {
+  return {
+    ...node,
+    id: uid(node.type),
+    children: node.children?.map(deepCloneWithNewIds),
+  };
+}
+
+function reorderWithinParent(
+  pageTree: PageNode,
+  parentNodeId: string,
+  nodeId: string,
+  newIndex: number
+): PageNode | null {
+  if (pageTree.id === parentNodeId) {
+    const children = pageTree.children ?? [];
+    const currentIndex = children.findIndex((c) => c.id === nodeId);
+    if (currentIndex === -1 || newIndex < 0 || newIndex >= children.length || currentIndex === newIndex) {
+      return null;
+    }
+    const reordered = [...children];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+    return { ...pageTree, children: reordered };
+  }
+
+  if (!pageTree.children) return null;
+
+  for (let i = 0; i < pageTree.children.length; i++) {
+    const result = reorderWithinParent(pageTree.children[i], parentNodeId, nodeId, newIndex);
+    if (result) {
+      const newChildren = [...pageTree.children];
+      newChildren[i] = result;
+      return { ...pageTree, children: newChildren };
+    }
+  }
+  return null;
 }
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -293,17 +335,15 @@ export function canvasReducer(
 
       if (!artboard) return state;
 
-      const reorderedPageTree = reorderTopLevelSections(
-        artboard.pageTree,
-        action.nodeId,
-        action.newIndex
-      );
+      const reorderedPageTree = action.parentNodeId
+        ? reorderWithinParent(artboard.pageTree, action.parentNodeId, action.nodeId, action.newIndex)
+        : reorderTopLevelSections(artboard.pageTree, action.nodeId, action.newIndex);
 
       if (!reorderedPageTree) return state;
 
       const historyAfterPush = pushHistory(
         state.history,
-        "Reordered section",
+        "Reordered element",
         state.items,
         state.selection
       );
@@ -322,22 +362,136 @@ export function canvasReducer(
             };
           }
 
-          const syncedReorder = reorderTopLevelSections(
-            item.pageTree,
-            action.nodeId,
-            action.newIndex
-          );
+          const synced = action.parentNodeId
+            ? reorderWithinParent(item.pageTree, action.parentNodeId, action.nodeId, action.newIndex)
+            : reorderTopLevelSections(item.pageTree, action.nodeId, action.newIndex);
 
-          if (!syncedReorder) {
-            return item;
-          }
-
-          return {
-            ...item,
-            pageTree: syncedReorder,
-          };
+          return synced ? { ...item, pageTree: synced } : item;
         }),
         history: historyAfterPush,
+        updatedAt: now(),
+      };
+    }
+
+    case "INSERT_SECTION": {
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!artboard) return state;
+
+      const insertIntoPageTree = (pageTree: PageNode): PageNode => {
+        const children = pageTree.children ?? [];
+        if (!action.afterNodeId) {
+          return { ...pageTree, children: [...children, action.section] };
+        }
+        const index = children.findIndex((c) => c.id === action.afterNodeId);
+        if (index === -1) {
+          return { ...pageTree, children: [...children, action.section] };
+        }
+        const next = [...children];
+        next.splice(index + 1, 0, action.section);
+        return { ...pageTree, children: next };
+      };
+
+      const historyAfterInsert = pushHistory(
+        state.history,
+        `Added ${action.section.name} section`,
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          return { ...item, pageTree: insertIntoPageTree(item.pageTree) };
+        }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: action.section.id,
+        },
+        history: historyAfterInsert,
+        updatedAt: now(),
+      };
+    }
+
+    case "DUPLICATE_SECTION": {
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!artboard) return state;
+
+      const children = artboard.pageTree.children ?? [];
+      const sourceIndex = children.findIndex((c) => c.id === action.nodeId);
+      if (sourceIndex === -1) return state;
+
+      const clone = deepCloneWithNewIds(children[sourceIndex]);
+
+      const insertClone = (pageTree: PageNode): PageNode => {
+        const ch = pageTree.children ?? [];
+        const idx = ch.findIndex((c) => c.id === action.nodeId);
+        if (idx === -1) return pageTree;
+        const next = [...ch];
+        next.splice(idx + 1, 0, clone);
+        return { ...pageTree, children: next };
+      };
+
+      const historyAfterDup = pushHistory(
+        state.history,
+        "Duplicated section",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          return { ...item, pageTree: insertClone(item.pageTree) };
+        }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: clone.id,
+        },
+        history: historyAfterDup,
+        updatedAt: now(),
+      };
+    }
+
+    case "DELETE_SECTION": {
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!artboard) return state;
+
+      const removeSection = (pageTree: PageNode): PageNode => {
+        const ch = pageTree.children ?? [];
+        const filtered = ch.filter((c) => c.id !== action.nodeId);
+        if (filtered.length === ch.length) return pageTree;
+        return { ...pageTree, children: filtered };
+      };
+
+      const historyAfterDel = pushHistory(
+        state.history,
+        "Removed section",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          return { ...item, pageTree: removeSection(item.pageTree) };
+        }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: null,
+        },
+        history: historyAfterDel,
         updatedAt: now(),
       };
     }

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type {
   Breakpoint,
@@ -10,7 +11,10 @@ import type {
 } from "@/lib/canvas/compose";
 import { BREAKPOINT_WIDTHS, getNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
+import { useCanvas } from "@/lib/canvas/canvas-context";
 import { SectionDragHandle } from "./SectionDragHandle";
+import { ElementActionMenu } from "./ElementActionMenu";
+import { NodeFormatToolbar } from "./NodeFormatToolbar";
 
 type ComposeDocumentViewProps = {
   pageTree: PageNode;
@@ -20,6 +24,8 @@ type ComposeDocumentViewProps = {
   onSelectNode?: (nodeId: string | null) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   onReorderSection?: (nodeId: string, newIndex: number) => void;
+  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onFocusPromptWithPrefill?: (prefill: string) => void;
   className?: string;
   interactive?: boolean;
   scale?: number;
@@ -54,6 +60,8 @@ type RenderContext = {
     event: React.PointerEvent<HTMLButtonElement>,
     nodeId: string
   ) => void;
+  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onFocusPromptWithPrefill?: (prefill: string) => void;
 };
 
 function reorderSectionIds(
@@ -193,6 +201,8 @@ function typographyStyles(style: PageNodeStyle, fallback: {
       typeof style.letterSpacing === "number"
         ? `${style.letterSpacing}px`
         : fallback.letterSpacing,
+    fontStyle: style.fontStyle ?? "normal",
+    textDecoration: style.textDecoration ?? "none",
   };
 }
 
@@ -230,11 +240,46 @@ function MediaFrame({
   );
 }
 
+function getAIPrefill(node: PageNode): string {
+  const text = node.content?.text ?? "";
+  const truncated = text.length > 80 ? text.slice(0, 80) + "..." : text;
+
+  switch (node.type) {
+    case "heading":
+      return `Rewrite this heading: "${truncated}"`;
+    case "paragraph":
+      return node.name.toLowerCase().includes("kicker")
+        ? `Rewrite this kicker: "${truncated}"`
+        : `Rewrite this paragraph: "${truncated}"`;
+    case "button":
+      return `Rephrase this CTA: "${truncated}"`;
+    case "feature-grid":
+      return "Improve this features section";
+    case "feature-card":
+      return `Improve this feature: "${truncated}"`;
+    case "testimonial-grid":
+      return "Improve these testimonials";
+    case "testimonial-card":
+      return "Rewrite this testimonial";
+    case "pricing-grid":
+      return "Redesign this pricing section";
+    case "pricing-tier":
+      return `Improve this pricing tier: "${truncated}"`;
+    case "section":
+      if (node.content?.mediaUrl) return "Replace this image with...";
+      return "Edit this section";
+    default:
+      return "Edit this element";
+  }
+}
+
 function Selectable({
   node,
   selectedNodeId,
   onSelectNode,
   onUpdateContent,
+  onOpenSectionLibrary,
+  onFocusPromptWithPrefill,
   interactive,
   className,
   children,
@@ -243,20 +288,28 @@ function Selectable({
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string | null) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
+  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onFocusPromptWithPrefill?: (prefill: string) => void;
   interactive?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
+  const { state: canvasState, dispatch } = useCanvas();
+  const activeArtboardId = canvasState.selection.activeArtboardId;
   const selected = interactive && node.id === selectedNodeId;
   const [hovered, setHovered] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = React.useState(false);
+  const [showToolbar, setShowToolbar] = React.useState(false);
   const [tooltipPhase, setTooltipPhase] = React.useState<"hidden" | "visible" | "fading">("hidden");
+  const nodeRef = React.useRef<HTMLDivElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const isTextNode = node.type === "heading" || node.type === "paragraph";
 
-  // ── Double-click to edit tooltip ────────────────────────────────────
+  // ── Double-click tooltip ──────────────────────────────────────────
   React.useEffect(() => {
     setTooltipPhase("hidden");
-    if (!selected || !isTextNode || editing) return;
+    if (!selected || editing || actionMenuOpen) return;
     if (typeof window !== "undefined" && localStorage.getItem("studio-os:edit-hint-seen") === "true") return;
 
     const showTimer = setTimeout(() => {
@@ -270,7 +323,7 @@ function Selectable({
     }, 600);
 
     return () => clearTimeout(showTimer);
-  }, [selected, isTextNode, editing]);
+  }, [selected, editing, actionMenuOpen]);
 
   // Tooltip auto-fade: visible 1.5s → fading 0.5s → hidden
   React.useEffect(() => {
@@ -284,29 +337,42 @@ function Selectable({
     }
   }, [tooltipPhase]);
 
-  // ── Double-click to enter edit mode ─────────────────────────────────
+  // ── Floating format toolbar (text nodes only) ─────────────────────
+  React.useEffect(() => {
+    if (selected && isTextNode && !editing && !actionMenuOpen) {
+      const timer = setTimeout(() => setShowToolbar(true), 200);
+      return () => clearTimeout(timer);
+    }
+    setShowToolbar(false);
+  }, [selected, isTextNode, editing, actionMenuOpen]);
+
+  // ── Double-click → action menu ────────────────────────────────────
   function handleDoubleClick(e: React.MouseEvent) {
-    if (!interactive || !isTextNode || !onUpdateContent) return;
+    if (!interactive) return;
     e.stopPropagation();
     e.preventDefault();
-    const el = e.currentTarget as HTMLElement;
+    setActionMenuOpen(true);
+    setTooltipPhase("hidden");
+  }
+
+  // ── Text edit mode (triggered from action menu) ───────────────────
+  function enterTextEditMode() {
+    if (!isTextNode || !onUpdateContent) return;
+    const el = nodeRef.current;
+    if (!el) return;
     const found = el.querySelector("h2, p") as HTMLElement | null;
     if (!found) return;
     const textEl: HTMLElement = found;
     textEl.contentEditable = "true";
-    // Edit mode styling — inline styles to avoid conflicts with generated site styles
     textEl.style.caretColor = "#1E5DF2";
     textEl.style.outline = "none";
-
     textEl.focus();
     const range = window.document.createRange();
     range.selectNodeContents(textEl);
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(range);
-
     setEditing(true);
-    setTooltipPhase("hidden");
 
     const commit = () => {
       textEl.contentEditable = "false";
@@ -319,17 +385,24 @@ function Selectable({
       textEl.removeEventListener("keydown", onKey);
     };
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Enter" && !ev.shiftKey) {
-        ev.preventDefault();
-        textEl.blur();
-      }
-      if (ev.key === "Escape") {
-        textEl.textContent = node.content?.text ?? "";
-        textEl.blur();
-      }
+      if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); textEl.blur(); }
+      if (ev.key === "Escape") { textEl.textContent = node.content?.text ?? ""; textEl.blur(); }
     };
     textEl.addEventListener("blur", commit, { once: true });
     textEl.addEventListener("keydown", onKey);
+  }
+
+  // ── File input for image replace ──────────────────────────────────
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdateContent) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      onUpdateContent(node.id, "mediaUrl", reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   }
 
   // ── Outline styles ──────────────────────────────────────────────────
@@ -345,6 +418,7 @@ function Selectable({
 
   return (
     <div
+      ref={nodeRef}
       data-node-id={node.id}
       className={cn(interactive && "relative", className)}
       style={outlineStyle}
@@ -363,7 +437,75 @@ function Selectable({
       onMouseLeave={() => interactive && setHovered(false)}
     >
       {children}
-      {/* Double-click to edit tooltip */}
+
+      {/* Hidden file input for image replace */}
+      {Boolean(node.content?.mediaUrl) && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+      )}
+
+      {/* Element action menu */}
+      <AnimatePresence>
+        {actionMenuOpen && (
+          <ElementActionMenu
+            node={node}
+            anchorRef={nodeRef}
+            onEditText={() => { setActionMenuOpen(false); enterTextEditMode(); }}
+            onEditWithAI={() => { setActionMenuOpen(false); onFocusPromptWithPrefill?.(getAIPrefill(node)); }}
+            onReplaceImage={() => { setActionMenuOpen(false); fileInputRef.current?.click(); }}
+            onAddSectionBelow={() => { setActionMenuOpen(false); onOpenSectionLibrary?.(node.id); }}
+            onMoveUp={() => {
+              setActionMenuOpen(false);
+              if (!activeArtboardId) return;
+              dispatch({ type: "PUSH_HISTORY", description: "Moved section up" });
+              // Find current section index in pageTree — use REORDER_NODE with newIndex - 1
+              // The artboard's pageTree sections are managed by top-level reorder
+              const artboard = canvasState.items.find((i) => i.kind === "artboard" && i.id === activeArtboardId);
+              if (!artboard || artboard.kind !== "artboard") return;
+              const sections = (artboard.pageTree.children ?? []).filter((c) => c.type === "section");
+              const idx = sections.findIndex((c) => c.id === node.id);
+              if (idx > 0) dispatch({ type: "REORDER_NODE", artboardId: activeArtboardId, nodeId: node.id, newIndex: idx - 1 });
+            }}
+            onMoveDown={() => {
+              setActionMenuOpen(false);
+              if (!activeArtboardId) return;
+              dispatch({ type: "PUSH_HISTORY", description: "Moved section down" });
+              const artboard = canvasState.items.find((i) => i.kind === "artboard" && i.id === activeArtboardId);
+              if (!artboard || artboard.kind !== "artboard") return;
+              const sections = (artboard.pageTree.children ?? []).filter((c) => c.type === "section");
+              const idx = sections.findIndex((c) => c.id === node.id);
+              if (idx < sections.length - 1) dispatch({ type: "REORDER_NODE", artboardId: activeArtboardId, nodeId: node.id, newIndex: idx + 1 });
+            }}
+            onDuplicate={() => {
+              setActionMenuOpen(false);
+              if (activeArtboardId) dispatch({ type: "DUPLICATE_SECTION", artboardId: activeArtboardId, nodeId: node.id });
+            }}
+            onDelete={() => {
+              setActionMenuOpen(false);
+              if (activeArtboardId) dispatch({ type: "DELETE_SECTION", artboardId: activeArtboardId, nodeId: node.id });
+            }}
+            onDismiss={() => setActionMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Floating format toolbar */}
+      <AnimatePresence>
+        {showToolbar && (
+          <NodeFormatToolbar
+            node={node}
+            anchorRef={nodeRef}
+            onAIClick={() => { onFocusPromptWithPrefill?.(getAIPrefill(node)); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Double-click tooltip */}
       {tooltipPhase !== "hidden" && (
         <div
           style={{
@@ -385,7 +527,7 @@ function Selectable({
             transition: "opacity 0.5s ease-out",
           }}
         >
-          Double-click to edit
+          Double-click for options
         </div>
       )}
     </div>
@@ -412,6 +554,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <main
@@ -431,7 +575,31 @@ function renderNode(
             }}
           >
             <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
-            {children}
+            {context.interactive && context.onOpenSectionLibrary
+              ? (node.children ?? []).flatMap((child, i) => {
+                  const rendered = renderNode(child, tokens, context);
+                  if (i === 0) return [rendered];
+                  const prevId = (node.children ?? [])[i - 1]?.id;
+                  return [
+                    <div
+                      key={`insert-${prevId}`}
+                      className="flex justify-center py-1 opacity-0 hover:opacity-100 transition-opacity"
+                      style={{ margin: "-4px 0" }}
+                    >
+                      <button
+                        className="w-6 h-6 flex items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors text-[14px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          context.onOpenSectionLibrary!(prevId);
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>,
+                    rendered,
+                  ];
+                })
+              : children}
             {context.sectionReorderState ? (
               <div
                 style={{
@@ -465,6 +633,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <section
@@ -546,6 +716,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <motion.h2
@@ -579,6 +751,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <p
@@ -613,6 +787,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -638,6 +814,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <button
@@ -670,6 +848,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -696,6 +876,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -747,6 +929,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -769,6 +953,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -800,6 +986,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -829,6 +1017,8 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
+          onOpenSectionLibrary={context.onOpenSectionLibrary}
+          onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <div
@@ -942,6 +1132,8 @@ export function ComposeDocumentView({
   onSelectNode,
   onUpdateContent,
   onReorderSection,
+  onOpenSectionLibrary,
+  onFocusPromptWithPrefill,
   className,
   interactive = false,
   scale = 1,
@@ -1115,12 +1307,16 @@ export function ComposeDocumentView({
       onSectionHandlePointerDown: canReorderSections
         ? handleSectionHandlePointerDown
         : undefined,
+      onOpenSectionLibrary,
+      onFocusPromptWithPrefill,
     }),
     [
       breakpoint,
       canReorderSections,
       handleSectionHandlePointerDown,
       interactive,
+      onFocusPromptWithPrefill,
+      onOpenSectionLibrary,
       onSelectNode,
       onUpdateContent,
       registerSectionElement,

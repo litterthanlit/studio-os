@@ -51,6 +51,8 @@ export type PageNodeStyle = {
   shadow?: "none" | "soft" | "medium";
   emphasized?: boolean;
   badgeTone?: "surface" | "accent" | "outline";
+  fontStyle?: "normal" | "italic";       // V3.3
+  textDecoration?: "none" | "underline"; // V3.3
 };
 
 export type PageNodeContent = {

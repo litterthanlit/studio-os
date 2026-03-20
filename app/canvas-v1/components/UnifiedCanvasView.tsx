@@ -26,6 +26,8 @@ import { LayersPanelV3 } from "./LayersPanelV3";
 import { BottomBarV3 } from "./BottomBarV3";
 import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
 import { useCanvasKeyboard } from "../hooks/useCanvasKeyboard";
+import { AnimatePresence } from "framer-motion";
+import { SectionLibraryPanel } from "./SectionLibraryPanel";
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -81,6 +83,11 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(false);
   const [showInspector, setShowInspector] = React.useState(true);
+  const [sectionLibrary, setSectionLibrary] = React.useState<{ open: boolean; afterNodeId: string | null }>({ open: false, afterNodeId: null });
+
+  const handleOpenSectionLibrary = React.useCallback((afterNodeId: string | null) => {
+    setSectionLibrary({ open: true, afterNodeId });
+  }, []);
 
   // Prompt textarea ref for focus management
   const promptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -93,6 +100,21 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     }
     // Focus after state updates render
     setTimeout(() => promptTextareaRef.current?.focus(), 0);
+  }, [state.prompt.isOpen, dispatch]);
+
+  const focusPromptWithPrefill = React.useCallback((prefill: string) => {
+    setShowInspector(true);
+    if (!state.prompt.isOpen) {
+      dispatch({ type: "TOGGLE_PROMPT_PANEL" });
+    }
+    dispatch({ type: "SET_PROMPT", value: prefill });
+    setTimeout(() => {
+      const textarea = promptTextareaRef.current;
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(prefill.length, prefill.length);
+      }
+    }, 0);
   }, [state.prompt.isOpen, dispatch]);
 
   // Keyboard shortcuts
@@ -393,6 +415,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   tokens={tokens}
                   isDragging={draggingId === item.id}
                   isGenerating={state.prompt.isGenerating}
+                  onOpenSectionLibrary={handleOpenSectionLibrary}
+                  onFocusPromptWithPrefill={focusPromptWithPrefill}
                   onPointerDown={dragHandlers.onPointerDown}
                 />
               );
@@ -441,6 +465,17 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
           promptTextareaRef={promptTextareaRef}
         />
       )}
+
+      {/* Section library panel */}
+      <AnimatePresence>
+        {sectionLibrary.open && (
+          <SectionLibraryPanel
+            isOpen={sectionLibrary.open}
+            onClose={() => setSectionLibrary({ open: false, afterNodeId: null })}
+            afterNodeId={sectionLibrary.afterNodeId}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Bottom bar */}
       <BottomBarV3

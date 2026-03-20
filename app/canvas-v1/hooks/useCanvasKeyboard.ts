@@ -51,12 +51,16 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // Cmd+D — Duplicate selected items
+      // Cmd+D — Duplicate selected section node or canvas items
       if (isMeta && (e.key === "d" || e.key === "D")) {
         e.preventDefault();
-        for (const itemId of state.selection.selectedItemIds) {
-          dispatch({ type: "PUSH_HISTORY", description: "Duplicated item" });
-          dispatch({ type: "DUPLICATE_ITEM", itemId });
+        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+          dispatch({ type: "DUPLICATE_SECTION", artboardId: state.selection.activeArtboardId, nodeId: state.selection.selectedNodeId });
+        } else {
+          for (const itemId of state.selection.selectedItemIds) {
+            dispatch({ type: "PUSH_HISTORY", description: "Duplicated item" });
+            dispatch({ type: "DUPLICATE_ITEM", itemId });
+          }
         }
         return;
       }
@@ -73,9 +77,12 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // Delete / Backspace — Remove selected items
+      // Delete / Backspace — Remove selected section node or canvas items
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (state.selection.selectedItemIds.length > 0) {
+        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+          e.preventDefault();
+          dispatch({ type: "DELETE_SECTION", artboardId: state.selection.activeArtboardId, nodeId: state.selection.selectedNodeId });
+        } else if (state.selection.selectedItemIds.length > 0) {
           e.preventDefault();
           dispatch({ type: "PUSH_HISTORY", description: "Deleted items" });
           for (const itemId of state.selection.selectedItemIds) {

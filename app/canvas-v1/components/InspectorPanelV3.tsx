@@ -726,6 +726,40 @@ function NodeInspector({
                 }}
               />
             </div>
+
+            {/* Font Style & Decoration toggles */}
+            <div className="mt-2 flex gap-1.5">
+              <button
+                className={cn(
+                  "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
+                  style.fontStyle === "italic"
+                    ? "bg-[#D1E4FC]/40 text-[#1E5DF2] border-[#D1E4FC]"
+                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                )}
+                style={{ fontStyle: "italic" }}
+                onClick={() => {
+                  dispatch({ type: "PUSH_HISTORY", description: "Toggled italic" });
+                  updateStyle("fontStyle", style.fontStyle === "italic" ? "normal" : "italic");
+                }}
+              >
+                I
+              </button>
+              <button
+                className={cn(
+                  "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
+                  style.textDecoration === "underline"
+                    ? "bg-[#D1E4FC]/40 text-[#1E5DF2] border-[#D1E4FC]"
+                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                )}
+                style={{ textDecoration: "underline" }}
+                onClick={() => {
+                  dispatch({ type: "PUSH_HISTORY", description: "Toggled underline" });
+                  updateStyle("textDecoration", style.textDecoration === "underline" ? "none" : "underline");
+                }}
+              >
+                U
+              </button>
+            </div>
           </InspectorSection>
         </>
       )}
@@ -984,13 +1018,36 @@ function getSuggestionChips(
   selectedNode: PageNode | null,
   hasArtboards: boolean
 ): string[] {
-  if (selectedNode) {
-    const isText = ["heading", "paragraph", "button"].includes(selectedNode.type);
-    if (isText) return ["Rewrite this text", "Change font", "Make this darker"];
-    return ["Redesign this section", "Add more whitespace", "Change the layout"];
+  if (!selectedNode) {
+    if (hasArtboards) return ["Add a pricing section", "Tighten the layout", "Improve mobile responsiveness"];
+    return ["Generate a landing page", "Build a portfolio site", "Create a SaaS homepage"];
   }
-  if (hasArtboards) return ["Add a pricing section", "Tighten the layout", "Improve mobile"];
-  return ["Generate a landing page", "Add a hero section", "Change the color scheme"];
+
+  switch (selectedNode.type) {
+    case "heading":
+      return ["Make it shorter", "More professional tone", "Add a number or stat"];
+    case "paragraph":
+      if (selectedNode.name.toLowerCase().includes("kicker"))
+        return ["Make it punchier", "Add urgency", "Use action words"];
+      return ["Simplify this", "Make it more persuasive", "Add a call to action"];
+    case "button":
+      return ["More urgent CTA", "Softer tone", "Add an emoji"];
+    case "feature-grid":
+    case "feature-card":
+      return ["Add 2 more features", "Switch to 2-column layout", "Add icons to each card"];
+    case "testimonial-grid":
+    case "testimonial-card":
+      return ["Make testimonials longer", "Add company names", "Add star ratings"];
+    case "pricing-grid":
+    case "pricing-tier":
+      return ["Highlight the middle tier", "Add a free plan", "Simplify the pricing"];
+    case "section":
+      if (selectedNode.content?.mediaUrl)
+        return ["A hero photo", "An abstract pattern", "A product screenshot"];
+      return ["Add more whitespace", "Make it darker", "Simplify this section"];
+    default:
+      return ["Redesign this section", "Change the layout", "Add more content"];
+  }
 }
 
 // ─── Prompt Composer (embedded) ──────────────────────────────────────────────

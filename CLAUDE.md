@@ -159,6 +159,18 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - Top-level section drag-reorder — `REORDER_NODE` reducer action, `SectionDragHandle.tsx` (GripVertical), midpoint-based insertion, CSS-transform visual drag (no optimistic state), cross-artboard siteId sync, Escape cancel, layers panel read-only
 - Scoping: no `PageNodeStyle` expansion, no new node types, no `UnifiedCanvasState` change
 
+**V3.3 Builder Power** (complete, verified 2026-03-20):
+- Element action menu — double-click popover with type-specific actions (Edit Text, Edit With AI, Replace Image, Add Section, Move, Duplicate, Delete)
+- PageNodeStyle extension — `fontStyle` (normal/italic), `textDecoration` (none/underline)
+- Whole-node floating toolbar — B/I/U/Font/Color/AI above selected text nodes, hides during inline editing
+- Curated section library — slide-over panel with 7 templates (Hero, Proof, Features, Testimonials, Pricing, CTA, Footer), `INSERT_SECTION` reducer action with cross-artboard sync
+- Section duplicate + delete — `DUPLICATE_SECTION` (deep copy with fresh IDs), `DELETE_SECTION` (undo via existing history), `Cmd+D` and `Delete` keyboard shortcuts
+- Sibling reorder — `REORDER_NODE` extended with `parentNodeId` for nested reorder (cards within grids, items within lists)
+- AI contextual actions — prompt pre-fill based on selected node type, contextual suggestion chips per node type
+- New files: `ElementActionMenu.tsx`, `NodeFormatToolbar.tsx`, `SectionLibraryPanel.tsx`, `lib/canvas/section-library.ts`
+- New reducer actions: `INSERT_SECTION`, `DUPLICATE_SECTION`, `DELETE_SECTION`
+- Interaction model: single-click selects (unchanged), double-click opens action popover, Edit Text enters contentEditable
+
 **Dashboard screens** (V2 design, unchanged in V3):
 - `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
 - `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact rows → routes to canvas
@@ -204,7 +216,7 @@ Single infinite canvas per project. References, generation, and composition on o
 
 **Data model:** `UnifiedCanvasState` with flat `items: CanvasItem[]` array. Four item kinds: `reference`, `artboard`, `note`, `arrow`. Single-variant: one active site per project (desktop/tablet/mobile artboards). State persisted to `studio-os:canvas-v3:${projectId}`.
 
-**State engine:** `useReducer`-style reducer (`canvas-reducer.ts`) with 20+ action types. Snapshot-based undo/redo history (`history.ts`) — max 50 entries, in-memory only. Coalescing: drag commits on pointer-up, text edits on 400ms debounce, AI actions once per response.
+**State engine:** `useReducer`-style reducer (`canvas-reducer.ts`) with 29 action types. Snapshot-based undo/redo history (`history.ts`) — max 50 entries, in-memory only. Coalescing: drag commits on pointer-up, text edits on 400ms debounce, AI actions once per response.
 
 **Layout:** References cluster on the left (3-column grid at x=100). Artboards positioned on the right (desktop at x=1200, tablet at x=2720, mobile at x=3568). Desktop artboard: `border-t-2 border-t-[#1E5DF2]`. Others: `border-t border-t-[#E5E5E0]`. Headers: `font-mono text-[10px] uppercase tracking-widest`.
 
@@ -246,13 +258,17 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/inspector/InspectorField.tsx` | Shared inspector primitives — Section, Label, TextInput, Textarea, NumberInput, Select, ColorField, Row, Divider |
 | `app/canvas-v1/components/inspector/SpacingDiagram.tsx` | Spacing box model — two-axis paddingX/paddingY sync, collapsed mode, gap |
 | `app/canvas-v1/components/SectionDragHandle.tsx` | Drag handle for top-level section reorder — GripVertical, hover/selected visibility |
-| `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder |
+| `app/canvas-v1/components/ElementActionMenu.tsx` | Double-click popover — type-specific actions (Edit Text, AI, Replace Image, Add Section, Move, Duplicate, Delete) |
+| `app/canvas-v1/components/NodeFormatToolbar.tsx` | Floating B/I/U/Font/Color/AI toolbar above selected text nodes |
+| `app/canvas-v1/components/SectionLibraryPanel.tsx` | Slide-over panel with 7 section templates + search |
+| `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder, action menu, floating toolbar |
 | `app/canvas-v1/hooks/useDrag.ts` | Drag hook — pointer cycle, zoom-aware, shift-axis lock |
 | `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |
 | `app/canvas-v1/hooks/useCanvasKeyboard.ts` | Full keyboard shortcut set |
 | `app/canvas-v1/hooks/useReferenceExtractor.ts` | Auto-extraction via /api/ai/tag |
 | `lib/canvas/unified-canvas-state.ts` | V3 types, migration, persistence (load/save) |
-| `lib/canvas/canvas-reducer.ts` | Reducer — 20+ actions, history integration |
+| `lib/canvas/canvas-reducer.ts` | Reducer — 29 actions, history integration |
+| `lib/canvas/section-library.ts` | 7 section templates (Hero, Proof, Features, Testimonials, Pricing, CTA, Footer) — PageNode factories |
 | `lib/canvas/canvas-context.tsx` | React provider — load, debounced save, useCanvas hook |
 | `lib/canvas/history.ts` | Snapshot-based undo/redo engine (pure functions) |
 | `lib/canvas/compose.ts` | ComposeDocument types, `createInitialArtboards()`, `fitArtboardsToView()` |

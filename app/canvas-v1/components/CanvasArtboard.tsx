@@ -14,11 +14,13 @@ type CanvasArtboardProps = {
   isDragging?: boolean;
   isGenerating?: boolean;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
+  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onFocusPromptWithPrefill?: (prefill: string) => void;
 };
 
 const SKELETON_WIDTHS = ["60%", "80%", "40%", "90%", "50%"];
 
-export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPointerDown }: CanvasArtboardProps) {
+export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPointerDown, onOpenSectionLibrary, onFocusPromptWithPrefill }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeArtboardId === item.id;
@@ -128,6 +130,8 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
               selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
               onSelectNode={handleNodeSelect}
               onReorderSection={handleSectionReorder}
+              onOpenSectionLibrary={onOpenSectionLibrary}
+              onFocusPromptWithPrefill={onFocusPromptWithPrefill}
               interactive
             />
           ) : (

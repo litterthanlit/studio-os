@@ -20,8 +20,7 @@ import { useCanvasStage } from "@/lib/canvas-stage-context";
 // ─── V2 Logo Mark — Vertical-slat folder ─────────────────────────────────────
 
 function LogoMark({ size = 28 }: { size?: number }) {
-  const id = React.useId();
-  const clipId = `folderClip-${id}`;
+  // 3.0 logo: stacked horizontal bars with folder tab
   // Aspect ratio of viewBox: 127:83 ≈ 1.53:1
   const h = Math.round(size / 1.53);
   return (
@@ -33,26 +32,31 @@ function LogoMark({ size = 28 }: { size?: number }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       className="shrink-0"
+      overflow="visible"
     >
-      <defs>
-        <clipPath id={clipId}>
-          <path d="M2 0 H53 Q57 0 57 4 V11 H119 Q121 11 121 13 V79 Q121 81 119 81 H2 Q0 81 0 79 V2 Q0 0 2 0Z" />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#${clipId})`}>
-        <polygon points="2,0 4,0 4,81 2,81" fill="#071D5C" />
-        <polygon points="7,0 10,0 11,40 10,81 7,81 6,40" fill="#0A2A7A" />
-        <polygon points="14,0 18,0 20,40 18,81 14,81 12,40" fill="#0D3BA8" />
-        <polygon points="23,0 28,0 31,40 28,81 23,81 20,40" fill="#1045BA" />
-        <polygon points="33,0 39,0 42,40 39,81 33,81 30,40" fill="#1248C4" />
-        <polygon points="44,0 51,0 54,40 51,81 44,81 41,40" fill="#1652D6" />
-        <polygon points="56,0 64,0 67,40 64,81 56,81 53,40" fill="#1A58E0" />
-        <polygon points="69,0 77,0 80,40 77,81 69,81 66,40" fill="#1E5DF2" />
-        <polygon points="82,0 90,0 92,40 90,81 82,81 80,40" fill="#1E5DF2" />
-        <polygon points="95,0 101,0 103,40 101,81 95,81 93,40" fill="#1A58E0" />
-        <polygon points="106,0 111,0 112,40 111,81 106,81 105,40" fill="#1652D6" />
-        <polygon points="114,0 118,0 119,40 118,81 114,81 113,40" fill="#1248C4" />
-        <polygon points="120,0 121,0 121,81 120,81" fill="#0D3BA8" />
+      {/* Shadow layer (offset right+up) */}
+      <g transform="translate(4.075 2)">
+        <rect x="0" y="66" width="119.189" height="13" rx="2" fill="rgba(75, 87, 219, 0.67)" />
+        <rect x="0" y="49" width="119.189" height="13" rx="2" fill="rgba(75, 87, 219, 0.67)" />
+        <rect x="0" y="32" width="119.189" height="13" rx="2" fill="rgba(75, 87, 219, 0.67)" />
+        <rect x="0" y="15" width="119.189" height="13" rx="2" fill="rgba(75, 87, 219, 0.67)" />
+        <rect x="0" y="0" width="57" height="11" rx="2" fill="rgba(75, 87, 219, 0.67)" />
+      </g>
+      {/* Mid layer (offset further right) */}
+      <g transform="translate(7.811 0)">
+        <rect x="0" y="65" width="119.189" height="13" rx="2" fill="rgba(36, 48, 173, 0.3)" />
+        <rect x="0" y="48" width="119.189" height="13" rx="2" fill="rgba(36, 48, 173, 0.3)" />
+        <rect x="0" y="31" width="119.189" height="13" rx="2" fill="rgba(36, 48, 173, 0.3)" />
+        <rect x="0" y="14" width="119.189" height="13" rx="2" fill="rgba(36, 48, 173, 0.3)" />
+        <rect x="0" y="0" width="57" height="11" rx="2" fill="rgba(36, 48, 173, 0.3)" />
+      </g>
+      {/* Front layer (primary) */}
+      <g transform="translate(0 4)">
+        <rect x="0" y="66" width="119.189" height="13" rx="2" fill="rgb(75, 87, 219)" />
+        <rect x="0" y="49" width="119.189" height="13" rx="2" fill="rgb(75, 87, 219)" />
+        <rect x="0" y="32" width="119.189" height="13" rx="2" fill="rgb(75, 87, 219)" />
+        <rect x="0" y="15" width="119.189" height="13" rx="2" fill="rgb(75, 87, 219)" />
+        <rect x="0" y="0" width="57" height="11" rx="2" fill="rgb(75, 87, 219)" />
       </g>
     </svg>
   );

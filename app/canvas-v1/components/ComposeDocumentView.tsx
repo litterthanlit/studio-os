@@ -9,12 +9,23 @@ import type {
   PageNode,
   PageNodeStyle,
 } from "@/lib/canvas/compose";
-import { BREAKPOINT_WIDTHS, getNodeStyle } from "@/lib/canvas/compose";
+import {
+  BREAKPOINT_WIDTHS,
+  cloneNode,
+  findNodePath,
+  getNodeStyle,
+  isNodeHidden,
+} from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { SectionDragHandle } from "./SectionDragHandle";
-import { ElementActionMenu } from "./ElementActionMenu";
 import { NodeFormatToolbar } from "./NodeFormatToolbar";
+import { SectionActionRail } from "./SectionActionRail";
+import { ContextMenu } from "./ContextMenu";
+import { InsertionBar } from "./InsertionBar";
+import {
+  ENTER_TEXT_EDIT_MODE_EVENT,
+  FLASH_NODE_OUTLINES_EVENT,
+} from "../hooks/useCanvasKeyboard";
 
 type ComposeDocumentViewProps = {
   pageTree: PageNode;
@@ -24,8 +35,9 @@ type ComposeDocumentViewProps = {
   onSelectNode?: (nodeId: string | null) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   onReorderSection?: (nodeId: string, newIndex: number) => void;
-  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onOpenSectionLibrary?: (insertAtIndex: number) => void;
   onFocusPromptWithPrefill?: (prefill: string) => void;
+  onReplaceImage?: (nodeId: string, file: File) => void;
   className?: string;
   interactive?: boolean;
   scale?: number;
@@ -60,9 +72,65 @@ type RenderContext = {
     event: React.PointerEvent<HTMLButtonElement>,
     nodeId: string
   ) => void;
-  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onOpenSectionLibrary?: (insertAtIndex: number) => void;
   onFocusPromptWithPrefill?: (prefill: string) => void;
 };
+
+type InlineTextEditEventDetail = {
+  artboardId: string;
+  nodeId: string;
+};
+
+type FlashNodeOutlinesEventDetail = {
+  artboardId: string;
+  nodeIds: string[];
+};
+
+type ContextMenuState = {
+  nodeId: string;
+  position: { x: number; y: number };
+};
+
+type ContextMenuController = {
+  onOpenContextMenu?: (
+    node: PageNode,
+    event: React.MouseEvent<HTMLDivElement>
+  ) => void;
+  onDismissContextMenu?: () => void;
+};
+
+const ContextMenuControllerContext = React.createContext<ContextMenuController>({});
+const CONTEXT_MENU_OPEN_EVENT = "studio-os:context-menu-open";
+
+function uid(prefix: string): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function cloneNodeWithNewIds(node: PageNode): PageNode {
+  const cloned = cloneNode(node);
+  return {
+    ...cloned,
+    id: uid(node.type),
+    children: cloned.children?.map(cloneNodeWithNewIds),
+  };
+}
+
+function getNodePathMetadata(pageTree: PageNode, nodeId: string) {
+  const path = findNodePath(pageTree, nodeId);
+  if (!path) return null;
+
+  const node = path[path.length - 1];
+  const parent = path[path.length - 2] ?? null;
+  const siblings = parent?.children ?? [pageTree];
+  const index = siblings.findIndex((child) => child.id === nodeId);
+
+  return {
+    node,
+    parent,
+    siblings,
+    index,
+  };
+}
 
 function reorderSectionIds(
   sectionOrder: string[],
@@ -273,12 +341,79 @@ function getAIPrefill(node: PageNode): string {
   }
 }
 
+function isTextNode(node: PageNode): boolean {
+  return (
+    node.type === "heading" ||
+    node.type === "paragraph" ||
+    node.type === "button"
+  );
+}
+
+function SectionSelectionControls({
+  node,
+  sectionIndex,
+  sectionCount,
+  onOpenSectionLibrary,
+  onFocusPromptWithPrefill,
+  onDragPointerDown,
+  dragging = false,
+}: {
+  node: PageNode;
+  sectionIndex: number;
+  sectionCount: number;
+  onOpenSectionLibrary?: (insertAtIndex: number) => void;
+  onFocusPromptWithPrefill?: (prefill: string) => void;
+  onDragPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  dragging?: boolean;
+}) {
+  const { state, dispatch } = useCanvas();
+  const artboardId = state.selection.activeArtboardId;
+
+  if (!artboardId) return null;
+
+  return (
+    <SectionActionRail
+      dragging={dragging}
+      canMoveUp={sectionIndex > 0}
+      canMoveDown={sectionIndex < sectionCount - 1}
+      onDragPointerDown={(event) => {
+        onDragPointerDown?.(event);
+      }}
+      onAddBelow={() => onOpenSectionLibrary?.(sectionIndex + 1)}
+      onMoveUp={() => {
+        if (sectionIndex <= 0) return;
+        dispatch({
+          type: "REORDER_NODE",
+          artboardId,
+          nodeId: node.id,
+          newIndex: sectionIndex - 1,
+        });
+      }}
+      onMoveDown={() => {
+        if (sectionIndex >= sectionCount - 1) return;
+        dispatch({
+          type: "REORDER_NODE",
+          artboardId,
+          nodeId: node.id,
+          newIndex: sectionIndex + 1,
+        });
+      }}
+      onDuplicate={() => {
+        dispatch({ type: "DUPLICATE_SECTION", artboardId, nodeId: node.id });
+      }}
+      onDelete={() => {
+        dispatch({ type: "DELETE_SECTION", artboardId, nodeId: node.id });
+      }}
+      onAI={() => onFocusPromptWithPrefill?.(getAIPrefill(node))}
+    />
+  );
+}
+
 function Selectable({
   node,
   selectedNodeId,
   onSelectNode,
   onUpdateContent,
-  onOpenSectionLibrary,
   onFocusPromptWithPrefill,
   interactive,
   className,
@@ -288,28 +423,87 @@ function Selectable({
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string | null) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
-  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
   onFocusPromptWithPrefill?: (prefill: string) => void;
   interactive?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   const { state: canvasState, dispatch } = useCanvas();
+  const { onOpenContextMenu, onDismissContextMenu } = React.useContext(
+    ContextMenuControllerContext
+  );
   const activeArtboardId = canvasState.selection.activeArtboardId;
   const selected = interactive && node.id === selectedNodeId;
   const [hovered, setHovered] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
-  const [actionMenuOpen, setActionMenuOpen] = React.useState(false);
+  const [flashOutlineActive, setFlashOutlineActive] = React.useState(false);
   const [showToolbar, setShowToolbar] = React.useState(false);
   const [tooltipPhase, setTooltipPhase] = React.useState<"hidden" | "visible" | "fading">("hidden");
   const nodeRef = React.useRef<HTMLDivElement>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const isTextNode = node.type === "heading" || node.type === "paragraph";
+  const syncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const originalTextRef = React.useRef(node.content?.text ?? "");
+  const lastSyncedTextRef = React.useRef(node.content?.text ?? "");
+  const historyPushedRef = React.useRef(false);
+  const cancelRequestedRef = React.useRef(false);
+  const isTextNodeValue = isTextNode(node);
+
+  React.useEffect(() => {
+    if (editing) return;
+    originalTextRef.current = node.content?.text ?? "";
+    lastSyncedTextRef.current = node.content?.text ?? "";
+  }, [editing, node.content?.text]);
+
+  const getTextTarget = React.useCallback(() => {
+    const el = nodeRef.current;
+    if (!el) return null;
+    return el.querySelector("[data-text-edit-target]") as HTMLElement | null;
+  }, []);
+
+  const clearPendingSync = React.useCallback(() => {
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+  }, []);
+
+  const syncTextValue = React.useCallback(
+    (text: string, immediate = false) => {
+      if (!isTextNodeValue || !onUpdateContent) return;
+
+      const send = () => {
+        if (text === lastSyncedTextRef.current) return;
+        onUpdateContent(node.id, "text", text);
+        lastSyncedTextRef.current = text;
+      };
+
+      clearPendingSync();
+      if (immediate) {
+        send();
+        return;
+      }
+
+      syncTimerRef.current = setTimeout(() => {
+        send();
+        syncTimerRef.current = null;
+      }, 180);
+    },
+    [clearPendingSync, isTextNodeValue, node.id, onUpdateContent]
+  );
+
+  const pushTextHistoryIfNeeded = React.useCallback(
+    (nextText: string) => {
+      if (historyPushedRef.current || nextText === originalTextRef.current) return;
+      dispatch({ type: "PUSH_HISTORY", description: `Edited ${node.type}` });
+      historyPushedRef.current = true;
+    },
+    [dispatch, node.type]
+  );
 
   // ── Double-click tooltip ──────────────────────────────────────────
   React.useEffect(() => {
     setTooltipPhase("hidden");
-    if (!selected || editing || actionMenuOpen) return;
+    if (!selected || editing || !isTextNodeValue) return;
     if (typeof window !== "undefined" && localStorage.getItem("studio-os:edit-hint-seen") === "true") return;
 
     const showTimer = setTimeout(() => {
@@ -323,7 +517,7 @@ function Selectable({
     }, 600);
 
     return () => clearTimeout(showTimer);
-  }, [selected, editing, actionMenuOpen]);
+  }, [selected, editing, isTextNodeValue]);
 
   // Tooltip auto-fade: visible 1.5s → fading 0.5s → hidden
   React.useEffect(() => {
@@ -339,78 +533,225 @@ function Selectable({
 
   // ── Floating format toolbar (text nodes only) ─────────────────────
   React.useEffect(() => {
-    if (selected && isTextNode && !editing && !actionMenuOpen) {
+    if (selected && isTextNodeValue && !editing) {
       const timer = setTimeout(() => setShowToolbar(true), 200);
       return () => clearTimeout(timer);
     }
     setShowToolbar(false);
-  }, [selected, isTextNode, editing, actionMenuOpen]);
+  }, [selected, isTextNodeValue, editing]);
 
-  // ── Double-click → action menu ────────────────────────────────────
+  // ── Double-click → Figma/Framer-style layered text editing ─────────
+  // 1st double-click: enter edit mode, highlight word under cursor
+  // Later double-clicks while editing should keep native word selection behavior.
+  // Triple-click selects the whole text block.
   function handleDoubleClick(e: React.MouseEvent) {
     if (!interactive) return;
-    e.stopPropagation();
-    e.preventDefault();
-    setActionMenuOpen(true);
+    if (isTextNodeValue) {
+      e.stopPropagation();
+      if (!editing) {
+        e.preventDefault();
+        // First double-click — enter edit mode, select word at cursor
+        enterTextEditMode(e.nativeEvent);
+      }
+    }
     setTooltipPhase("hidden");
   }
 
-  // ── Text edit mode (triggered from action menu) ───────────────────
-  function enterTextEditMode() {
-    if (!isTextNode || !onUpdateContent) return;
-    const el = nodeRef.current;
-    if (!el) return;
-    const found = el.querySelector("h2, p") as HTMLElement | null;
-    if (!found) return;
-    const textEl: HTMLElement = found;
+  // ── Text edit mode ─────────────────────────────────────────────────
+  function selectAllText(el: HTMLElement) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+
+  function enterTextEditMode(nativeEvent?: MouseEvent) {
+    if (!isTextNodeValue || !onUpdateContent || editing) return;
+    const textEl = getTextTarget();
+    if (!textEl) return;
+
+    originalTextRef.current = textEl.textContent ?? node.content?.text ?? "";
+    lastSyncedTextRef.current = originalTextRef.current;
+    historyPushedRef.current = false;
+    cancelRequestedRef.current = false;
     textEl.contentEditable = "true";
     textEl.style.caretColor = "#1E5DF2";
     textEl.style.outline = "none";
     textEl.focus();
-    const range = window.document.createRange();
-    range.selectNodeContents(textEl);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
+
+    if (nativeEvent) {
+      let range: Range | null = null;
+      const docWithCaretApis = document as Document & {
+        caretRangeFromPoint?: (x: number, y: number) => Range | null;
+        caretPositionFromPoint?: (
+          x: number,
+          y: number
+        ) => { offsetNode: Node; offset: number } | null;
+      };
+      if (typeof docWithCaretApis.caretRangeFromPoint === "function") {
+        range = docWithCaretApis.caretRangeFromPoint(
+          nativeEvent.clientX,
+          nativeEvent.clientY
+        );
+      } else if (typeof docWithCaretApis.caretPositionFromPoint === "function") {
+        const caret = docWithCaretApis.caretPositionFromPoint(
+          nativeEvent.clientX,
+          nativeEvent.clientY
+        );
+        if (caret) {
+          range = document.createRange();
+          range.setStart(caret.offsetNode, caret.offset);
+          range.setEnd(caret.offsetNode, caret.offset);
+        }
+      }
+
+      if (range && textEl.contains(range.startContainer)) {
+        const expandableRange = range as Range & { expand?: (unit: string) => void };
+        if (typeof expandableRange.expand === "function") {
+          expandableRange.expand("word");
+        }
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } else {
+        const selection = window.getSelection();
+        const fallbackRange = document.createRange();
+        fallbackRange.selectNodeContents(textEl);
+        fallbackRange.collapse(false);
+        selection?.removeAllRanges();
+        selection?.addRange(fallbackRange);
+      }
+    } else {
+      selectAllText(textEl);
+    }
+
     setEditing(true);
 
+    const onInput = () => {
+      const nextText = textEl.textContent ?? "";
+      pushTextHistoryIfNeeded(nextText);
+      syncTextValue(nextText);
+    };
+
     const commit = () => {
+      clearPendingSync();
       textEl.contentEditable = "false";
       textEl.style.caretColor = "";
       textEl.style.outline = "";
       const newText = textEl.textContent ?? "";
-      onUpdateContent!(node.id, "text", newText);
+      if (cancelRequestedRef.current) {
+        if (historyPushedRef.current) {
+          dispatch({ type: "UNDO" });
+        } else if (newText !== originalTextRef.current) {
+          onUpdateContent(node.id, "text", originalTextRef.current);
+        }
+      } else {
+        pushTextHistoryIfNeeded(newText);
+        syncTextValue(newText, true);
+      }
       setEditing(false);
+      textEl.removeEventListener("input", onInput);
       textEl.removeEventListener("blur", commit);
       textEl.removeEventListener("keydown", onKey);
     };
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); textEl.blur(); }
-      if (ev.key === "Escape") { textEl.textContent = node.content?.text ?? ""; textEl.blur(); }
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        cancelRequestedRef.current = true;
+        textEl.textContent = originalTextRef.current;
+        textEl.blur();
+      }
     };
+    textEl.addEventListener("input", onInput);
     textEl.addEventListener("blur", commit, { once: true });
     textEl.addEventListener("keydown", onKey);
   }
 
-  // ── File input for image replace ──────────────────────────────────
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !onUpdateContent) return;
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      onUpdateContent(node.id, "mediaUrl", reader.result as string);
+  const handleInlineTextEditRequest = React.useEffectEvent(() => {
+    enterTextEditMode();
+  });
+
+  React.useEffect(() => {
+    if (!interactive || !isTextNodeValue) return;
+    const handleInlineTextEdit = (event: Event) => {
+      const detail = (event as CustomEvent<InlineTextEditEventDetail>).detail;
+      if (!detail) return;
+      if (detail.nodeId !== node.id || detail.artboardId !== activeArtboardId) return;
+      handleInlineTextEditRequest();
     };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }
+
+    window.addEventListener(
+      ENTER_TEXT_EDIT_MODE_EVENT,
+      handleInlineTextEdit as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        ENTER_TEXT_EDIT_MODE_EVENT,
+        handleInlineTextEdit as EventListener
+      );
+      clearPendingSync();
+    };
+  }, [
+    activeArtboardId,
+    clearPendingSync,
+    handleInlineTextEditRequest,
+    interactive,
+    isTextNodeValue,
+    node.id,
+  ]);
+
+  React.useEffect(() => {
+    if (!interactive) return;
+
+    const handleOutlineFlash = (event: Event) => {
+      const detail = (event as CustomEvent<FlashNodeOutlinesEventDetail>).detail;
+      if (!detail) return;
+      if (detail.artboardId !== activeArtboardId || !detail.nodeIds.includes(node.id)) {
+        return;
+      }
+
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+      }
+
+      setFlashOutlineActive(true);
+      flashTimerRef.current = setTimeout(() => {
+        setFlashOutlineActive(false);
+        flashTimerRef.current = null;
+      }, 220);
+    };
+
+    window.addEventListener(
+      FLASH_NODE_OUTLINES_EVENT,
+      handleOutlineFlash as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        FLASH_NODE_OUTLINES_EVENT,
+        handleOutlineFlash as EventListener
+      );
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = null;
+      }
+    };
+  }, [activeArtboardId, interactive, node.id]);
+
+  const targetIsTextEditingSurface = (target: EventTarget | null) =>
+    target instanceof HTMLElement &&
+    Boolean(target.closest("[data-text-edit-target]"));
 
   // ── Outline styles ──────────────────────────────────────────────────
   const outlineStyle = interactive
     ? selected
       ? editing
-        ? { outline: "2px solid #4B83F7", outlineOffset: -1, cursor: "text" as const }
+        ? { outline: "2px solid #D1E4FC", outlineOffset: -1, cursor: "text" as const, background: "rgba(255,255,255,0.6)", borderRadius: "4px" }
         : { outline: "2px solid #1E5DF2", outlineOffset: -1, cursor: "default" as const }
+      : flashOutlineActive
+      ? { outline: "2px solid #D1E4FC", outlineOffset: -1, cursor: "default" as const }
       : hovered
       ? { outline: "1px dashed #D1E4FC", outlineOffset: -1, cursor: "default" as const }
       : { cursor: "default" as const }
@@ -420,79 +761,52 @@ function Selectable({
     <div
       ref={nodeRef}
       data-node-id={node.id}
+      suppressHydrationWarning
       className={cn(interactive && "relative", className)}
       style={outlineStyle}
       onMouseDown={(event) => {
-        if (!interactive) return;
+        if (!interactive || event.button !== 0) return;
+        if (editing && targetIsTextEditingSurface(event.target)) return;
+        // Cmd+Click deep select: don't stopPropagation so all nested Selectables see the event
+        if (event.metaKey || event.ctrlKey) return;
         event.stopPropagation();
       }}
       onClick={(event) => {
         if (!interactive || !onSelectNode) return;
+        if (editing && targetIsTextEditingSurface(event.target)) {
+          if (event.detail === 3) {
+            event.preventDefault();
+            event.stopPropagation();
+            const textEl = getTextTarget();
+            if (textEl) selectAllText(textEl);
+          }
+          return;
+        }
+
+        if (event.metaKey || event.ctrlKey) {
+          // Deep select: deepest Selectable claims the event via preventDefault
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          onDismissContextMenu?.();
+          onSelectNode(node.id);
+          return;
+        }
+
+        // Normal click: stopPropagation so parent Selectables don't also select
         event.preventDefault();
         event.stopPropagation();
+        onDismissContextMenu?.();
         onSelectNode(node.id);
+      }}
+      onContextMenu={(event) => {
+        if (!interactive) return;
+        onOpenContextMenu?.(node, event);
       }}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={() => interactive && setHovered(true)}
       onMouseLeave={() => interactive && setHovered(false)}
     >
       {children}
-
-      {/* Hidden file input for image replace */}
-      {Boolean(node.content?.mediaUrl) && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
-      )}
-
-      {/* Element action menu */}
-      <AnimatePresence>
-        {actionMenuOpen && (
-          <ElementActionMenu
-            node={node}
-            anchorRef={nodeRef}
-            onEditText={() => { setActionMenuOpen(false); enterTextEditMode(); }}
-            onEditWithAI={() => { setActionMenuOpen(false); onFocusPromptWithPrefill?.(getAIPrefill(node)); }}
-            onReplaceImage={() => { setActionMenuOpen(false); fileInputRef.current?.click(); }}
-            onAddSectionBelow={() => { setActionMenuOpen(false); onOpenSectionLibrary?.(node.id); }}
-            onMoveUp={() => {
-              setActionMenuOpen(false);
-              if (!activeArtboardId) return;
-              dispatch({ type: "PUSH_HISTORY", description: "Moved section up" });
-              // Find current section index in pageTree — use REORDER_NODE with newIndex - 1
-              // The artboard's pageTree sections are managed by top-level reorder
-              const artboard = canvasState.items.find((i) => i.kind === "artboard" && i.id === activeArtboardId);
-              if (!artboard || artboard.kind !== "artboard") return;
-              const sections = (artboard.pageTree.children ?? []).filter((c) => c.type === "section");
-              const idx = sections.findIndex((c) => c.id === node.id);
-              if (idx > 0) dispatch({ type: "REORDER_NODE", artboardId: activeArtboardId, nodeId: node.id, newIndex: idx - 1 });
-            }}
-            onMoveDown={() => {
-              setActionMenuOpen(false);
-              if (!activeArtboardId) return;
-              dispatch({ type: "PUSH_HISTORY", description: "Moved section down" });
-              const artboard = canvasState.items.find((i) => i.kind === "artboard" && i.id === activeArtboardId);
-              if (!artboard || artboard.kind !== "artboard") return;
-              const sections = (artboard.pageTree.children ?? []).filter((c) => c.type === "section");
-              const idx = sections.findIndex((c) => c.id === node.id);
-              if (idx < sections.length - 1) dispatch({ type: "REORDER_NODE", artboardId: activeArtboardId, nodeId: node.id, newIndex: idx + 1 });
-            }}
-            onDuplicate={() => {
-              setActionMenuOpen(false);
-              if (activeArtboardId) dispatch({ type: "DUPLICATE_SECTION", artboardId: activeArtboardId, nodeId: node.id });
-            }}
-            onDelete={() => {
-              setActionMenuOpen(false);
-              if (activeArtboardId) dispatch({ type: "DELETE_SECTION", artboardId: activeArtboardId, nodeId: node.id });
-            }}
-            onDismiss={() => setActionMenuOpen(false)}
-          />
-        )}
-      </AnimatePresence>
 
       {/* Floating format toolbar */}
       <AnimatePresence>
@@ -506,7 +820,7 @@ function Selectable({
       </AnimatePresence>
 
       {/* Double-click tooltip */}
-      {tooltipPhase !== "hidden" && (
+      {isTextNodeValue && tooltipPhase !== "hidden" && (
         <div
           style={{
             position: "absolute",
@@ -527,7 +841,7 @@ function Selectable({
             transition: "opacity 0.5s ease-out",
           }}
         >
-          Double-click for options
+          Double-click to edit text
         </div>
       )}
     </div>
@@ -540,13 +854,58 @@ function renderNode(
   context: RenderContext
 ): React.ReactNode {
   const { breakpoint } = context;
+
+  // Skip hidden nodes on this breakpoint (never hide the page root)
+  if (node.type !== "page" && isNodeHidden(node, breakpoint)) {
+    return null;
+  }
+
   const style = getNodeStyle(node, breakpoint);
-  const children = (node.children ?? []).map((child) =>
+  const renderedChildren = (node.children ?? []).map((child) =>
     renderNode(child, tokens, context)
   );
 
   switch (node.type) {
-    case "page":
+    case "page": {
+      const pageChildren = node.children ?? [];
+      const pageGap = style.gap ?? 18;
+      const barOffset = pageGap > 0 ? -pageGap : 0;
+      const pageContent: React.ReactNode[] = [];
+      const handleInsertSection = context.onOpenSectionLibrary;
+
+      if (context.interactive && handleInsertSection) {
+        pageChildren.forEach((child, index) => {
+          if (child.type === "section") {
+            pageContent.push(
+              <InsertionBar
+                key={`insert-before-${child.id}`}
+                index={index}
+                onInsert={handleInsertSection}
+                disabled={Boolean(context.sectionReorderState)}
+                style={{
+                  marginTop: index === 0 ? undefined : barOffset,
+                  marginBottom: barOffset,
+                }}
+              />
+            );
+          }
+
+          pageContent.push(renderNode(child, tokens, context));
+        });
+
+        pageContent.push(
+          <InsertionBar
+            key={`insert-end-${node.id}`}
+            index={pageChildren.length}
+            onInsert={handleInsertSection}
+            disabled={Boolean(context.sectionReorderState)}
+            style={{ marginTop: barOffset }}
+          />
+        );
+      } else {
+        pageContent.push(...renderedChildren);
+      }
+
       return (
         <Selectable
           key={node.id}
@@ -554,7 +913,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -575,31 +933,7 @@ function renderNode(
             }}
           >
             <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
-            {context.interactive && context.onOpenSectionLibrary
-              ? (node.children ?? []).flatMap((child, i) => {
-                  const rendered = renderNode(child, tokens, context);
-                  if (i === 0) return [rendered];
-                  const prevId = (node.children ?? [])[i - 1]?.id;
-                  return [
-                    <div
-                      key={`insert-${prevId}`}
-                      className="flex justify-center py-1 opacity-0 hover:opacity-100 transition-opacity"
-                      style={{ margin: "-4px 0" }}
-                    >
-                      <button
-                        className="w-6 h-6 flex items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors text-[14px]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          context.onOpenSectionLibrary!(prevId);
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>,
-                    rendered,
-                  ];
-                })
-              : children}
+            {pageContent}
             {context.sectionReorderState ? (
               <div
                 style={{
@@ -617,6 +951,7 @@ function renderNode(
           </main>
         </Selectable>
       );
+    }
     case "section": {
       const sectionOffsetY = getSectionOffsetY(
         node.id,
@@ -625,7 +960,10 @@ function renderNode(
       );
       const isTopLevelReorderableSection =
         context.interactive && context.reorderableSectionIds.has(node.id);
+      const topLevelSectionIndex = context.sectionOrder.indexOf(node.id);
       const isSectionDragging = context.sectionReorderState?.nodeId === node.id;
+      const showSectionControls =
+        isTopLevelReorderableSection && context.selectedNodeId === node.id;
 
       const sectionElement = (
         <Selectable
@@ -633,7 +971,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -662,7 +999,7 @@ function renderNode(
               }}
             >
               <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
-              {children}
+              {renderedChildren}
             </div>
           </section>
         </Selectable>
@@ -697,13 +1034,19 @@ function renderNode(
             willChange: context.sectionReorderState ? "transform" : undefined,
           }}
         >
-          <SectionDragHandle
-            selected={context.selectedNodeId === node.id}
-            dragging={isSectionDragging}
-            onPointerDown={(event) =>
-              context.onSectionHandlePointerDown?.(event, node.id)
-            }
-          />
+          {showSectionControls ? (
+            <SectionSelectionControls
+              node={node}
+              sectionIndex={topLevelSectionIndex}
+              sectionCount={context.sectionOrder.length}
+              dragging={isSectionDragging}
+              onOpenSectionLibrary={context.onOpenSectionLibrary}
+              onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
+              onDragPointerDown={(event) =>
+                context.onSectionHandlePointerDown?.(event, node.id)
+              }
+            />
+          ) : null}
           {React.cloneElement(sectionElement, { key: node.id })}
         </div>
       );
@@ -716,11 +1059,12 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <motion.h2
+            data-text-edit-target="true"
+            suppressContentEditableWarning
             initial={context.interactive ? false : { opacity: 0, y: 18 }}
             whileInView={context.interactive ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -751,11 +1095,12 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
           <p
+            data-text-edit-target="true"
+            suppressContentEditableWarning
             style={{
               margin: 0,
               color:
@@ -787,7 +1132,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -802,7 +1146,7 @@ function renderNode(
               ...effectStyles(style),
             }}
           >
-            {children}
+            {renderedChildren}
           </div>
         </Selectable>
       );
@@ -814,7 +1158,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -836,7 +1179,9 @@ function renderNode(
               ...effectStyles(style),
             }}
           >
-            {node.content?.text}
+            <span data-text-edit-target="true" suppressContentEditableWarning>
+              {node.content?.text}
+            </span>
           </button>
         </Selectable>
       );
@@ -848,7 +1193,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -860,11 +1204,11 @@ function renderNode(
               gridTemplateColumns:
                 breakpoint === "mobile"
                   ? "1fr"
-                  : `repeat(${children.length}, minmax(0, 1fr))`,
+                  : `repeat(${renderedChildren.length}, minmax(0, 1fr))`,
               ...effectStyles(style),
             }}
           >
-            {children}
+            {renderedChildren}
           </div>
         </Selectable>
       );
@@ -876,7 +1220,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -929,7 +1272,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -941,7 +1283,7 @@ function renderNode(
               justifyContent: style.align === "center" ? "center" : "flex-start",
             }}
           >
-            {children}
+            {renderedChildren}
           </div>
         </Selectable>
       );
@@ -953,7 +1295,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -986,7 +1327,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -1003,7 +1343,7 @@ function renderNode(
               ...effectStyles(style),
             }}
           >
-            {children}
+            {renderedChildren}
           </div>
         </Selectable>
       );
@@ -1017,7 +1357,6 @@ function renderNode(
           selectedNodeId={context.selectedNodeId}
           onSelectNode={context.onSelectNode}
           onUpdateContent={context.onUpdateContent}
-          onOpenSectionLibrary={context.onOpenSectionLibrary}
           onFocusPromptWithPrefill={context.onFocusPromptWithPrefill}
           interactive={context.interactive}
         >
@@ -1134,11 +1473,14 @@ export function ComposeDocumentView({
   onReorderSection,
   onOpenSectionLibrary,
   onFocusPromptWithPrefill,
+  onReplaceImage,
   className,
   interactive = false,
   scale = 1,
 }: ComposeDocumentViewProps) {
+  const { state: canvasState, dispatch } = useCanvas();
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   // Stable mutable map for section element registrations (callback refs).
   // Using useMemo instead of useRef avoids React Compiler's ref-during-render tracking,
   // since registerSectionElement is passed through render context for callback ref use.
@@ -1146,6 +1488,9 @@ export function ComposeDocumentView({
   const sectionElements = React.useMemo(() => new Map<string, HTMLDivElement>(), []);
   const [sectionReorderState, setSectionReorderState] =
     React.useState<SectionReorderState | null>(null);
+  const [contextMenuState, setContextMenuState] =
+    React.useState<ContextMenuState | null>(null);
+  const [pendingImageNodeId, setPendingImageNodeId] = React.useState<string | null>(null);
   const sectionReorderStateRef = React.useRef<SectionReorderState | null>(null);
   const topLevelSectionIds = React.useMemo(
     () =>
@@ -1160,10 +1505,37 @@ export function ComposeDocumentView({
   );
   const canReorderSections =
     interactive && Boolean(onReorderSection) && topLevelSectionIds.length > 1;
+  const activeArtboardId = canvasState.selection.activeArtboardId;
+  const contextMenuMeta = React.useMemo(
+    () =>
+      contextMenuState
+        ? getNodePathMetadata(pageTree, contextMenuState.nodeId)
+        : null,
+    [contextMenuState, pageTree]
+  );
+  const contextMenuNode = contextMenuMeta?.node ?? null;
 
   React.useEffect(() => {
     sectionReorderStateRef.current = sectionReorderState;
   }, [sectionReorderState]);
+
+  const dismissContextMenu = React.useCallback(() => {
+    setContextMenuState(null);
+  }, []);
+
+  React.useEffect(() => {
+    function handleExternalContextMenuOpen() {
+      setContextMenuState(null);
+    }
+
+    window.addEventListener(CONTEXT_MENU_OPEN_EVENT, handleExternalContextMenuOpen);
+    return () => {
+      window.removeEventListener(
+        CONTEXT_MENU_OPEN_EVENT,
+        handleExternalContextMenuOpen
+      );
+    };
+  }, []);
 
   const clearSectionReorderState = React.useCallback(() => {
     sectionReorderStateRef.current = null;
@@ -1291,6 +1663,164 @@ export function ComposeDocumentView({
     };
   }, [clearSectionReorderState, onReorderSection, sectionReorderState]);
 
+  const openContextMenu = React.useCallback(
+    (node: PageNode, event: React.MouseEvent<HTMLDivElement>) => {
+      if (!interactive) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      window.dispatchEvent(new Event(CONTEXT_MENU_OPEN_EVENT));
+      onSelectNode?.(node.id);
+      setContextMenuState({
+        nodeId: node.id,
+        position: { x: event.clientX, y: event.clientY },
+      });
+    },
+    [interactive, onSelectNode]
+  );
+
+  const handleEditText = React.useCallback(
+    (nodeId: string) => {
+      if (!activeArtboardId || typeof window === "undefined") return;
+
+      window.dispatchEvent(
+        new CustomEvent<InlineTextEditEventDetail>(ENTER_TEXT_EDIT_MODE_EVENT, {
+          detail: { artboardId: activeArtboardId, nodeId },
+        })
+      );
+    },
+    [activeArtboardId]
+  );
+
+  const handleDuplicateNode = React.useCallback(
+    (nodeId: string) => {
+      if (!activeArtboardId) return;
+
+      const metadata = getNodePathMetadata(pageTree, nodeId);
+      if (!metadata) return;
+
+      const { node, parent, siblings, index } = metadata;
+      if (index === -1) return;
+
+      if (node.type === "section" && parent?.id === pageTree.id) {
+        dispatch({ type: "DUPLICATE_SECTION", artboardId: activeArtboardId, nodeId });
+        return;
+      }
+
+      if (!parent?.children) return;
+
+      const duplicate = cloneNodeWithNewIds(node);
+      const nextChildren = [...siblings];
+      nextChildren.splice(index + 1, 0, duplicate);
+      const sourceArtboard = canvasState.items.find(
+        (item): item is typeof canvasState.items[number] & { kind: "artboard"; siteId: string } =>
+          item.kind === "artboard" && item.id === activeArtboardId
+      );
+      const syncedArtboardIds = sourceArtboard
+        ? canvasState.items
+            .filter(
+              (item): item is typeof canvasState.items[number] & { kind: "artboard"; id: string; siteId: string } =>
+                item.kind === "artboard" && item.siteId === sourceArtboard.siteId
+            )
+            .map((item) => item.id)
+        : [activeArtboardId];
+
+      dispatch({ type: "PUSH_HISTORY", description: "Duplicated element" });
+      syncedArtboardIds.forEach((artboardId) => {
+        dispatch({
+          type: "UPDATE_NODE",
+          artboardId,
+          nodeId: parent.id,
+          changes: { children: nextChildren },
+        });
+      });
+      dispatch({ type: "SELECT_NODE", artboardId: activeArtboardId, nodeId: duplicate.id });
+    },
+    [activeArtboardId, canvasState.items, dispatch, pageTree]
+  );
+
+  const handleDeleteNode = React.useCallback(
+    (nodeId: string) => {
+      if (!activeArtboardId) return;
+
+      const metadata = getNodePathMetadata(pageTree, nodeId);
+      if (!metadata) return;
+
+      const { node, parent, siblings } = metadata;
+
+      if (node.type === "section" && parent?.id === pageTree.id) {
+        dispatch({ type: "DELETE_SECTION", artboardId: activeArtboardId, nodeId });
+        return;
+      }
+
+      if (!parent?.children) return;
+      const sourceArtboard = canvasState.items.find(
+        (item): item is typeof canvasState.items[number] & { kind: "artboard"; siteId: string } =>
+          item.kind === "artboard" && item.id === activeArtboardId
+      );
+      const syncedArtboardIds = sourceArtboard
+        ? canvasState.items
+            .filter(
+              (item): item is typeof canvasState.items[number] & { kind: "artboard"; id: string; siteId: string } =>
+                item.kind === "artboard" && item.siteId === sourceArtboard.siteId
+            )
+            .map((item) => item.id)
+        : [activeArtboardId];
+
+      dispatch({ type: "PUSH_HISTORY", description: "Removed element" });
+      syncedArtboardIds.forEach((artboardId) => {
+        dispatch({
+          type: "UPDATE_NODE",
+          artboardId,
+          nodeId: parent.id,
+          changes: {
+            children: siblings.filter((child) => child.id !== nodeId),
+          },
+        });
+      });
+      dispatch({ type: "SELECT_NODE", artboardId: activeArtboardId, nodeId: parent.id });
+    },
+    [activeArtboardId, canvasState.items, dispatch, pageTree]
+  );
+
+  const handleMoveNode = React.useCallback(
+    (nodeId: string, direction: "up" | "down") => {
+      if (!activeArtboardId) return;
+
+      const metadata = getNodePathMetadata(pageTree, nodeId);
+      if (!metadata) return;
+
+      const { parent, siblings, index } = metadata;
+      if (index === -1) return;
+
+      const newIndex = direction === "up" ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= siblings.length) return;
+
+      dispatch({
+        type: "REORDER_NODE",
+        artboardId: activeArtboardId,
+        nodeId,
+        newIndex,
+        parentNodeId:
+          parent && parent.id !== pageTree.id ? parent.id : undefined,
+      });
+    },
+    [activeArtboardId, dispatch, pageTree]
+  );
+
+  const handleReplaceImage = React.useCallback((nodeId: string) => {
+    setPendingImageNodeId(nodeId);
+    fileInputRef.current?.click();
+  }, []);
+
+  const contextMenuController = React.useMemo<ContextMenuController>(
+    () => ({
+      onOpenContextMenu: openContextMenu,
+      onDismissContextMenu: dismissContextMenu,
+    }),
+    [dismissContextMenu, openContextMenu]
+  );
+
   const renderContext = React.useMemo<RenderContext>(
     () => ({
       breakpoint,
@@ -1328,23 +1858,86 @@ export function ComposeDocumentView({
   );
 
   return (
-    <div
-      ref={rootRef}
-      className={cn("origin-top-left", className)}
-      style={{
-        width: BREAKPOINT_WIDTHS[breakpoint],
-        transform: scale !== 1 ? `scale(${scale})` : undefined,
-        transformOrigin: "top left",
-      }}
-      onClick={(e) => {
-        if (!interactive || !onSelectNode) return;
-        // Click on empty area within the document → deselect
-        if (!(e.target as HTMLElement).closest("[data-node-id]")) {
-          onSelectNode(null);
-        }
-      }}
-    >
-      {renderNode(pageTree, tokens, renderContext)}
-    </div>
+    <ContextMenuControllerContext.Provider value={contextMenuController}>
+      <div
+        ref={rootRef}
+        data-studio-context-menu-open={contextMenuState ? "true" : undefined}
+        className={cn("origin-top-left", className)}
+        style={{
+          width: BREAKPOINT_WIDTHS[breakpoint],
+          transform: scale !== 1 ? `scale(${scale})` : undefined,
+          transformOrigin: "top left",
+        }}
+        onClick={(e) => {
+          if (!interactive || !onSelectNode) return;
+          // Click on empty area within the document → deselect
+          if (!(e.target as HTMLElement).closest("[data-node-id]")) {
+            dismissContextMenu();
+            onSelectNode(null);
+          }
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file && pendingImageNodeId) {
+              onReplaceImage?.(pendingImageNodeId, file);
+            }
+            event.target.value = "";
+            setPendingImageNodeId(null);
+          }}
+        />
+        {renderNode(pageTree, tokens, renderContext)}
+        <AnimatePresence>
+          {contextMenuState && contextMenuNode && contextMenuMeta ? (
+            <ContextMenu
+              node={contextMenuNode}
+              position={contextMenuState.position}
+              onEditText={
+                isTextNode(contextMenuNode)
+                  ? () => handleEditText(contextMenuNode.id)
+                  : undefined
+              }
+              onEditWithAI={() =>
+                onFocusPromptWithPrefill?.(getAIPrefill(contextMenuNode))
+              }
+              onReplaceImage={
+                contextMenuNode.content?.mediaUrl
+                  ? () => handleReplaceImage(contextMenuNode.id)
+                  : undefined
+              }
+              onDuplicate={() => handleDuplicateNode(contextMenuNode.id)}
+              onMoveUp={
+                contextMenuMeta.index > 0 &&
+                !isTextNode(contextMenuNode) &&
+                !contextMenuNode.content?.mediaUrl
+                  ? () => handleMoveNode(contextMenuNode.id, "up")
+                  : undefined
+              }
+              onMoveDown={
+                contextMenuMeta.index > -1 &&
+                contextMenuMeta.index < contextMenuMeta.siblings.length - 1 &&
+                !isTextNode(contextMenuNode) &&
+                !contextMenuNode.content?.mediaUrl
+                  ? () => handleMoveNode(contextMenuNode.id, "down")
+                  : undefined
+              }
+              onCopyStyle={() => {}}
+              onPasteStyle={() => {}}
+              onDelete={() => handleDeleteNode(contextMenuNode.id)}
+              onDismiss={dismissContextMenu}
+              isFirstSection={contextMenuMeta.index <= 0}
+              isLastSection={
+                contextMenuMeta.index >= contextMenuMeta.siblings.length - 1
+              }
+            />
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </ContextMenuControllerContext.Provider>
   );
 }

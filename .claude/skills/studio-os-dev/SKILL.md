@@ -14,6 +14,16 @@ description: Use this skill when modifying any Studio OS canvas component, panel
 - Middle-mouse pan must use `onPointerDownCapture` (capture phase) on the canvas root, while item drag stays on bubble phase. Otherwise items swallow the middle-click event.
 - `data-node-id` attributes on rendered page nodes are essential for point-and-edit. If a component re-renders without them, selection breaks silently.
 
+### V4 Interactions
+- Right-click context menu (`ContextMenu.tsx`) and ElementActionMenu are separate components. Context menu renders at cursor position via portal; action menu renders below the element. Don't merge them.
+- Responsive overrides: `UPDATE_NODE_STYLE` writes to `responsiveOverrides[breakpoint]` when active artboard is non-desktop. Always check `getActiveBreakpoint()` before assuming writes go to base style.
+- AI preview state (`aiPreview`) is transient — never persisted to localStorage. Strip it on save/load.
+- Deep select via Cmd+Click uses `elementsFromPoint` — requires `data-node-id` attributes on all rendered elements. If a component re-renders without them, deep select silently fails.
+- Copy/paste style excludes layout properties (paddingX/Y, gap, columns, direction, maxWidth, minHeight, align, justify) — only visual properties transfer.
+- Inspector must read `getNodeStyle(node, breakpoint)` (resolved style) — not `node.style` directly — otherwise non-desktop artboards show desktop values in fields.
+- The reducer action is `RESTORE_AI_PREVIEW` (not `REJECT_AI_PREVIEW`) — it reverts state to before the AI edit.
+- `InsertionBar` integrates `SlashCommandPalette` inline — clicking "+" opens the palette anchored to the button, not the full section library panel.
+
 ### State & History
 - Undo/redo is snapshot-based (stores full items array), not command-based. Max 50 entries.
 - Pan, zoom, hover, and selection changes are NEVER recorded in history.
@@ -140,4 +150,8 @@ Append to this section after each session. Format: `[date] — what was changed,
 [2026-03-19] — V3 compose bugs fixed: clicking inside generated site was navigating (added click overlay with preventDefault). Artboards were in scrollable boxes (removed overflow/max-height). Inspector was tabbed (replaced with single-scroll). Middle mouse pan was broken (event capture phase fix).
 
 [2026-03-19] — V3.2 shipped. Inspector overhaul: shared primitives (InspectorField.tsx), 6 selection states rebuilt with InspectorSection/Label/TextInput/Textarea/NumberInput/Select/ColorField/Row/Divider. Spacing box model (SpacingDiagram.tsx) with two-axis paddingX/paddingY sync and collapsed mode. Color picker refinement: portal rendering, viewport clamping, anchor positioning, document colors deduplication, 3→6 hex expansion, preview strip, defaults grid. Top-level section drag-reorder: REORDER_NODE reducer action with cross-artboard siteId sync, SectionDragHandle with GripVertical, midpoint-based insertion, CSS-transform-only visual dragging (no optimistic state), Escape cancel. Fixed: font select undo order, 2 React Compiler ref-during-render lint errors.
+
+[2026-03-20] — Right-click context menu wired into `ComposeDocumentView` with a minimal portal placeholder (`ContextMenu.tsx`). Added viewport-clamped fixed positioning, outside-click/Escape dismiss, text edit event dispatch, AI prompt prefill dispatch, nested duplicate/delete/reorder handling, and site-wide image replacement via a hidden file input in `CanvasArtboard`. Verified on a generated canvas: heading menu opens on right-click, duplicate updates desktop/tablet/mobile, section menu shows reorder rows, Escape closes.
+
+[2026-03-20] — V4 shipped. Full editor polish: right-click context menu (ContextMenu.tsx), escape hierarchy (text→node→parent→deselect), Cmd+Click deep select, Tab/Shift+Tab sibling nav, Enter to edit, breadcrumb bar (BreadcrumbBar.tsx), keyboard shortcuts (Cmd+D/Delete/[/]/Alt+C/V), between-section "+" insertion bars with "/" slash command palette (SlashCommandPalette.tsx), AI preview/accept/reject (AIPreviewBar.tsx + START/ACCEPT/RESTORE_AI_PREVIEW actions), per-breakpoint responsive overrides (breakpoint-aware UPDATE_NODE_STYLE, RESET_NODE_STYLE_OVERRIDE, TOGGLE_NODE_HIDDEN). Bug caught during regression: inspector was reading `node.style` (base) instead of `getNodeStyle(node, breakpoint)` (resolved) — fixed so non-desktop artboards show correct overridden values in fields.
 ```

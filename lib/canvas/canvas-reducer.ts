@@ -5,7 +5,7 @@
  * History is managed via the snapshot-based history engine (history.ts).
  */
 
-import type { PageNode, PageNodeStyle } from "./compose";
+import type { PageNode, PageNodeStyle, Breakpoint } from "./compose";
 import type {
   UnifiedCanvasState,
   CanvasItem,
@@ -36,10 +36,14 @@ export type CanvasAction =
   // Artboard node editing
   | { type: "UPDATE_NODE"; artboardId: string; nodeId: string; changes: Partial<PageNode> }
   | { type: "UPDATE_NODE_STYLE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
+  | { type: "UPDATE_TEXT_CONTENT_SITE"; artboardId: string; nodeId: string; text: string }
+  | { type: "UPDATE_TEXT_STYLE_SITE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
   | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number; parentNodeId?: string }
-  | { type: "INSERT_SECTION"; artboardId: string; afterNodeId: string | null; section: import("./compose").PageNode }
+  | { type: "INSERT_SECTION"; artboardId: string; index?: number; section: import("./compose").PageNode }
   | { type: "DUPLICATE_SECTION"; artboardId: string; nodeId: string }
   | { type: "DELETE_SECTION"; artboardId: string; nodeId: string }
+  | { type: "RESET_NODE_STYLE_OVERRIDE"; artboardId: string; nodeId: string; property: keyof PageNodeStyle; breakpoint: Breakpoint }
+  | { type: "TOGGLE_NODE_HIDDEN"; artboardId: string; nodeId: string; breakpoint: Breakpoint }
 
   // Selection
   | { type: "SELECT_ITEM"; itemId: string; addToSelection?: boolean }
@@ -67,6 +71,11 @@ export type CanvasAction =
   | { type: "REPLACE_SITE"; artboards: ArtboardItem[]; promptEntry: PromptRun }
   | { type: "RESTORE_SITE"; artboards: ArtboardItem[] }
 
+  // AI Preview
+  | { type: "START_AI_PREVIEW"; prompt: string; nodeId: string }
+  | { type: "ACCEPT_AI_PREVIEW" }
+  | { type: "RESTORE_AI_PREVIEW" }
+
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
 
@@ -91,6 +100,10 @@ function uid(prefix: string): string {
 
 function now(): string {
   return new Date().toISOString();
+}
+
+function isTextNodeType(type: PageNode["type"]): boolean {
+  return type === "heading" || type === "paragraph" || type === "button";
 }
 
 /**
@@ -188,12 +201,65 @@ function reorderWithinParent(
   return null;
 }
 
+function updateArtboardsForSite(
+  items: CanvasItem[],
+  artboardId: string,
+  updater: (pageTree: PageNode) => PageNode
+): CanvasItem[] | null {
+  const sourceArtboard = items.find(
+    (item): item is ArtboardItem =>
+      item.kind === "artboard" && item.id === artboardId
+  );
+
+  if (!sourceArtboard) return null;
+
+  return items.map((item) => {
+    if (item.kind !== "artboard" || item.siteId !== sourceArtboard.siteId) {
+      return item;
+    }
+
+    const nextPageTree = updater(item.pageTree);
+    if (nextPageTree === item.pageTree) return item;
+    return {
+      ...item,
+      pageTree: nextPageTree,
+    };
+  });
+}
+
+/**
+ * Determine the active breakpoint from the currently active artboard.
+ * Falls back to "desktop" when no artboard is active.
+ */
+function getActiveBreakpoint(state: UnifiedCanvasState): Breakpoint {
+  if (!state.selection.activeArtboardId) return "desktop";
+  const artboard = state.items.find(
+    (item): item is ArtboardItem =>
+      item.kind === "artboard" && item.id === state.selection.activeArtboardId
+  );
+  return artboard?.breakpoint ?? "desktop";
+}
+
 // ─── Reducer ─────────────────────────────────────────────────────────────────
+
+// Actions that should NOT auto-accept an active AI preview
+const AI_PREVIEW_SAFE_ACTIONS = new Set([
+  "START_AI_PREVIEW", "ACCEPT_AI_PREVIEW", "RESTORE_AI_PREVIEW",
+  "SET_VIEWPORT", "LOAD_STATE", "UNDO", "REDO", "PUSH_HISTORY",
+  "SET_PROMPT", "SET_SITE_TYPE", "TOGGLE_PROMPT_PANEL", "SET_SPLIT_RATIO",
+  "SET_PROMPT_STATUS", "ADD_PROMPT_HISTORY", "REPLACE_SITE", "RESTORE_SITE",
+]);
 
 export function canvasReducer(
   state: CanvasReducerState,
   action: CanvasAction
 ): CanvasReducerState {
+  // Auto-accept AI preview on user-initiated mutations or selection changes.
+  // Preview-related, viewport, prompt, history, and generation actions are excluded.
+  if (state.aiPreview && !AI_PREVIEW_SAFE_ACTIONS.has(action.type)) {
+    state = { ...state, aiPreview: null };
+  }
+
   switch (action.type) {
     // ── Items ──────────────────────────────────────────────────────────────
 
@@ -311,18 +377,78 @@ export function canvasReducer(
     }
 
     case "UPDATE_NODE_STYLE": {
+      const breakpoint = getActiveBreakpoint(state);
+      const updater = (pageTree: PageNode) =>
+        updateNodeInTree(pageTree, action.nodeId, (node) => {
+          if (breakpoint === "desktop") {
+            return { ...node, style: { ...node.style, ...action.style } };
+          }
+          return {
+            ...node,
+            responsiveOverrides: {
+              ...node.responsiveOverrides,
+              [breakpoint]: {
+                ...node.responsiveOverrides?.[breakpoint],
+                ...action.style,
+              },
+            },
+          };
+        });
+
+      const nextItems = updateArtboardsForSite(state.items, action.artboardId, updater);
+
       return {
         ...state,
-        items: state.items.map((item) => {
-          if (item.kind !== "artboard" || item.id !== action.artboardId) return item;
-          return {
-            ...item,
-            pageTree: updateNodeInTree(item.pageTree, action.nodeId, (node) => ({
+        items: nextItems ?? state.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "UPDATE_TEXT_CONTENT_SITE": {
+      const nextItems = updateArtboardsForSite(
+        state.items,
+        action.artboardId,
+        (pageTree) =>
+          updateNodeInTree(pageTree, action.nodeId, (node) => {
+            if (!isTextNodeType(node.type)) return node;
+            return {
+              ...node,
+              content: {
+                ...node.content,
+                text: action.text,
+              },
+            };
+          })
+      );
+
+      if (!nextItems) return state;
+
+      return {
+        ...state,
+        items: nextItems,
+        updatedAt: now(),
+      };
+    }
+
+    case "UPDATE_TEXT_STYLE_SITE": {
+      const nextItems = updateArtboardsForSite(
+        state.items,
+        action.artboardId,
+        (pageTree) =>
+          updateNodeInTree(pageTree, action.nodeId, (node) => {
+            if (!isTextNodeType(node.type)) return node;
+            return {
               ...node,
               style: { ...node.style, ...action.style },
-            })),
-          };
-        }),
+            };
+          })
+      );
+
+      if (!nextItems) return state;
+
+      return {
+        ...state,
+        items: nextItems,
         updatedAt: now(),
       };
     }
@@ -382,15 +508,12 @@ export function canvasReducer(
 
       const insertIntoPageTree = (pageTree: PageNode): PageNode => {
         const children = pageTree.children ?? [];
-        if (!action.afterNodeId) {
-          return { ...pageTree, children: [...children, action.section] };
-        }
-        const index = children.findIndex((c) => c.id === action.afterNodeId);
-        if (index === -1) {
-          return { ...pageTree, children: [...children, action.section] };
-        }
         const next = [...children];
-        next.splice(index + 1, 0, action.section);
+        const insertIndex =
+          typeof action.index === "number"
+            ? Math.max(0, Math.min(action.index, children.length))
+            : children.length;
+        next.splice(insertIndex, 0, action.section);
         return { ...pageTree, children: next };
       };
 
@@ -496,6 +619,81 @@ export function canvasReducer(
       };
     }
 
+    // ── Responsive Overrides ───────────────────────────────────────────────
+
+    case "RESET_NODE_STYLE_OVERRIDE": {
+      const { nodeId, property, breakpoint: bp } = action;
+
+      const nextItems = updateArtboardsForSite(state.items, action.artboardId, (pageTree) =>
+        updateNodeInTree(pageTree, nodeId, (node) => {
+          const overridesForBp = node.responsiveOverrides?.[bp];
+          if (!overridesForBp) return node;
+
+          const updated = { ...overridesForBp };
+          delete updated[property];
+
+          const hasRemaining = Object.keys(updated).length > 0;
+          const nextOverrides = { ...node.responsiveOverrides };
+          if (hasRemaining) {
+            nextOverrides[bp] = updated;
+          } else {
+            delete nextOverrides[bp];
+          }
+
+          return {
+            ...node,
+            responsiveOverrides: Object.keys(nextOverrides).length > 0 ? nextOverrides : undefined,
+          };
+        })
+      );
+
+      if (!nextItems) return state;
+
+      const historyAfterReset = pushHistory(
+        state.history,
+        "Reset responsive override",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: nextItems,
+        history: historyAfterReset,
+        updatedAt: now(),
+      };
+    }
+
+    case "TOGGLE_NODE_HIDDEN": {
+      const { nodeId, breakpoint: bp } = action;
+
+      const nextItems = updateArtboardsForSite(state.items, action.artboardId, (pageTree) =>
+        updateNodeInTree(pageTree, nodeId, (node) => ({
+          ...node,
+          hidden: {
+            ...node.hidden,
+            [bp]: !(node.hidden?.[bp] ?? false),
+          },
+        }))
+      );
+
+      if (!nextItems) return state;
+
+      const historyAfterToggle = pushHistory(
+        state.history,
+        "Toggle element visibility",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: nextItems,
+        history: historyAfterToggle,
+        updatedAt: now(),
+      };
+    }
+
     // ── Selection ─────────────────────────────────────────────────────────
 
     case "SELECT_ITEM": {
@@ -582,6 +780,16 @@ export function canvasReducer(
     }
 
     case "UNDO": {
+      // Cmd+Z while AI preview is active → reject (restore pre-edit snapshot)
+      if (state.aiPreview) {
+        return {
+          ...state,
+          items: state.aiPreview.beforeItems,
+          selection: state.aiPreview.beforeSelection,
+          aiPreview: null,
+          updatedAt: now(),
+        };
+      }
       const result = undo(state.history, state.items, state.selection);
       if (!result) return state;
       return {
@@ -712,11 +920,43 @@ export function canvasReducer(
       };
     }
 
+    // ── AI Preview ──────────────────────────────────────────────────────
+
+    case "START_AI_PREVIEW": {
+      return {
+        ...state,
+        aiPreview: {
+          active: true,
+          beforeItems: structuredClone(state.items),
+          beforeSelection: { ...state.selection },
+          prompt: action.prompt,
+          targetNodeId: action.nodeId,
+          timestamp: Date.now(),
+        },
+      };
+    }
+
+    case "ACCEPT_AI_PREVIEW": {
+      return { ...state, aiPreview: null };
+    }
+
+    case "RESTORE_AI_PREVIEW": {
+      if (!state.aiPreview) return state;
+      return {
+        ...state,
+        items: state.aiPreview.beforeItems,
+        selection: state.aiPreview.beforeSelection,
+        aiPreview: null,
+        updatedAt: now(),
+      };
+    }
+
     // ── Persistence ───────────────────────────────────────────────────────
 
     case "LOAD_STATE": {
       return {
         ...action.state,
+        aiPreview: null, // Never restore transient AI preview state
         history: state.history, // Preserve in-memory history stack across loads
       };
     }

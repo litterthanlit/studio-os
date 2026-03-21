@@ -15,7 +15,8 @@ const ZOOM_SENSITIVITY = 0.002;
 /**
  * Hook for canvas pan/zoom gestures.
  *
- * - Wheel: zoom in/out centered on cursor position
+ * - Wheel: scroll/pan the canvas like a page
+ * - Cmd/Ctrl + wheel: zoom in/out centered on cursor position
  * - Pinch: zoom (touch devices)
  * - Space + pointer drag: pan the canvas
  * - Middle mouse drag: pan the canvas
@@ -31,6 +32,81 @@ export function useCanvasGestures(options: GestureCallbacks) {
   const isPanningRef = useRef(false);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<string>("default");
+
+  const startPan = useCallback(
+    (
+      startEvent:
+        | Pick<React.PointerEvent, "clientX" | "clientY" | "preventDefault" | "stopPropagation">
+        | Pick<React.MouseEvent, "clientX" | "clientY" | "preventDefault" | "stopPropagation">,
+      mode: "pointer" | "mouse"
+    ) => {
+      startEvent.preventDefault();
+      startEvent.stopPropagation();
+      isPanningRef.current = true;
+      panStartRef.current = { x: startEvent.clientX, y: startEvent.clientY };
+
+      if (containerRef.current) {
+        containerRef.current.style.cursor = "grabbing";
+      }
+      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = "none";
+
+      const handlePanMove = (moveEvent: PointerEvent | MouseEvent) => {
+        if (!panStartRef.current) return;
+        moveEvent.preventDefault();
+        const dx = moveEvent.clientX - panStartRef.current.x;
+        const dy = moveEvent.clientY - panStartRef.current.y;
+        panStartRef.current = { x: moveEvent.clientX, y: moveEvent.clientY };
+        onPan({ dx, dy });
+      };
+
+      const cleanup = () => {
+        isPanningRef.current = false;
+        panStartRef.current = null;
+
+        if (containerRef.current) {
+          containerRef.current.style.cursor = spaceHeldRef.current ? "grab" : "default";
+        }
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+        window.removeEventListener("mousemove", handleMouseMove, true);
+        window.removeEventListener("mouseup", handleMouseUp, true);
+      };
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        handlePanMove(moveEvent);
+      };
+
+      const handlePointerUp = () => {
+        cleanup();
+      };
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if ((moveEvent.buttons & 4) !== 4) {
+          cleanup();
+          return;
+        }
+        handlePanMove(moveEvent);
+      };
+
+      const handleMouseUp = () => {
+        cleanup();
+      };
+
+      if (mode === "mouse") {
+        window.addEventListener("mousemove", handleMouseMove, true);
+        window.addEventListener("mouseup", handleMouseUp, true);
+        return;
+      }
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+    },
+    [onPan]
+  );
 
   // ── Space key tracking ──────────────────────────────────────────────
 
@@ -71,10 +147,11 @@ export function useCanvasGestures(options: GestureCallbacks) {
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
+      const isZoomGesture = e.metaKey || e.ctrlKey;
 
-      // Pinch gesture (ctrlKey set by trackpad pinch)
-      if (e.ctrlKey) {
+      // Cmd/Ctrl + wheel zoom
+      if (isZoomGesture) {
+        e.preventDefault();
         const delta = -e.deltaY * ZOOM_SENSITIVITY;
         const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * (1 + delta * 10)));
         const rect = container.getBoundingClientRect();
@@ -85,62 +162,53 @@ export function useCanvasGestures(options: GestureCallbacks) {
         return;
       }
 
-      // Regular scroll wheel zoom
-      const delta = -e.deltaY * ZOOM_SENSITIVITY;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * (1 + delta * 5)));
-      const rect = container.getBoundingClientRect();
-      onZoom(newZoom, {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+      // Regular wheel scroll pans the canvas like page scrolling.
+      e.preventDefault();
+      onPan({
+        dx: -e.deltaX,
+        dy: -e.deltaY,
       });
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
-  }, [currentZoom, onZoom]);
+  }, [currentZoom, onPan, onZoom]);
+
+  // ── Native middle-mouse pan ────────────────────────────────────────
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMiddleMouseDown = (event: MouseEvent) => {
+      if (event.button !== 1) return;
+      startPan(event, "mouse");
+    };
+
+    const handleAuxClick = (event: MouseEvent) => {
+      if (event.button === 1) {
+        event.preventDefault();
+      }
+    };
+
+    container.addEventListener("mousedown", handleMiddleMouseDown, true);
+    container.addEventListener("auxclick", handleAuxClick);
+
+    return () => {
+      container.removeEventListener("mousedown", handleMiddleMouseDown, true);
+      container.removeEventListener("auxclick", handleAuxClick);
+    };
+  }, [startPan]);
 
   // ── Pointer pan (Space+drag or middle mouse) ────────────────────────
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      const isMiddle = e.button === 1;
       const isSpacePan = e.button === 0 && spaceHeldRef.current;
-
-      if (!isMiddle && !isSpacePan) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      isPanningRef.current = true;
-      panStartRef.current = { x: e.clientX, y: e.clientY };
-
-      if (containerRef.current) {
-        containerRef.current.style.cursor = "grabbing";
-      }
-
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        if (!panStartRef.current) return;
-        const dx = moveEvent.clientX - panStartRef.current.x;
-        const dy = moveEvent.clientY - panStartRef.current.y;
-        panStartRef.current = { x: moveEvent.clientX, y: moveEvent.clientY };
-        onPan({ dx, dy });
-      };
-
-      const handlePointerUp = () => {
-        isPanningRef.current = false;
-        panStartRef.current = null;
-
-        if (containerRef.current) {
-          containerRef.current.style.cursor = spaceHeldRef.current ? "grab" : "default";
-        }
-
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-      };
-
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
+      if (!isSpacePan) return;
+      startPan(e, "pointer");
     },
-    [onPan]
+    [startPan]
   );
 
   return {

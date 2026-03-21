@@ -3,13 +3,12 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { motion } from "framer-motion";
-import { Type, Sparkles, ImageUp, Plus, ChevronUp, ChevronDown, Copy, Trash2 } from "lucide-react";
+import { Sparkles, ImageUp, Plus, ChevronUp, ChevronDown, Copy, Trash2 } from "lucide-react";
 import type { PageNode } from "@/lib/canvas/compose";
 
 type ElementActionMenuProps = {
   node: PageNode;
   anchorRef: React.RefObject<HTMLDivElement | null>;
-  onEditText: () => void;
   onEditWithAI: () => void;
   onReplaceImage: () => void;
   onAddSectionBelow: () => void;
@@ -25,7 +24,6 @@ type ElementActionMenuProps = {
 export function ElementActionMenu({
   node,
   anchorRef,
-  onEditText,
   onEditWithAI,
   onReplaceImage,
   onAddSectionBelow,
@@ -40,7 +38,6 @@ export function ElementActionMenu({
   const menuRef = React.useRef<HTMLDivElement>(null);
   const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
 
-  const isTextNode = ["heading", "paragraph", "button"].includes(node.type);
   const isSectionNode = node.type === "section";
   const isMediaNode = Boolean(node.content?.mediaUrl);
 
@@ -110,12 +107,6 @@ export function ElementActionMenu({
       }}
       className="bg-white border border-[#E5E5E0] rounded-[4px] shadow-md min-w-[160px] max-w-[200px] py-1"
     >
-      {isTextNode && (
-        <button className={rowClass} onClick={onEditText}>
-          <Type {...iconProps} /> Edit Text
-        </button>
-      )}
-
       {isMediaNode && (
         <button className={rowClass} onClick={onReplaceImage}>
           <ImageUp {...iconProps} /> Replace Image

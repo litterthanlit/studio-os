@@ -15,3 +15,14 @@
 - [x] Prompt 5: Visual polish & canvas feel
 - [x] Prompt 6: IBM Plex Mono font replacement
 - [x] Prompt 7: Full regression pass
+
+## V3.4 Session 1 — Right-Click Context Menu
+- [x] Add shared context-menu state and viewport-clamped dismiss logic in `ComposeDocumentView`
+- [x] Create minimal portal-based `ContextMenu.tsx` placeholder with type-specific rows
+- [x] Wire reducer-backed actions for edit/AI/duplicate/reorder/delete and optional image replace
+- [x] Run TypeScript + canvas token verification and update docs/dev log
+
+## V3.4 Session 3 — Keyboard Shortcuts + Style Copy/Paste + Enter Edit
+- [x] Patch `useCanvasKeyboard.ts` for structural shortcuts, style clipboard, and Enter guards
+- [x] Patch `ComposeDocumentView.tsx` for custom edit/outline flash events in `Selectable`
+- [x] Run `npx tsc --noEmit` and note manual verification checks

@@ -8,7 +8,42 @@
 
 import { useEffect } from "react";
 import type { CanvasAction } from "@/lib/canvas/canvas-reducer";
-import type { UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
+import type { ArtboardItem, UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
+import {
+  findNodeById,
+  findNodePath,
+  findParentNode,
+  type PageNodeStyle,
+} from "@/lib/canvas/compose";
+
+export const ENTER_TEXT_EDIT_MODE_EVENT = "studio:enter-edit-mode";
+export const FLASH_NODE_OUTLINES_EVENT = "studio:flash-node-outlines";
+
+type FlashNodeOutlinesEventDetail = {
+  artboardId: string;
+  nodeIds: string[];
+};
+
+const STYLE_COPY_KEYS: Array<keyof PageNodeStyle> = [
+  "background",
+  "foreground",
+  "muted",
+  "accent",
+  "borderColor",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "lineHeight",
+  "letterSpacing",
+  "fontStyle",
+  "textDecoration",
+  "borderRadius",
+  "opacity",
+  "blur",
+  "shadow",
+];
+
+let copiedStyleClipboard: Partial<PageNodeStyle> | null = null;
 
 type KeyboardOptions = {
   state: UnifiedCanvasState;
@@ -26,18 +61,103 @@ export function useCanvasKeyboard({
   onFocusPrompt,
 }: KeyboardOptions) {
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Don't fire when typing in inputs
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        (e.target as HTMLElement)?.isContentEditable
-      ) {
-        return;
+    const getActiveArtboard = () =>
+      state.selection.activeArtboardId
+        ? state.items.find(
+            (item): item is ArtboardItem =>
+              item.kind === "artboard" && item.id === state.selection.activeArtboardId
+          ) ?? null
+        : null;
+
+    const getSelectedNodeMetadata = () => {
+      const activeArtboard = getActiveArtboard();
+      const selectedNodeId = state.selection.selectedNodeId;
+      if (!activeArtboard || !selectedNodeId) return null;
+
+      const path = findNodePath(activeArtboard.pageTree, selectedNodeId);
+      if (!path) return null;
+
+      const node = path[path.length - 1];
+      const parent = path[path.length - 2] ?? null;
+      const siblings = parent?.children ?? [activeArtboard.pageTree];
+      const index = siblings.findIndex((child) => child.id === selectedNodeId);
+
+      if (index === -1) return null;
+
+      return {
+        activeArtboard,
+        node,
+        parent,
+        siblings,
+        index,
+      };
+    };
+
+    const copySelectedNodeStyle = () => {
+      const metadata = getSelectedNodeMetadata();
+      if (!metadata) return;
+
+      const nextClipboard: Partial<PageNodeStyle> = {};
+      for (const key of STYLE_COPY_KEYS) {
+        const value = metadata.node.style?.[key];
+        if (value !== undefined) {
+          (
+            nextClipboard as Record<
+              keyof PageNodeStyle,
+              PageNodeStyle[keyof PageNodeStyle]
+            >
+          )[key] = value as PageNodeStyle[keyof PageNodeStyle];
+        }
       }
 
+      copiedStyleClipboard = Object.keys(nextClipboard).length > 0 ? nextClipboard : null;
+    };
+
+    const pasteSelectedNodeStyle = () => {
+      const metadata = getSelectedNodeMetadata();
+      if (!metadata || !copiedStyleClipboard) return;
+
+      dispatch({ type: "PUSH_HISTORY", description: "Pasted style" });
+      dispatch({
+        type: "UPDATE_NODE_STYLE",
+        artboardId: metadata.activeArtboard.id,
+        nodeId: metadata.node.id,
+        style: copiedStyleClipboard,
+      });
+    };
+
+    const flashTopLevelSections = (artboardId: string, nodeIds: string[]) => {
+      if (typeof window === "undefined" || nodeIds.length === 0) return;
+
+      window.dispatchEvent(
+        new CustomEvent<FlashNodeOutlinesEventDetail>(FLASH_NODE_OUTLINES_EVENT, {
+          detail: {
+            artboardId,
+            nodeIds,
+          },
+        })
+      );
+    };
+
+    const isEditingText = () => {
+      const activeElement = document.activeElement as HTMLElement | null;
+      return (
+        activeElement?.getAttribute("contenteditable") === "true" ||
+        activeElement?.tagName === "INPUT" ||
+        activeElement?.tagName === "TEXTAREA"
+      );
+    };
+
+    const hasBlockingPopoverOpen = () =>
+      Boolean(document.querySelector("[data-studio-context-menu-open='true']"));
+
+    const handler = (e: KeyboardEvent) => {
       const isMeta = e.metaKey || e.ctrlKey;
+      const isEditing = isEditingText();
+
+      if (isEditing) {
+        return;
+      }
 
       // Cmd+Z / Cmd+Shift+Z — Undo / Redo
       if (isMeta && e.key === "z" && e.shiftKey) {
@@ -65,11 +185,62 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // Cmd+A — Select all items
+      if (isMeta && e.altKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        copySelectedNodeStyle();
+        return;
+      }
+
+      if (isMeta && e.altKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        pasteSelectedNodeStyle();
+        return;
+      }
+
+      // Cmd+[ / Cmd+] — Move selected node among its siblings
+      if (isMeta && (e.key === "[" || e.key === "]")) {
+        e.preventDefault();
+
+        const metadata = getSelectedNodeMetadata();
+        if (!metadata) return;
+
+        const direction = e.key === "[" ? -1 : 1;
+        const newIndex = metadata.index + direction;
+        if (newIndex < 0 || newIndex >= metadata.siblings.length) return;
+
+        dispatch({
+          type: "REORDER_NODE",
+          artboardId: metadata.activeArtboard.id,
+          nodeId: metadata.node.id,
+          newIndex,
+          parentNodeId:
+            metadata.parent && metadata.parent.id !== metadata.activeArtboard.pageTree.id
+              ? metadata.parent.id
+              : undefined,
+        });
+        return;
+      }
+
+      // Cmd+A — Select all top-level sections on the active artboard, or all canvas items otherwise
       if (isMeta && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
-        // Select all by dispatching SELECT_ITEM with addToSelection for each
-        // First deselect, then add all
+
+        const activeArtboard = getActiveArtboard();
+        const topLevelSectionIds =
+          activeArtboard?.pageTree.children
+            ?.filter((child) => child.type === "section")
+            .map((child) => child.id) ?? [];
+
+        if (activeArtboard && topLevelSectionIds.length > 0) {
+          dispatch({
+            type: "SELECT_NODE",
+            artboardId: activeArtboard.id,
+            nodeId: topLevelSectionIds[0],
+          });
+          flashTopLevelSections(activeArtboard.id, topLevelSectionIds);
+          return;
+        }
+
         dispatch({ type: "DESELECT_ALL" });
         for (const item of state.items) {
           dispatch({ type: "SELECT_ITEM", itemId: item.id, addToSelection: true });
@@ -92,15 +263,86 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // Escape — Hierarchical deselect (Figma behavior)
+      // Escape — Walk up the node hierarchy (Figma behavior)
+      // Node selected → parent node → grandparent → ... → top-level section → deselect node → deselect all
       if (e.key === "Escape") {
+        // If another handler already handled this Escape (popover, menu, etc.), skip
+        if (e.defaultPrevented) return;
         e.preventDefault();
+
+        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+          const artboard = state.items.find(
+            (item): item is ArtboardItem =>
+              item.kind === "artboard" && item.id === state.selection.activeArtboardId
+          );
+          if (artboard) {
+            const parent = findParentNode(artboard.pageTree, state.selection.selectedNodeId);
+            if (parent && parent.type !== "page") {
+              // Walk up to parent node
+              dispatch({ type: "SELECT_NODE", artboardId: state.selection.activeArtboardId, nodeId: parent.id });
+              return;
+            }
+          }
+        }
+
+        // Fall through: clear node selection, then deselect all
         dispatch({ type: "ESCAPE" });
+        return;
+      }
+
+      // Tab / Shift+Tab — Navigate between siblings at the same tree level
+      if (e.key === "Tab" && state.selection.selectedNodeId && state.selection.activeArtboardId) {
+        e.preventDefault();
+        const metadata = getSelectedNodeMetadata();
+        if (!metadata || metadata.siblings.length <= 1) return;
+
+        let nextIndex: number;
+        if (e.shiftKey) {
+          nextIndex = metadata.index === 0 ? metadata.siblings.length - 1 : metadata.index - 1;
+        } else {
+          nextIndex = metadata.index === metadata.siblings.length - 1 ? 0 : metadata.index + 1;
+        }
+
+        dispatch({
+          type: "SELECT_NODE",
+          artboardId: metadata.activeArtboard.id,
+          nodeId: metadata.siblings[nextIndex].id,
+        });
         return;
       }
 
       // Single key shortcuts (no modifier)
       if (!isMeta && !e.altKey) {
+        if (e.key === "Enter") {
+          if (hasBlockingPopoverOpen()) return;
+
+          const activeArtboard = getActiveArtboard();
+          if (!activeArtboard) return;
+
+          const selectedNode =
+            state.selection.selectedNodeId
+              ? findNodeById(activeArtboard.pageTree, state.selection.selectedNodeId)
+              : null;
+
+          if (
+            selectedNode &&
+            (selectedNode.type === "heading" ||
+              selectedNode.type === "paragraph" ||
+              selectedNode.type === "button")
+          ) {
+            e.preventDefault();
+            window.dispatchEvent(
+              new CustomEvent(ENTER_TEXT_EDIT_MODE_EVENT, {
+                detail: {
+                  artboardId: activeArtboard.id,
+                  nodeId: selectedNode.id,
+                },
+              })
+            );
+            return;
+          }
+        }
+
         // P — Focus prompt (opens inspector if hidden, expands prompt section, focuses textarea)
         if (e.key === "p" || e.key === "P") {
           e.preventDefault();

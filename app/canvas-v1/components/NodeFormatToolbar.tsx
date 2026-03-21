@@ -7,7 +7,8 @@ import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { ColorPickerPopover } from "./ColorPickerPopover";
-import type { PageNode } from "@/lib/canvas/compose";
+import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
+import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
 
 type NodeFormatToolbarProps = {
   node: PageNode;
@@ -24,6 +25,13 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
   const [showColorPicker, setShowColorPicker] = React.useState(false);
 
   const style = node.style ?? {};
+  const documentColors = React.useMemo(
+    () =>
+      state.items
+        .filter((item): item is ReferenceItem => item.kind === "reference")
+        .flatMap((item) => item.extracted?.colors ?? []),
+    [state.items]
+  );
 
   // Position centered above anchor, clamped to viewport
   React.useLayoutEffect(() => {
@@ -55,7 +63,12 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
   function updateNodeStyle(patch: Record<string, unknown>, description: string) {
     if (!artboardId) return;
     dispatch({ type: "PUSH_HISTORY", description });
-    dispatch({ type: "UPDATE_NODE_STYLE", artboardId, nodeId: node.id, style: patch as never });
+    dispatch({
+      type: "UPDATE_TEXT_STYLE_SITE",
+      artboardId,
+      nodeId: node.id,
+      style: patch as Partial<PageNodeStyle>,
+    });
   }
 
   const isBold = (style.fontWeight ?? 400) >= 700;
@@ -140,7 +153,7 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
           open={showColorPicker}
           value={style.foreground || "#1A1A1A"}
           anchorEl={colorEl}
-          documentColors={[]}
+          documentColors={documentColors}
           onSelect={(c) => {
             updateNodeStyle({ foreground: c }, "Changed text color");
           }}

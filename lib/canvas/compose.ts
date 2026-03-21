@@ -1156,6 +1156,10 @@ export function getNodeStyle(node: PageNode, breakpoint: Breakpoint): PageNodeSt
   };
 }
 
+export function isNodeHidden(node: PageNode, breakpoint: Breakpoint): boolean {
+  return node.hidden?.[breakpoint] ?? false;
+}
+
 export function cloneNode<T>(value: T): T {
   return structuredClone(value);
 }
@@ -1166,6 +1170,19 @@ export function findNodeById(node: PageNode, targetId: string | null): PageNode 
   for (const child of node.children ?? []) {
     const match = findNodeById(child, targetId);
     if (match) return match;
+  }
+  return null;
+}
+
+export function findParentNode(
+  root: PageNode,
+  targetId: string
+): PageNode | null {
+  if (!root.children) return null;
+  for (const child of root.children) {
+    if (child.id === targetId) return root;
+    const found = findParentNode(child, targetId);
+    if (found) return found;
   }
   return null;
 }

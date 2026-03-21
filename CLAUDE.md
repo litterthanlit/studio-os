@@ -171,6 +171,22 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - New reducer actions: `INSERT_SECTION`, `DUPLICATE_SECTION`, `DELETE_SECTION`
 - Interaction model: single-click selects (unchanged), double-click opens action popover, Edit Text enters contentEditable
 
+**V4 Editor Polish** (complete, verified 2026-03-20):
+- Right-click context menu — type-specific actions on every node (Edit Text, AI, Duplicate, Move Up/Down, Copy/Paste Style, Delete), portal-rendered with viewport clamping
+- Full escape hierarchy — text editing → node → parent → grandparent → deselected
+- Cmd+Click deep select — bypass hierarchy to select deepest node at click point via `elementsFromPoint` + `data-node-id`
+- Tab/Shift+Tab sibling navigation — cycle through siblings at same tree level, wraps at boundaries
+- Enter to start text editing — fires `ENTER_TEXT_EDIT_MODE_EVENT` on selected text node
+- Breadcrumb hierarchy bar — clickable path from root to selected node, breakpoint label as root segment
+- Keyboard shortcuts: Cmd+D duplicate, Delete remove, Cmd+[/] reorder, Cmd+Alt+C/V copy/paste style (excludes layout properties)
+- Between-section "+" insertion bars with "/" slash command palette (7 templates + Browse All + search + keyboard nav)
+- AI preview/accept/reject — AI edits stored as proposals via `AIPreviewSession`, accept commits, reject/vary restores prior state
+- Per-breakpoint responsive overrides — `UPDATE_NODE_STYLE` writes to `responsiveOverrides[breakpoint]` on non-desktop artboards, inspector shows blue dot indicators with click-to-reset, breakpoint label header, Hide on Tablet/Mobile visibility toggles
+- Inspector reads resolved style via `getNodeStyle(node, breakpoint)` — shows effective values including overrides
+- New files: `ContextMenu.tsx`, `BreadcrumbBar.tsx`, `SlashCommandPalette.tsx`, `AIPreviewBar.tsx`
+- New reducer actions: `START_AI_PREVIEW`, `ACCEPT_AI_PREVIEW`, `RESTORE_AI_PREVIEW`, `RESET_NODE_STYLE_OVERRIDE`, `TOGGLE_NODE_HIDDEN`
+- Modified: `useCanvasKeyboard.ts` (full shortcut set), `ComposeDocumentView.tsx` (deep select, hidden node filtering, insertion bars), `canvas-reducer.ts` (breakpoint-aware `UPDATE_NODE_STYLE`, `getActiveBreakpoint` helper), `InspectorPanelV3.tsx` (preview bar, override dots, visibility toggles, resolved style), `InspectorField.tsx` (`InspectorLabel` hasOverride/onResetOverride), `InsertionBar.tsx` (slash palette integration)
+
 **Dashboard screens** (V2 design, unchanged in V3):
 - `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
 - `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact rows → routes to canvas
@@ -261,6 +277,11 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/ElementActionMenu.tsx` | Double-click popover — type-specific actions (Edit Text, AI, Replace Image, Add Section, Move, Duplicate, Delete) |
 | `app/canvas-v1/components/NodeFormatToolbar.tsx` | Floating B/I/U/Font/Color/AI toolbar above selected text nodes |
 | `app/canvas-v1/components/SectionLibraryPanel.tsx` | Slide-over panel with 7 section templates + search |
+| `app/canvas-v1/components/ContextMenu.tsx` | Right-click context menu — type-specific actions, portal-rendered |
+| `app/canvas-v1/components/BreadcrumbBar.tsx` | Clickable hierarchy path from root to selected node |
+| `app/canvas-v1/components/SlashCommandPalette.tsx` | "/" command palette for section insertion — search, keyboard nav |
+| `app/canvas-v1/components/AIPreviewBar.tsx` | Accept/Reject/Vary bar for AI preview proposals |
+| `app/canvas-v1/components/InsertionBar.tsx` | Between-section "+" hover bar with slash palette integration |
 | `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder, action menu, floating toolbar |
 | `app/canvas-v1/hooks/useDrag.ts` | Drag hook — pointer cycle, zoom-aware, shift-axis lock |
 | `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |

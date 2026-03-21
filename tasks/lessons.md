@@ -27,3 +27,7 @@ Review this file at the start of every session. Append after any user correction
 ### 2026-03-19 — React Compiler flags ref access through render context
 **Mistake:** Passed a callback that accesses `useRef.current` through a `useMemo` render context object. React Compiler traced the transitive ref access and flagged it as "Cannot access refs during render", even though the callback was only invoked as a callback ref during commit.
 **Rule:** When passing ref-accessing callbacks through render context, use `useMemo(() => new Map(), [])` for mutable containers instead of `useRef(new Map())`. For anchor elements in portals, use state (`useState<HTMLElement | null>`) with the setter as a callback ref instead of `useRef`.
+
+### 2026-03-20 — Inspector reading base style instead of resolved style
+**Mistake:** `NodeInspector` in `InspectorPanelV3.tsx` read `node.style || {}` (base desktop style) instead of the breakpoint-resolved style. On a Mobile artboard, the inspector showed desktop values in all fields, not the overridden mobile values.
+**Rule:** Always use `getNodeStyle(node, breakpoint)` when displaying style values in the inspector. The base `node.style` is only the desktop layer — non-desktop artboards need the merged `{...node.style, ...node.responsiveOverrides[breakpoint]}` result.

@@ -34,17 +34,32 @@ export function InspectorSection({
 export function InspectorLabel({
   children,
   className,
+  hasOverride,
+  onResetOverride,
 }: {
   children: React.ReactNode;
   className?: string;
+  hasOverride?: boolean;
+  onResetOverride?: () => void;
 }) {
   return (
     <span
       className={cn(
-        "block text-[10px] uppercase tracking-wide text-[#A0A0A0] font-mono mb-1",
+        "flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[#A0A0A0] font-mono mb-1",
         className
       )}
     >
+      {hasOverride && (
+        <button
+          type="button"
+          title="Overridden — click to reset to desktop"
+          className="w-1.5 h-1.5 rounded-full bg-[#1E5DF2] shrink-0 hover:ring-2 hover:ring-[#D1E4FC] transition-shadow"
+          onClick={(e) => {
+            e.stopPropagation();
+            onResetOverride?.();
+          }}
+        />
+      )}
       {children}
     </span>
   );
@@ -270,7 +285,7 @@ export function InspectorRow({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-2", className)}>
+    <div className={cn("grid grid-cols-2 gap-1.5", className)}>
       {children}
     </div>
   );

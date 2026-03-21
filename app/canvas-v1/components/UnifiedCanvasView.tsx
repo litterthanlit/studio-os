@@ -24,6 +24,7 @@ import { CanvasArrow } from "./CanvasArrow";
 import { InspectorPanelV3 } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
 import { BottomBarV3 } from "./BottomBarV3";
+import { BreadcrumbBar } from "./BreadcrumbBar";
 import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
 import { useCanvasKeyboard } from "../hooks/useCanvasKeyboard";
 import { AnimatePresence } from "framer-motion";
@@ -83,10 +84,11 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(false);
   const [showInspector, setShowInspector] = React.useState(true);
-  const [sectionLibrary, setSectionLibrary] = React.useState<{ open: boolean; afterNodeId: string | null }>({ open: false, afterNodeId: null });
+  const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
+    React.useState<number | null>(null);
 
-  const handleOpenSectionLibrary = React.useCallback((afterNodeId: string | null) => {
-    setSectionLibrary({ open: true, afterNodeId });
+  const handleOpenSectionLibrary = React.useCallback((insertAtIndex: number) => {
+    setSectionLibraryInsertIndex(insertAtIndex);
   }, []);
 
   // Prompt textarea ref for focus management
@@ -468,14 +470,31 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       {/* Section library panel */}
       <AnimatePresence>
-        {sectionLibrary.open && (
+        {sectionLibraryInsertIndex !== null && (
           <SectionLibraryPanel
-            isOpen={sectionLibrary.open}
-            onClose={() => setSectionLibrary({ open: false, afterNodeId: null })}
-            afterNodeId={sectionLibrary.afterNodeId}
+            isOpen
+            onClose={() => setSectionLibraryInsertIndex(null)}
+            insertAtIndex={sectionLibraryInsertIndex}
           />
         )}
       </AnimatePresence>
+
+      {/* Breadcrumb hierarchy bar */}
+      {state.selection.activeArtboardId && state.selection.selectedNodeId && (() => {
+        const activeArtboard = items.find(
+          (item) => item.kind === "artboard" && item.id === state.selection.activeArtboardId
+        );
+        if (!activeArtboard || activeArtboard.kind !== "artboard") return null;
+        const label = activeArtboard.breakpoint === "desktop" ? "Desktop" : activeArtboard.breakpoint === "tablet" ? "Tablet" : "Mobile";
+        return (
+          <BreadcrumbBar
+            pageTree={activeArtboard.pageTree}
+            selectedNodeId={state.selection.selectedNodeId}
+            breakpointLabel={label}
+            onSelectNode={(nodeId) => dispatch({ type: "SELECT_NODE", artboardId: activeArtboard.id, nodeId })}
+          />
+        );
+      })()}
 
       {/* Bottom bar */}
       <BottomBarV3

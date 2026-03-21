@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { ComposeDocumentView } from "./ComposeDocumentView";
-import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
+import { BREAKPOINT_WIDTHS, findNodeById } from "@/lib/canvas/compose";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
@@ -14,7 +14,7 @@ type CanvasArtboardProps = {
   isDragging?: boolean;
   isGenerating?: boolean;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
-  onOpenSectionLibrary?: (afterNodeId: string | null) => void;
+  onOpenSectionLibrary?: (insertAtIndex: number) => void;
   onFocusPromptWithPrefill?: (prefill: string) => void;
 };
 
@@ -50,6 +50,69 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
       });
     },
     [dispatch, item.id]
+  );
+
+  const handleNodeContentUpdate = React.useCallback(
+    (nodeId: string, key: string, value: string) => {
+      if (key === "text") {
+        dispatch({
+          type: "UPDATE_TEXT_CONTENT_SITE",
+          artboardId: item.id,
+          nodeId,
+          text: value,
+        });
+        return;
+      }
+
+      dispatch({
+        type: "UPDATE_NODE",
+        artboardId: item.id,
+        nodeId,
+        changes: {
+          content: {
+            ...(findNodeById(item.pageTree, nodeId)?.content ?? {}),
+            [key]: value,
+          },
+        },
+      });
+    },
+    [dispatch, item.id, item.pageTree]
+  );
+
+  const handleReplaceNodeImage = React.useCallback(
+    (nodeId: string, file: File) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const mediaUrl = typeof reader.result === "string" ? reader.result : null;
+        if (!mediaUrl) return;
+        const syncedArtboardIds = state.items
+          .filter(
+            (canvasItem): canvasItem is ArtboardItem =>
+              canvasItem.kind === "artboard" && canvasItem.siteId === item.siteId
+          )
+          .map((canvasItem) => canvasItem.id);
+
+        dispatch({ type: "PUSH_HISTORY", description: "Replaced image" });
+        syncedArtboardIds.forEach((artboardId) => {
+          dispatch({
+            type: "UPDATE_NODE",
+            artboardId,
+            nodeId,
+            changes: {
+              content: {
+                ...(findNodeById(item.pageTree, nodeId)?.content ?? {}),
+                mediaUrl,
+                mediaAlt: file.name || "Uploaded image",
+              },
+            },
+          });
+        });
+      };
+
+      reader.readAsDataURL(file);
+    },
+    [dispatch, item.pageTree, item.siteId, state.items]
   );
 
   return (
@@ -129,9 +192,11 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
               breakpoint={item.breakpoint}
               selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
               onSelectNode={handleNodeSelect}
+              onUpdateContent={handleNodeContentUpdate}
               onReorderSection={handleSectionReorder}
               onOpenSectionLibrary={onOpenSectionLibrary}
               onFocusPromptWithPrefill={onFocusPromptWithPrefill}
+              onReplaceImage={handleReplaceNodeImage}
               interactive
             />
           ) : (

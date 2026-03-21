@@ -22,6 +22,15 @@ import { BREAKPOINT_WIDTHS } from "./compose";
 
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 
+export type AIPreviewSession = {
+  active: boolean;
+  beforeItems: CanvasItem[];
+  beforeSelection: UnifiedCanvasState["selection"];
+  prompt: string;
+  targetNodeId: string;
+  timestamp: number;
+};
+
 export type UnifiedCanvasState = {
   schemaVersion: 3;
   viewport: { pan: { x: number; y: number }; zoom: number };
@@ -40,6 +49,7 @@ export type UnifiedCanvasState = {
     isGenerating: boolean;
     agentSteps: string[];
   };
+  aiPreview: AIPreviewSession | null;
   exportArtifact: ExportArtifact | null;
   updatedAt: string;
 };
@@ -151,6 +161,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
       isGenerating: false,
       agentSteps: [],
     },
+    aiPreview: null,
     exportArtifact: null,
     updatedAt: new Date().toISOString(),
   };
@@ -522,6 +533,8 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
       isGenerating: false,
       agentSteps: [],
     },
+    // AI preview is transient session state — never persist
+    aiPreview: null,
   };
 
   try {
@@ -587,6 +600,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
             isGenerating: false,
             agentSteps: [],
           },
+          aiPreview: null,
         };
       }
     }

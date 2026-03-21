@@ -19,10 +19,14 @@ const ICON_MAP: Record<string, React.ElementType> = {
 type SectionLibraryPanelProps = {
   isOpen: boolean;
   onClose: () => void;
-  afterNodeId: string | null;
+  insertAtIndex?: number;
 };
 
-export function SectionLibraryPanel({ isOpen, onClose, afterNodeId }: SectionLibraryPanelProps) {
+export function SectionLibraryPanel({
+  isOpen,
+  onClose,
+  insertAtIndex,
+}: SectionLibraryPanelProps) {
   const { state, dispatch } = useCanvas();
   const [search, setSearch] = React.useState("");
 
@@ -46,7 +50,7 @@ export function SectionLibraryPanel({ isOpen, onClose, afterNodeId }: SectionLib
     const template = SECTION_TEMPLATES.find((t) => t.id === templateId);
     if (!template) return;
     const section = template.createNodes();
-    dispatch({ type: "INSERT_SECTION", artboardId, afterNodeId, section });
+    dispatch({ type: "INSERT_SECTION", artboardId, index: insertAtIndex, section });
     onClose();
   }
 

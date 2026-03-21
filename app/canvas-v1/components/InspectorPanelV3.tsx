@@ -20,9 +20,10 @@ import {
   AlignEndVertical,
   ArrowDownUp,
 } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { findNodeById, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
+import { findNodeById, getNodeStyle, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
 import { getProjectState, getProjectById, upsertProjectState } from "@/lib/project-store";
 import {
@@ -37,6 +38,13 @@ import {
   InspectorDivider,
 } from "./inspector/InspectorField";
 import { SpacingDiagram } from "./inspector/SpacingDiagram";
+import { AIPreviewBar } from "./AIPreviewBar";
+import { InspectorCollapsible } from "./inspector/InspectorCollapsible";
+import { InspectorSegmented } from "./inspector/InspectorSegmented";
+import { InspectorTabs } from "./inspector/InspectorTabs";
+import { BreakpointBadge } from "./inspector/BreakpointBadge";
+import { CSSTab } from "./inspector/CSSTab";
+import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
 import type { SiteType } from "@/lib/canvas/templates";
 import type {
   CanvasItem,
@@ -486,93 +494,6 @@ function ArtboardInspector({ item }: { item: ArtboardItem }) {
   );
 }
 
-// ─── Shared Fill / Spacing / Size sections ───────────────────────────────────
-
-function FillSection({
-  style,
-  documentColors,
-  onStyleChange,
-  onHistoryFlush,
-}: {
-  style: PageNodeStyle;
-  documentColors: string[];
-  onStyleChange: (key: string, value: unknown) => void;
-  onHistoryFlush: () => void;
-}) {
-  return (
-    <InspectorSection label="Fill">
-      <InspectorLabel>Background</InspectorLabel>
-      <InspectorColorField
-        color={style.background || ""}
-        documentColors={documentColors}
-        onCommit={onHistoryFlush}
-        onChange={(c) => {
-          onStyleChange("background", c);
-        }}
-      />
-      <div className="mt-2">
-        <InspectorLabel>Opacity</InspectorLabel>
-        <InspectorNumberInput
-          value={style.opacity ?? ""}
-          placeholder="1"
-          step={0.1}
-          min={0}
-          max={1}
-          className="w-[60px]"
-          onChange={(e) => {
-            const val = (e.target as HTMLInputElement).value;
-            onStyleChange("opacity", val ? Number(val) : undefined);
-          }}
-          onBlur={() => onHistoryFlush()}
-        />
-      </div>
-    </InspectorSection>
-  );
-}
-
-function SizeSection({
-  style,
-  onStyleChange,
-  onHistoryFlush,
-}: {
-  style: PageNodeStyle;
-  onStyleChange: (key: string, value: unknown) => void;
-  onHistoryFlush: () => void;
-}) {
-  return (
-    <InspectorSection label="Size">
-      <InspectorRow>
-        <div>
-          <InspectorLabel>Max Width</InspectorLabel>
-          <InspectorNumberInput
-            value={style.maxWidth ?? ""}
-            placeholder="auto"
-            className="w-full"
-            onChange={(e) => {
-              const val = (e.target as HTMLInputElement).value;
-              onStyleChange("maxWidth", val ? Number(val) : undefined);
-            }}
-            onBlur={() => onHistoryFlush()}
-          />
-        </div>
-        <div>
-          <InspectorLabel>Min Height</InspectorLabel>
-          <InspectorNumberInput
-            value={style.minHeight ?? ""}
-            placeholder="fit"
-            className="w-full"
-            onChange={(e) => {
-              const val = (e.target as HTMLInputElement).value;
-              onStyleChange("minHeight", val ? Number(val) : undefined);
-            }}
-            onBlur={() => onHistoryFlush()}
-          />
-        </div>
-      </InspectorRow>
-    </InspectorSection>
-  );
-}
-
 // ─── NodeInspector ───────────────────────────────────────────────────────────
 
 function NodeInspector({
@@ -585,12 +506,25 @@ function NodeInspector({
   documentColors: string[];
 }) {
   const { dispatch } = useCanvas();
-  const style = node.style || {};
+  const bp = artboard.breakpoint;
+  const style = getNodeStyle(node, bp);
   const content = node.content || {};
+  const isNonDesktop = bp !== "desktop";
 
   const isTextNode = ["heading", "paragraph", "button"].includes(node.type);
   const isMediaNode = node.type === "section" && Boolean(content.mediaUrl);
   const isContainerNode = !isTextNode && !isMediaNode && (node.type === "section" || node.type === "page" || node.type === "button-row" || node.type === "feature-grid" || node.type === "metric-row" || node.type === "logo-row" || node.type === "testimonial-grid" || node.type === "pricing-grid");
+
+  // Responsive override helpers
+  const overrides = isNonDesktop ? node.responsiveOverrides?.[bp] : undefined;
+
+  function hasOverride(property: keyof PageNodeStyle): boolean {
+    return isNonDesktop && overrides != null && property in overrides;
+  }
+
+  function resetOverride(property: keyof PageNodeStyle) {
+    dispatch({ type: "RESET_NODE_STYLE_OVERRIDE", artboardId: artboard.id, nodeId: node.id, property, breakpoint: bp });
+  }
 
   // Debounced history push — visual updates fire instantly, history commits after 400ms/blur
   const history = useDebouncedHistoryPush(
@@ -610,7 +544,7 @@ function NodeInspector({
 
   function updateStyle(key: string, value: unknown) {
     dispatch({
-      type: "UPDATE_NODE_STYLE",
+      type: isTextNode ? "UPDATE_TEXT_STYLE_SITE" : "UPDATE_NODE_STYLE",
       artboardId: artboard.id,
       nodeId: node.id,
       style: { [key]: value } as Partial<PageNodeStyle>,
@@ -618,31 +552,53 @@ function NodeInspector({
     history.schedule(`Styled ${node.type}`);
   }
 
+  function applyImmediateStyleChange(
+    stylePatch: Partial<PageNodeStyle>,
+    description: string
+  ) {
+    dispatch({ type: "PUSH_HISTORY", description });
+    dispatch({
+      type: isTextNode ? "UPDATE_TEXT_STYLE_SITE" : "UPDATE_NODE_STYLE",
+      artboardId: artboard.id,
+      nodeId: node.id,
+      style: stylePatch,
+    });
+  }
+
+  const textPreview = (content.text || "").trim();
+  const truncatedPreview =
+    textPreview.length > 96 ? `${textPreview.slice(0, 96)}...` : textPreview || "Empty text";
+
   return (
-    <div>
-      <span data-inspector-first-section className="mono-kicker block">
-        {node.type.toUpperCase()}
-      </span>
+    <div data-inspector-first-section>
+
+      {/* ── BREAKPOINT LABEL ─────────────────────────────────────────── */}
+      {isNonDesktop && (
+        <div className="px-4 pt-3 pb-1">
+          <span className="text-[10px] uppercase tracking-widest text-[#A0A0A0] font-mono">
+            {bp === "tablet" ? "Tablet" : "Mobile"} ({BREAKPOINT_WIDTHS[bp]}px)
+          </span>
+        </div>
+      )}
 
       {/* ── TEXT NODE ───────────────────────────────────────────────────── */}
       {isTextNode && (
         <>
-          <InspectorSection label="Content">
-            <InspectorTextarea
-              value={content.text || ""}
-              onChange={(e) => updateContent("text", e.target.value)}
-              onBlur={() => history.flush()}
-              rows={node.type === "heading" ? 2 : 3}
-            />
-          </InspectorSection>
+          <InspectorCollapsible label="Content">
+            <div className="rounded-[4px] border border-[#E5E5E0] bg-white px-3 py-3">
+              <div className="text-[12px] font-medium text-[#1A1A1A]">{truncatedPreview}</div>
+              <div className="mt-2 text-[10px] uppercase tracking-[0.14em] text-[#A0A0A0]">
+                Double-click or press Enter to edit on canvas
+              </div>
+            </div>
+          </InspectorCollapsible>
 
-          <InspectorSection label="Typography">
-            <InspectorLabel>Font Family</InspectorLabel>
+          <InspectorCollapsible label="Typography">
+            <InspectorLabel hasOverride={hasOverride("fontFamily")} onResetOverride={() => resetOverride("fontFamily")}>Font Family</InspectorLabel>
             <InspectorSelect
               value={style.fontFamily || ""}
               onChange={(e) => {
-                dispatch({ type: "PUSH_HISTORY", description: "Changed font" });
-                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { fontFamily: (e.target as HTMLSelectElement).value } });
+                updateStyle("fontFamily", (e.target as HTMLSelectElement).value || undefined);
               }}
             >
               <option value="">Default</option>
@@ -653,7 +609,7 @@ function NodeInspector({
 
             <InspectorRow className="mt-2">
               <div>
-                <InspectorLabel>Weight</InspectorLabel>
+                <InspectorLabel hasOverride={hasOverride("fontWeight")} onResetOverride={() => resetOverride("fontWeight")}>Weight</InspectorLabel>
                 <InspectorSelect
                   value={String(style.fontWeight ?? "")}
                   onChange={(e) => {
@@ -670,7 +626,7 @@ function NodeInspector({
                 </InspectorSelect>
               </div>
               <div>
-                <InspectorLabel>Size</InspectorLabel>
+                <InspectorLabel hasOverride={hasOverride("fontSize")} onResetOverride={() => resetOverride("fontSize")}>Size</InspectorLabel>
                 <InspectorNumberInput
                   value={style.fontSize ?? ""}
                   placeholder="auto"
@@ -686,7 +642,7 @@ function NodeInspector({
 
             <InspectorRow className="mt-2">
               <div>
-                <InspectorLabel>Tracking</InspectorLabel>
+                <InspectorLabel hasOverride={hasOverride("letterSpacing")} onResetOverride={() => resetOverride("letterSpacing")}>Tracking</InspectorLabel>
                 <InspectorNumberInput
                   value={style.letterSpacing ?? ""}
                   placeholder="0"
@@ -700,7 +656,7 @@ function NodeInspector({
                 />
               </div>
               <div>
-                <InspectorLabel>Leading</InspectorLabel>
+                <InspectorLabel hasOverride={hasOverride("lineHeight")} onResetOverride={() => resetOverride("lineHeight")}>Leading</InspectorLabel>
                 <InspectorNumberInput
                   value={style.lineHeight ?? ""}
                   placeholder="1.5"
@@ -716,7 +672,7 @@ function NodeInspector({
             </InspectorRow>
 
             <div className="mt-2">
-              <InspectorLabel>Color</InspectorLabel>
+              <InspectorLabel hasOverride={hasOverride("foreground")} onResetOverride={() => resetOverride("foreground")}>Color</InspectorLabel>
               <InspectorColorField
                 color={style.foreground || "#1A1A1A"}
                 documentColors={documentColors}
@@ -730,6 +686,7 @@ function NodeInspector({
             {/* Font Style & Decoration toggles */}
             <div className="mt-2 flex gap-1.5">
               <button
+                type="button"
                 className={cn(
                   "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   style.fontStyle === "italic"
@@ -738,13 +695,16 @@ function NodeInspector({
                 )}
                 style={{ fontStyle: "italic" }}
                 onClick={() => {
-                  dispatch({ type: "PUSH_HISTORY", description: "Toggled italic" });
-                  updateStyle("fontStyle", style.fontStyle === "italic" ? "normal" : "italic");
+                  applyImmediateStyleChange(
+                    { fontStyle: style.fontStyle === "italic" ? "normal" : "italic" },
+                    "Toggled italic"
+                  );
                 }}
               >
                 I
               </button>
               <button
+                type="button"
                 className={cn(
                   "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   style.textDecoration === "underline"
@@ -753,113 +713,242 @@ function NodeInspector({
                 )}
                 style={{ textDecoration: "underline" }}
                 onClick={() => {
-                  dispatch({ type: "PUSH_HISTORY", description: "Toggled underline" });
-                  updateStyle("textDecoration", style.textDecoration === "underline" ? "none" : "underline");
+                  applyImmediateStyleChange(
+                    {
+                      textDecoration:
+                        style.textDecoration === "underline" ? "none" : "underline",
+                    },
+                    "Toggled underline"
+                  );
                 }}
               >
                 U
               </button>
             </div>
-          </InspectorSection>
+          </InspectorCollapsible>
+
+          <InspectorCollapsible label="Appearance" defaultOpen={false}>
+            <InspectorLabel hasOverride={hasOverride("background")} onResetOverride={() => resetOverride("background")}>Background</InspectorLabel>
+            <InspectorColorField
+              color={style.background || ""}
+              documentColors={documentColors}
+              onCommit={() => history.flush()}
+              onChange={(c) => updateStyle("background", c)}
+            />
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("opacity")} onResetOverride={() => resetOverride("opacity")}>Opacity</InspectorLabel>
+              <InspectorNumberInput
+                value={style.opacity ?? ""}
+                placeholder="1"
+                step={0.1}
+                min={0}
+                max={1}
+                className="w-[60px]"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle("opacity", val ? Number(val) : undefined);
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          </InspectorCollapsible>
         </>
       )}
 
       {/* ── MEDIA NODE ─────────────────────────────────────────────────── */}
       {isMediaNode && (
-        <InspectorSection label="Image">
-          <InspectorLabel>Src</InspectorLabel>
-          <InspectorTextInput
-            value={content.mediaUrl || ""}
-            placeholder="Image URL"
-            onChange={(e) => updateContent("mediaUrl", (e.target as HTMLInputElement).value)}
-            onBlur={() => history.flush()}
-          />
-          <div className="mt-2">
-            <InspectorLabel>Alt</InspectorLabel>
+        <>
+          <InspectorCollapsible label="Image">
+            <InspectorLabel>Src</InspectorLabel>
             <InspectorTextInput
-              value={content.mediaAlt || ""}
-              placeholder="Alt text"
-              onChange={(e) => updateContent("mediaAlt", (e.target as HTMLInputElement).value)}
+              value={content.mediaUrl || ""}
+              placeholder="Image URL"
+              onChange={(e) => updateContent("mediaUrl", (e.target as HTMLInputElement).value)}
               onBlur={() => history.flush()}
             />
-          </div>
-        </InspectorSection>
+            <div className="mt-2">
+              <InspectorLabel>Alt</InspectorLabel>
+              <InspectorTextInput
+                value={content.mediaAlt || ""}
+                placeholder="Alt text"
+                onChange={(e) => updateContent("mediaAlt", (e.target as HTMLInputElement).value)}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          </InspectorCollapsible>
+
+          <InspectorCollapsible label="Appearance">
+            <InspectorLabel hasOverride={hasOverride("background")} onResetOverride={() => resetOverride("background")}>Background</InspectorLabel>
+            <InspectorColorField
+              color={style.background || ""}
+              documentColors={documentColors}
+              onCommit={() => history.flush()}
+              onChange={(c) => updateStyle("background", c)}
+            />
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("opacity")} onResetOverride={() => resetOverride("opacity")}>Opacity</InspectorLabel>
+              <InspectorNumberInput
+                value={style.opacity ?? ""}
+                placeholder="1"
+                step={0.1}
+                min={0}
+                max={1}
+                className="w-[60px]"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle("opacity", val ? Number(val) : undefined);
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          </InspectorCollapsible>
+        </>
       )}
 
       {/* ── CONTAINER / LAYOUT NODE ────────────────────────────────────── */}
       {isContainerNode && (
-        <InspectorSection label="Layout">
-          <InspectorLabel>Direction</InspectorLabel>
-          <InspectorSelect
-            value={style.direction || "column"}
-            onChange={(e) => {
-              dispatch({ type: "PUSH_HISTORY", description: "Changed direction" });
-              dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { direction: (e.target as HTMLSelectElement).value as "row" | "column" } });
-            }}
-          >
-            <option value="column">Column</option>
-            <option value="row">Row</option>
-          </InspectorSelect>
-
-          <div className="mt-2">
-            <InspectorLabel>Align</InspectorLabel>
-            <IconToggleGroup
-              value={style.align || "left"}
-              onChange={(v) => {
-                dispatch({ type: "PUSH_HISTORY", description: "Changed alignment" });
-                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { align: v as PageNodeStyle["align"] } });
-              }}
+        <>
+          <InspectorCollapsible label="Layout">
+            <InspectorLabel hasOverride={hasOverride("direction")} onResetOverride={() => resetOverride("direction")}>Direction</InspectorLabel>
+            <InspectorSegmented
+              value={style.direction || "column"}
               options={[
-                { value: "left", icon: <AlignLeft size={14} />, title: "Start" },
-                { value: "center", icon: <AlignCenter size={14} />, title: "Center" },
-                { value: "right", icon: <AlignRight size={14} />, title: "End" },
+                { value: "column", label: "Column" },
+                { value: "row", label: "Row" },
               ]}
-            />
-          </div>
-
-          <div className="mt-2">
-            <InspectorLabel>Justify</InspectorLabel>
-            <IconToggleGroup
-              value={style.justify || "start"}
               onChange={(v) => {
-                dispatch({ type: "PUSH_HISTORY", description: "Changed justify" });
-                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { justify: v as PageNodeStyle["justify"] } });
+                dispatch({ type: "PUSH_HISTORY", description: "Changed direction" });
+                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { direction: v as "row" | "column" } });
               }}
-              options={[
-                { value: "start", icon: <AlignStartVertical size={14} />, title: "Start" },
-                { value: "center", icon: <AlignCenterVertical size={14} />, title: "Center" },
-                { value: "end", icon: <AlignEndVertical size={14} />, title: "End" },
-                { value: "between", icon: <ArrowDownUp size={14} />, title: "Space Between" },
-              ]}
             />
-          </div>
-        </InspectorSection>
+
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("align")} onResetOverride={() => resetOverride("align")}>Align</InspectorLabel>
+              <IconToggleGroup
+                value={style.align || "left"}
+                onChange={(v) => {
+                  dispatch({ type: "PUSH_HISTORY", description: "Changed alignment" });
+                  dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { align: v as PageNodeStyle["align"] } });
+                }}
+                options={[
+                  { value: "left", icon: <AlignLeft size={14} />, title: "Start" },
+                  { value: "center", icon: <AlignCenter size={14} />, title: "Center" },
+                  { value: "right", icon: <AlignRight size={14} />, title: "End" },
+                ]}
+              />
+            </div>
+
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("justify")} onResetOverride={() => resetOverride("justify")}>Justify</InspectorLabel>
+              <IconToggleGroup
+                value={style.justify || "start"}
+                onChange={(v) => {
+                  dispatch({ type: "PUSH_HISTORY", description: "Changed justify" });
+                  dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { justify: v as PageNodeStyle["justify"] } });
+                }}
+                options={[
+                  { value: "start", icon: <AlignStartVertical size={14} />, title: "Start" },
+                  { value: "center", icon: <AlignCenterVertical size={14} />, title: "Center" },
+                  { value: "end", icon: <AlignEndVertical size={14} />, title: "End" },
+                  { value: "between", icon: <ArrowDownUp size={14} />, title: "Space Between" },
+                ]}
+              />
+            </div>
+
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("maxWidth")} onResetOverride={() => resetOverride("maxWidth")}>Max Width</InspectorLabel>
+              <InspectorNumberInput
+                value={style.maxWidth ?? ""}
+                placeholder="auto"
+                className="w-full"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle("maxWidth", val ? Number(val) : undefined);
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          </InspectorCollapsible>
+
+          <InspectorCollapsible label="Spacing">
+            <SpacingDiagram
+              artboardId={artboard.id}
+              nodeId={node.id}
+              nodeType={node.type}
+              style={style}
+              onHistorySchedule={history.schedule}
+              onHistoryFlush={history.flush}
+            />
+          </InspectorCollapsible>
+
+          <InspectorCollapsible label="Appearance">
+            <InspectorLabel hasOverride={hasOverride("background")} onResetOverride={() => resetOverride("background")}>Background</InspectorLabel>
+            <InspectorColorField
+              color={style.background || ""}
+              documentColors={documentColors}
+              onCommit={() => history.flush()}
+              onChange={(c) => updateStyle("background", c)}
+            />
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("opacity")} onResetOverride={() => resetOverride("opacity")}>Opacity</InspectorLabel>
+              <InspectorNumberInput
+                value={style.opacity ?? ""}
+                placeholder="1"
+                step={0.1}
+                min={0}
+                max={1}
+                className="w-[60px]"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle("opacity", val ? Number(val) : undefined);
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+            <div className="mt-2">
+              <InspectorLabel hasOverride={hasOverride("minHeight")} onResetOverride={() => resetOverride("minHeight")}>Min Height</InspectorLabel>
+              <InspectorNumberInput
+                value={style.minHeight ?? ""}
+                placeholder="fit"
+                className="w-full"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle("minHeight", val ? Number(val) : undefined);
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          </InspectorCollapsible>
+        </>
       )}
 
-      {/* ── SHARED: Fill / Spacing / Size ──────────────────────────────── */}
-      <FillSection
-        style={style}
-        documentColors={documentColors}
-        onStyleChange={updateStyle}
-        onHistoryFlush={() => history.flush()}
-      />
-
-      <InspectorSection label="Spacing">
-        <SpacingDiagram
-          artboardId={artboard.id}
-          nodeId={node.id}
-          nodeType={node.type}
-          style={style}
-          onHistorySchedule={history.schedule}
-          onHistoryFlush={history.flush}
-        />
-      </InspectorSection>
-
-      <SizeSection
-        style={style}
-        onStyleChange={updateStyle}
-        onHistoryFlush={() => history.flush()}
-      />
+      {/* ── VISIBILITY (non-desktop only) ──────────────────────────────── */}
+      {isNonDesktop && (
+        <InspectorCollapsible label="Visibility">
+          <label className="flex items-center justify-between py-1 cursor-pointer">
+            <span className="text-[12px] text-[#1A1A1A]">Hide on Tablet</span>
+            <input
+              type="checkbox"
+              checked={node.hidden?.tablet ?? false}
+              onChange={() =>
+                dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: artboard.id, nodeId: node.id, breakpoint: "tablet" })
+              }
+              className="accent-[#1E5DF2] w-3.5 h-3.5 cursor-pointer"
+            />
+          </label>
+          <label className="flex items-center justify-between py-1 cursor-pointer">
+            <span className="text-[12px] text-[#1A1A1A]">Hide on Mobile</span>
+            <input
+              type="checkbox"
+              checked={node.hidden?.mobile ?? false}
+              onChange={() =>
+                dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: artboard.id, nodeId: node.id, breakpoint: "mobile" })
+              }
+              className="accent-[#1E5DF2] w-3.5 h-3.5 cursor-pointer"
+            />
+          </label>
+        </InspectorCollapsible>
+      )}
     </div>
   );
 }
@@ -1056,10 +1145,12 @@ function PromptComposer({
   textareaRef,
   selectedNode,
   projectId,
+  varySignal = 0,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   selectedNode: PageNode | null;
   projectId?: string;
+  varySignal?: number;
 }) {
   const { state, dispatch } = useCanvas();
   const { prompt, items, selection } = state;
@@ -1107,6 +1198,14 @@ function PromptComposer({
     }
 
     setError(null);
+
+    // Snapshot pre-edit state for preview/reject flow
+    dispatch({
+      type: "START_AI_PREVIEW",
+      prompt: prompt.value.trim(),
+      nodeId: selection.selectedNodeId || "",
+    });
+
     dispatch({
       type: "SET_PROMPT_STATUS",
       isGenerating: true,
@@ -1253,7 +1352,17 @@ function PromptComposer({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, prompt.siteType, prompt.value, referenceItems]);
+  }, [dispatch, projectId, projectTokens, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
+
+  // ── Vary: re-trigger generation when varySignal increments ──────────
+
+  const varySignalRef = React.useRef(varySignal);
+  React.useEffect(() => {
+    if (varySignal > 0 && varySignal !== varySignalRef.current) {
+      varySignalRef.current = varySignal;
+      handleGenerate();
+    }
+  }, [varySignal, handleGenerate]);
 
   // ── Restore from history ───────────────────────────────────────────
 
@@ -1442,6 +1551,9 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
   const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const textareaRef = promptTextareaRef ?? internalTextareaRef;
 
+  // ── Tab state ──────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = React.useState<"design" | "css">("design");
+
   // ── Inspector content logic ────────────────────────────────────────
 
   const documentColors = React.useMemo(() => {
@@ -1469,11 +1581,22 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
       ? findNodeById(activeArtboard.pageTree, selection.selectedNodeId)
       : null;
 
+  const isNodeInspector = Boolean(selectedNode && activeArtboard);
+
+  // ── Breakpoint badge + resolved style for CSS tab ──────────────────
+  const artboardBreakpoint = activeArtboard?.breakpoint ?? "desktop";
+  const showBreakpointBadge = artboardBreakpoint !== "desktop";
+
+  const resolvedStyle: PageNodeStyle | null = React.useMemo(() => {
+    if (!selectedNode || !activeArtboard) return null;
+    return getNodeStyle(selectedNode, activeArtboard.breakpoint);
+  }, [selectedNode, activeArtboard]);
+
   let inspectorContent: React.ReactNode;
 
   if (selectedNode && activeArtboard) {
     inspectorContent = (
-      <NodeInspector
+      <InspectorSkeleton
         artboard={activeArtboard}
         node={selectedNode}
         documentColors={documentColors}
@@ -1499,6 +1622,25 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [selection.selectedNodeId]);
+
+  // ── AI Preview: Vary signal ───────────────────────────────────────
+
+  const [varySignal, setVarySignal] = React.useState(0);
+
+  const handleAcceptPreview = React.useCallback(() => {
+    dispatch({ type: "ACCEPT_AI_PREVIEW" });
+  }, [dispatch]);
+
+  const handleRejectPreview = React.useCallback(() => {
+    dispatch({ type: "RESTORE_AI_PREVIEW" });
+  }, [dispatch]);
+
+  const handleVaryPreview = React.useCallback(() => {
+    const aiPrompt = state.aiPreview?.prompt ?? "";
+    dispatch({ type: "RESTORE_AI_PREVIEW" });
+    dispatch({ type: "SET_PROMPT", value: aiPrompt });
+    setVarySignal((v) => v + 1);
+  }, [dispatch, state.aiPreview?.prompt]);
 
   // ── Split ratio ────────────────────────────────────────────────────
 
@@ -1550,13 +1692,41 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
       ref={panelRef}
       className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
     >
+      {/* Tabs (sticky at top) */}
+      <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Breakpoint badge (below tabs, non-desktop only) */}
+      {showBreakpointBadge && activeArtboard && (
+        <BreakpointBadge
+          breakpoint={artboardBreakpoint as "tablet" | "mobile"}
+          width={BREAKPOINT_WIDTHS[artboardBreakpoint]}
+        />
+      )}
+
       {/* Inspector section (top) */}
       <div
         ref={inspectorScrollRef}
         className="overflow-y-auto shrink-0"
         style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : "100%" }}
       >
-        <div className="p-4">{inspectorContent}</div>
+        {activeTab === "design" ? (
+          <>
+            {/* AI Preview bar */}
+            <AnimatePresence>
+              {state.aiPreview?.active && !prompt.isGenerating && (
+                <AIPreviewBar
+                  onAccept={handleAcceptPreview}
+                  onReject={handleRejectPreview}
+                  onVary={handleVaryPreview}
+                />
+              )}
+            </AnimatePresence>
+
+            <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
+          </>
+        ) : (
+          <CSSTab resolvedStyle={resolvedStyle} />
+        )}
       </div>
 
       {/* Divider + Prompt section (bottom) */}
@@ -1576,6 +1746,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
               textareaRef={textareaRef}
               selectedNode={selectedNode}
               projectId={projectId}
+              varySignal={varySignal}
             />
           </div>
         </>

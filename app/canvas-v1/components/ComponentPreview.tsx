@@ -6,11 +6,10 @@ import { cn } from "@/lib/utils";
 import { springs, slideUp } from "@/lib/animations";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
-type DeviceSize = "desktop" | "tablet" | "mobile";
+type DeviceSize = "desktop" | "mobile";
 
 const DEVICES: { key: DeviceSize; label: string; width: number; icon: string }[] = [
   { key: "desktop", label: "Desktop", width: 1440, icon: "\u229E" },
-  { key: "tablet",  label: "Tablet",  width: 768,  icon: "\u229F" },
   { key: "mobile",  label: "Mobile",  width: 375,  icon: "\u22A1" },
 ];
 

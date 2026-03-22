@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Monitor, Tablet, Smartphone, X } from "lucide-react";
+import { Monitor, Smartphone, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -803,13 +803,11 @@ function writeCanvasSession(projectId: string, session: PersistedCanvasSession) 
 
 function artboardPreviewHeight(breakpoint: Breakpoint) {
   if (breakpoint === "mobile") return 1320;
-  if (breakpoint === "tablet") return 1540;
   return 1780;
 }
 
 function ArtboardBreakpointIcon({ breakpoint, size = 14 }: { breakpoint: Breakpoint; size?: number }) {
   if (breakpoint === "mobile") return <Smartphone size={size} strokeWidth={1} />;
-  if (breakpoint === "tablet") return <Tablet size={size} strokeWidth={1} />;
   return <Monitor size={size} strokeWidth={1} />;
 }
 

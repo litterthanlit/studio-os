@@ -23,9 +23,9 @@ export function AddableSection({
 
   if (!hasValue) {
     return (
-      <div className="border-b border-[#E5E5E0]">
-        <div className="w-full flex items-center justify-between px-4 py-2">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-[#A0A0A0]">
+      <div className="border-b border-[#E5E5E0] mb-0.5">
+        <div className="w-full flex items-center justify-between px-4 py-2.5">
+          <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-[#6B6B6B]">
             {title}
           </span>
           <button
@@ -41,13 +41,13 @@ export function AddableSection({
   }
 
   return (
-    <div className="border-b border-[#E5E5E0]">
+    <div className="border-b border-[#E5E5E0] mb-0.5">
       <button
         type="button"
-        className="w-full flex items-center justify-between px-4 py-2 hover:bg-[#F5F5F0]/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F5F5F0]/50 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="text-[10px] font-mono uppercase tracking-widest text-[#A0A0A0]">
+        <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-[#6B6B6B]">
           {title}
         </span>
         <div className="flex items-center gap-1.5">
@@ -71,14 +71,14 @@ export function AddableSection({
           <ChevronDown
             size={12}
             className={cn(
-              "text-[#A0A0A0] transition-transform duration-150",
+              "text-[#8A8A8A] transition-transform duration-150",
               !isOpen && "-rotate-90"
             )}
           />
         </div>
       </button>
       {isOpen && (
-        <div className="px-4 py-2 pb-3 space-y-1.5">
+        <div className="px-4 py-2 pb-3 space-y-2">
           {children}
         </div>
       )}

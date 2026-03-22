@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { getProjectState, PROJECT_STATE_UPDATED_EVENT } from "@/lib/project-store";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
+import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
+import type { CanvasItem, ReferenceItem } from "@/lib/canvas/unified-canvas-state";
 import { useDrag } from "../hooks/useDrag";
 import { useResize } from "../hooks/useResize";
 import { useCanvasGestures } from "../hooks/useCanvasGestures";
@@ -23,12 +24,16 @@ import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
 import { InspectorPanelV3 } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
-import { BottomBarV3 } from "./BottomBarV3";
-import { BreadcrumbBar } from "./BreadcrumbBar";
+// BottomBarV3 — zoom UI removed (now in inspector header). Component renders null.
+// import { BottomBarV3 } from "./BottomBarV3";
+// BreadcrumbBar removed from rendering — info available via layers panel and escape hierarchy
+import { exitAnyActiveTextEditing } from "./ComposeDocumentView";
 import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
 import { useCanvasKeyboard } from "../hooks/useCanvasKeyboard";
 import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
+import { MiniRail } from "./MiniRail";
+import { ToolPalette } from "./ToolPalette";
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -46,11 +51,39 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+/** Max dimension (longest side) for dropped/pasted reference images */
+const REF_IMAGE_MAX_DIM = 400;
+const REF_IMAGE_FALLBACK = 200;
+
+/** Load an image src and return proportionally-scaled {width, height} */
+function getImageDimensions(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const { naturalWidth: nw, naturalHeight: nh } = img;
+      if (nw <= 0 || nh <= 0) {
+        resolve({ width: REF_IMAGE_FALLBACK, height: REF_IMAGE_FALLBACK });
+        return;
+      }
+      const longest = Math.max(nw, nh);
+      const scale = longest > REF_IMAGE_MAX_DIM ? REF_IMAGE_MAX_DIM / longest : 1;
+      resolve({
+        width: Math.round(nw * scale),
+        height: Math.round(nh * scale),
+      });
+    };
+    img.onerror = () => resolve({ width: REF_IMAGE_FALLBACK, height: REF_IMAGE_FALLBACK });
+    img.src = src;
+  });
+}
+
 type UnifiedCanvasViewProps = {
   projectId: string;
 };
 
-function createLoadingArtboards() {
+function createLoadingArtboards(currentItems: CanvasItem[]) {
+  const startX = getArtboardStartX(currentItems);
+  const gap = 80;
   const emptyPage = {
     id: "loading-page",
     type: "page" as const,
@@ -59,14 +92,13 @@ function createLoadingArtboards() {
   };
 
   return [
-    { id: "loading-desktop", breakpoint: "desktop" as const, width: 1440, x: 1200, name: "Desktop 1440" },
-    { id: "loading-tablet", breakpoint: "tablet" as const, width: 768, x: 2720, name: "Tablet 768" },
-    { id: "loading-mobile", breakpoint: "mobile" as const, width: 390, x: 3568, name: "Mobile 390" },
+    { id: "loading-desktop", breakpoint: "desktop" as const, width: 1440, x: startX, name: "Desktop 1440" },
+    { id: "loading-mobile", breakpoint: "mobile" as const, width: 390, x: startX + 1440 + gap, name: "Mobile 390" },
   ].map((artboard, index) => ({
     ...artboard,
     kind: "artboard" as const,
     y: 100,
-    height: artboard.breakpoint === "desktop" ? 1780 : artboard.breakpoint === "tablet" ? 1540 : 1320,
+    height: artboard.breakpoint === "desktop" ? 1780 : 1320,
     zIndex: 1000 + index,
     locked: true,
     siteId: "loading-site",
@@ -78,12 +110,13 @@ function createLoadingArtboards() {
 export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const { state, dispatch } = useCanvas();
   const { viewport, items } = state;
-  const loadingArtboards = React.useMemo(() => createLoadingArtboards(), []);
+  const loadingArtboards = React.useMemo(() => createLoadingArtboards(items), [items]);
   const hasArtboards = items.some((item) => item.kind === "artboard");
 
   // Panel visibility state
-  const [showLayers, setShowLayers] = React.useState(false);
+  const [showLayers, setShowLayers] = React.useState(true);
   const [showInspector, setShowInspector] = React.useState(true);
+  const [activeTool, setActiveTool] = React.useState("select");
   const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
     React.useState<number | null>(null);
 
@@ -126,6 +159,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     onToggleLayers: () => setShowLayers((v) => !v),
     onToggleInspector: () => setShowInspector((v) => !v),
     onFocusPrompt: handleFocusPrompt,
+    onSetActiveTool: setActiveTool,
   });
 
   // Load design tokens from project state for artboard rendering
@@ -191,6 +225,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   const gestureHandlers = useCanvasGestures({
     currentZoom: viewport.zoom,
+    activeTool,
     onPan: (delta) => {
       dispatch({
         type: "SET_VIEWPORT",
@@ -214,11 +249,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       });
     },
   });
-  const { containerRef, handlePointerDown } = gestureHandlers;
+  const { containerRef, handlePointerDown, spaceHeldRef, isPanningRef } = gestureHandlers;
 
-  // ── File drop support ──────────────────────────────────────────────
-
-  const [isDragOver, setIsDragOver] = React.useState(false);
+  // ── Screen-to-world coordinate conversion ─────────────────────────
 
   const screenToCanvas = React.useCallback(
     (screenX: number, screenY: number) => {
@@ -232,6 +265,111 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     },
     [containerRef, viewport]
   );
+
+  // ── Drag box selection ─────────────────────────────────────────────
+
+  const [dragSelection, setDragSelection] = React.useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+
+  // Track whether a drag selection just completed so we can suppress the click-to-deselect
+  const didDragSelectRef = React.useRef(false);
+
+  const handleDragSelectDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      // Only left mouse button
+      if (e.button !== 0) return;
+      // Only select tool (not hand tool)
+      if (activeTool !== "select") return;
+      // Don't start if space is held (that's pan)
+      if (spaceHeldRef.current) return;
+      // Don't start if already panning
+      if (isPanningRef.current) return;
+      // Only on empty canvas surface (not on items)
+      if (!(e.target as HTMLElement).dataset.canvasSurface) return;
+
+      const worldPos = screenToCanvas(e.clientX, e.clientY);
+      setDragSelection({
+        startX: worldPos.x,
+        startY: worldPos.y,
+        currentX: worldPos.x,
+        currentY: worldPos.y,
+      });
+    },
+    [activeTool, spaceHeldRef, isPanningRef, screenToCanvas]
+  );
+
+  React.useEffect(() => {
+    if (!dragSelection) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const worldPos = screenToCanvas(e.clientX, e.clientY);
+      setDragSelection((prev) =>
+        prev ? { ...prev, currentX: worldPos.x, currentY: worldPos.y } : null
+      );
+    };
+
+    const handleMouseUp = () => {
+      setDragSelection((current) => {
+        if (!current) return null;
+
+        const dx = Math.abs(current.currentX - current.startX);
+        const dy = Math.abs(current.currentY - current.startY);
+
+        // If the drag was tiny (< 5px in both directions), treat as a click — deselect handled by handleCanvasClick
+        if (dx < 5 && dy < 5) {
+          return null;
+        }
+
+        // Mark that a drag selection just completed so we suppress the click handler
+        didDragSelectRef.current = true;
+        requestAnimationFrame(() => {
+          didDragSelectRef.current = false;
+        });
+
+        // Calculate bounding box
+        const selBox = {
+          x: Math.min(current.startX, current.currentX),
+          y: Math.min(current.startY, current.currentY),
+          w: dx,
+          h: dy,
+        };
+
+        // Find all items whose bounds intersect with the selection rectangle
+        const intersecting = items.filter((item) => {
+          return (
+            selBox.x < item.x + item.width &&
+            selBox.x + selBox.w > item.x &&
+            selBox.y < item.y + item.height &&
+            selBox.y + selBox.h > item.y
+          );
+        });
+
+        // Select first intersecting item (multi-select not yet implemented)
+        if (intersecting.length > 0) {
+          dispatch({ type: "SELECT_ITEM", itemId: intersecting[0].id });
+        } else {
+          dispatch({ type: "DESELECT_ALL" });
+        }
+
+        return null;
+      });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragSelection, screenToCanvas, items, dispatch]);
+
+  // ── File drop support ──────────────────────────────────────────────
+
+  const [isDragOver, setIsDragOver] = React.useState(false);
 
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -257,22 +395,25 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
 
+      let offsetX = 0;
       for (let i = 0; i < files.length; i++) {
         try {
           const dataUrl = await fileToDataUrl(files[i]);
+          const dims = await getImageDimensions(dataUrl);
           const refItem: ReferenceItem = {
             id: uid("ref"),
             kind: "reference",
-            x: canvasPos.x + i * 220,
+            x: canvasPos.x + offsetX,
             y: canvasPos.y,
-            width: 200,
-            height: 200,
+            width: dims.width,
+            height: dims.height,
             zIndex: items.length + i,
             locked: false,
             imageUrl: dataUrl,
             title: files[i].name,
             source: "upload",
           };
+          offsetX += dims.width + 20;
           dispatch({ type: "PUSH_HISTORY", description: "Added reference" });
           dispatch({ type: "ADD_ITEM", item: refItem });
         } catch {
@@ -306,24 +447,27 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         y: (centerY - viewport.pan.y) / viewport.zoom,
       };
 
+      let pasteOffsetX = 0;
       for (let i = 0; i < imageItems.length; i++) {
         const file = imageItems[i].getAsFile();
         if (!file) continue;
         try {
           const dataUrl = await fileToDataUrl(file);
+          const dims = await getImageDimensions(dataUrl);
           const refItem: ReferenceItem = {
             id: uid("ref"),
             kind: "reference",
-            x: canvasPos.x + i * 220,
+            x: canvasPos.x + pasteOffsetX,
             y: canvasPos.y,
-            width: 200,
-            height: 200,
+            width: dims.width,
+            height: dims.height,
             zIndex: items.length + i,
             locked: false,
             imageUrl: dataUrl,
             title: "Pasted image",
             source: "upload",
           };
+          pasteOffsetX += dims.width + 20;
           dispatch({ type: "PUSH_HISTORY", description: "Pasted reference" });
           dispatch({ type: "ADD_ITEM", item: refItem });
         } catch {
@@ -340,28 +484,44 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   const handleCanvasClick = React.useCallback(
     (e: React.MouseEvent) => {
+      // Suppress click-to-deselect when a drag selection just completed
+      if (didDragSelectRef.current) return;
+      // Hand tool: clicking should not select/deselect — panning is the only interaction
+      if (activeTool === "hand") return;
       if ((e.target as HTMLElement).dataset.canvasSurface) {
+        exitAnyActiveTextEditing();
         dispatch({ type: "DESELECT_ALL" });
       }
     },
-    [dispatch]
+    [dispatch, activeTool]
   );
 
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "relative h-full w-full overflow-hidden bg-[#FAFAF8]",
-        isDragOver && "ring-2 ring-inset ring-[#1E5DF2] ring-dashed"
-      )}
+    <div className="flex h-full w-full">
+      {/* Mini rail sidebar */}
+      <MiniRail
+        layersVisible={showLayers}
+        onToggleLayers={() => setShowLayers((v) => !v)}
+        inspectorVisible={showInspector}
+        onToggleInspector={() => setShowInspector((v) => !v)}
+      />
+
+      {/* Canvas surface */}
+      <div
+        ref={containerRef}
+        className={cn(
+          "relative h-full flex-1 overflow-hidden bg-[#FAFAF8]",
+          isDragOver && "ring-2 ring-inset ring-[#1E5DF2] ring-dashed"
+        )}
       style={{
         backgroundImage:
           "radial-gradient(circle, rgba(0,0,0,0.04) 0.6px, transparent 0.6px)",
         backgroundSize: "20px 20px",
       }}
       onClick={handleCanvasClick}
+      onMouseDown={handleDragSelectDown}
       onPointerDownCapture={handlePointerDown}
       onAuxClick={(e) => { if (e.button === 1) e.preventDefault(); }}
       onDragOver={handleDragOver}
@@ -455,10 +615,26 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               isGenerating
             />
           ))}
+
+        {/* Drag selection rectangle */}
+        {dragSelection && (
+          <div
+            className="absolute border border-[#1E5DF2] bg-[#1E5DF2]/5 pointer-events-none"
+            style={{
+              left: Math.min(dragSelection.startX, dragSelection.currentX),
+              top: Math.min(dragSelection.startY, dragSelection.currentY),
+              width: Math.abs(dragSelection.currentX - dragSelection.startX),
+              height: Math.abs(dragSelection.currentY - dragSelection.startY),
+            }}
+          />
+        )}
       </div>
 
       {/* Layers panel */}
       {showLayers && <LayersPanelV3 />}
+
+      {/* Tool palette */}
+      <ToolPalette activeTool={activeTool} onToolChange={setActiveTool} />
 
       {/* Inspector panel (now includes embedded prompt) */}
       {showInspector && (
@@ -479,31 +655,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         )}
       </AnimatePresence>
 
-      {/* Breadcrumb hierarchy bar */}
-      {state.selection.activeArtboardId && state.selection.selectedNodeId && (() => {
-        const activeArtboard = items.find(
-          (item) => item.kind === "artboard" && item.id === state.selection.activeArtboardId
-        );
-        if (!activeArtboard || activeArtboard.kind !== "artboard") return null;
-        const label = activeArtboard.breakpoint === "desktop" ? "Desktop" : activeArtboard.breakpoint === "tablet" ? "Tablet" : "Mobile";
-        return (
-          <BreadcrumbBar
-            pageTree={activeArtboard.pageTree}
-            selectedNodeId={state.selection.selectedNodeId}
-            breakpointLabel={label}
-            onSelectNode={(nodeId) => dispatch({ type: "SELECT_NODE", artboardId: activeArtboard.id, nodeId })}
-          />
-        );
-      })()}
-
-      {/* Bottom bar */}
-      <BottomBarV3
-        showLayers={showLayers}
-        onToggleLayers={() => setShowLayers((v) => !v)}
-        showInspector={showInspector}
-        onToggleInspector={() => setShowInspector((v) => !v)}
-        onFocusPrompt={handleFocusPrompt}
-      />
+      {/* Bottom bar removed — zoom now in inspector header, shortcuts still work */}
+      </div>
     </div>
   );
 }

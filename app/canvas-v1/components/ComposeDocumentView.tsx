@@ -18,7 +18,7 @@ import {
 } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { NodeFormatToolbar } from "./NodeFormatToolbar";
+// NodeFormatToolbar removed — text formatting now handled entirely by inspector panel
 import { SectionActionRail } from "./SectionActionRail";
 import { ContextMenu } from "./ContextMenu";
 import { InsertionBar } from "./InsertionBar";
@@ -26,6 +26,22 @@ import {
   ENTER_TEXT_EDIT_MODE_EVENT,
   FLASH_NODE_OUTLINES_EVENT,
 } from "../hooks/useCanvasKeyboard";
+
+/**
+ * Blur any active contentEditable element — forces the editing Selectable's
+ * `commit()` handler to run (via blur event) before a new selection is made.
+ * Exported so CanvasArtboard and UnifiedCanvasView can call it too.
+ */
+export function exitAnyActiveTextEditing() {
+  const active = document.activeElement;
+  if (
+    active instanceof HTMLElement &&
+    active.contentEditable === "true" &&
+    active.closest("[data-node-id]")
+  ) {
+    active.blur();
+  }
+}
 
 type ComposeDocumentViewProps = {
   pageTree: PageNode;
@@ -437,7 +453,7 @@ function Selectable({
   const [hovered, setHovered] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [flashOutlineActive, setFlashOutlineActive] = React.useState(false);
-  const [showToolbar, setShowToolbar] = React.useState(false);
+
   const [tooltipPhase, setTooltipPhase] = React.useState<"hidden" | "visible" | "fading">("hidden");
   const nodeRef = React.useRef<HTMLDivElement>(null);
   const syncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -531,14 +547,7 @@ function Selectable({
     }
   }, [tooltipPhase]);
 
-  // ── Floating format toolbar (text nodes only) ─────────────────────
-  React.useEffect(() => {
-    if (selected && isTextNodeValue && !editing) {
-      const timer = setTimeout(() => setShowToolbar(true), 200);
-      return () => clearTimeout(timer);
-    }
-    setShowToolbar(false);
-  }, [selected, isTextNodeValue, editing]);
+  // Floating format toolbar removed — formatting handled by inspector panel
 
   // ── Double-click → Figma/Framer-style layered text editing ─────────
   // 1st double-click: enter edit mode, highlight word under cursor
@@ -578,7 +587,7 @@ function Selectable({
     textEl.contentEditable = "true";
     textEl.style.caretColor = "#1E5DF2";
     textEl.style.outline = "none";
-    textEl.focus();
+    textEl.focus({ preventScroll: true });
 
     if (nativeEvent) {
       let range: Range | null = null;
@@ -748,12 +757,12 @@ function Selectable({
   const outlineStyle = interactive
     ? selected
       ? editing
-        ? { outline: "2px solid #D1E4FC", outlineOffset: -1, cursor: "text" as const, background: "rgba(255,255,255,0.6)", borderRadius: "4px" }
-        : { outline: "2px solid #1E5DF2", outlineOffset: -1, cursor: "default" as const }
+        ? { outline: "1px solid #D1E4FC", outlineOffset: -1, cursor: "text" as const, background: "rgba(255,255,255,0.6)", borderRadius: "4px" }
+        : { outline: "1px solid #1E5DF2", outlineOffset: -1, cursor: "default" as const }
       : flashOutlineActive
-      ? { outline: "2px solid #D1E4FC", outlineOffset: -1, cursor: "default" as const }
+      ? { outline: "1px solid #D1E4FC", outlineOffset: -1, cursor: "default" as const }
       : hovered
-      ? { outline: "1px dashed #D1E4FC", outlineOffset: -1, cursor: "default" as const }
+      ? { outline: "1px solid rgba(30, 93, 242, 0.3)", outlineOffset: -1, cursor: "default" as const }
       : { cursor: "default" as const }
     : undefined;
 
@@ -787,12 +796,15 @@ function Selectable({
           // Deep select: deepest Selectable claims the event via preventDefault
           if (event.defaultPrevented) return;
           event.preventDefault();
+          exitAnyActiveTextEditing();
           onDismissContextMenu?.();
           onSelectNode(node.id);
           return;
         }
 
         // Normal click: stopPropagation so parent Selectables don't also select
+        // Exit any active text editing BEFORE selecting the new node
+        exitAnyActiveTextEditing();
         event.preventDefault();
         event.stopPropagation();
         onDismissContextMenu?.();
@@ -808,16 +820,7 @@ function Selectable({
     >
       {children}
 
-      {/* Floating format toolbar */}
-      <AnimatePresence>
-        {showToolbar && (
-          <NodeFormatToolbar
-            node={node}
-            anchorRef={nodeRef}
-            onAIClick={() => { onFocusPromptWithPrefill?.(getAIPrefill(node)); }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Floating format toolbar removed — formatting handled by inspector panel */}
 
       {/* Double-click tooltip */}
       {isTextNodeValue && tooltipPhase !== "hidden" && (
@@ -1337,8 +1340,6 @@ function renderNode(
               gridTemplateColumns:
                 breakpoint === "mobile"
                   ? "1fr"
-                  : breakpoint === "tablet"
-                  ? "repeat(2, minmax(0, 1fr))"
                   : `repeat(${style.columns || 3}, minmax(0, 1fr))`,
               ...effectStyles(style),
             }}

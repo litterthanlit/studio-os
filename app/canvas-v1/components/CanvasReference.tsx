@@ -51,8 +51,8 @@ export function CanvasReference({
         className={cn(
           "canvas-reference relative cursor-pointer rounded-[4px] border overflow-hidden bg-white transition-[border-color,box-shadow,shadow] duration-150",
           isSelected
-            ? "ring-2 ring-[#1E5DF2] ring-offset-2 border-[#1E5DF2]"
-            : "border-[#E5E5E0] hover:border-[#1E5DF2]",
+            ? "outline outline-1 outline-[#1E5DF2] border-[#1E5DF2]"
+            : "border-[#E5E5E0] hover:outline hover:outline-1 hover:outline-[#1E5DF2]/40",
           (isDragging || isResizing) ? "shadow-md" : "shadow-sm"
         )}
         style={{

@@ -4,7 +4,7 @@ import * as React from "react";
 import { Maximize2 } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import type { PageNodeStyle, PageNodeType } from "@/lib/canvas/compose";
-import { InspectorLabel, InspectorNumberInput } from "./InspectorField";
+import { InspectorLabel, InspectorNumberInput, InspectorSliderField } from "./InspectorField";
 
 type SpacingDiagramProps = {
   artboardId: string;
@@ -163,7 +163,7 @@ export function SpacingDiagram({
           </div>
           <button
             type="button"
-            className="mb-[2px] flex h-7 w-7 items-center justify-center rounded-[2px] border border-[#E5E5E0] text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+            className="mb-[2px] flex h-7 w-7 items-center justify-center rounded-[2px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#8A8A8A] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
             onClick={() => setExpanded(true)}
             aria-label="Expand padding diagram"
             title="Expand padding diagram"
@@ -174,14 +174,16 @@ export function SpacingDiagram({
       )}
 
       <div className="mt-3">
-        <InspectorLabel>Gap</InspectorLabel>
-        <InspectorNumberInput
-          value={style.gap ?? ""}
-          placeholder="0"
-          className={numberInputClassName}
-          onChange={(event) => handleGapChange(event.target.value)}
-          onBlur={onHistoryFlush}
-          onKeyDown={handleKeyDown}
+        <InspectorSliderField
+          label="Gap"
+          value={style.gap ?? 0}
+          min={0}
+          max={100}
+          step={1}
+          onChange={(val) => {
+            handleGapChange(val === 0 ? "" : String(val));
+            onHistoryFlush();
+          }}
         />
       </div>
     </div>

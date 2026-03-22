@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import { buildSitePrompt, type SectionId } from "@/lib/canvas/generate-site";
+import {
+  buildSitePrompt,
+  buildPageTreePrompt,
+  buildPushedVariantPrompt,
+  buildRestructuredVariantPrompt,
+  validateAndNormalizePageTree,
+  type SectionId,
+} from "@/lib/canvas/generate-site";
+import { compileTasteToDirectives, type FidelityMode } from "@/lib/canvas/directive-compiler";
+import { validateDirectiveCompliance, repairViolations, countNodes } from "@/lib/canvas/directive-validator";
 import {
   compilePageTreeToTSX,
   createVariantSet,
   inferSiteName,
   type VariantMode,
+  type PageNode,
 } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { TasteProfile } from "@/types/taste-profile";
-import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { callModel, getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { scoreRealtimeFidelity, type TasteFidelityScore } from "@/lib/canvas/taste-evaluator";
 
 type VariantStrategy = {
   key: "safe" | "creative" | "alternative";
@@ -197,6 +208,7 @@ export async function POST(req: NextRequest) {
       referenceUrls,
       variantStrategy,
       regenerationIntent,
+      fidelityMode,
     } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
@@ -209,7 +221,10 @@ export async function POST(req: NextRequest) {
       referenceUrls?: string[];
       variantStrategy?: VariantMode;
       regenerationIntent?: "more-like-this" | "different-approach";
+      fidelityMode?: FidelityMode;
     };
+
+    console.log(`[GEN DEBUG] generate-component called: mode=${mode}, prompt="${prompt?.slice(0, 60)}...", tasteProfile=${tasteProfile ? "YES" : "NULL"}, referenceUrls=${referenceUrls?.length ?? 0}, OPENROUTER_API_KEY=${!!process.env.OPENROUTER_API_KEY}`);
 
     if (!prompt || !tokens) {
       return NextResponse.json(
@@ -220,13 +235,6 @@ export async function POST(req: NextRequest) {
 
     if (mode === "variants") {
       const resolvedSiteName = siteName || inferSiteName(prompt);
-      // Single variant generation — pick the requested strategy or default to "safe"
-      const requestedModes: VariantMode[] =
-        variantStrategy === "safe" ||
-        variantStrategy === "creative" ||
-        variantStrategy === "alternative"
-          ? [variantStrategy]
-          : (["safe"] as VariantMode[]);
       const regenerationNote =
         regenerationIntent === "more-like-this"
           ? "Strengthen the same direction, double down on its taste alignment, and sharpen what already works."
@@ -234,143 +242,330 @@ export async function POST(req: NextRequest) {
           ? "Keep the same project and taste profile, but find a meaningfully different layout and styling emphasis."
           : "";
 
-      // Build the page trees (drive canvas editor interactivity) + fallback compiled TSX
-      const baseVariants = createVariantSet(
+      // Build deterministic fallback trees (used when AI generation fails)
+      const fallbackVariants = createVariantSet(
         regenerationNote ? `${prompt}\n\n${regenerationNote}` : prompt,
         tokens,
         siteType ?? "auto",
         resolvedSiteName,
         tasteProfile ?? null,
-        requestedModes
+        ["safe", "creative", "alternative"] as VariantMode[]
+      );
+      const fallbackTrees = fallbackVariants.map((v) => v.pageTree);
+
+      // Build taste-aware prompt for the base generation
+      const baseSourcePrompt = buildTasteAwareVariantPrompt({
+        prompt,
+        tasteProfile: tasteProfile ?? null,
+        referenceUrls: Array.isArray(referenceUrls) ? referenceUrls : [],
+        strategy: VARIANT_STRATEGIES[0],
+      });
+
+      // Compile directives for validation
+      const compiledDirectives = compileTasteToDirectives(
+        tasteProfile ?? null,
+        fidelityMode ?? "balanced"
       );
 
-      const variantsWithMeta = baseVariants.map((variant, index) => {
-        const strategy = VARIANT_STRATEGIES[index] ?? VARIANT_STRATEGIES[0];
-        const sourcePrompt = buildTasteAwareVariantPrompt({
-          prompt,
-          tasteProfile: tasteProfile ?? null,
-          referenceUrls: Array.isArray(referenceUrls) ? referenceUrls : [],
-          strategy,
-        });
-        const emphasizedAspect =
-          strategy.key === "safe"
-            ? tasteProfile?.layoutBias.whitespaceIntent ||
-              tasteProfile?.typographyTraits.headingTone ||
-              "taste alignment"
-            : strategy.key === "creative"
-            ? tasteProfile?.imageTreatment.style ||
-              tasteProfile?.layoutBias.heroStyle ||
-              "creative interpretation"
-            : tasteProfile?.layoutBias.gridBehavior ||
-              tasteProfile?.colorBehavior.suggestedColors.background ||
-              "layout contrast";
+      // ── 1+2 Variant Derivation Flow ──────────────────────────────────
+      // 1 full base generation + quality gate + 2 parallel transformations
+      // Total: 3-4 Sonnet calls (down from 6)
+      // TSX generation eliminated — on-demand export only
 
-        return {
-          ...variant,
-          name: `${strategy.label} — ${variant.name}`,
-          sourcePrompt,
-          description: `This variant emphasizes ${emphasizedAspect} from your references.`,
-          previewImage: createVariantPreviewImage(variant.name, tokens),
-          // Fallback code from the deterministic tree compiler
-          _fallbackCode: compilePageTreeToTSX(
-            variant.pageTree,
-            tokens,
-            variant.name.replace(/\s+/g, "")
-          ),
-        };
-      });
-
-      // Single Kimi call — one variant at a time for quality
       const apiKey = process.env.OPENROUTER_API_KEY;
-      let kimiResults: PromiseSettledResult<string>[] = [];
+      let baseTree: PageNode = fallbackTrees[0];
+      let baseTreeSource: "ai" | "template" | "repaired" = "template";
+      let baseValidationScore: number | undefined;
+      let baseFidelityScore: TasteFidelityScore | null = null;
+      let pushedTree: PageNode = fallbackTrees[1] ?? fallbackTrees[0];
+      let pushedTreeSource: "ai" | "template" | "repaired" = "template";
+      let pushedValidationScore: number | undefined;
+      let restructuredTree: PageNode = fallbackTrees[2] ?? fallbackTrees[0];
+      let restructuredTreeSource: "ai" | "template" | "repaired" = "template";
+      let restructuredValidationScore: number | undefined;
 
       if (apiKey) {
-        const router = getRouter();
-        kimiResults = await Promise.allSettled(
-          variantsWithMeta.map(async (variant, idx) => {
-            const variantMode = requestedModes[idx] ?? "safe";
-            const sitePrompt = buildSitePrompt(tokens, variant.sourcePrompt, undefined, undefined, {
-              variantMode,
-              tasteProfile: tasteProfile ?? null,
-            });
-            const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
-              .slice(0, 4)
-              .map((url) => imageUrlBlock(url, "low"));
-            console.log(`[generate-component] Calling Sonnet 4.6 for variant: ${variantMode} (prompt length: ${sitePrompt.length} chars)`);
+        const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+          .slice(0, 4)
+          .map((url) => imageUrlBlock(url, "low"));
+
+        // ── Step 1: Generate BASE variant (full generation) ──
+        const generateBaseTree = async (temperature: number): Promise<PageNode | null> => {
+          try {
+            const treePrompt = buildPageTreePrompt(
+              tokens,
+              regenerationNote ? `${baseSourcePrompt}\n\n${regenerationNote}` : baseSourcePrompt,
+              resolvedSiteName,
+              {
+                variantMode: "safe",
+                tasteProfile: tasteProfile ?? null,
+                fidelityMode: fidelityMode ?? "balanced",
+              }
+            );
+            console.log(`[GEN DEBUG] Calling Sonnet for BASE PageNode tree: temp=${temperature}, prompt=${treePrompt.length} chars`);
+
+            const router = getRouter();
             const response = await router.chat.completions.create({
               model: SONNET_4_6,
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    {
-                      type: "text",
-                      text: `${sitePrompt}
-
-Use the attached reference images as visual grounding. Do not copy them literally, but let them influence hierarchy, density, color energy, image treatment, and typographic attitude.`,
-                    },
-                    ...referenceImageBlocks,
-                  ],
-                },
-              ],
-              max_tokens: 16000,
-              temperature: 0.6,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: treePrompt },
+                  ...referenceImageBlocks,
+                ],
+              }],
+              max_tokens: 8000,
+              temperature,
+              response_format: { type: "json_object" },
             });
-            const raw = response.choices[0]?.message?.content ?? "";
-            const finishReason = response.choices[0]?.finish_reason;
-            console.log(`[generate-component] Sonnet responded: ${raw.length} chars, finish_reason: ${finishReason}`);
-            if (finishReason === "length") {
-              console.warn(`[generate-component] Sonnet variant ${variantMode} hit max_tokens — output may be truncated`);
-            }
-            if (raw.length === 0) {
-              console.error(`[generate-component] Sonnet returned empty response for variant ${variantMode}. Full response:`, JSON.stringify(response.choices[0]));
-              throw new Error("Sonnet returned empty response — falling back to template");
-            }
-            const cleaned = stripCodeFences(raw);
-            const validation = validateGeneratedPreviewCode(cleaned);
-            if (!validation.ok) {
-              throw new Error(`Sonnet returned preview-incompatible code: ${validation.reason}`);
-            }
-            return cleaned;
-          })
-        );
-      }
 
-      // Log any failures from Promise.allSettled
-      kimiResults.forEach((result, idx) => {
-        if (result.status === "rejected") {
-          const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
-          console.error(`[generate-component] Variant ${idx} REJECTED: ${reason}`);
-          if (result.reason instanceof Error && result.reason.stack) {
-            console.error(`[generate-component] Stack: ${result.reason.stack}`);
+            const raw = response.choices[0]?.message?.content ?? "";
+            console.log(`[GEN DEBUG] BASE tree response: ${raw.length} chars, finish_reason: ${response.choices[0]?.finish_reason}`);
+            if (raw.length === 0) throw new Error("Empty PageNode tree response");
+
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("No JSON found in PageNode tree response");
+
+            const parsed = JSON.parse(jsonMatch[0]);
+            const validation = validateAndNormalizePageTree(parsed);
+            if (!validation.ok) throw new Error(`PageNode tree invalid: ${validation.reason}`);
+
+            return validation.tree as PageNode;
+          } catch (err) {
+            console.error(`[GEN DEBUG] BASE tree generation failed:`, err instanceof Error ? err.message : err);
+            return null;
+          }
+        };
+
+        // First attempt
+        let candidateTree = await generateBaseTree(0.5);
+
+        if (candidateTree) {
+          baseTree = candidateTree;
+          baseTreeSource = "ai";
+
+          // ── Step 2: Validate + repair ──
+          const validation = validateDirectiveCompliance(baseTree, compiledDirectives);
+          baseValidationScore = validation.score;
+          console.log(`[GEN DEBUG] BASE validation: score=${validation.score}, violations=${validation.violations.length}, passed=${validation.passed}`);
+
+          if (!validation.passed && validation.repairable) {
+            const { repairedTree, repairCount } = repairViolations(baseTree, validation.violations, compiledDirectives);
+            const totalNodes = countNodes(baseTree);
+            baseTreeSource = repairCount / totalNodes > 0.3 ? "repaired" : "ai";
+            baseTree = repairedTree;
+            console.log(`[GEN DEBUG] BASE repaired ${repairCount}/${totalNodes} nodes, source=${baseTreeSource}`);
+          } else if (!validation.passed) {
+            console.log(`[GEN DEBUG] BASE validation failed, not repairable. Using fallback.`);
+            baseTree = fallbackTrees[0];
+            baseTreeSource = "template";
+          }
+
+          // ── Step 3: Score ──
+          if (tasteProfile && baseTreeSource !== "template") {
+            try {
+              baseFidelityScore = await scoreRealtimeFidelity(baseTree, tasteProfile);
+              console.log(`[GEN DEBUG] BASE fidelity: overall=${baseFidelityScore.overall}, palette=${baseFidelityScore.palette}, type=${baseFidelityScore.typography}, density=${baseFidelityScore.density}`);
+            } catch (scoreErr) {
+              console.warn("[GEN DEBUG] BASE taste scoring failed:", scoreErr);
+            }
+          }
+
+          // ── Step 4: Quality gate — retry if score too low ──
+          const QUALITY_THRESHOLD = 4.0;
+          if (
+            baseFidelityScore &&
+            baseFidelityScore.overall < QUALITY_THRESHOLD &&
+            baseTreeSource !== "template"
+          ) {
+            console.log(`[GEN DEBUG] Quality gate FAILED: score=${baseFidelityScore.overall} < ${QUALITY_THRESHOLD}. Retrying with lower temperature.`);
+
+            const retryTree = await generateBaseTree(0.3);
+            if (retryTree) {
+              // Validate + repair retry
+              const retryValidation = validateDirectiveCompliance(retryTree, compiledDirectives);
+              let finalRetryTree = retryTree;
+              let retrySource: "ai" | "repaired" = "ai";
+
+              if (!retryValidation.passed && retryValidation.repairable) {
+                const { repairedTree, repairCount } = repairViolations(retryTree, retryValidation.violations, compiledDirectives);
+                retrySource = repairCount / countNodes(retryTree) > 0.3 ? "repaired" : "ai";
+                finalRetryTree = repairedTree;
+              }
+
+              // Score retry
+              let retryScore: TasteFidelityScore | null = null;
+              if (tasteProfile) {
+                try {
+                  retryScore = await scoreRealtimeFidelity(finalRetryTree, tasteProfile);
+                  console.log(`[GEN DEBUG] RETRY fidelity: overall=${retryScore.overall}`);
+                } catch { /* keep original */ }
+              }
+
+              // Use whichever scored higher
+              if (retryScore && retryScore.overall > baseFidelityScore.overall) {
+                const originalScore = baseFidelityScore.overall;
+                baseTree = finalRetryTree;
+                baseTreeSource = retrySource;
+                baseFidelityScore = retryScore;
+                baseValidationScore = retryValidation.score;
+                console.log(`[GEN DEBUG] Quality gate: RETRY wins (${retryScore.overall} > ${originalScore})`);
+              } else {
+                console.log(`[GEN DEBUG] Quality gate: ORIGINAL wins (keeping score=${baseFidelityScore.overall})`);
+              }
+            }
+          } else if (baseFidelityScore) {
+            console.log(`[GEN DEBUG] Quality gate PASSED: score=${baseFidelityScore.overall} >= ${QUALITY_THRESHOLD}`);
           }
         }
-      });
 
-      const variants = variantsWithMeta.map((variant, index) => {
-        const { _fallbackCode, ...rest } = variant;
-        const kimiResult = kimiResults[index];
-        const fallbackReason =
-          kimiResult?.status === "rejected"
-            ? kimiResult.reason instanceof Error
-              ? kimiResult.reason.message
-              : String(kimiResult.reason)
-            : null;
-        const compiledCode =
-          kimiResult?.status === "fulfilled" && kimiResult.value
-            ? kimiResult.value
-            : _fallbackCode;
-        if (kimiResult?.status !== "fulfilled" || !kimiResult.value) {
-          console.warn(`[generate-component] Using fallback code for variant ${index} (AI generation failed)`);
+        // ── Step 5: Derive pushed + restructured variants in parallel ──
+        if (baseTreeSource !== "template" && tasteProfile) {
+          const pushedPrompt = buildPushedVariantPrompt(baseTree, tasteProfile, compiledDirectives);
+          const restructuredPrompt = buildRestructuredVariantPrompt(baseTree, tasteProfile, compiledDirectives);
+
+          const [pushedResult, restructuredResult] = await Promise.allSettled([
+            callModel({
+              model: SONNET_4_6,
+              messages: [{ role: "user", content: pushedPrompt }],
+              maxTokens: 8000,
+              temperature: 0.4,
+              jsonMode: true,
+            }),
+            callModel({
+              model: SONNET_4_6,
+              messages: [{ role: "user", content: restructuredPrompt }],
+              maxTokens: 8000,
+              temperature: 0.5,
+              jsonMode: true,
+            }),
+          ]);
+
+          // Parse pushed variant
+          if (pushedResult.status === "fulfilled") {
+            try {
+              const jsonMatch = pushedResult.value.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                const normalized = validateAndNormalizePageTree(parsed);
+                if (normalized.ok) {
+                  let tree = normalized.tree as PageNode;
+                  pushedTreeSource = "ai";
+
+                  // Validate + repair pushed
+                  const pv = validateDirectiveCompliance(tree, compiledDirectives);
+                  pushedValidationScore = pv.score;
+                  if (!pv.passed && pv.repairable) {
+                    const { repairedTree, repairCount } = repairViolations(tree, pv.violations, compiledDirectives);
+                    pushedTreeSource = repairCount / countNodes(tree) > 0.3 ? "repaired" : "ai";
+                    tree = repairedTree;
+                  } else if (!pv.passed) {
+                    throw new Error("Pushed variant not repairable");
+                  }
+
+                  pushedTree = tree;
+                  console.log(`[GEN DEBUG] PUSHED variant OK: validation=${pv.score}, source=${pushedTreeSource}`);
+                } else {
+                  console.error(`[GEN DEBUG] PUSHED variant invalid: ${normalized.reason}`);
+                }
+              }
+            } catch (err) {
+              console.error(`[GEN DEBUG] PUSHED variant parse failed:`, err instanceof Error ? err.message : err);
+            }
+          } else {
+            console.error(`[GEN DEBUG] PUSHED variant call failed:`, pushedResult.reason instanceof Error ? pushedResult.reason.message : pushedResult.reason);
+          }
+
+          // Parse restructured variant
+          if (restructuredResult.status === "fulfilled") {
+            try {
+              const jsonMatch = restructuredResult.value.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                const normalized = validateAndNormalizePageTree(parsed);
+                if (normalized.ok) {
+                  let tree = normalized.tree as PageNode;
+                  restructuredTreeSource = "ai";
+
+                  // Validate + repair restructured
+                  const rv = validateDirectiveCompliance(tree, compiledDirectives);
+                  restructuredValidationScore = rv.score;
+                  if (!rv.passed && rv.repairable) {
+                    const { repairedTree, repairCount } = repairViolations(tree, rv.violations, compiledDirectives);
+                    restructuredTreeSource = repairCount / countNodes(tree) > 0.3 ? "repaired" : "ai";
+                    tree = repairedTree;
+                  } else if (!rv.passed) {
+                    throw new Error("Restructured variant not repairable");
+                  }
+
+                  restructuredTree = tree;
+                  console.log(`[GEN DEBUG] RESTRUCTURED variant OK: validation=${rv.score}, source=${restructuredTreeSource}`);
+                } else {
+                  console.error(`[GEN DEBUG] RESTRUCTURED variant invalid: ${normalized.reason}`);
+                }
+              }
+            } catch (err) {
+              console.error(`[GEN DEBUG] RESTRUCTURED variant parse failed:`, err instanceof Error ? err.message : err);
+            }
+          } else {
+            console.error(`[GEN DEBUG] RESTRUCTURED variant call failed:`, restructuredResult.reason instanceof Error ? restructuredResult.reason.message : restructuredResult.reason);
+          }
+        } else {
+          console.log(`[GEN DEBUG] Skipping derivation — base is template or no taste profile`);
         }
-        return {
-          ...rest,
-          compiledCode,
-          previewSource:
-            kimiResult?.status === "fulfilled" && kimiResult.value ? "ai" : "fallback",
-          previewFallbackReason: fallbackReason,
-        };
-      });
+      }
+
+      // ── Assemble final variants ──
+      // TSX is on-demand only (compilePageTreeToTSX runs at export time, not here)
+      const variants = [
+        {
+          ...fallbackVariants[0],
+          name: "Variant A — Faithful",
+          pageTree: baseTree,
+          pageTreeSource: baseTreeSource,
+          validationScore: baseValidationScore,
+          fidelityScore: baseFidelityScore,
+          tasteTags: ["closest to references"],
+          sourcePrompt: baseSourcePrompt,
+          description: "Stays closest to your reference signal and protects the strongest taste cues.",
+          previewImage: createVariantPreviewImage("Faithful", tokens),
+          compiledCode: compilePageTreeToTSX(baseTree, tokens, "Faithful"),
+          previewSource: "fallback" as const,
+          previewFallbackReason: null,
+        },
+        {
+          ...fallbackVariants[1],
+          name: "Variant B — Pushed",
+          pageTree: pushedTree,
+          pageTreeSource: pushedTreeSource,
+          validationScore: pushedValidationScore,
+          fidelityScore: null,
+          tasteTags: ["tighter spacing", "bolder CTAs", "more editorial"],
+          sourcePrompt: baseSourcePrompt,
+          description: "Pushes the visual interpretation while staying grounded in your references.",
+          previewImage: createVariantPreviewImage("Pushed", tokens),
+          compiledCode: compilePageTreeToTSX(pushedTree, tokens, "Pushed"),
+          previewSource: "fallback" as const,
+          previewFallbackReason: null,
+        },
+        {
+          ...fallbackVariants[2],
+          name: "Variant C — Restructured",
+          pageTree: restructuredTree,
+          pageTreeSource: restructuredTreeSource,
+          validationScore: restructuredValidationScore,
+          fidelityScore: null,
+          tasteTags: ["different layout", "same palette", "reordered sections"],
+          sourcePrompt: baseSourcePrompt,
+          description: "Keeps the same taste but explores a different layout direction.",
+          previewImage: createVariantPreviewImage("Restructured", tokens),
+          compiledCode: compilePageTreeToTSX(restructuredTree, tokens, "Restructured"),
+          previewSource: "fallback" as const,
+          previewFallbackReason: null,
+        },
+      ];
+
+      console.log(`[GEN DEBUG] Final variants: base=${baseTreeSource}, pushed=${pushedTreeSource}, restructured=${restructuredTreeSource}`);
 
       return NextResponse.json({ siteName: resolvedSiteName, variants });
     }
@@ -385,7 +580,10 @@ Use the attached reference images as visual grounding. Do not copy them literall
     }
 
     const router = getRouter();
-    const systemPrompt = buildSitePrompt(tokens, prompt, sectionId, existingSections);
+    const systemPrompt = buildSitePrompt(tokens, prompt, sectionId, existingSections, {
+      tasteProfile: tasteProfile ?? null,
+      fidelityMode: fidelityMode ?? "balanced",
+    });
     const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
       .slice(0, 4)
       .map((url) => imageUrlBlock(url, "low"));

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { ComposeDocumentView } from "./ComposeDocumentView";
+import { ComposeDocumentView, exitAnyActiveTextEditing } from "./ComposeDocumentView";
 import { BREAKPOINT_WIDTHS, findNodeById } from "@/lib/canvas/compose";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
@@ -137,12 +137,13 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
         className={cn(
           "canvas-artboard relative bg-white",
           isDesktop ? "border-t-2 border-t-[#1E5DF2]" : "border-t border-t-[#E5E5E0]",
-          isSelected && "ring-2 ring-[#1E5DF2] ring-offset-2",
+          isSelected && "outline outline-1 outline-[#1E5DF2]",
           isActiveArtboard && "editing"
         )}
         onClick={(e) => {
           e.stopPropagation();
           if (!(e.target as HTMLElement).closest("[data-node-id]")) {
+            exitAnyActiveTextEditing();
             dispatch({ type: "SELECT_ITEM", itemId: item.id });
           }
         }}

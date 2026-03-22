@@ -3,7 +3,7 @@ import type { SiteType } from "./templates";
 import type { TasteProfile } from "@/types/taste-profile";
 
 export type CanvasStage = "collect" | "compose";
-export type Breakpoint = "desktop" | "tablet" | "mobile";
+export type Breakpoint = "desktop" | "mobile";
 export type InspectorTab = "content" | "style" | "layout" | "effects" | "ai";
 export type VariantMode = "safe" | "creative" | "alternative";
 
@@ -159,21 +159,19 @@ export type ComposeDocument = {
 
 export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
   desktop: 1440,
-  tablet: 768,
   mobile: 375,
 };
 
 export const COMPOSE_ARTBOARD_GAP = 200;
 
-/** Fixed canvas positions for the three breakpoint artboards created from a single variant. */
+/** Fixed canvas positions for the two breakpoint artboards created from a single variant. */
 export const BREAKPOINT_ARTBOARD_LAYOUTS: Array<{
   breakpoint: Breakpoint;
   name: string;
   x: number;
 }> = [
   { breakpoint: "desktop", name: "Desktop 1440", x: 0 },
-  { breakpoint: "tablet",  name: "Tablet 768",   x: 1440 + 200 },
-  { breakpoint: "mobile",  name: "Mobile 375",   x: 1440 + 200 + 768 + 200 },
+  { breakpoint: "mobile",  name: "Mobile 375",   x: 1440 + 200 },
 ];
 
 // ─── Artboard creation + fit-to-view ──────────────────────────────────────────
@@ -191,9 +189,9 @@ export type ArtboardSpec = {
 };
 
 /**
- * Creates three side-by-side breakpoint artboards from a single variant's page tree.
- * Desktop is centered at the origin; Tablet and Mobile are positioned to the right
- * with 80px gaps.
+ * Creates two side-by-side breakpoint artboards from a single variant's page tree.
+ * Desktop is centered at the origin; Mobile is positioned to the right
+ * with an 80px gap.
  */
 export function createInitialArtboards(
   pageTree: PageNode,
@@ -203,12 +201,10 @@ export function createInitialArtboards(
 ): ArtboardSpec[] {
   const gap = COMPOSE_ARTBOARD_GAP;
   const desktopX = 0;
-  const tabletX = BREAKPOINT_WIDTHS.desktop + gap;
-  const mobileX = tabletX + BREAKPOINT_WIDTHS.tablet + gap;
+  const mobileX = BREAKPOINT_WIDTHS.desktop + gap;
 
   const layouts: Array<{ breakpoint: Breakpoint; label: string; x: number }> = [
     { breakpoint: "desktop", label: "Desktop", x: desktopX },
-    { breakpoint: "tablet",  label: "Tablet",  x: tabletX },
     { breakpoint: "mobile",  label: "Mobile",  x: mobileX },
   ];
 
@@ -241,7 +237,6 @@ export function fitArtboardsToView(
   // Approximate artboard heights based on breakpoint
   function approxHeight(bp: Breakpoint): number {
     if (bp === "mobile") return 1320;
-    if (bp === "tablet") return 1540;
     return 1780;
   }
 
@@ -1013,14 +1008,17 @@ function sanitizeComposeDocument(value: unknown): ComposeDocument | null {
 
   if (validArtboards.length === 0) return null;
 
-  // Back-fill breakpoint for artboards saved before Phase 3B
-  const artboards = validArtboards.map((artboard) => {
-    if (artboard.breakpoint === "desktop" || artboard.breakpoint === "tablet" || artboard.breakpoint === "mobile") {
-      return artboard;
-    }
-    const inferred = BREAKPOINT_ARTBOARD_LAYOUTS.find((l) => l.name === artboard.name)?.breakpoint ?? "desktop";
-    return { ...artboard, breakpoint: inferred };
-  });
+  // Back-fill breakpoint for artboards saved before Phase 3B.
+  // Filter out legacy tablet artboards (saved data may contain breakpoints no longer in the type).
+  const artboards = validArtboards
+    .filter((artboard) => (artboard.breakpoint as string) !== "tablet")
+    .map((artboard) => {
+      if (artboard.breakpoint === "desktop" || artboard.breakpoint === "mobile") {
+        return artboard;
+      }
+      const inferred = BREAKPOINT_ARTBOARD_LAYOUTS.find((l) => l.name === artboard.name)?.breakpoint ?? "desktop";
+      return { ...artboard, breakpoint: inferred };
+    });
 
   const panSource = isPlainObject(value.pan) ? value.pan : null;
   const overlays = Array.isArray(value.overlays) ? (value.overlays as ComposeOverlay[]) : [];
@@ -1040,7 +1038,7 @@ function sanitizeComposeDocument(value: unknown): ComposeDocument | null {
         ? value.primaryArtboardId
         : null,
     breakpoint:
-      value.breakpoint === "desktop" || value.breakpoint === "tablet" || value.breakpoint === "mobile"
+      value.breakpoint === "desktop" || value.breakpoint === "mobile"
         ? value.breakpoint
         : "desktop",
     pan: {
@@ -1513,8 +1511,6 @@ function renderNode(node, breakpoint) {
             gridTemplateColumns:
               breakpoint === "mobile"
                 ? "1fr"
-                : breakpoint === "tablet"
-                ? "repeat(2, minmax(0, 1fr))"
                 : \`repeat(\${style.columns || 3}, minmax(0, 1fr))\`,
           }}
         >

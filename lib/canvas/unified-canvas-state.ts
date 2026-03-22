@@ -20,7 +20,7 @@ import { BREAKPOINT_WIDTHS } from "./compose";
 
 // ─── Core Types ──────────────────────────────────────────────────────────────
 
-export type Breakpoint = "desktop" | "tablet" | "mobile";
+export type Breakpoint = "desktop" | "mobile";
 
 export type AIPreviewSession = {
   active: boolean;
@@ -139,9 +139,28 @@ const ARTBOARD_START_X = 1200;
 const ARTBOARD_START_Y = 100;
 const ARTBOARD_GAP = 80;
 
+/**
+ * Calculate the artboard start X dynamically based on the rightmost edge
+ * of all reference items on the canvas. This prevents artboards from
+ * overlapping references when many or large references are present.
+ */
+export function getArtboardStartX(items: CanvasItem[]): number {
+  const MIN_START_X = 1200; // minimum, even with no references
+  const BUFFER = 120; // gap between reference cluster and first artboard
+
+  let maxRefRight = 0;
+  for (const item of items) {
+    if (item.kind === "reference") {
+      const right = item.x + (item.width || 200);
+      if (right > maxRefRight) maxRefRight = right;
+    }
+  }
+
+  return Math.max(MIN_START_X, maxRefRight + BUFFER);
+}
+
 function artboardHeight(breakpoint: Breakpoint): number {
   if (breakpoint === "mobile") return 1320;
-  if (breakpoint === "tablet") return 1540;
   return 1780;
 }
 
@@ -196,29 +215,42 @@ function storedRefToCanvasItem(
 }
 
 /**
- * Fixed artboard x-positions for V3 layout (from the prompt spec):
- * desktop at x=1200, tablet at x=1200+1440+80=2720, mobile at x=1200+1440+80+768+80=3568
+ * Compute artboard x-positions for V3 layout based on a given start X.
+ * desktop at startX, mobile at startX+1440+80
  */
-const V3_ARTBOARD_X: Record<Breakpoint, number> = {
-  desktop: ARTBOARD_START_X,
-  tablet: ARTBOARD_START_X + BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP,
-  mobile: ARTBOARD_START_X + BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP + BREAKPOINT_WIDTHS.tablet + ARTBOARD_GAP,
-};
+function computeArtboardX(startX: number): Record<Breakpoint, number> {
+  return {
+    desktop: startX,
+    mobile: startX + BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP,
+  };
+}
 
 /**
- * Converts ComposeDocument artboards to ArtboardItems at fixed V3 positions.
+ * Fixed artboard x-positions for V3 layout (used during migration when no
+ * dynamic reference context is available).
+ */
+const V3_ARTBOARD_X: Record<Breakpoint, number> = computeArtboardX(ARTBOARD_START_X);
+
+/**
+ * Converts ComposeDocument artboards to ArtboardItems at V3 positions.
+ * Positions are computed dynamically to avoid overlapping reference items.
  */
 function composeArtboardsToItems(
   doc: ComposeDocument,
-  zIndexBase: number
+  zIndexBase: number,
+  existingItems: CanvasItem[] = []
 ): ArtboardItem[] {
+  const startX = getArtboardStartX(existingItems);
+  const artboardPositions = computeArtboardX(startX);
   const siteId = uid("site");
-  return doc.artboards.map((artboard, i) => {
-    const bp = artboard.breakpoint || "desktop";
+  // Filter out legacy tablet artboards (saved data may contain breakpoints no longer in the type)
+  const filteredArtboards = doc.artboards.filter((a) => (a.breakpoint as string) !== "tablet");
+  return filteredArtboards.map((artboard, i) => {
+    const bp = (artboard.breakpoint === "mobile" ? "mobile" : "desktop") as Breakpoint;
     return {
       id: artboard.id || uid("artboard"),
       kind: "artboard" as const,
-      x: V3_ARTBOARD_X[bp],
+      x: artboardPositions[bp],
       y: ARTBOARD_START_Y,
       width: BREAKPOINT_WIDTHS[bp],
       height: artboardHeight(bp),
@@ -279,23 +311,26 @@ function overlaysToItems(
 }
 
 /**
- * Creates three artboard items from a single GeneratedVariant.
+ * Creates two artboard items from a single GeneratedVariant.
+ * Positions are computed dynamically to avoid overlapping reference items.
  */
 function variantToArtboards(
   variant: GeneratedVariant,
-  zIndexBase: number
+  zIndexBase: number,
+  existingItems: CanvasItem[] = []
 ): ArtboardItem[] {
+  const startX = getArtboardStartX(existingItems);
+  const artboardPositions = computeArtboardX(startX);
   const siteId = uid("site");
   const layouts: Array<{ breakpoint: Breakpoint; label: string }> = [
     { breakpoint: "desktop", label: "Desktop" },
-    { breakpoint: "tablet", label: "Tablet" },
     { breakpoint: "mobile", label: "Mobile" },
   ];
 
   return layouts.map(({ breakpoint, label }, i) => ({
     id: uid("artboard"),
     kind: "artboard" as const,
-    x: V3_ARTBOARD_X[breakpoint],
+    x: artboardPositions[breakpoint],
     y: ARTBOARD_START_Y,
     width: BREAKPOINT_WIDTHS[breakpoint],
     height: artboardHeight(breakpoint),
@@ -398,7 +433,7 @@ export function migrateToV3(projectId: string): UnifiedCanvasState {
   let hasArtboards = false;
   try {
     if (composeDoc && Array.isArray(composeDoc.artboards) && composeDoc.artboards.length > 0) {
-      const artboardItems = composeArtboardsToItems(composeDoc, zIndex);
+      const artboardItems = composeArtboardsToItems(composeDoc, zIndex, state.items);
       state.items.push(...artboardItems);
       zIndex += artboardItems.length;
       hasArtboards = true;
@@ -435,7 +470,7 @@ export function migrateToV3(projectId: string): UnifiedCanvasState {
         : variants[0];
 
       if (targetVariant && targetVariant.pageTree) {
-        const artboardItems = variantToArtboards(targetVariant, zIndex);
+        const artboardItems = variantToArtboards(targetVariant, zIndex, state.items);
         state.items.push(...artboardItems);
         zIndex += artboardItems.length;
       }

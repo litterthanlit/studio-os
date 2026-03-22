@@ -1214,19 +1214,12 @@ function classForStyle(style: Partial<PageNodeStyle>, tokens: DesignSystemTokens
 
 function responsiveClasses(node: PageNode, tokens: DesignSystemTokens): string[] {
   const classes: string[] = [];
-  const prefixes: Partial<Record<Breakpoint, string>> = {
-    tablet: "md",
-    mobile: "sm",
-  };
-  (["tablet", "mobile"] as Breakpoint[]).forEach((breakpoint) => {
-    const prefix = prefixes[breakpoint];
-    if (!prefix) return;
-    const style = node.responsiveOverrides?.[breakpoint];
-    if (!style) return;
+  const style = node.responsiveOverrides?.mobile;
+  if (style) {
     classForStyle(style, tokens).forEach((item) => {
-      classes.push(`${prefix}:${item}`);
+      classes.push(`sm:${item}`);
     });
-  });
+  }
   return classes;
 }
 
@@ -1343,7 +1336,7 @@ function composeHtmlDocument(args: {
       tailwind.config = {
         theme: {
           extend: {
-            screens: { sm: "375px", md: "768px", lg: "1440px" }
+            screens: { sm: "375px", lg: "1440px" }
           }
         }
       }

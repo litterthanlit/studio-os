@@ -431,15 +431,28 @@ export function canvasReducer(
     }
 
     case "UPDATE_TEXT_STYLE_SITE": {
+      const breakpoint = getActiveBreakpoint(state);
       const nextItems = updateArtboardsForSite(
         state.items,
         action.artboardId,
         (pageTree) =>
           updateNodeInTree(pageTree, action.nodeId, (node) => {
             if (!isTextNodeType(node.type)) return node;
+            if (breakpoint === "desktop") {
+              return {
+                ...node,
+                style: { ...node.style, ...action.style },
+              };
+            }
             return {
               ...node,
-              style: { ...node.style, ...action.style },
+              responsiveOverrides: {
+                ...node.responsiveOverrides,
+                [breakpoint]: {
+                  ...node.responsiveOverrides?.[breakpoint],
+                  ...action.style,
+                },
+              },
             };
           })
       );

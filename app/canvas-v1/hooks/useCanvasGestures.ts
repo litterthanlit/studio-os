@@ -6,6 +6,7 @@ type GestureCallbacks = {
   onPan: (delta: { dx: number; dy: number }) => void;
   onZoom: (zoom: number, center: { x: number; y: number }) => void;
   currentZoom: number;
+  activeTool?: string;
 };
 
 const MIN_ZOOM = 0.05;
@@ -25,13 +26,19 @@ const ZOOM_SENSITIVITY = 0.002;
  * plus state for cursor styling.
  */
 export function useCanvasGestures(options: GestureCallbacks) {
-  const { onPan, onZoom, currentZoom } = options;
+  const { onPan, onZoom, currentZoom, activeTool } = options;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const spaceHeldRef = useRef(false);
   const isPanningRef = useRef(false);
   const panStartRef = useRef<{ x: number; y: number } | null>(null);
   const cursorRef = useRef<string>("default");
+
+  // Keep a ref to onPan so drag-move handlers always call the latest callback
+  // without needing to re-create startPan (which would re-register listeners
+  // and break an in-progress drag due to stale closures).
+  const onPanRef = useRef(onPan);
+  onPanRef.current = onPan;
 
   const startPan = useCallback(
     (
@@ -57,7 +64,7 @@ export function useCanvasGestures(options: GestureCallbacks) {
         const dx = moveEvent.clientX - panStartRef.current.x;
         const dy = moveEvent.clientY - panStartRef.current.y;
         panStartRef.current = { x: moveEvent.clientX, y: moveEvent.clientY };
-        onPan({ dx, dy });
+        onPanRef.current({ dx, dy });
       };
 
       const cleanup = () => {
@@ -65,7 +72,8 @@ export function useCanvasGestures(options: GestureCallbacks) {
         panStartRef.current = null;
 
         if (containerRef.current) {
-          containerRef.current.style.cursor = spaceHeldRef.current ? "grab" : "default";
+          const isGrab = spaceHeldRef.current || activeToolRef.current === "hand";
+          containerRef.current.style.cursor = isGrab ? "grab" : "default";
         }
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
@@ -105,7 +113,8 @@ export function useCanvasGestures(options: GestureCallbacks) {
       window.addEventListener("pointermove", handlePointerMove);
       window.addEventListener("pointerup", handlePointerUp);
     },
-    [onPan]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable: reads onPan via ref, not closure
+    []
   );
 
   // ── Space key tracking ──────────────────────────────────────────────
@@ -127,7 +136,7 @@ export function useCanvasGestures(options: GestureCallbacks) {
       if (e.code === "Space") {
         spaceHeldRef.current = false;
         if (!isPanningRef.current && containerRef.current) {
-          containerRef.current.style.cursor = "default";
+          containerRef.current.style.cursor = activeToolRef.current === "hand" ? "grab" : "default";
         }
       }
     };
@@ -139,6 +148,17 @@ export function useCanvasGestures(options: GestureCallbacks) {
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
+
+  // ── Hand tool cursor ────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (activeTool === "hand") {
+      containerRef.current.style.cursor = "grab";
+    } else if (!spaceHeldRef.current && !isPanningRef.current) {
+      containerRef.current.style.cursor = "default";
+    }
+  }, [activeTool]);
 
   // ── Wheel zoom ──────────────────────────────────────────────────────
 
@@ -202,10 +222,15 @@ export function useCanvasGestures(options: GestureCallbacks) {
 
   // ── Pointer pan (Space+drag or middle mouse) ────────────────────────
 
+  // Keep activeTool in a ref so handlePointerDown doesn't re-create on every tool change
+  const activeToolRef = useRef(activeTool);
+  activeToolRef.current = activeTool;
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       const isSpacePan = e.button === 0 && spaceHeldRef.current;
-      if (!isSpacePan) return;
+      const isHandToolPan = e.button === 0 && activeToolRef.current === "hand";
+      if (!isSpacePan && !isHandToolPan) return;
       startPan(e, "pointer");
     },
     [startPan]
@@ -215,5 +240,7 @@ export function useCanvasGestures(options: GestureCallbacks) {
     containerRef,
     handlePointerDown,
     cursorRef,
+    spaceHeldRef,
+    isPanningRef,
   };
 }

@@ -7,6 +7,7 @@ import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { ColorPickerPopover } from "./ColorPickerPopover";
+import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
 
@@ -131,13 +132,20 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
       {/* Font dropdown */}
       <div className="px-1 border-r border-[#E5E5E0]">
         <select
-          value={style.fontFamily || "Inter"}
+          value={style.fontFamily || "'Inter', sans-serif"}
           onChange={(e) => updateNodeStyle({ fontFamily: e.target.value }, "Changed font")}
-          className="h-7 px-2 text-[11px] text-[#6B6B6B] bg-transparent border-none outline-none cursor-pointer hover:text-[#1A1A1A] max-w-[90px] truncate"
+          className="h-7 px-2 text-[11px] text-[#6B6B6B] bg-transparent border-none outline-none cursor-pointer hover:text-[#1A1A1A] max-w-[110px] truncate"
         >
-          <option value="Inter">Inter</option>
-          <option value="Georgia">Serif</option>
-          <option value="IBM Plex Mono">Mono</option>
+          <option value="">Default</option>
+          {getFontsByCategory().map(({ category, label, fonts }) => (
+            <optgroup key={category} label={label}>
+              {fonts.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.family}
+                </option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 

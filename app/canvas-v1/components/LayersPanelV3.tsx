@@ -7,7 +7,7 @@
 
 import * as React from "react";
 import {
-  Monitor, Tablet, Smartphone, ChevronRight, Layout, Type,
+  Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
   CreditCard, Layers, Image as ImageIcon, StickyNote,
 } from "lucide-react";
@@ -44,7 +44,6 @@ function formatLabel(node: PageNode): string {
 function BreakpointIcon({ bp }: { bp: string }) {
   const props = { size: 14, strokeWidth: 1, className: "shrink-0 text-[#A0A0A0]" } as const;
   if (bp === "mobile") return <Smartphone {...props} />;
-  if (bp === "tablet") return <Tablet {...props} />;
   return <Monitor {...props} />;
 }
 
@@ -71,7 +70,7 @@ function TreeNode({
             ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
             : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
         )}
-        style={{ height: 26, paddingLeft: depth * 14 + (hasChildren ? 4 : 18) }}
+        style={{ height: 26, paddingLeft: depth * 12 + (hasChildren ? 4 : 16) }}
       >
         {hasChildren && (
           <span
@@ -82,7 +81,7 @@ function TreeNode({
           </span>
         )}
         <NodeIcon type={node.type} />
-        <span className="min-w-0 flex-1 truncate text-[12px]">{formatLabel(node)}</span>
+        <span className="min-w-0 flex-1 truncate text-[11px]">{formatLabel(node)}</span>
       </button>
       {expanded && hasChildren && node.children!.map((child) => (
         <TreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} />
@@ -123,7 +122,7 @@ export function LayersPanelV3() {
   const notes = items.filter((i): i is NoteItem => i.kind === "note");
 
   // Fixed breakpoint order
-  const orderedArtboards = ["desktop", "tablet", "mobile"]
+  const orderedArtboards = ["desktop", "mobile"]
     .map((bp) => artboards.find((a) => a.breakpoint === bp))
     .filter((a): a is ArtboardItem => Boolean(a));
 
@@ -136,92 +135,99 @@ export function LayersPanelV3() {
   };
 
   return (
-    <div className="absolute left-0 top-0 bottom-0 z-20 w-[240px] overflow-y-auto border-r border-[#E5E5E0] bg-white/95 backdrop-blur-sm">
-      <div className="py-2">
-        {/* Site group */}
-        {orderedArtboards.length > 0 && (
-          <Group label="Site" defaultOpen>
-            {orderedArtboards.map((artboard) => (
-              <div key={artboard.id}>
+    <div
+      className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
+      style={{ contain: "strict" }}
+    >
+      {/* Scrollable content — isolated from the positioning shell above so
+          scroll position can never shift the panel's top edge. */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <div className="pt-3 pb-2">
+          {/* Site group */}
+          {orderedArtboards.length > 0 && (
+            <Group label="Site" defaultOpen>
+              {orderedArtboards.map((artboard) => (
+                <div key={artboard.id}>
+                  <button
+                    onClick={() => handleSelectItem(artboard.id)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors",
+                      selection.selectedItemIds.includes(artboard.id)
+                        ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
+                        : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
+                    )}
+                    style={{ height: 28, paddingLeft: 24 }}
+                  >
+                    <BreakpointIcon bp={artboard.breakpoint} />
+                    <span className="truncate text-[11px]">
+                      {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
+                    </span>
+                  </button>
+                  {/* Page tree */}
+                  {artboard.pageTree.children?.map((child) => (
+                    <TreeNode
+                      key={child.id}
+                      node={child}
+                      depth={2}
+                      selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                      artboardId={artboard.id}
+                      onSelectNode={handleSelectNode}
+                    />
+                  ))}
+                </div>
+              ))}
+            </Group>
+          )}
+
+          {/* References group */}
+          {references.length > 0 && (
+            <Group label="References" count={references.length}>
+              {references.map((ref) => (
                 <button
-                  onClick={() => handleSelectItem(artboard.id)}
+                  key={ref.id}
+                  onClick={() => handleSelectItem(ref.id)}
                   className={cn(
-                    "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors",
-                    selection.selectedItemIds.includes(artboard.id)
+                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
+                    selection.selectedItemIds.includes(ref.id)
                       ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
                   )}
                   style={{ height: 28, paddingLeft: 24 }}
                 >
-                  <BreakpointIcon bp={artboard.breakpoint} />
-                  <span className="truncate text-[12px]">
-                    {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={ref.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover" />
+                  <span className="min-w-0 flex-1 truncate text-[11px]">
+                    {ref.title || "Reference"}
                   </span>
                 </button>
-                {/* Page tree */}
-                {artboard.pageTree.children?.map((child) => (
-                  <TreeNode
-                    key={child.id}
-                    node={child}
-                    depth={2}
-                    selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
-                    artboardId={artboard.id}
-                    onSelectNode={handleSelectNode}
-                  />
-                ))}
-              </div>
-            ))}
-          </Group>
-        )}
+              ))}
+            </Group>
+          )}
 
-        {/* References group */}
-        {references.length > 0 && (
-          <Group label="References" count={references.length}>
-            {references.map((ref) => (
-              <button
-                key={ref.id}
-                onClick={() => handleSelectItem(ref.id)}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
-                  selection.selectedItemIds.includes(ref.id)
-                    ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
-                    : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
-                )}
-                style={{ height: 28, paddingLeft: 24 }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={ref.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover" />
-                <span className="min-w-0 flex-1 truncate text-[12px]">
-                  {ref.title || "Reference"}
-                </span>
-              </button>
-            ))}
-          </Group>
-        )}
-
-        {/* Notes group */}
-        {notes.length > 0 && (
-          <Group label="Notes" count={notes.length}>
-            {notes.map((note) => (
-              <button
-                key={note.id}
-                onClick={() => handleSelectItem(note.id)}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
-                  selection.selectedItemIds.includes(note.id)
-                    ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
-                    : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
-                )}
-                style={{ height: 28, paddingLeft: 24 }}
-              >
-                <StickyNote size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0]" />
-                <span className="min-w-0 flex-1 truncate text-[12px]">
-                  &ldquo;{note.text.length > 24 ? note.text.slice(0, 24) + "…" : note.text}&rdquo;
-                </span>
-              </button>
-            ))}
-          </Group>
-        )}
+          {/* Notes group */}
+          {notes.length > 0 && (
+            <Group label="Notes" count={notes.length}>
+              {notes.map((note) => (
+                <button
+                  key={note.id}
+                  onClick={() => handleSelectItem(note.id)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
+                    selection.selectedItemIds.includes(note.id)
+                      ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
+                      : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
+                  )}
+                  style={{ height: 28, paddingLeft: 24 }}
+                >
+                  <StickyNote size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0]" />
+                  <span className="min-w-0 flex-1 truncate text-[11px]">
+                    &ldquo;{note.text.length > 24 ? note.text.slice(0, 24) + "…" : note.text}&rdquo;
+                  </span>
+                </button>
+              ))}
+            </Group>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -81,6 +81,53 @@ html {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ─── Inspector Range Slider ────────────────────────────────────────────────── */
+
+.inspector-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: #E5E5E0;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.inspector-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #1E5DF2;
+  cursor: pointer;
+  border: none;
+  transition: background 150ms, box-shadow 150ms;
+}
+
+.inspector-range-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #1E5DF2;
+  cursor: pointer;
+  border: none;
+  transition: background 150ms, box-shadow 150ms;
+}
+
+.inspector-range-slider:hover::-webkit-slider-thumb,
+.inspector-range-slider:focus::-webkit-slider-thumb {
+  background: #1A4FD6;
+  box-shadow: 0 0 0 3px rgba(30, 93, 242, 0.15);
+}
+
+.inspector-range-slider:hover::-moz-range-thumb,
+.inspector-range-slider:focus::-moz-range-thumb {
+  background: #1A4FD6;
+  box-shadow: 0 0 0 3px rgba(30, 93, 242, 0.15);
+}
+
 /* ─── Theme Tokens ──────────────────────────────────────────────────────────── */
 
 :root {

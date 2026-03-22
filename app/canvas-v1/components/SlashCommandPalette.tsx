@@ -132,9 +132,9 @@ export function SlashCommandPalette({
   return ReactDOM.createPortal(
     <motion.div
       ref={menuRef}
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
+      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: -4 }}
       transition={{ duration: 0.1 }}
       style={{
         position: "fixed",
@@ -142,7 +142,7 @@ export function SlashCommandPalette({
         left: pos.left,
         zIndex: 50,
       }}
-      className="min-w-[220px] max-w-[280px] bg-white border border-[#E5E5E0] rounded-[4px] shadow-md"
+      className="min-w-[220px] max-w-[280px] bg-white border border-[#E5E5E0] rounded-[4px] shadow-md overflow-hidden"
     >
       {/* Search input */}
       <input
@@ -154,7 +154,7 @@ export function SlashCommandPalette({
           setQuery(val.startsWith("/") ? val.slice(1) : val);
         }}
         onKeyDown={handleKeyDown}
-        className="px-3 py-2 text-[13px] text-[#1A1A1A] border-b border-[#E5E5E0] w-full outline-none bg-transparent"
+        className="px-3 py-2 text-[12px] text-[#1A1A1A] border-b border-[#E5E5E0] w-full outline-none bg-transparent"
         placeholder="/section name..."
       />
 
@@ -182,9 +182,10 @@ export function SlashCommandPalette({
           </button>
         ))}
 
-        {/* Divider */}
-        <div className="border-t border-[#E5E5E0] my-1" />
+      </div>
 
+      {/* Separator + footer actions */}
+      <div className="border-t border-[#E5E5E0] py-1">
         {/* Browse All */}
         <button
           type="button"
@@ -203,10 +204,10 @@ export function SlashCommandPalette({
         <button
           type="button"
           disabled
-          className="px-3 py-2 text-[12px] text-[#A0A0A0] cursor-not-allowed flex items-center gap-2 w-full text-left"
+          className="px-3 py-2 text-[12px] text-[#A0A0A0] cursor-default flex items-center gap-2 w-full text-left"
         >
           <Sparkles size={14} className="text-[#A0A0A0] shrink-0" strokeWidth={1.5} />
-          <span>Generate... (V5)</span>
+          <span>Generate...</span>
         </button>
       </div>
     </motion.div>,

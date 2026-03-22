@@ -41,11 +41,13 @@ import { SpacingDiagram } from "./inspector/SpacingDiagram";
 import { AIPreviewBar } from "./AIPreviewBar";
 import { InspectorCollapsible } from "./inspector/InspectorCollapsible";
 import { InspectorSegmented } from "./inspector/InspectorSegmented";
-import { InspectorTabs } from "./inspector/InspectorTabs";
+import { InspectorTabs, type InspectorTabId } from "./inspector/InspectorTabs";
 import { BreakpointBadge } from "./inspector/BreakpointBadge";
 import { CSSTab } from "./inspector/CSSTab";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
+import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { SiteType } from "@/lib/canvas/templates";
+import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
 import type {
   CanvasItem,
   ReferenceItem,
@@ -56,6 +58,7 @@ import type {
 } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
+import type { TasteProfile } from "@/types/taste-profile";
 
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
@@ -576,7 +579,7 @@ function NodeInspector({
       {isNonDesktop && (
         <div className="px-4 pt-3 pb-1">
           <span className="text-[10px] uppercase tracking-widest text-[#A0A0A0] font-mono">
-            {bp === "tablet" ? "Tablet" : "Mobile"} ({BREAKPOINT_WIDTHS[bp]}px)
+            Mobile ({BREAKPOINT_WIDTHS[bp]}px)
           </span>
         </div>
       )}
@@ -602,9 +605,15 @@ function NodeInspector({
               }}
             >
               <option value="">Default</option>
-              <option value="'Inter', sans-serif">Inter</option>
-              <option value="'Instrument Serif', serif">Bespoke Serif</option>
-              <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+              {getFontsByCategory().map(({ category, label, fonts }) => (
+                <optgroup key={category} label={label}>
+                  {fonts.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.family}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
             </InspectorSelect>
 
             <InspectorRow className="mt-2">
@@ -926,17 +935,6 @@ function NodeInspector({
       {isNonDesktop && (
         <InspectorCollapsible label="Visibility">
           <label className="flex items-center justify-between py-1 cursor-pointer">
-            <span className="text-[12px] text-[#1A1A1A]">Hide on Tablet</span>
-            <input
-              type="checkbox"
-              checked={node.hidden?.tablet ?? false}
-              onChange={() =>
-                dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: artboard.id, nodeId: node.id, breakpoint: "tablet" })
-              }
-              className="accent-[#1E5DF2] w-3.5 h-3.5 cursor-pointer"
-            />
-          </label>
-          <label className="flex items-center justify-between py-1 cursor-pointer">
             <span className="text-[12px] text-[#1A1A1A]">Hide on Mobile</span>
             <input
               type="checkbox"
@@ -961,29 +959,28 @@ function uid(prefix: string): string {
 
 function artboardHeight(breakpoint: Breakpoint): number {
   if (breakpoint === "mobile") return 1320;
-  if (breakpoint === "tablet") return 1540;
   return 1780;
 }
 
-const ARTBOARD_START_X = 1200;
 const ARTBOARD_START_Y = 100;
 const ARTBOARD_GAP = 80;
 
 function createArtboardItems(
   pageTree: PageNode,
   siteId: string,
-  compiledCode?: string | null
+  compiledCode: string | null | undefined,
+  existingItems: CanvasItem[]
 ): ArtboardItem[] {
+  const startX = getArtboardStartX(existingItems);
   const layouts: Array<{ breakpoint: Breakpoint; label: string; xOffset: number }> = [
     { breakpoint: "desktop", label: "Desktop", xOffset: 0 },
-    { breakpoint: "tablet", label: "Tablet", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP },
-    { breakpoint: "mobile", label: "Mobile", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP + BREAKPOINT_WIDTHS.tablet + ARTBOARD_GAP },
+    { breakpoint: "mobile", label: "Mobile", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP },
   ];
 
   return layouts.map(({ breakpoint, label, xOffset }, i) => ({
     id: uid("artboard"),
     kind: "artboard" as const,
-    x: ARTBOARD_START_X + xOffset,
+    x: startX + xOffset,
     y: ARTBOARD_START_Y,
     width: BREAKPOINT_WIDTHS[breakpoint],
     height: artboardHeight(breakpoint),
@@ -999,17 +996,17 @@ function createArtboardItems(
 
 function createArtboardItemsFromSnapshot(
   siteId: string,
-  artboards: PromptRunArtboard[]
+  artboards: PromptRunArtboard[],
+  existingItems: CanvasItem[]
 ): ArtboardItem[] {
+  const startX = getArtboardStartX(existingItems);
   return artboards.map((artboard, i) => ({
     id: uid("artboard"),
     kind: "artboard" as const,
-    x: ARTBOARD_START_X +
+    x: startX +
       (artboard.breakpoint === "desktop"
         ? 0
-        : artboard.breakpoint === "tablet"
-        ? BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP
-        : BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP + BREAKPOINT_WIDTHS.tablet + ARTBOARD_GAP),
+        : BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP),
     y: ARTBOARD_START_Y,
     width: BREAKPOINT_WIDTHS[artboard.breakpoint],
     height: artboardHeight(artboard.breakpoint),
@@ -1163,6 +1160,10 @@ function PromptComposer({
     () => (projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null),
     [projectId]
   );
+  // Taste profile: seed from project state, then update in-memory when extraction runs
+  const [tasteProfile, setTasteProfile] = React.useState<TasteProfile | null>(
+    () => (projectId ? getProjectState(projectId).canvas?.tasteProfile ?? null : null)
+  );
 
   // Reference context: selected references, or all references if none selected
   const referenceItems = React.useMemo(() => {
@@ -1277,6 +1278,36 @@ function PromptComposer({
         upsertProjectState(projectId, { canvas: { designTokens: tokens } });
       }
 
+      // Step 2.5: Extract taste profile if we have references but no taste profile yet
+      let resolvedTaste = tasteProfile;
+      if (!resolvedTaste && imageUrls.length > 0 && projectId) {
+        dispatch({
+          type: "SET_PROMPT_STATUS",
+          agentSteps: ["Analyzing references...", "Extracting taste profile..."],
+        });
+        try {
+          const tasteRes = await fetch("/api/taste/extract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              referenceUrls: imageUrls,
+              existingTokens: tokens,
+            }),
+          });
+          if (tasteRes.ok) {
+            const tasteData = await tasteRes.json();
+            if (tasteData && typeof tasteData === "object" && tasteData.summary) {
+              resolvedTaste = tasteData as TasteProfile;
+              setTasteProfile(resolvedTaste);
+              upsertProjectState(projectId, { canvas: { tasteProfile: resolvedTaste } });
+            }
+          }
+        } catch (tasteErr) {
+          console.warn("[prompt] Taste extraction failed, continuing without:", tasteErr);
+        }
+      }
+
       // Step 3: Generate component/site
       dispatch({
         type: "SET_PROMPT_STATUS",
@@ -1292,6 +1323,8 @@ function PromptComposer({
           referenceUrls: imageUrls,
           siteType: prompt.siteType,
           siteName: prompt.value.trim().slice(0, 50),
+          tasteProfile: resolvedTaste,
+          fidelityMode: "balanced",
         }),
       });
 
@@ -1316,16 +1349,29 @@ function PromptComposer({
       );
       const chosenVariant = safeVariant ?? variants[0];
 
+      // Debug: log what the generation returned
+      console.log("[GEN DEBUG] Chosen variant:", {
+        strategy: chosenVariant.strategy,
+        pageTreeSource: chosenVariant.pageTreeSource,
+        previewSource: chosenVariant.previewSource,
+        previewFallbackReason: chosenVariant.previewFallbackReason,
+        pageTreeType: chosenVariant.pageTree?.type,
+        pageTreeChildCount: chosenVariant.pageTree?.children?.length,
+        pageTreeChildNames: chosenVariant.pageTree?.children?.map((c: { name?: string }) => c.name),
+      });
+
       if (!chosenVariant.pageTree) {
         throw new Error("Chosen variant has no page tree");
       }
 
-      // Create artboard items
+      // Create artboard items (positions computed dynamically to avoid overlapping references)
       const siteId = uid("site");
+      const nonArtboardItems = items.filter((item) => item.kind !== "artboard");
       const artboards = createArtboardItems(
         chosenVariant.pageTree,
         siteId,
-        chosenVariant.compiledCode
+        chosenVariant.compiledCode,
+        nonArtboardItems
       );
 
       // Build prompt run entry
@@ -1352,7 +1398,7 @@ function PromptComposer({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
 
   // ── Vary: re-trigger generation when varySignal increments ──────────
 
@@ -1369,9 +1415,10 @@ function PromptComposer({
   const handleRestore = React.useCallback(
     (run: PromptRun) => {
       if (run.artboards?.length) {
+        const nonArtboards = items.filter((item) => item.kind !== "artboard");
         dispatch({
           type: "RESTORE_SITE",
-          artboards: createArtboardItemsFromSnapshot(run.siteId, run.artboards),
+          artboards: createArtboardItemsFromSnapshot(run.siteId, run.artboards, nonArtboards),
         });
       } else {
         const existingArtboards = items.filter(
@@ -1533,6 +1580,15 @@ function PromptComposer({
   );
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatNodeType(type: string): string {
+  return type
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
 const MIN_SECTION_HEIGHT = 120;
@@ -1552,7 +1608,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
   const textareaRef = promptTextareaRef ?? internalTextareaRef;
 
   // ── Tab state ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = React.useState<"design" | "css">("design");
+  const [activeTab, setActiveTab] = React.useState<InspectorTabId>("design");
 
   // ── Inspector content logic ────────────────────────────────────────
 
@@ -1582,6 +1638,17 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
       : null;
 
   const isNodeInspector = Boolean(selectedNode && activeArtboard);
+
+  // ── Header: zoom + node type ──────────────────────────────────────
+  const zoomPercent = Math.round(state.viewport.zoom * 100);
+
+  const handleZoomReset = React.useCallback(() => {
+    dispatch({
+      type: "SET_VIEWPORT",
+      pan: state.viewport.pan,
+      zoom: 1,
+    });
+  }, [dispatch, state.viewport.pan]);
 
   // ── Breakpoint badge + resolved style for CSS tab ──────────────────
   const artboardBreakpoint = activeArtboard?.breakpoint ?? "desktop";
@@ -1692,63 +1759,112 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
       ref={panelRef}
       className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
     >
+      {/* Header area */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] shrink-0">
+        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", selectedNode ? "text-[#1A1A1A]" : "text-[#A0A0A0]")}>
+          {selectedNode ? formatNodeType(selectedNode.type) : "No Selection"}
+        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className="text-[11px] font-mono text-[#6B6B6B] cursor-pointer hover:text-[#1A1A1A] transition-colors"
+            onClick={handleZoomReset}
+            title="Reset zoom to 100%"
+          >
+            {zoomPercent}%
+          </span>
+          <button
+            className="text-[11px] text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors"
+            onClick={() => alert("Share coming soon")}
+          >
+            Share
+          </button>
+          <button
+            className="text-[11px] bg-[#1A1A1A] text-white rounded-[4px] px-2.5 py-1 hover:bg-[#333] transition-colors"
+            onClick={() => alert("Export coming soon")}
+          >
+            Export
+          </button>
+        </div>
+      </div>
+
       {/* Tabs (sticky at top) */}
-      <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} isGenerating={prompt.isGenerating ?? false} />
 
       {/* Breakpoint badge (below tabs, non-desktop only) */}
       {showBreakpointBadge && activeArtboard && (
         <BreakpointBadge
-          breakpoint={artboardBreakpoint as "tablet" | "mobile"}
+          breakpoint={artboardBreakpoint as "mobile"}
           width={BREAKPOINT_WIDTHS[artboardBreakpoint]}
         />
       )}
 
-      {/* Inspector section (top) */}
-      <div
-        ref={inspectorScrollRef}
-        className="overflow-y-auto shrink-0"
-        style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : "100%" }}
-      >
-        {activeTab === "design" ? (
-          <>
-            {/* AI Preview bar */}
-            <AnimatePresence>
-              {state.aiPreview?.active && !prompt.isGenerating && (
-                <AIPreviewBar
-                  onAccept={handleAcceptPreview}
-                  onReject={handleRejectPreview}
-                  onVary={handleVaryPreview}
-                />
-              )}
-            </AnimatePresence>
-
-            <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
-          </>
-        ) : (
-          <CSSTab resolvedStyle={resolvedStyle} />
-        )}
-      </div>
-
-      {/* Divider + Prompt section (bottom) */}
-      {prompt.isOpen && (
+      {/* ── AI tab: full-height prompt composer, no split ── */}
+      {activeTab === "ai" ? (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <PromptComposer
+            textareaRef={textareaRef}
+            selectedNode={selectedNode}
+            projectId={projectId}
+            varySignal={varySignal}
+          />
+        </div>
+      ) : (
         <>
-          {/* Draggable divider */}
+          {/* Inspector section (top) */}
           <div
-            className="h-1 cursor-row-resize group relative shrink-0"
-            onPointerDown={handleDividerPointerDown}
+            ref={inspectorScrollRef}
+            className="overflow-y-auto shrink-0"
+            style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : "100%" }}
           >
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-[#E5E5E0] group-hover:h-[2px] group-hover:bg-[#D1E4FC] transition-all" />
+            {activeTab === "design" ? (
+              <>
+                {/* AI Preview bar */}
+                <AnimatePresence>
+                  {state.aiPreview?.active && !prompt.isGenerating && (
+                    <AIPreviewBar
+                      onAccept={handleAcceptPreview}
+                      onReject={handleRejectPreview}
+                      onVary={handleVaryPreview}
+                    />
+                  )}
+                </AnimatePresence>
+
+                <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
+              </>
+            ) : (
+              <CSSTab resolvedStyle={resolvedStyle} />
+            )}
           </div>
 
-          {/* Prompt composer section (bottom) */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <PromptComposer
-              textareaRef={textareaRef}
-              selectedNode={selectedNode}
-              projectId={projectId}
-              varySignal={varySignal}
-            />
-          </div>
+          {/* Divider + Prompt section (bottom) */}
+          {prompt.isOpen && (
+            <>
+              {/* Draggable divider — improved visibility */}
+              <div
+                className="h-[6px] cursor-row-resize group relative shrink-0"
+                onPointerDown={handleDividerPointerDown}
+              >
+                {/* Default: thin centered line */}
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-[#E5E5E0] group-hover:h-[3px] group-hover:bg-[#D1E4FC] transition-all" />
+                {/* Grip dots centered on divider */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-[3px] opacity-40 group-hover:opacity-70 transition-opacity">
+                  <span className="block w-[3px] h-[3px] rounded-full bg-[#A0A0A0]" />
+                  <span className="block w-[3px] h-[3px] rounded-full bg-[#A0A0A0]" />
+                  <span className="block w-[3px] h-[3px] rounded-full bg-[#A0A0A0]" />
+                </div>
+              </div>
+
+              {/* Prompt composer section (bottom) — accent top border */}
+              <div className="flex-1 min-h-0 overflow-hidden border-t-2 border-t-[#1E5DF2]/20">
+                <PromptComposer
+                  textareaRef={textareaRef}
+                  selectedNode={selectedNode}
+                  projectId={projectId}
+                  varySignal={varySignal}
+                />
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

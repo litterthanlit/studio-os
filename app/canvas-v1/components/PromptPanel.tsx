@@ -19,8 +19,10 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
 import type { SiteType } from "@/lib/canvas/templates";
+import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
 import type {
   ArtboardItem,
+  CanvasItem,
   ReferenceItem,
   PromptRun,
   Breakpoint,
@@ -35,29 +37,28 @@ function uid(prefix: string): string {
 
 function artboardHeight(breakpoint: Breakpoint): number {
   if (breakpoint === "mobile") return 1320;
-  if (breakpoint === "tablet") return 1540;
   return 1780;
 }
 
-const ARTBOARD_START_X = 1200;
 const ARTBOARD_START_Y = 100;
 const ARTBOARD_GAP = 80;
 
 function createArtboardItems(
   pageTree: PageNode,
   siteId: string,
-  compiledCode?: string | null
+  compiledCode: string | null | undefined,
+  existingItems: CanvasItem[]
 ): ArtboardItem[] {
+  const startX = getArtboardStartX(existingItems);
   const layouts: Array<{ breakpoint: Breakpoint; label: string; xOffset: number }> = [
     { breakpoint: "desktop", label: "Desktop", xOffset: 0 },
-    { breakpoint: "tablet", label: "Tablet", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP },
-    { breakpoint: "mobile", label: "Mobile", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP + BREAKPOINT_WIDTHS.tablet + ARTBOARD_GAP },
+    { breakpoint: "mobile", label: "Mobile", xOffset: BREAKPOINT_WIDTHS.desktop + ARTBOARD_GAP },
   ];
 
   return layouts.map(({ breakpoint, label, xOffset }, i) => ({
     id: uid("artboard"),
     kind: "artboard" as const,
-    x: ARTBOARD_START_X + xOffset,
+    x: startX + xOffset,
     y: ARTBOARD_START_Y,
     width: BREAKPOINT_WIDTHS[breakpoint],
     height: artboardHeight(breakpoint),
@@ -181,12 +182,14 @@ export function PromptPanel() {
         throw new Error("Chosen variant has no page tree");
       }
 
-      // Create artboard items
+      // Create artboard items (positions computed dynamically to avoid overlapping references)
       const siteId = uid("site");
+      const nonArtboardItems = items.filter((item) => item.kind !== "artboard");
       const artboards = createArtboardItems(
         chosenVariant.pageTree,
         siteId,
-        chosenVariant.compiledCode
+        chosenVariant.compiledCode,
+        nonArtboardItems
       );
 
       // Build prompt run entry

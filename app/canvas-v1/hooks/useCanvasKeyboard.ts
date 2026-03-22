@@ -51,6 +51,7 @@ type KeyboardOptions = {
   onToggleLayers: () => void;
   onToggleInspector: () => void;
   onFocusPrompt: () => void;
+  onSetActiveTool?: (tool: string) => void;
 };
 
 export function useCanvasKeyboard({
@@ -59,6 +60,7 @@ export function useCanvasKeyboard({
   onToggleLayers,
   onToggleInspector,
   onFocusPrompt,
+  onSetActiveTool,
 }: KeyboardOptions) {
   useEffect(() => {
     const getActiveArtboard = () =>
@@ -343,6 +345,22 @@ export function useCanvasKeyboard({
           }
         }
 
+        // V/H/R/T — Tool palette shortcuts
+        if (onSetActiveTool) {
+          const toolMap: Record<string, string> = {
+            v: "select", V: "select",
+            h: "hand", H: "hand",
+            r: "rectangle", R: "rectangle",
+            t: "text", T: "text",
+          };
+          const tool = toolMap[e.key];
+          if (tool) {
+            e.preventDefault();
+            onSetActiveTool(tool);
+            return;
+          }
+        }
+
         // P — Focus prompt (opens inspector if hidden, expands prompt section, focuses textarea)
         if (e.key === "p" || e.key === "P") {
           e.preventDefault();
@@ -368,5 +386,5 @@ export function useCanvasKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt]);
+  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt, onSetActiveTool]);
 }

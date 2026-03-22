@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Monitor,
-  Tablet,
   Smartphone,
   ChevronRight,
   Layout,
@@ -208,7 +207,7 @@ export function LayersPanel({
           {artboards.map((artboard) => {
             const active = selectedArtboardId === artboard.id;
             const bp = artboard.breakpoint ?? breakpoint;
-            const Icon = bp === "mobile" ? Smartphone : bp === "tablet" ? Tablet : Monitor;
+            const Icon = bp === "mobile" ? Smartphone : Monitor;
             return (
               <button
                 key={artboard.id}

@@ -1,5 +1,7 @@
 import type { DesignSystemTokens } from "./generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
+import type { PageNode } from "./compose";
+import { compileTasteToDirectives, directivesToPromptText, type CompiledDirectives, type FidelityMode } from "./directive-compiler";
 
 // ─── Section Schema ──────────────────────────────────────────────────────────
 
@@ -102,6 +104,8 @@ Evaluate your output against these criteria. If any fails, regenerate that secti
 `.trim();
 
 // ─── Variant Layout Directives ──────────────────────────────────────────────
+// @deprecated — V5 uses 1+2 derivation (buildPushedVariantPrompt / buildRestructuredVariantPrompt)
+// instead of 3 independent generations. Kept for buildPageTreePrompt's base generation.
 
 const VARIANT_DIRECTIVES: Record<VariantMode, string> = {
   safe: `## Variant Strategy: SIGNAL (Safe)
@@ -137,6 +141,7 @@ You are generating a **trust-first, narrative-driven** layout.
 
 // ─── Taste Profile → Structured Design Rules ────────────────────────────────
 
+/** @deprecated Use compileTasteToDirectives + directivesToPromptText instead */
 function tasteToDesignDirectives(taste: TasteProfile | null | undefined): string {
   if (!taste) return "";
 
@@ -187,6 +192,7 @@ function tasteToDesignDirectives(taste: TasteProfile | null | undefined): string
   return lines.join("\n");
 }
 
+/** @deprecated Use compileTasteToDirectives + directivesToPromptText instead */
 function referenceFidelityRules(tasteProfile: TasteProfile | null | undefined): string {
   const dominantType = tasteProfile?.dominantReferenceType ?? "mixed";
   const mode = tasteProfile?.colorBehavior.mode ?? "adaptive";
@@ -215,6 +221,7 @@ export function buildSitePrompt(
   options?: {
     variantMode?: VariantMode;
     tasteProfile?: TasteProfile | null;
+    fidelityMode?: FidelityMode;
   }
 ): string {
   const cssVars = tokensToCSSVarBlock(tokens);
@@ -227,9 +234,12 @@ export function buildSitePrompt(
     ? VARIANT_DIRECTIVES[variantMode]
     : "";
 
-  // Structured taste directives
-  const tasteSection = tasteToDesignDirectives(tasteProfile);
-  const fidelitySection = referenceFidelityRules(tasteProfile);
+  // Structured taste directives via the directive compiler
+  const compiledDirectives = compileTasteToDirectives(
+    tasteProfile,
+    options?.fidelityMode ?? "balanced"
+  );
+  const tasteSection = directivesToPromptText(compiledDirectives);
 
   const sectionInstructions = isPartialRegen
     ? `
@@ -293,8 +303,6 @@ ${variantSection}
 
 ${tasteSection}
 
-${fidelitySection}
-
 ## Design System — CSS Variables
 ${cssVars}
 
@@ -352,4 +360,295 @@ function sectionFnName(id: SectionId): string {
     footer: "FooterSection",
   };
   return map[id];
+}
+
+// ─── PageNode Tree Generation Prompt ──────────────────────────────────────────
+// This prompt asks the AI to output a PageNode JSON tree that the canvas editor
+// renders directly — unlike the TSX prompt which only feeds a preview iframe.
+
+export function buildPageTreePrompt(
+  tokens: DesignSystemTokens,
+  prompt: string,
+  siteName: string,
+  options?: {
+    variantMode?: VariantMode;
+    tasteProfile?: TasteProfile | null;
+    fidelityMode?: FidelityMode;
+  }
+): string {
+  const variantMode = options?.variantMode;
+  const tasteProfile = options?.tasteProfile;
+  const compiledDirectives = compileTasteToDirectives(
+    tasteProfile,
+    options?.fidelityMode ?? "balanced"
+  );
+  const tasteSection = directivesToPromptText(compiledDirectives);
+  const variantSection = variantMode ? VARIANT_DIRECTIVES[variantMode] : "";
+
+  return `You are a senior product designer and copywriter generating a landing page as a structured PageNode JSON tree.
+
+## Creative Brief
+"${prompt}"
+
+Site name: ${siteName}
+
+${variantSection}
+
+${tasteSection}
+
+## PageNode Schema
+
+A PageNode is a JSON object:
+\`\`\`
+{
+  "id": string,       // unique, e.g. "section-abc123"
+  "type": PageNodeType,
+  "name": string,     // human-readable label
+  "content": {        // optional — text content
+    "text": string,
+    "subtext": string,
+    "kicker": string,
+    "label": string,
+    "href": string,
+    "price": string,
+    "badge": string,
+    "meta": string,
+    "icon": string
+  },
+  "style": {          // optional — visual properties
+    "background": string,    // hex color
+    "foreground": string,    // hex color
+    "muted": string,         // hex color for muted text
+    "accent": string,        // hex color
+    "borderColor": string,
+    "fontFamily": string,
+    "fontSize": number,
+    "fontWeight": number,
+    "lineHeight": number,
+    "letterSpacing": number,
+    "borderRadius": number,
+    "paddingX": number,
+    "paddingY": number,
+    "gap": number,
+    "columns": number,
+    "maxWidth": number,
+    "minHeight": number,
+    "align": "left" | "center" | "right",
+    "direction": "row" | "column",
+    "justify": "start" | "center" | "end" | "between",
+    "opacity": number,
+    "shadow": "none" | "soft" | "medium",
+    "emphasized": boolean,
+    "badgeTone": "surface" | "accent" | "outline"
+  },
+  "children": PageNode[]
+}
+\`\`\`
+
+Valid PageNodeType values:
+"page" | "section" | "heading" | "paragraph" | "button-row" | "button" | "metric-row" | "metric-item" | "logo-row" | "logo-item" | "feature-grid" | "feature-card" | "testimonial-grid" | "testimonial-card" | "pricing-grid" | "pricing-tier"
+
+## Design Tokens (use these hex values in style properties)
+- background: ${tokens.colors.background}
+- surface: ${tokens.colors.surface}
+- text: ${tokens.colors.text}
+- textMuted: ${tokens.colors.textMuted}
+- accent: ${tokens.colors.accent}
+- primary: ${tokens.colors.primary}
+- secondary: ${tokens.colors.secondary}
+- border: ${tokens.colors.border}
+- fontFamily: ${tokens.typography.fontFamily}
+
+## Rules
+
+1. The root node MUST be type "page" with children that are type "section"
+2. Write COMPELLING, ORIGINAL marketing copy — not placeholder text like "Your Brand Here" or "Feature 1"
+3. Write copy that sounds like a real brand's website, specific to the creative brief
+4. Choose 4-7 sections based on the brief — do NOT always use the same template. Pricing is OPTIONAL. Logo bars are OPTIONAL.
+5. Each section has a clear purpose and unique content
+6. Use the design tokens for colors — put hex values in style.background, style.foreground, style.accent, etc.
+7. Headings should be punchy and specific. Body text should be persuasive.
+8. Feature cards need real icons (use single Unicode characters: ◈ → ◇ ⬡ ✦ ⊕ △ ○ □)
+9. Testimonial quotes must feel authentic and specific to the product
+10. Button text should be action-oriented and specific (not "Learn More" or "Get Started")
+11. Every ID must be unique — use format "type-xxxx" where xxxx is 4+ random lowercase chars
+12. Keep the JSON compact. Omit undefined/null fields.
+13. style.paddingX and style.paddingY are in pixels (40-80 typical). style.gap is in pixels (12-30 typical).
+14. For sections: borderRadius 14-30, minHeight 400-700 for hero, paddingX 40-64, paddingY 48-84
+15. For feature-grid/testimonial-grid/pricing-grid: set columns (2 or 3) and gap (14-24)
+
+## Output
+Return ONLY valid JSON. No markdown fences. No explanation. Just the root PageNode object starting with {.`;
+}
+
+// ─── Variant Transformation Prompts ──────────────────────────────────────────
+// These transform an existing base PageNode tree instead of generating from
+// scratch, cutting API calls from 3 independent generations to 1+2 derivations.
+
+/**
+ * Builds a prompt that transforms an existing PageNode tree
+ * into a "pushed" variant — same taste DNA, bolder execution.
+ */
+export function buildPushedVariantPrompt(
+  basePageTree: PageNode,
+  tasteProfile: TasteProfile,
+  _directives: CompiledDirectives
+): string {
+  const treeJson = JSON.stringify(basePageTree);
+
+  return `You are transforming an existing website design into a bolder interpretation of the same taste profile.
+
+## Base Design (JSON PageNode tree)
+${treeJson}
+
+## Taste Profile Summary
+Archetype: ${tasteProfile.archetypeMatch}
+Mood: ${tasteProfile.adjectives?.join(", ")}
+Palette: ${[tasteProfile.colorBehavior.suggestedColors.background, tasteProfile.colorBehavior.suggestedColors.accent, tasteProfile.colorBehavior.suggestedColors.text].filter(Boolean).join(", ")}
+Fonts: ${tasteProfile.typographyTraits.recommendedPairings.join(", ")}
+
+## Transformation Instructions
+Take this exact page structure and PUSH it:
+
+1. **Palette temperature:** Shift warmer or cooler by one step. If light mode, try a dark hero section. If warm palette, push to richer earth tones.
+2. **Spacing:** Tighten section padding by ~20%. Reduce gap by ~15%. Make it feel denser and more editorial.
+3. **CTA prominence:** Make CTAs bolder — larger font, stronger contrast, more prominent placement.
+4. **Typography:** If headings are medium weight, push to bold. If text is small, make it larger. Increase type scale drama.
+5. **Section backgrounds:** Add contrast between alternating sections. Use the accent color as a section background somewhere.
+
+## Rules
+- Keep the SAME section order and types — do not add or remove sections
+- Keep the SAME content/text — only change style properties
+- Keep ALL colors within the taste palette (you can adjust opacity/temperature but not introduce new hues)
+- Keep the same heading and body font families
+- The root node MUST be type "page" with children that are type "section"
+- Every ID must be unique — use format "type-xxxx" where xxxx is 4+ random lowercase chars
+- Return a complete PageNode JSON tree with the same structure but modified style values
+
+Return ONLY valid JSON. No markdown fences. No explanation. Just the root PageNode object starting with {.`;
+}
+
+/**
+ * Builds a prompt that restructures an existing PageNode tree —
+ * same palette and type, different layout and section arrangement.
+ */
+export function buildRestructuredVariantPrompt(
+  basePageTree: PageNode,
+  tasteProfile: TasteProfile,
+  _directives: CompiledDirectives
+): string {
+  const treeJson = JSON.stringify(basePageTree);
+
+  return `You are restructuring an existing website design to explore a different layout while maintaining the same taste profile.
+
+## Base Design (JSON PageNode tree)
+${treeJson}
+
+## Taste Profile Summary
+Archetype: ${tasteProfile.archetypeMatch}
+Mood: ${tasteProfile.adjectives?.join(", ")}
+Palette: ${[tasteProfile.colorBehavior.suggestedColors.background, tasteProfile.colorBehavior.suggestedColors.accent, tasteProfile.colorBehavior.suggestedColors.text].filter(Boolean).join(", ")}
+Fonts: ${tasteProfile.typographyTraits.recommendedPairings.join(", ")}
+
+## Restructuring Instructions
+Keep the taste DNA (palette, fonts, mood) but REARRANGE the layout:
+
+1. **Hero section:** If it's centered, make it split (text left, image/accent right). If it's split, make it full-bleed centered. Change the hero's structural approach.
+2. **Features/cards:** If they're a 3-column grid, try a 2-column grid with larger cards. If they're cards, try a list layout. Change the grid structure.
+3. **Section ordering:** Move testimonials or social proof earlier (right after hero) if they're currently later. Reorder for a different narrative flow.
+4. **Content hierarchy:** If sections are evenly spaced, create more contrast — some sections compact, some generous.
+5. **Asymmetry:** If the layout is centered/symmetric, push toward left-aligned and asymmetric. If already asymmetric, try centered elegance.
+
+## Rules
+- Keep the SAME palette colors — do not introduce new colors
+- Keep the SAME font families
+- Keep the SAME section types (don't add pricing if it wasn't there, don't remove sections)
+- Rewrite section heading/body text ONLY if the structural change requires it
+- You CAN change: section order, grid columns, alignment, padding, gap, hero style, card layout
+- The root node MUST be type "page" with children that are type "section"
+- Every ID must be unique — use format "type-xxxx" where xxxx is 4+ random lowercase chars
+- Return a complete PageNode JSON tree
+
+Return ONLY valid JSON. No markdown fences. No explanation. Just the root PageNode object starting with {.`;
+}
+
+// ─── PageNode validation + normalization ─────────────────────────────────────
+
+const VALID_NODE_TYPES = new Set([
+  "page", "section", "heading", "paragraph", "button-row", "button",
+  "metric-row", "metric-item", "logo-row", "logo-item",
+  "feature-grid", "feature-card", "testimonial-grid", "testimonial-card",
+  "pricing-grid", "pricing-tier",
+]);
+
+function isValidPageNode(node: unknown): node is Record<string, unknown> {
+  if (!node || typeof node !== "object") return false;
+  const n = node as Record<string, unknown>;
+  if (typeof n.type !== "string" || !VALID_NODE_TYPES.has(n.type)) return false;
+  if (typeof n.id !== "string" || n.id.length === 0) return false;
+  if (typeof n.name !== "string") return false;
+  return true;
+}
+
+let pageTreeIdCounter = 0;
+function ensureUniqueId(prefix: string): string {
+  pageTreeIdCounter++;
+  return `${prefix}-ai${pageTreeIdCounter.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export function validateAndNormalizePageTree(raw: unknown): { ok: true; tree: unknown } | { ok: false; reason: string } {
+  pageTreeIdCounter = 0;
+
+  if (!raw || typeof raw !== "object") {
+    return { ok: false, reason: "root is not an object" };
+  }
+
+  const root = raw as Record<string, unknown>;
+  if (root.type !== "page") {
+    return { ok: false, reason: `root type is "${root.type}", expected "page"` };
+  }
+
+  if (!Array.isArray(root.children) || root.children.length === 0) {
+    return { ok: false, reason: "root has no children sections" };
+  }
+
+  // Check that at least one child is a section
+  const sections = root.children.filter(
+    (c: unknown) => c && typeof c === "object" && (c as Record<string, unknown>).type === "section"
+  );
+  if (sections.length === 0) {
+    return { ok: false, reason: "no section children found in root" };
+  }
+
+  // Deduplicate IDs and ensure all nodes are valid
+  const seenIds = new Set<string>();
+
+  function normalizeNode(node: unknown): unknown {
+    if (!isValidPageNode(node)) return null;
+    const n = { ...(node as Record<string, unknown>) };
+
+    // Ensure unique ID
+    let id = n.id as string;
+    if (seenIds.has(id)) {
+      id = ensureUniqueId(n.type as string);
+    }
+    seenIds.add(id);
+    n.id = id;
+
+    // Recursively normalize children
+    if (Array.isArray(n.children)) {
+      n.children = n.children
+        .map((child: unknown) => normalizeNode(child))
+        .filter(Boolean);
+    }
+
+    return n;
+  }
+
+  const normalized = normalizeNode(root);
+  if (!normalized) {
+    return { ok: false, reason: "root node failed validation" };
+  }
+
+  return { ok: true, tree: normalized };
 }

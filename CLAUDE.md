@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Product Vision: Studio OS as a Design Harness
+
+Studio OS is not just an editor — it's a **design harness** that improves AI model design output quality, the same way Cursor's harness improved code completion by 11%+. The goal: make AI models produce better design output than they would on their own, calibrated to each designer's taste.
+
+Designers think in images and references, not text prompts. Studio OS bridges that gap:
+1. **Import** moodboards, screenshots, references onto the canvas
+2. **Analyze** — AI extracts color palettes, typography, spacing rhythms, layout patterns, density, mood (the "taste skill")
+3. **Constrain** — extracted taste becomes structured design directives that constrain generation
+4. **Generate** — AI produces sites matching the designer's visual intent, not generic templates
+5. **Refine** — designer edits become implicit taste feedback for the next generation
+
+The harness lives in: `TasteProfile` extraction → `tasteToDesignDirectives()` → `referenceFidelityRules()` → `buildPageTreePrompt()` → structured `PageNode` JSON output. Every generation is taste-informed and immediately editable on the canvas.
+
 ## Commands
 
 ```bash
@@ -77,12 +90,20 @@ The canvas is the most complex subsystem. It runs a multi-stage pipeline:
 
 All AI calls route through `lib/ai/model-router.ts` which uses OpenRouter (OpenAI-compatible SDK) for multi-model access. `SONNET_4_6`, `GEMINI_FLASH`, and `KIMI_K25` are the available models.
 
-### Taste Engine (`lib/ai/`)
+### Taste Engine — The Design Harness Core (`lib/ai/` + `lib/canvas/generate-site.ts`)
 
+The taste engine is what makes Studio OS a harness, not just an editor:
+
+- `api/taste/extract/route.ts` — extracts `TasteProfile` from reference images (colors, typography, spacing, density, mood, CTA style)
+- `generate-site.ts: tasteToDesignDirectives()` — converts taste data into specific model constraints (layout rules, type rules, color rules, avoid list)
+- `generate-site.ts: referenceFidelityRules()` — tells the model HOW closely to follow references
+- `generate-site.ts: buildPageTreePrompt()` — forces structured `PageNode` JSON output so generation is immediately editable
 - `tagger.ts` — AI tagging of reference images via Gemini
 - `image-scorer.ts` — scores images against taste profile
 - `embeddings.ts` — OpenAI embeddings for similarity search
 - `taste-profile-compat.ts` — bridges `TasteProfile` type to canvas pipeline
+
+The pipeline: references → `/api/taste/extract` → `TasteProfile` → `tasteToDesignDirectives()` + `referenceFidelityRules()` → model prompt → `PageNode` JSON tree → canvas. The taste profile is persisted per-project in localStorage via `project-store.ts`.
 
 ### Theme System
 
@@ -187,6 +208,19 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - New reducer actions: `START_AI_PREVIEW`, `ACCEPT_AI_PREVIEW`, `RESTORE_AI_PREVIEW`, `RESET_NODE_STYLE_OVERRIDE`, `TOGGLE_NODE_HIDDEN`
 - Modified: `useCanvasKeyboard.ts` (full shortcut set), `ComposeDocumentView.tsx` (deep select, hidden node filtering, insertion bars), `canvas-reducer.ts` (breakpoint-aware `UPDATE_NODE_STYLE`, `getActiveBreakpoint` helper), `InspectorPanelV3.tsx` (preview bar, override dots, visibility toggles, resolved style), `InspectorField.tsx` (`InspectorLabel` hasOverride/onResetOverride), `InsertionBar.tsx` (slash palette integration)
 
+**V4.1 Inspector & Canvas Polish** (complete, verified 2026-03-22):
+- Stable inspector skeleton — `InspectorSkeleton.tsx` renders 8 sections in fixed order (Layout, Spacing, Typography, Fill, Radius, Border, Shadow, Opacity) for ALL node types. Non-applicable sections show collapsed headers ("Controlled by parent container" / "Select a text element"). Follows Paper.design "same shell, different controls" pattern
+- Design/CSS tab switcher — `InspectorTabs.tsx` sticky tabs at top of inspector, switches between design controls (`InspectorSkeleton`) and CSS output (`CSSTab`)
+- CSS tab with Copy CSS — `CSSTab.tsx` converts `PageNodeStyle` to CSS string, displays in monospace `<pre>`, "Copy CSS" button via clipboard API
+- Breakpoint badge — `BreakpointBadge.tsx` shows active breakpoint label (e.g. "TABLET · 768PX") in blue accent below inspector tabs on non-desktop artboards
+- "+" add Border/Shadow — `AddableSection.tsx` pattern: sections 6 (Border) and 7 (Shadow) start hidden with a "+" add button, clicking adds default values; "×" removes. Keeps inspector clean when properties aren't set
+- Mini rail — `MiniRail.tsx` slim 48px left navigation rail in canvas view with logo mark, Layers/Inspector panel toggles, Home/Settings links, and back-to-dashboard button. Replaces full sidebar in canvas context
+- Layers visible by default — `UnifiedCanvasView.tsx` initializes `showLayers` to `true` so layers panel is open on canvas load
+- Text deselect on click-outside — clicking empty area within artboard (no `[data-node-id]` ancestor) calls `onSelectNode(null)`. `exitAnyActiveTextEditing()` blurs active contentEditable before new selection
+- Cmd+Z during AI preview rejects — `UNDO` reducer case checks `state.aiPreview` first; if active, restores `beforeItems`/`beforeSelection` and clears preview (same as Reject)
+- New files: `InspectorSkeleton.tsx`, `InspectorTabs.tsx`, `CSSTab.tsx`, `BreakpointBadge.tsx`, `AddableSection.tsx`, `InspectorCollapsible.tsx`, `InspectorSegmented.tsx`, `MiniRail.tsx`
+- Modified: `InspectorPanelV3.tsx` (tab state, skeleton integration, CSS tab, breakpoint badge), `UnifiedCanvasView.tsx` (MiniRail mount, layers default true), `ComposeDocumentView.tsx` (click-outside deselect)
+
 **Dashboard screens** (V2 design, unchanged in V3):
 - `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
 - `app/(dashboard)/projects/projects-client.tsx` — filter pills, compact rows → routes to canvas
@@ -282,6 +316,14 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/SlashCommandPalette.tsx` | "/" command palette for section insertion — search, keyboard nav |
 | `app/canvas-v1/components/AIPreviewBar.tsx` | Accept/Reject/Vary bar for AI preview proposals |
 | `app/canvas-v1/components/InsertionBar.tsx` | Between-section "+" hover bar with slash palette integration |
+| `app/canvas-v1/components/MiniRail.tsx` | 48px left navigation rail — logo, panel toggles, Home/Settings, back button |
+| `app/canvas-v1/components/inspector/InspectorSkeleton.tsx` | Stable 8-section inspector shell — same section order for all node types |
+| `app/canvas-v1/components/inspector/InspectorTabs.tsx` | Design/CSS tab switcher at top of inspector |
+| `app/canvas-v1/components/inspector/CSSTab.tsx` | Computed CSS display with Copy CSS button |
+| `app/canvas-v1/components/inspector/BreakpointBadge.tsx` | Blue breakpoint label (TABLET · 768PX) for non-desktop artboards |
+| `app/canvas-v1/components/inspector/AddableSection.tsx` | "+" add / "×" remove pattern for optional properties (Border, Shadow) |
+| `app/canvas-v1/components/inspector/InspectorCollapsible.tsx` | Collapsible inspector section with chevron toggle |
+| `app/canvas-v1/components/inspector/InspectorSegmented.tsx` | Segmented control for inspector options (direction, shadow style) |
 | `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder, action menu, floating toolbar |
 | `app/canvas-v1/hooks/useDrag.ts` | Drag hook — pointer cycle, zoom-aware, shift-axis lock |
 | `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |

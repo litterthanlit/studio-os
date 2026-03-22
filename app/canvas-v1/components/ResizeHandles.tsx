@@ -69,11 +69,12 @@ export function ResizeHandles({ width, height, onHandlePointerDown }: ResizeHand
       {HANDLES.map(({ position, cursor, getStyle }) => (
         <div
           key={position}
+          className="group/handle"
           style={{
             position: "absolute",
             width: HANDLE_SIZE,
             height: HANDLE_SIZE,
-            borderRadius: "50%",
+            borderRadius: 1,
             border: "1px solid #1E5DF2",
             backgroundColor: "white",
             cursor,
@@ -81,6 +82,8 @@ export function ResizeHandles({ width, height, onHandlePointerDown }: ResizeHand
             ...getStyle(width, height),
           }}
           onPointerDown={(e) => onHandlePointerDown(e, position)}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#1E5DF2"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "white"; }}
         />
       ))}
     </>

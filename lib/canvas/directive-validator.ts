@@ -348,6 +348,107 @@ export function validateDirectiveCompliance(
         });
       }
     }
+
+    // ── Structural pattern detection ──────────────────────────────
+    if (avoidValue.includes("card grid") || avoidValue.includes("feature grid")) {
+      // Detect 3+ sibling containers at the same level (card grid pattern)
+      walkPageTree(pageTree, (n) => {
+        if (n.type === "section" && n.children) {
+          for (const child of n.children) {
+            if (child.type === "container" && child.children) {
+              const containerChildren = child.children.filter(
+                (c) => c.type === "container"
+              );
+              if (containerChildren.length >= 3) {
+                // Check if they look uniform (same structure = card grid)
+                const childTypes = containerChildren.map(
+                  (c) => c.children?.map((gc) => gc.type).join(",") ?? ""
+                );
+                const uniquePatterns = new Set(childTypes);
+                if (uniquePatterns.size <= 2) {
+                  violations.push({
+                    directive: avoidDirective,
+                    found: `${containerChildren.length}-card grid in section`,
+                    expected: "editorial layout, not card grid",
+                    nodeId: child.id,
+                    severity: "hard",
+                  });
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    if (avoidValue.includes("stats") || avoidValue.includes("numbers")) {
+      // Detect stats/numbers sections — sections with 3+ headings that are just numbers
+      walkPageTree(pageTree, (n) => {
+        if (n.type === "section" && n.children) {
+          const numberHeadings: string[] = [];
+          walkPageTree(n, (child) => {
+            if (child.type === "heading" && child.text) {
+              // Check if text is primarily a number (e.g., "48,000+", "200+", "12")
+              const cleaned = child.text.replace(/[,+%$]/g, "").trim();
+              if (/^\d+$/.test(cleaned)) {
+                numberHeadings.push(child.text);
+              }
+            }
+          });
+          if (numberHeadings.length >= 3) {
+            violations.push({
+              directive: avoidDirective,
+              found: `stats section with ${numberHeadings.length} number headings: ${numberHeadings.join(", ")}`,
+              expected: "no stats/numbers sections",
+              nodeId: n.id,
+              severity: "hard",
+            });
+          }
+        }
+      });
+    }
+
+    if (avoidValue.includes("icon row") || avoidValue.includes("icon-feature")) {
+      // Detect icon rows — sections where multiple containers start with an icon node
+      walkPageTree(pageTree, (n) => {
+        if (n.type === "section" && n.children) {
+          let iconContainers = 0;
+          walkPageTree(n, (child) => {
+            if (child.type === "container" && child.children?.[0]?.type === "icon") {
+              iconContainers++;
+            }
+          });
+          if (iconContainers >= 3) {
+            violations.push({
+              directive: avoidDirective,
+              found: `${iconContainers} icon-led containers`,
+              expected: "no icon rows or icon-feature lists",
+              nodeId: n.id,
+              severity: "hard",
+            });
+          }
+        }
+      });
+    }
+  }
+
+  // ── 7. BANNED NODE TYPES CHECK ──────────────────────────────────
+  const bannedTypesDirective = directives.hard.find(
+    (d) => d.dimension === "bannedNodeTypes"
+  );
+  if (bannedTypesDirective && Array.isArray(bannedTypesDirective.value)) {
+    const bannedTypes = bannedTypesDirective.value as string[];
+    walkPageTree(pageTree, (node) => {
+      if (bannedTypes.includes(node.type)) {
+        violations.push({
+          directive: bannedTypesDirective,
+          found: node.type,
+          expected: "not " + node.type,
+          nodeId: node.id,
+          severity: "hard",
+        });
+      }
+    });
   }
 
   // ── Calculate score ───────────────────────────────────────────────

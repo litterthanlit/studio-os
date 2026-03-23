@@ -13,27 +13,83 @@ type TasteExtractBody = {
   projectId?: string;
   referenceUrls?: string[];
   existingTokens?: unknown;
+  prompt?: string;
 };
 
 const tasteCache = new Map<string, CachedTasteProfile>();
 
+// Bump this whenever getSkillContext() changes — forces cache invalidation
+const TASTE_CONTEXT_VERSION = 3;
+
 // ── Inline skill context (condensed — previously loaded 10+ markdown files at ~700K tokens) ──
 
 function getSkillContext(): string {
-  return `Archetypes:
-premium-saas = sharp product system, restrained accent, dense-but-breathing
-editorial-brand = serif/sans contrast, asymmetric grids, dramatic whitespace
-minimal-tech = monochrome, oversized type, product-led restraint
-creative-portfolio = experimental layouts, identity-first composition
-culture-brand = warm palette, human tone, lifestyle imagery
-experimental = rule-breaking type, bold contrast, controlled visual noise
+  return `## Archetypes
 
-Vocabulary:
-layout = spacious|balanced|dense, strict|fluid|broken|editorial
-hero = full-bleed|split|text-dominant|contained
-type = geometric|humanist|editorial|technical|expressive
-color = dark|light|mixed, single-pop|gradient-bold|no-accent
-radius = none|subtle|rounded|pill`;
+premium-saas:
+  Description: Polished product-focused design built around structured grids and clear hierarchy. Restrained accent palette (blue/purple/green), dense-but-breathing spacing, product mockups as hero imagery. Used by SaaS companies, dev tools, analytics platforms, fintech dashboards.
+  Section patterns: Product hero (screenshot or mockup centered), feature card grids (icon+title+desc), social proof bar (logo strip), metrics/stats row, testimonials (quotes + avatars), pricing table, CTA section, minimal footer. Does NOT typically have: full-bleed photography, editorial spreads, asymmetric text/image layouts, artistic or experimental navigation.
+  Default avoid: Full-bleed lifestyle photography sections, asymmetric editorial grids, oversized serif display type, poster-style layouts, decorative or artistic imagery unrelated to product.
+  Detection signals: Product screenshots or UI mockups as hero imagery, structured 3-4 column feature grids, blue/purple/green accent on neutral background, badge-style proof elements (logos, trust indicators), pricing comparison tables.
+  Failure modes: Model uses correct tokens but applies editorial or portfolio layout structure. Product screenshots get treated as decorative imagery. Feature sections become freeform instead of grid-structured.
+
+editorial-brand:
+  Description: Magazine-inspired editorial design. Serif/sans contrast, asymmetric grids, dramatic whitespace, photography-dominant. Used by fashion magazines, cultural publications, design studios, and luxury brands with editorial voice.
+  Section patterns: Full-bleed photography sections, editorial spreads (text + image asymmetric), pullquote/breakout sections, minimal nav, large-scale typography headers, narrative scroll sequences. Does NOT typically have: feature card grids, stats/metric rows, pricing tables, icon rows, logo bars, structured 3-column layouts.
+  Default avoid: 3-column card grids, icon+title+description feature blocks, stats sections with big numbers, SaaS-style pricing tables, centered paragraph text under centered headlines.
+  Detection signals: Oversized serif headlines, full-bleed photography, asymmetric text/image layouts, restrained color (1-2 accent colors max), generous vertical whitespace between sections, magazine-like pacing.
+  Failure modes: Model defaults to SaaS template (hero → features → proof → pricing → CTA) and applies editorial colors/fonts. The STRUCTURE must change, not just the paint. Card grids are the most common leak.
+
+minimal-tech:
+  Description: Monochrome or near-monochrome design with oversized type and product-led restraint. Dark mode common. Developer and technical audience. Single-product focus with generous negative space. Used by developer tools, AI companies, infrastructure startups, open-source projects.
+  Section patterns: Text-dominant hero with product screenshot below fold, single-feature deep dives (not grids), code/terminal snippets, minimal social proof (small logo row or none), technical documentation-style sections. Does NOT typically have: lifestyle photography, testimonial carousels, multi-card pricing, warm color accents, decorative imagery.
+  Default avoid: Warm lifestyle photography, multi-color accent palettes, rounded bubbly UI elements, testimonial cards with headshots, marketing-speak copy style, decorative gradients.
+  Detection signals: Dark backgrounds, monospace or geometric sans-serif type, terminal/code aesthetics, single-product focus, high-contrast text on dark, minimal navigation, restrained to 1-2 colors total.
+  Failure modes: Model adds too many sections and colorful accents, turning it into a standard SaaS page. Minimal-tech needs LESS — fewer sections, fewer colors, more negative space, more technical tone.
+
+creative-portfolio:
+  Description: Experimental, identity-first design that breaks conventional grid systems. Mixed media, strong personal branding, non-standard navigation, artistic photography. Used by designers, artists, creative agencies, photographers, and studios showcasing creative work.
+  Section patterns: Custom hero (often non-standard — full-screen image, video, animation placeholder), project showcases (large imagery with minimal text), about/bio sections, process/approach narratives, contact as experience. Does NOT typically have: feature grids, pricing tables, SaaS-style testimonials, stats rows, standardized card layouts.
+  Default avoid: Standardized SaaS feature grids, uniform card layouts, corporate testimonial sections, pricing tables, cookie-cutter hero patterns, stock photography.
+  Detection signals: Unusual grid breaking or overlapping elements, mixed media (photo + illustration + type), strong personal or studio branding, artistic photography, non-standard navigation (side nav, hidden nav, unconventional placement), portfolio case study layouts.
+  Failure modes: Model produces a clean corporate site and adds one quirky element. Portfolio sites need STRUCTURAL experimentation — layout breaking, unconventional flow, showcase-first hierarchy — not just an unusual font choice.
+
+culture-brand:
+  Description: Warm, human, community-focused design with lifestyle imagery and approachable tone. Earth tones and warm palettes. Rounded, friendly shapes. People-first photography. Used by wellness brands, community platforms, food/beverage, lifestyle brands, non-profits, education.
+  Section patterns: Lifestyle hero (people/community imagery), mission/values sections, community stories or testimonials with real photos, team/people sections, warm CTA with inclusive language, curated imagery grids. Does NOT typically have: technical feature grids, dark mode, code snippets, product mockup heroes, aggressive pricing tables.
+  Default avoid: Dark/cold color schemes, technical jargon, aggressive sales CTAs, stock business photography, monochrome palettes, angular/sharp UI elements, developer-focused aesthetics.
+  Detection signals: Warm photography featuring people, earth tones (terracotta, sage, cream, ochre), rounded corners and soft shapes, community/people imagery, warm sans-serif typography, generous padding with organic feel.
+  Failure modes: Model uses warm colors but keeps SaaS structure. Culture brands need WARMTH in structure too — people-first imagery, story-driven sections, community feel. Not just orange on a feature grid.
+
+experimental:
+  Description: Rule-breaking avant-garde design with bold contrast, extreme typography, and unconventional navigation. Visual noise as intentional texture. Used by art institutions, experimental studios, fashion-forward brands, music labels, creative agencies pushing boundaries.
+  Section patterns: Non-standard hero (overlapping elements, extreme type scale, unconventional composition), sections that break the container, mixed-direction layouts, interactive or scroll-triggered sections, minimal or hidden navigation. Does NOT typically have: standard grids, conventional hero patterns, pricing tables, structured feature lists, corporate proof sections.
+  Default avoid: Conventional grid systems, standard navigation patterns, conservative typography, predictable section ordering, uniform spacing, safe color combinations, corporate tone.
+  Detection signals: Overlapping elements, extreme type sizes (200px+ headlines), unconventional navigation (no visible nav, side-scrolling, hidden menus), visual noise or texture as design element, high-contrast color collisions, mixed type directions.
+  Failure modes: Model plays it safe with a slightly edgy color scheme on a standard layout. Experimental needs STRUCTURAL rule-breaking — overlapping, breaking containers, extreme scale shifts, unconventional flow. A dark background with a bold font is not experimental.
+
+## Structural Vocabulary
+
+editorial-spread: asymmetric text/image layout — NOT a card grid
+pullquote: large-scale quotation used as a section break or visual pause
+full-bleed: edge-to-edge imagery or background, no container padding
+feature-grid: structured cards with icon+title+desc — a SaaS pattern
+proof-bar: horizontal logo strip showing client/partner logos — a SaaS pattern
+stats-row: big numbers in a row showing metrics — a SaaS pattern
+narrative-scroll: long-form vertical storytelling with alternating content blocks
+showcase-grid: large imagery with minimal text overlay — a portfolio pattern
+deep-dive: single-feature focused section with detail — a minimal-tech pattern
+
+## Layout Vocabulary
+
+section-flow = narrative|modular|alternating|stacked|overlapping|interlocking|editorial-grid
+composition = symmetric|asymmetric|editorial-grid|broken-grid
+imagery-role = dominant|supporting|accent|absent
+density = spacious|balanced|dense
+rhythm = uniform|alternating|progressive|asymmetric
+hero = full-bleed|split|text-dominant|contained|media-dominant
+grid = strict|fluid|broken|editorial
+whitespace = breathing|structural|dramatic|minimal`;
 }
 
 // ── System prompt ───────────────────────────────────────────────────────────
@@ -56,8 +112,31 @@ Your job is to analyze visual references and produce a structured TasteProfile J
 10. archetypeConfidence of 1.0 is almost never correct — cap at 0.92 unless you have 10+ coherent references
 11. Keep the JSON concise and compact. No extra whitespace-heavy prose.
 12. summary must be 1 sentence. warnings max 3. recommendedPairings max 2. avoid exactly 5 items.
+13. avoid[] MUST include archetype-specific anti-patterns from the archetype's "Default avoid" list, not just generic items like "clutter" or "bad contrast"
+14. sectionFlow and rhythm MUST reflect the archetype's typical section patterns — editorial-brand uses "editorial-grid" or "overlapping", NOT "stacked"; premium-saas uses "stacked" or "modular", NOT "editorial-grid"
+15. imageTreatment.style MUST be specific to the archetype — "editorial" for editorial-brand, "product" for premium-saas, "atmospheric" for culture-brand, "minimal" for minimal-tech, "abstract" for experimental
+16. dominantReferenceType MUST be set based on what the references actually show (ui-screenshot, photography, poster, art, mixed), NOT defaulted to "ui-screenshot"
 
 ${getSkillContext()}
+
+## CRITICAL: Archetype Disambiguation
+
+premium-saas is ONLY for references that show software products — feature grids, pricing tables, product mockups, dashboard UIs, SaaS landing pages. It is NOT the default for "well-designed" or "polished" sites.
+
+If references show oversized serif type + full-bleed photography + asymmetric layouts + restrained palettes → editorial-brand, NOT premium-saas.
+If references show product screenshots + feature cards + pricing tables → premium-saas.
+If references show people/lifestyle photography + warm tones + rounded elements → culture-brand.
+If references show dark backgrounds + monospace type + terminal aesthetics → minimal-tech.
+If references show artistic photography + unusual grids + portfolio showcases → creative-portfolio.
+If references show overlapping elements + extreme type scale + broken containers → experimental.
+
+When in doubt between editorial-brand and premium-saas, ask: do the references show PRODUCTS/SOFTWARE or STORIES/PHOTOGRAPHY? Products → premium-saas. Stories/photography → editorial-brand.
+
+A beautifully designed magazine spread is editorial-brand, not premium-saas. A fashion lookbook is editorial-brand, not premium-saas. An art-directed brand site with large photography is editorial-brand, not premium-saas.
+
+## CRITICAL: Ignore Scorer Bias
+
+The "Scored image summary" below is from a generic image quality scorer. Its style/mood/tag labels do NOT map to archetypes. Treat the scorer's labels as supplementary metadata only. Base your archetype classification primarily on what you SEE in the actual images, using the Detection signals above.
 
 Respond ONLY with valid JSON matching the TasteProfile schema. No markdown, no explanation, just JSON.`;
 }
@@ -83,6 +162,69 @@ function summarizeExistingTokens(existingTokens: unknown) {
   };
 }
 
+// ── Prompt-aware archetype boosting ──────────────────────────────────────────
+function detectPromptArchetypeHints(prompt: string | undefined): string {
+  if (!prompt) return "";
+  const lower = prompt.toLowerCase();
+  const hints: string[] = [];
+
+  if (/\b(editorial|magazine|publication|fashion|lookbook|spread|vogue|harper)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions editorial/magazine/fashion concepts. This strongly suggests editorial-brand archetype. Do NOT classify as premium-saas.");
+  }
+  if (/\b(saas|software|product|dashboard|app|platform|pricing)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions SaaS/software/product concepts. This strongly suggests premium-saas archetype.");
+  }
+  if (/\b(portfolio|agency|studio|creative|showcase|case.?stud)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions portfolio/agency/studio concepts. This strongly suggests creative-portfolio archetype.");
+  }
+  if (/\b(wellness|community|lifestyle|organic|sustainable|nonprofit|education)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions wellness/community/lifestyle concepts. This strongly suggests culture-brand archetype.");
+  }
+  if (/\b(developer|terminal|cli|api|infrastructure|open.?source|devtool)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions developer/technical concepts. This strongly suggests minimal-tech archetype.");
+  }
+  if (/\b(experimental|avant.?garde|art\s+institution|boundary|radical|deconstructed)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions experimental/avant-garde concepts. This strongly suggests experimental archetype.");
+  }
+
+  return hints.length > 0
+    ? `\n\nPROMPT ARCHETYPE SIGNALS (from user's own description of what they want):\n${hints.join("\n")}`
+    : "";
+}
+
+// Analyze scored image data for archetype signals the scorer may have captured
+// without knowing it (e.g., tags like "serif", "photography", "fashion")
+function inferArchetypeHintsFromScores(
+  scoredImages: Array<{ tags: string[]; style: string; mood: string }>
+): string {
+  const allTags = scoredImages.flatMap((img) => img.tags.map((t) => t.toLowerCase()));
+  const allStyles = scoredImages.map((img) => img.style.toLowerCase());
+  const allMoods = scoredImages.map((img) => img.mood.toLowerCase());
+  const combined = [...allTags, ...allStyles, ...allMoods];
+
+  const editorialSignals = combined.filter((t) =>
+    /editorial|magazine|fashion|serif|photography|luxury|elegant|dramatic|asymmetric|spread|minimal.?nav/.test(t)
+  ).length;
+  const saasSignals = combined.filter((t) =>
+    /saas|product|dashboard|software|feature|pricing|tech|startup|grid|ui|interface|mockup/.test(t)
+  ).length;
+  const portfolioSignals = combined.filter((t) =>
+    /portfolio|showcase|artistic|creative|experimental|mixed.?media|gallery/.test(t)
+  ).length;
+
+  const hints: string[] = [];
+  if (editorialSignals >= 3 && editorialSignals > saasSignals) {
+    hints.push(`Image scorer detected ${editorialSignals} editorial signals (${combined.filter((t) => /editorial|magazine|fashion|serif|photography|luxury|elegant|dramatic/.test(t)).slice(0, 5).join(", ")}). This aligns with editorial-brand, NOT premium-saas.`);
+  }
+  if (portfolioSignals >= 3 && portfolioSignals > saasSignals) {
+    hints.push(`Image scorer detected ${portfolioSignals} portfolio/creative signals. This aligns with creative-portfolio.`);
+  }
+
+  return hints.length > 0
+    ? `\nSCORER-DERIVED ARCHETYPE HINTS:\n${hints.join("\n")}`
+    : "";
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== "object") {
@@ -101,6 +243,7 @@ function stableStringify(value: unknown): string {
 
 function buildSignature(referenceUrls: string[], existingTokens?: unknown) {
   return stableStringify({
+    contextVersion: TASTE_CONTEXT_VERSION,
     referenceUrls: [...referenceUrls].sort(),
     existingTokens: existingTokens ?? null,
   });
@@ -300,11 +443,14 @@ function normalizeTasteProfile(
 // ── Route ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   console.log("[taste/extract] OPENROUTER_API_KEY present:", !!process.env.OPENROUTER_API_KEY);
+  console.log("[TASTE DEBUG] Context version:", TASTE_CONTEXT_VERSION);
+  console.log("[TASTE DEBUG] Skill context length:", getSkillContext().length, "chars");
   try {
     const body = (await req.json()) as TasteExtractBody;
     const projectId = body.projectId?.trim();
     const referenceUrls = (body.referenceUrls ?? []).filter(Boolean);
     const existingTokens = body.existingTokens ?? null;
+    const userPrompt = body.prompt?.trim() || undefined;
 
     if (!projectId) {
       return NextResponse.json({ error: "projectId is required" }, { status: 400 });
@@ -315,9 +461,12 @@ export async function POST(req: NextRequest) {
 
     const signature = buildSignature(referenceUrls, existingTokens);
     const cached = tasteCache.get(projectId);
+    console.log("[TASTE DEBUG] Cache check:", "project=" + projectId, "hit:", !!(cached && cached.signature === signature), "cacheExists:", !!cached, "sigMatch:", cached ? cached.signature === signature : "N/A");
     if (cached && cached.signature === signature) {
+      console.log("[TASTE DEBUG] Returning CACHED profile for project:", projectId, "archetype:", cached.profile.archetypeMatch);
       return NextResponse.json(cached.profile);
     }
+    console.log("[TASTE DEBUG] Cache MISS — running fresh extraction for project:", projectId);
 
     const scoredMap = await scoreImagesBatch(
       referenceUrls.map((url, index) => ({ id: `${index}`, url })),
@@ -361,11 +510,45 @@ export async function POST(req: NextRequest) {
 
     const existingTokenSummary = summarizeExistingTokens(existingTokens);
 
+    // Build prompt-aware archetype hints
+    const promptHints = detectPromptArchetypeHints(userPrompt);
+    const scorerHints = inferArchetypeHintsFromScores(scoredImages);
+
+    const systemPrompt = buildSystemPrompt();
+
+    const userMessageText = `Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
+
+IMPORTANT: Base your archetype classification primarily on what you SEE in the images. The scored image summary below is from a generic quality scorer — its style/mood labels are NOT archetype classifications. Look at the actual images.
+
+Project ID: ${projectId}
+Reference count: ${referenceUrls.length}
+${userPrompt ? `User prompt: "${userPrompt}"` : ""}
+
+Scored image summary (generic quality scores — do NOT use style/mood fields for archetype classification):
+${JSON.stringify(scoredSummary)}
+${scorerHints}
+${promptHints}
+
+${existingTokenSummary ? `Existing token summary:\n${JSON.stringify(existingTokenSummary)}` : "No existing tokens."}
+
+Return compact JSON only. Do not pretty-print. Fill every field, but keep strings tight and specific.`;
+
+    // ── Debug logging ──────────────────────────────────────────────
+    console.log("[TASTE DEBUG] System prompt length:", systemPrompt.length, "chars");
+    console.log("[TASTE DEBUG] Contains editorial-brand:", systemPrompt.includes("editorial-brand"));
+    console.log("[TASTE DEBUG] Contains detection signals:", systemPrompt.includes("Detection signals"));
+    console.log("[TASTE DEBUG] Contains disambiguation:", systemPrompt.includes("Archetype Disambiguation"));
+    console.log("[TASTE DEBUG] Contains scorer bias warning:", systemPrompt.includes("Ignore Scorer Bias"));
+    console.log("[TASTE DEBUG] User prompt received:", userPrompt ?? "(none)");
+    console.log("[TASTE DEBUG] Prompt archetype hints:", promptHints || "(none)");
+    console.log("[TASTE DEBUG] Scorer-derived hints:", scorerHints || "(none)");
+    console.log("[TASTE DEBUG] Image count sent to Sonnet:", imageContent.length);
+    console.log("[TASTE DEBUG] User message text (no images):", userMessageText.substring(0, 2000));
     console.log(
       `[taste/extract] Calling Sonnet 4.6 with ${Math.min(
         referenceUrls.length,
         5
-      )} images, system prompt ~${buildSystemPrompt().length} chars`
+      )} images, system prompt ~${systemPrompt.length} chars`
     );
 
     const response = await router.chat.completions.create({
@@ -376,24 +559,14 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: buildSystemPrompt(),
+          content: systemPrompt,
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
-
-Project ID: ${projectId}
-Reference count: ${referenceUrls.length}
-
-Scored image summary:
-${JSON.stringify(scoredSummary)}
-
-${existingTokenSummary ? `Existing token summary:\n${JSON.stringify(existingTokenSummary)}` : "No existing tokens."}
-
-Return compact JSON only. Do not pretty-print. Fill every field, but keep strings tight and specific.`,
+              text: userMessageText,
             },
             ...imageContent,
           ],
@@ -423,7 +596,16 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
       // Fall through to normalization with empty raw — will use fallback values
     }
 
+    console.log("[TASTE DEBUG] Raw model archetype:", raw.archetypeMatch ?? "(missing)", "confidence:", raw.archetypeConfidence ?? "(missing)");
+    console.log("[TASTE DEBUG] Raw model sectionFlow:", raw.layoutBias?.sectionFlow ?? "(missing)", "imageTreatment:", raw.imageTreatment?.style ?? "(missing)");
+
     const profile = normalizeTasteProfile(raw, fallback, derivedConfidence);
+
+    console.log("[TASTE DEBUG] Final archetype:", profile.archetypeMatch, "confidence:", profile.archetypeConfidence);
+    console.log("[TASTE DEBUG] Avoid list:", JSON.stringify(profile.avoid));
+    console.log("[TASTE DEBUG] Section flow:", profile.layoutBias?.sectionFlow, "| hero:", profile.layoutBias?.heroStyle, "| density:", profile.layoutBias?.density);
+    console.log("[TASTE DEBUG] Image treatment style:", profile.imageTreatment?.style, "| sizing:", profile.imageTreatment?.sizing);
+    console.log("[TASTE DEBUG] Adjectives:", profile.adjectives?.join(", "));
 
     tasteCache.set(projectId, { signature, profile });
     return NextResponse.json(profile);

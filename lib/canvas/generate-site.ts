@@ -2,6 +2,10 @@ import type { DesignSystemTokens } from "./generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { PageNode } from "./compose";
 import { compileTasteToDirectives, directivesToPromptText, type CompiledDirectives, type FidelityMode } from "./directive-compiler";
+import { getArchetypeBannedNodeTypes } from "./archetype-bans";
+
+// Re-export for external consumers
+export { getArchetypeBannedNodeTypes } from "./archetype-bans";
 
 // ─── Section Schema ──────────────────────────────────────────────────────────
 
@@ -102,6 +106,323 @@ Evaluate your output against these criteria. If any fails, regenerate that secti
    Use maxWidth containers (1200px). Center-align sections.
    Left-align text within cards.
 `.trim();
+
+// ─── Archetype Section Grammar ──────────────────────────────────────────────
+// Archetype-specific structural guidance that overrides the default SaaS section
+// skeleton. Injected early in the prompt so the model sees it before any default
+// section list. Works with existing PageNode types — tells the model HOW to
+// compose sections differently, not to use new types.
+
+function getArchetypeSectionGrammar(archetype: string | undefined): string {
+  switch (archetype) {
+    case "editorial-brand":
+      return `
+## SECTION GRAMMAR — EDITORIAL
+
+You are generating an EDITORIAL design, NOT a SaaS landing page.
+
+USE these editorial section patterns:
+- **Full-bleed photography section**: A section dominated by one large image spanning the full width. Minimal or no text overlay. The image IS the content.
+- **Editorial spread**: Asymmetric layout with text on one side and image on the other. NOT a card grid. Think magazine spread — generous whitespace, large type, one focal image.
+- **Pullquote / breakout section**: A single large quote, statement, or typographic moment as a visual section break. Large serif text, lots of whitespace.
+- **Minimal navigation**: Logo + 2-3 text links. No mega-menu, no CTA button in nav.
+- **Large-scale typography header**: Hero with oversized serif headline (clamp 4-8rem), short subtext, maybe one subtle button. NOT a centered headline with paragraph + two buttons.
+- **Photography gallery or grid**: If showing multiple images, use an editorial grid (mixed sizes, asymmetric) NOT a uniform card grid.
+
+DO NOT USE these SaaS patterns:
+- 3-column feature card grids (icon + title + description)
+- Stats/metrics rows with big numbers
+- Logo bars / social proof strips ("Trusted by...")
+- Pricing tables or tier comparisons
+- Icon rows or bullet-point feature lists
+- "How it works" numbered step sections
+- FAQ accordions
+
+## EDITORIAL COMPOSITION EXAMPLES
+Use these PageNode JSON patterns as templates. Each shows how to compose editorial layouts using standard PageNode types. Adapt the content and exact values to match the creative brief and taste profile.
+
+### Cover Block (full-bleed hero)
+{
+  "type": "section",
+  "name": "Cover Block",
+  "style": {
+    "background": "[accent or dark color from tokens]",
+    "foreground": "[contrasting text color]",
+    "paddingX": 80,
+    "paddingY": 120,
+    "minHeight": 700,
+    "align": "center",
+    "justify": "center",
+    "gap": 24
+  },
+  "children": [
+    {
+      "type": "heading",
+      "content": { "text": "[Magazine-style headline, 4-8 words]" },
+      "style": { "fontSize": 72, "fontWeight": 300, "fontFamily": "[serif font]", "letterSpacing": -0.03 }
+    },
+    {
+      "type": "paragraph",
+      "content": { "text": "[One understated sentence]" },
+      "style": { "fontSize": 16, "fontWeight": 400, "opacity": 0.7 }
+    }
+  ]
+}
+
+### Editorial Spread (asymmetric text + image)
+Uses direction "row" to place text and image side by side — NOT a card grid.
+{
+  "type": "section",
+  "name": "Editorial Spread",
+  "style": {
+    "paddingX": 64,
+    "paddingY": 96,
+    "direction": "row",
+    "gap": 48,
+    "align": "center"
+  },
+  "children": [
+    {
+      "type": "heading",
+      "content": { "text": "[Bold editorial statement]", "subtext": "[Supporting paragraph, 2-3 sentences]" },
+      "style": { "fontSize": 48, "fontWeight": 400, "fontFamily": "[serif font]" }
+    },
+    {
+      "type": "paragraph",
+      "content": { "text": "[Image placeholder: editorial photography, full height, natural composition]" },
+      "style": { "fontSize": 14, "opacity": 0.5, "minHeight": 400, "background": "[muted surface tone]", "borderRadius": 4 }
+    }
+  ]
+}
+
+### Pullquote Section
+A single large typographic statement as a section break. Minimal — just one big quote.
+{
+  "type": "section",
+  "name": "Pullquote",
+  "style": {
+    "paddingX": 120,
+    "paddingY": 120,
+    "align": "center",
+    "justify": "center"
+  },
+  "children": [
+    {
+      "type": "heading",
+      "content": { "text": "\"[A single powerful quote or statement]\"" },
+      "style": { "fontSize": 36, "fontWeight": 300, "fontFamily": "[serif font]", "fontStyle": "italic" }
+    }
+  ]
+}
+
+### Captioned Image Block
+A large image with a small caption below — like a magazine photo spread.
+{
+  "type": "section",
+  "name": "Image Feature",
+  "style": {
+    "paddingX": 0,
+    "paddingY": 0,
+    "gap": 12,
+    "align": "center"
+  },
+  "children": [
+    {
+      "type": "paragraph",
+      "content": { "text": "[Image: full-width editorial photograph, high contrast, editorial mood]" },
+      "style": { "minHeight": 500, "background": "[muted dark tone]", "foreground": "[light color]" }
+    },
+    {
+      "type": "paragraph",
+      "content": { "text": "[Caption: photographer credit, location, or contextual note]" },
+      "style": { "fontSize": 11, "opacity": 0.5, "paddingX": 64, "paddingY": 16 }
+    }
+  ]
+}
+
+### Story Index (table of contents)
+Shows 2-3 editorial entries with numbered kickers — like a magazine TOC. NOT a card grid with icons.
+{
+  "type": "section",
+  "name": "Story Index",
+  "style": {
+    "paddingX": 80,
+    "paddingY": 80,
+    "gap": 32,
+    "direction": "column"
+  },
+  "children": [
+    {
+      "type": "heading",
+      "content": { "kicker": "01", "text": "[Story title]", "subtext": "[One sentence description]" },
+      "style": { "fontSize": 28, "fontWeight": 400, "fontFamily": "[serif font]" }
+    },
+    {
+      "type": "heading",
+      "content": { "kicker": "02", "text": "[Story title]", "subtext": "[One sentence description]" },
+      "style": { "fontSize": 28, "fontWeight": 400, "fontFamily": "[serif font]" }
+    },
+    {
+      "type": "heading",
+      "content": { "kicker": "03", "text": "[Story title]", "subtext": "[One sentence description]" },
+      "style": { "fontSize": 28, "fontWeight": 400, "fontFamily": "[serif font]" }
+    }
+  ]
+}
+
+### Visual Collage (staggered image-text)
+Asymmetric composition with mixed-size elements — NOT a uniform grid.
+{
+  "type": "section",
+  "name": "Visual Collage",
+  "style": {
+    "paddingX": 48,
+    "paddingY": 64,
+    "direction": "row",
+    "gap": 24,
+    "columns": 2
+  },
+  "children": [
+    {
+      "type": "paragraph",
+      "content": { "text": "[Image: tall portrait photo, editorial styling]" },
+      "style": { "minHeight": 500, "background": "[muted tone]", "borderRadius": 4 }
+    },
+    {
+      "type": "heading",
+      "content": { "text": "[Short editorial caption or section title]", "subtext": "[Brief supporting text]" },
+      "style": { "fontSize": 24, "fontWeight": 400, "fontFamily": "[serif font]", "paddingY": 120 }
+    }
+  ]
+}
+
+IMPORTANT: These are PATTERNS, not exact templates. Vary the sizes, spacing, and composition. The point is the STRUCTURAL approach — asymmetry, photography dominance, large type, generous whitespace — not copying these exact values.
+
+SECTION COUNT: 4-6 sections total. Editorial sites have fewer, larger, more impactful sections. A 9-section template is a SaaS landing page, not a magazine.
+
+SECTION ORDERING: Lead with visual impact (photography or bold typography), alternate between image-heavy and text-heavy sections, end with a quiet editorial CTA (not a shouty "Start Free Trial" block).
+
+COPY TONE: Write like a magazine editor, not a SaaS copywriter. No "supercharge your workflow" or "everything you need." Think: confident, understated, evocative.
+`;
+
+    case "minimal-tech":
+      return `
+## SECTION GRAMMAR — MINIMAL TECH
+
+USE these patterns:
+- Product screenshot or hero with one clean product image
+- Single-feature deep dives (one feature per section, large image + minimal text)
+- Dark mode sections with monospace or geometric type
+- Terminal/code aesthetic where appropriate
+- Sparse, focused sections with lots of negative space
+
+DO NOT USE:
+- Busy feature grids with 6+ items
+- Testimonial carousels
+- Logo bars
+- Pricing tables with 3+ tiers
+- Stock photography
+
+SECTION COUNT: 3-5 focused sections. Less is more.
+`;
+
+    case "creative-portfolio":
+      return `
+## SECTION GRAMMAR — CREATIVE PORTFOLIO
+
+USE these patterns:
+- Full-bleed project showcases
+- Asymmetric or broken-grid layouts
+- Mixed media sections (image + text in non-standard arrangements)
+- Statement typography (oversized, expressive)
+- Personal/identity-driven hero (name, role, one strong image)
+
+DO NOT USE:
+- Uniform card grids
+- Corporate proof sections
+- Pricing or feature comparison tables
+- "How it works" flows
+- Generic SaaS CTAs
+
+SECTION COUNT: 4-6 sections with strong visual personality.
+`;
+
+    case "culture-brand":
+      return `
+## SECTION GRAMMAR — CULTURE BRAND
+
+USE these patterns:
+- Warm, photography-led hero (lifestyle/community imagery)
+- Story-driven sections (narrative flow, not feature dumps)
+- Community/people sections with real-feeling photography
+- Rounded, warm UI elements
+- Earth-toned backgrounds with natural texture
+
+DO NOT USE:
+- Clinical product screenshots
+- Dense feature grids
+- Technical/developer-oriented sections
+- Dark mode or monochrome palettes
+- Sharp, angular design elements
+
+SECTION COUNT: 5-7 sections with warm, human pacing.
+`;
+
+    case "experimental":
+      return `
+## SECTION GRAMMAR — EXPERIMENTAL
+
+USE these patterns:
+- Rule-breaking layouts (overlapping elements, unusual positioning)
+- Extreme type scale (very large + very small in same section)
+- Visual noise or texture as design elements
+- Unconventional navigation placement
+- Bold color blocking or high-contrast sections
+
+DO NOT USE:
+- Safe, centered, symmetric layouts
+- Standard SaaS section ordering
+- Conservative type sizes
+- Muted, corporate color palettes
+- Generic stock imagery
+
+SECTION COUNT: 3-6 sections. Break expectations.
+`;
+
+    default: // premium-saas or unknown
+      return `
+## SECTION GRAMMAR — PRODUCT / SAAS
+
+Standard product landing page patterns are appropriate:
+- Hero with headline, subtext, CTA
+- Feature highlights (cards or sections)
+- Social proof (testimonials, logos)
+- Pricing (if relevant)
+- Final CTA
+
+SECTION COUNT: 5-8 sections. Structured and scannable.
+`;
+  }
+}
+
+// ─── Structural guard for transformation prompts ────────────────────────────
+
+function getArchetypeStructuralGuard(archetype: string | undefined): string {
+  switch (archetype) {
+    case "editorial-brand":
+      return "\nIMPORTANT: This is an editorial design. Do NOT restructure into SaaS patterns (card grids, stats rows, pricing tables). Keep the editorial composition — large photography, asymmetric spreads, pullquotes, and minimal section count (4-6).";
+    case "minimal-tech":
+      return "\nIMPORTANT: This is a minimal tech design. Do NOT add busy feature grids, testimonial carousels, or logo bars. Keep sections sparse and focused (3-5 total).";
+    case "creative-portfolio":
+      return "\nIMPORTANT: This is a creative portfolio design. Do NOT restructure into uniform card grids, corporate proof sections, or SaaS CTAs. Keep the visual personality and asymmetric layouts.";
+    case "culture-brand":
+      return "\nIMPORTANT: This is a culture brand design. Do NOT restructure into clinical product sections or dense feature grids. Keep the warm, story-driven, photography-led composition.";
+    case "experimental":
+      return "\nIMPORTANT: This is an experimental design. Do NOT normalize into safe, centered, symmetric layouts or standard SaaS section ordering. Keep the rule-breaking composition.";
+    default:
+      return "";
+  }
+}
 
 // ─── Variant Layout Directives ──────────────────────────────────────────────
 // @deprecated — V5 uses 1+2 derivation (buildPushedVariantPrompt / buildRestructuredVariantPrompt)
@@ -291,6 +612,8 @@ Each section MUST be its own named function (e.g. function HeroSection()).
 The default export is a Page component that renders them all sequentially.
 `;
 
+  const archetypeGrammar = getArchetypeSectionGrammar(options?.tasteProfile?.archetypeMatch);
+
   return `You are an expert React developer and senior product designer.
 Generate a ${isPartialRegen ? "replacement section" : "complete landing page"} based on the creative brief below.
 
@@ -298,6 +621,8 @@ Generate a ${isPartialRegen ? "replacement section" : "complete landing page"} b
 The following is a direction and intent — not literal copy. Use it to inform the visual language, tone, audience, and narrative of the page. Write compelling, ORIGINAL marketing headlines and body copy that feel specific to the product described. Never echo the brief text verbatim. Never use placeholder copy like "Your product name here" or "What teams say after working with X". Write real, persuasive copy as if you are the brand's copywriter.
 
 "${prompt}"
+
+${archetypeGrammar}
 
 ${variantSection}
 
@@ -385,12 +710,28 @@ export function buildPageTreePrompt(
   const tasteSection = directivesToPromptText(compiledDirectives);
   const variantSection = variantMode ? VARIANT_DIRECTIVES[variantMode] : "";
 
+  const archetypeGrammar = getArchetypeSectionGrammar(options?.tasteProfile?.archetypeMatch);
+
+  const bannedTypes = getArchetypeBannedNodeTypes(options?.tasteProfile?.archetypeMatch);
+  const banSection = bannedTypes.length > 0
+    ? `
+## BANNED NODE TYPES FOR THIS ARCHETYPE
+Do NOT use these node types anywhere in the output:
+${bannedTypes.map(t => `- "${t}" — this is a product/SaaS pattern, not appropriate for this archetype`).join("\n")}
+
+If you need to show multiple items, use individual heading+paragraph children inside a section instead of a grid node.
+`
+    : "";
+
   return `You are a senior product designer and copywriter generating a landing page as a structured PageNode JSON tree.
 
 ## Creative Brief
 "${prompt}"
 
 Site name: ${siteName}
+
+${archetypeGrammar}
+${banSection}
 
 ${variantSection}
 
@@ -495,6 +836,11 @@ export function buildPushedVariantPrompt(
   _directives: CompiledDirectives
 ): string {
   const treeJson = JSON.stringify(basePageTree);
+  const structuralGuard = getArchetypeStructuralGuard(tasteProfile?.archetypeMatch);
+  const bannedTypes = getArchetypeBannedNodeTypes(tasteProfile?.archetypeMatch);
+  const banGuard = bannedTypes.length > 0
+    ? `\nBANNED NODE TYPES: Do NOT use ${bannedTypes.join(", ")} in the output.`
+    : "";
 
   return `You are transforming an existing website design into a bolder interpretation of the same taste profile.
 
@@ -506,6 +852,7 @@ Archetype: ${tasteProfile.archetypeMatch}
 Mood: ${tasteProfile.adjectives?.join(", ")}
 Palette: ${[tasteProfile.colorBehavior.suggestedColors.background, tasteProfile.colorBehavior.suggestedColors.accent, tasteProfile.colorBehavior.suggestedColors.text].filter(Boolean).join(", ")}
 Fonts: ${tasteProfile.typographyTraits.recommendedPairings.join(", ")}
+${structuralGuard}${banGuard}
 
 ## Transformation Instructions
 Take this exact page structure and PUSH it:
@@ -538,6 +885,11 @@ export function buildRestructuredVariantPrompt(
   _directives: CompiledDirectives
 ): string {
   const treeJson = JSON.stringify(basePageTree);
+  const structuralGuard = getArchetypeStructuralGuard(tasteProfile?.archetypeMatch);
+  const bannedTypes = getArchetypeBannedNodeTypes(tasteProfile?.archetypeMatch);
+  const banGuard = bannedTypes.length > 0
+    ? `\nBANNED NODE TYPES: Do NOT use ${bannedTypes.join(", ")} in the output.`
+    : "";
 
   return `You are restructuring an existing website design to explore a different layout while maintaining the same taste profile.
 
@@ -549,6 +901,7 @@ Archetype: ${tasteProfile.archetypeMatch}
 Mood: ${tasteProfile.adjectives?.join(", ")}
 Palette: ${[tasteProfile.colorBehavior.suggestedColors.background, tasteProfile.colorBehavior.suggestedColors.accent, tasteProfile.colorBehavior.suggestedColors.text].filter(Boolean).join(", ")}
 Fonts: ${tasteProfile.typographyTraits.recommendedPairings.join(", ")}
+${structuralGuard}${banGuard}
 
 ## Restructuring Instructions
 Keep the taste DNA (palette, fonts, mood) but REARRANGE the layout:

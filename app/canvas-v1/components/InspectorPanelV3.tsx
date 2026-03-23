@@ -1280,6 +1280,9 @@ function PromptComposer({
 
       // Step 2.5: Extract taste profile if we have references but no taste profile yet
       let resolvedTaste = tasteProfile;
+      console.log("[TASTE DEBUG] tasteProfile source:", resolvedTaste ? "project-state (cached)" : "will-extract");
+      console.log("[TASTE DEBUG] tasteProfile archetype:", resolvedTaste?.archetypeMatch ?? "none");
+      console.log("[TASTE DEBUG] tasteProfile avoid:", resolvedTaste?.avoid?.length ?? 0, "items");
       if (!resolvedTaste && imageUrls.length > 0 && projectId) {
         dispatch({
           type: "SET_PROMPT_STATUS",
@@ -1293,6 +1296,7 @@ function PromptComposer({
               projectId,
               referenceUrls: imageUrls,
               existingTokens: tokens,
+              prompt: prompt.value?.trim() || undefined,
             }),
           });
           if (tasteRes.ok) {

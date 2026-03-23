@@ -1,0 +1,352 @@
+{
+  "version": "1.0",
+  "created": "2026-03-22",
+  "status": "draft",
+  "note": "References curated from Pinterest/web, Pinterest/OS, Cosmos/UX. Benchmark not yet run. Reference image URLs marked TODO where only board URLs are currently available.",
+  "sourceBoards": {
+    "pinterest_web": "https://www.pinterest.com/litterthanli7/web/",
+    "pinterest_os": "https://www.pinterest.com/litterthanli7/os/",
+    "cosmos_ux": "https://www.cosmos.so/litterthanlit/ux"
+  },
+  "sets": [
+    {
+      "id": "BS-01",
+      "benchmarkPackId": "BM-02",
+      "name": "Editorial",
+      "category": "editorial",
+      "difficulty": "medium",
+      "prompt": "Design a landing page for an editorial fashion magazine. Typography-forward, photography as the primary visual, generous whitespace, dark or warm off-white palette.",
+      "brief": "Landing page for a fashion editorial magazine. Strong type hierarchy, photography as primary visual element, airy layout. Not a blog, not a startup — a magazine site.",
+      "tasteDirection": {
+        "typography": "Editorial serif or refined sans headings, tight tracking on display text",
+        "palette": "Near-black or warm off-white background, minimal accent",
+        "density": "airy",
+        "corners": "sharp",
+        "mood": ["refined", "restrained", "editorial", "photography-forward"],
+        "avoid": ["pill buttons", "icon rows", "card grids", "feature lists", "rounded corners", "startup color palettes", "gradients"]
+      },
+      "successNotes": [
+        "Strong typographic hierarchy",
+        "Photography fills sections rather than decorating them",
+        "Airy spacing that reads as intentional, not empty",
+        "Minimal UI chrome — no nav clutter"
+      ],
+      "knownRisks": [
+        "Generic blog layout",
+        "Photography underused — shrunk into cards instead of filling sections",
+        "Wrong type weight — too light or too regular"
+      ],
+      "references": [
+        {
+          "id": "BS-01-R01",
+          "title": "Telescope — scattered editorial collage hero",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-01.jpg",
+          "reason": "Scattered image collage with editorial photography on warm off-white. Shows playful composition with restrained palette."
+        },
+        {
+          "id": "BS-01-R02",
+          "title": "Glass Effect — editorial poster / visual manifesto",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-02.jpg",
+          "reason": "Strong grid typography, red/black/white, editorial poster logic. Sets the typographic discipline ceiling."
+        },
+        {
+          "id": "BS-01-R03",
+          "title": "Maison Margiela — editorial website concept",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-03.jpg",
+          "reason": "Black/white editorial website, photography-forward, serif display type, strong image/text relationship."
+        },
+        {
+          "id": "BS-01-R04",
+          "title": "&Co agency — oversized headline hero",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-04.jpg",
+          "reason": "Oversized editorial headline with photography hero, warm cream palette, editorial structure with team section."
+        },
+        {
+          "id": "BS-01-R05",
+          "title": "Nike Circularity — grid editorial",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-05.jpg",
+          "reason": "Grid-based editorial layout, black/white, structured sections with strong typographic hierarchy."
+        },
+        {
+          "id": "BS-01-R06",
+          "title": "Merigrove — photography-forward editorial",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-06.jpg",
+          "reason": "Full-bleed photography hero, editorial type scale, cream/black palette, oversized display type."
+        },
+        {
+          "id": "BS-01-R07",
+          "title": "Fashion editorial — dark/light magazine splits",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-07.jpeg",
+          "reason": "Magazine-style photography grid with dark/light split layouts. Shows editorial pacing and image treatment."
+        },
+        {
+          "id": "BS-01-R08",
+          "title": "Photography studio — minimal editorial grid",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-08.jpeg",
+          "reason": "Minimal grid portfolio with warm lighting and editorial structure. Shows restrained navigation and image-first layout."
+        },
+        {
+          "id": "BS-01-R09",
+          "title": "Architecture firm — full-bleed editorial hero",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-09.jpeg",
+          "reason": "Full-bleed photography hero with editorial typography, light/dark section contrast, strong hierarchy."
+        },
+        {
+          "id": "BS-01-R10",
+          "title": "PSL Arch — full editorial website",
+          "source": "Nick's curation",
+          "imageUrl": "benchmark-refs/BS-01/ref-10.jpeg",
+          "reason": "Complete editorial website with gray palette, grid layout, serif headings, awards section, blog grid. Shows full-page editorial structure."
+        }
+      ]
+    },
+    {
+      "id": "BS-02",
+      "benchmarkPackId": "BM-05",
+      "name": "Clean SaaS",
+      "category": "tech-saas",
+      "difficulty": "medium",
+      "prompt": "Design a landing page for a B2B SaaS productivity tool. Clean light background, clear value proposition above the fold, feature sections, single strong CTA.",
+      "brief": "B2B SaaS landing page. White or light gray base, geometric sans, product UI mockup as hero, feature cards, single primary CTA. Not generic startup — closer to Linear or Stripe.",
+      "tasteDirection": {
+        "typography": "Geometric sans throughout, tight hierarchy, no serif",
+        "palette": "White or light gray background, single blue or neutral accent",
+        "density": "medium",
+        "corners": "soft",
+        "mood": ["sharp", "modern", "credible", "product-forward"],
+        "avoid": ["gradients", "illustration", "decorative elements", "generic startup aesthetic", "full dark mode hero", "rainbow color palettes"]
+      },
+      "successNotes": [
+        "Clear value proposition in hero without jargon",
+        "Feature sections that show the product, not just describe it",
+        "Consistent typographic hierarchy",
+        "CTA that feels earned, not shouted"
+      ],
+      "knownRisks": [
+        "Generic startup hero with gradient and floating UI elements",
+        "Boring section sequencing",
+        "Default SaaS visual language with no distinctive quality"
+      ],
+      "references": [
+        {
+          "id": "BS-02-R01",
+          "title": "monefy.ai — Finance tracker made for your business",
+          "source": "Cosmos / UX board (live site)",
+          "urlType": "live",
+          "url": "https://monefy.ai",
+          "imageUrl": "TODO",
+          "reason": "Dark gradient SaaS hero with strong product framing. Clear value prop, trial CTA. High-quality execution of the fintech SaaS pattern."
+        },
+        {
+          "id": "BS-02-R02",
+          "title": "We eliminate repetitive tasks so your team can focus on what matters",
+          "source": "Cosmos / UX board",
+          "urlType": "board",
+          "url": "https://www.cosmos.so/litterthanlit/ux",
+          "imageUrl": "TODO",
+          "reason": "Clean white SaaS with workflow diagram. Shows minimal product-only aesthetic with geometric UI diagram instead of illustration."
+        },
+        {
+          "id": "BS-02-R03",
+          "title": "AI deserves the same security as software",
+          "source": "Cosmos / UX board",
+          "urlType": "board",
+          "url": "https://www.cosmos.so/litterthanlit/ux",
+          "imageUrl": "TODO",
+          "reason": "Light SaaS landing, blue accent, device mockup as hero. Clean type hierarchy, concise section structure."
+        },
+        {
+          "id": "BS-02-R04",
+          "title": "Automate Reordering and Supplier Decisions",
+          "source": "Cosmos / UX board",
+          "urlType": "board",
+          "url": "https://www.cosmos.so/litterthanlit/ux",
+          "imageUrl": "TODO",
+          "reason": "Clean workflow SaaS with two-column feature layout. Minimal chrome, structured proof sections."
+        },
+        {
+          "id": "BS-02-R05",
+          "title": "Agency Landing Pages — 959 Marketing Examples",
+          "source": "Lapa Ninja",
+          "urlType": "live",
+          "url": "https://www.lapaninja.com/agency-landing-pages/",
+          "imageUrl": "TODO",
+          "reason": "Diverse collection of high-quality landing pages. Useful for calibrating what strong SaaS landing page diversity looks like across the set."
+        }
+      ]
+    },
+    {
+      "id": "BS-03",
+      "benchmarkPackId": "BM-15",
+      "name": "Creative Agency",
+      "category": "creative-agency",
+      "difficulty": "medium",
+      "prompt": "Design a landing page for an independent creative or branding agency. Bold headline, strong typographic hierarchy, clear point of view, services listed without looking corporate.",
+      "brief": "Creative agency landing page. Oversized display headline, black or white base with one bold accent, editorial grid, asymmetric layout. Not corporate — authored and confident.",
+      "tasteDirection": {
+        "typography": "Oversized display headline, editorial grid, strong weight contrast between heading and body",
+        "palette": "Black or white base with one bold accent — orange, red, or electric blue",
+        "density": "high-contrast sections, deliberate negative space",
+        "corners": "sharp",
+        "mood": ["confident", "expressive", "authored", "culturally-aware"],
+        "avoid": ["startup neutrals", "generic icon-feature rows", "rounded card grids", "anything that looks enterprise", "light gray backgrounds", "decorative illustration"]
+      },
+      "successNotes": [
+        "Distinct visual point of view — could only be this studio",
+        "Headline carries enough weight to be memorable",
+        "Services clear without being a feature list",
+        "Photography or work samples used with authority"
+      ],
+      "knownRisks": [
+        "Generic We-build-digital-experiences layout",
+        "Attitude without clarity",
+        "Palette too safe — beige or standard blue",
+        "Loses distinction in lower sections"
+      ],
+      "references": [
+        {
+          "id": "BS-03-R01",
+          "title": "The Clab",
+          "source": "Pinterest / web board",
+          "urlType": "board",
+          "url": "https://www.pinterest.com/litterthanli7/web/",
+          "pinTitle": "The Clab",
+          "imageUrl": "TODO",
+          "reason": "Strong creative agency presence. Sets the bar for what a high-taste studio site should feel like."
+        },
+        {
+          "id": "BS-03-R02",
+          "title": "&Co agency redesign — Jane Vi",
+          "source": "Pinterest / web board",
+          "urlType": "board",
+          "url": "https://www.pinterest.com/litterthanli7/web/",
+          "pinTitle": "_ &Co agency redesign - Jane Vi",
+          "imageUrl": "TODO",
+          "reason": "Agency redesign case study. Shows how typographic hierarchy and personality can define a studio identity."
+        },
+        {
+          "id": "BS-03-R03",
+          "title": "Weiden Haus — We Make You See",
+          "source": "Pinterest / web board",
+          "urlType": "pin",
+          "url": "https://www.pinterest.com/pin/832462312416116746/",
+          "imageUrl": "TODO",
+          "reason": "Black/white typographic editorial. Shows how strong type alone can carry an agency identity without any decoration."
+        },
+        {
+          "id": "BS-03-R04",
+          "title": "Stop paying AI companies to train your replacement",
+          "source": "Cosmos / UX board",
+          "urlType": "board",
+          "url": "https://www.cosmos.so/litterthanlit/ux",
+          "imageUrl": "TODO",
+          "reason": "Bold orange/black editorial layout with grid and oversized headline. Shows how attitude and typographic confidence combine on the same page."
+        },
+        {
+          "id": "BS-03-R05",
+          "title": "NOISE magazine — orange/street photography",
+          "source": "Cosmos / UX board",
+          "urlType": "board",
+          "url": "https://www.cosmos.so/litterthanlit/ux",
+          "imageUrl": "TODO",
+          "reason": "Street photography plus bold magazine typesetting. Adds cultural texture — shows how image and type coexist with attitude."
+        }
+      ]
+    },
+    {
+      "id": "BS-04",
+      "benchmarkPackId": "BM-18",
+      "name": "Brutalist / Typographic",
+      "category": "brutalist",
+      "difficulty": "hard",
+      "prompt": "Design a landing page where typography is the primary layout element. Extreme hierarchy, raw grid, one or two colors maximum.",
+      "brief": "Typographic brutalist landing page. Heavy display type at oversized scale, black/white + one accent max, grid structure visible or implied. Typography IS the layout — not a background for content.",
+      "tasteDirection": {
+        "typography": "Heavy display typeface, oversized scale, type fills sections rather than sitting in them",
+        "palette": "Black and white plus maximum one accent — red, yellow, or deep blue",
+        "density": "Typography as density — no empty sections, but no clutter either",
+        "corners": "sharp",
+        "mood": ["raw", "graphic", "authored", "poster-logic applied to web"],
+        "avoid": ["illustration", "gradients", "card grids", "rounded corners", "soft colors", "decorative icons", "photography as background", "startup UI patterns"]
+      },
+      "successNotes": [
+        "Type scale that feels intentional at every breakpoint",
+        "Grid structure holds even without decoration",
+        "One accent color used sparingly and with purpose",
+        "Page feels like a poster that also works as a website"
+      ],
+      "knownRisks": [
+        "Raw model adds decoration to fill what it reads as empty space",
+        "Gradient or soft palette creeps in",
+        "Type scale collapses to normal web sizes",
+        "Becomes unreadable rather than deliberately challenging"
+      ],
+      "references": [
+        {
+          "id": "BS-04-R01",
+          "title": "Typografie Schweizer — bold red/black Swiss",
+          "source": "Pinterest / web board",
+          "urlType": "board",
+          "url": "https://www.pinterest.com/litterthanli7/web/",
+          "pinTitle": "typografie schweizer",
+          "imageUrl": "TODO",
+          "reason": "Swiss typography system, red/black, grid-dominant. High-signal reference for structural typographic layout at its most rigorous."
+        },
+        {
+          "id": "BS-04-R02",
+          "title": "Swiss Style magazine layout",
+          "source": "Pinterest / web board",
+          "urlType": "board",
+          "url": "https://www.pinterest.com/litterthanli7/web/",
+          "pinTitle": "Swiss Style",
+          "imageUrl": "TODO",
+          "reason": "Clean Swiss grid, black/white, strong column structure. Shows how Swiss typographic discipline translates to layout systems."
+        },
+        {
+          "id": "BS-04-R03",
+          "title": "The Submerged Sonata Vol.2 — Friedrichson Berlin",
+          "source": "Pinterest / web board",
+          "urlType": "board",
+          "url": "https://www.pinterest.com/litterthanli7/web/",
+          "pinTitle": "The Submerged Sonata Vol.2",
+          "imageUrl": "TODO",
+          "reason": "Berlin editorial poster, oversized date/title typography, monochrome. Pure type-as-layout reference — numbers and text become the visual."
+        },
+        {
+          "id": "BS-04-R04",
+          "title": "Spring Order — Tokyo/Western typography collision",
+          "source": "Cosmos / UX board",
+          "urlType": "board",
+          "url": "https://www.cosmos.so/litterthanlit/ux",
+          "imageUrl": "TODO",
+          "reason": "Black background, blue/gold/white type collision between Japanese and Western type systems. Adds cultural texture and shows how multiple type systems can coexist with structural discipline."
+        },
+        {
+          "id": "BS-04-R05",
+          "title": "Cavix — black/gold vintage display",
+          "source": "Pinterest / OS board",
+          "urlType": "board",
+          "url": "https://www.pinterest.com/litterthanli7/os/",
+          "pinTitle": "CAVIX",
+          "imageUrl": "TODO",
+          "reason": "Black background, bold vintage display type, grid-structured. Demonstrates how historical display type reads as brutalist when used at full scale."
+        }
+      ]
+    }
+  ],
+  "gaps": {
+    "missingCategories": ["Luxury", "Portfolio", "Fintech / Data SaaS", "E-commerce", "Minimal Tech / Infra"],
+    "osBoard": "Pinterest/OS board is mostly generative art and graphic patterns — not suitable for web generation layout benchmarks. Use for mood/texture references only.",
+    "imageUrlsNeeded": "All references marked imageUrl: TODO need stable image URLs captured before the benchmark can be run reproducibly.",
+    "nextPriority": "Luxury set needs 3-5 dedicated luxury brand website references before it can be added."
+  }
+}

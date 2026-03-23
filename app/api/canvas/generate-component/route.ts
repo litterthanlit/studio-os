@@ -22,6 +22,24 @@ import type { TasteProfile } from "@/types/taste-profile";
 import { callModel, getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
 import { scoreRealtimeFidelity, type TasteFidelityScore } from "@/lib/canvas/taste-evaluator";
 
+// ─── Tree Debug Logging ─────────────────────────────────────────────────────
+
+function logTreeStructure(label: string, tree: PageNode): void {
+  const sections = tree.children ?? [];
+  const structure = sections.map(s => {
+    const childTypes = s.children?.map(c => c.type).join(", ") ?? "no children";
+    const childCount = s.children?.length ?? 0;
+    const name = s.name || s.id || s.type;
+    const padding = s.style?.paddingY ?? "?";
+    const bg = s.style?.background ?? "none";
+    return `  ${name} (${childCount} children: ${childTypes}) [padding=${padding}, bg=${bg}]`;
+  }).join("\n");
+
+  console.log(`[TREE DEBUG] ${label}:\n  Sections: ${sections.length}\n${structure}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type VariantStrategy = {
   key: "safe" | "creative" | "alternative";
   label: string;
@@ -225,6 +243,15 @@ export async function POST(req: NextRequest) {
     };
 
     console.log(`[GEN DEBUG] generate-component called: mode=${mode}, prompt="${prompt?.slice(0, 60)}...", tasteProfile=${tasteProfile ? "YES" : "NULL"}, referenceUrls=${referenceUrls?.length ?? 0}, OPENROUTER_API_KEY=${!!process.env.OPENROUTER_API_KEY}`);
+    if (tasteProfile) {
+      console.log("[TASTE DEBUG] Received tasteProfile archetype:", tasteProfile.archetypeMatch, "confidence:", tasteProfile.archetypeConfidence);
+      console.log("[TASTE DEBUG] Received tasteProfile sectionFlow:", tasteProfile.layoutBias?.sectionFlow, "| hero:", tasteProfile.layoutBias?.heroStyle);
+      console.log("[TASTE DEBUG] Received tasteProfile avoid:", JSON.stringify(tasteProfile.avoid));
+      const debugDirectives = compileTasteToDirectives(tasteProfile, fidelityMode ?? "balanced");
+      console.log("[TASTE DEBUG] Compiled directives hard count:", debugDirectives.hard.length, "| soft count:", debugDirectives.soft.length, "| avoid count:", debugDirectives.avoid.length);
+    } else {
+      console.log("[TASTE DEBUG] No tasteProfile received — generation will use fallback/template patterns only");
+    }
 
     if (!prompt || !tokens) {
       return NextResponse.json(
@@ -344,10 +371,22 @@ export async function POST(req: NextRequest) {
           baseTree = candidateTree;
           baseTreeSource = "ai";
 
+          // [TREE DEBUG] Log PRE-VALIDATION structure
+          logTreeStructure("PRE-VALIDATION BASE", baseTree);
+
           // ── Step 2: Validate + repair ──
           const validation = validateDirectiveCompliance(baseTree, compiledDirectives);
           baseValidationScore = validation.score;
           console.log(`[GEN DEBUG] BASE validation: score=${validation.score}, violations=${validation.violations.length}, passed=${validation.passed}`);
+
+          // [TREE DEBUG] Log violation details
+          if (validation.violations.length > 0) {
+            console.log(`[TREE DEBUG] BASE violations by type:`,
+              validation.violations.map(v => `${v.directive.dimension}: found=${v.found}, expected=${v.expected}`).join("; ")
+            );
+          } else {
+            console.log(`[TREE DEBUG] BASE violations: none`);
+          }
 
           if (!validation.passed && validation.repairable) {
             const { repairedTree, repairCount } = repairViolations(baseTree, validation.violations, compiledDirectives);
@@ -355,6 +394,9 @@ export async function POST(req: NextRequest) {
             baseTreeSource = repairCount / totalNodes > 0.3 ? "repaired" : "ai";
             baseTree = repairedTree;
             console.log(`[GEN DEBUG] BASE repaired ${repairCount}/${totalNodes} nodes, source=${baseTreeSource}`);
+
+            // [TREE DEBUG] Log POST-REPAIR structure
+            logTreeStructure("POST-REPAIR BASE", baseTree);
           } else if (!validation.passed) {
             console.log(`[GEN DEBUG] BASE validation failed, not repairable. Using fallback.`);
             baseTree = fallbackTrees[0];
@@ -365,7 +407,7 @@ export async function POST(req: NextRequest) {
           if (tasteProfile && baseTreeSource !== "template") {
             try {
               baseFidelityScore = await scoreRealtimeFidelity(baseTree, tasteProfile);
-              console.log(`[GEN DEBUG] BASE fidelity: overall=${baseFidelityScore.overall}, palette=${baseFidelityScore.palette}, type=${baseFidelityScore.typography}, density=${baseFidelityScore.density}`);
+              console.log(`[GEN DEBUG] BASE fidelity: overall=${baseFidelityScore.overall}, palette=${baseFidelityScore.palette}, type=${baseFidelityScore.typography}, density=${baseFidelityScore.density}, structure=${baseFidelityScore.structure}`);
             } catch (scoreErr) {
               console.warn("[GEN DEBUG] BASE taste scoring failed:", scoreErr);
             }
@@ -464,6 +506,7 @@ export async function POST(req: NextRequest) {
                   }
 
                   pushedTree = tree;
+                  logTreeStructure("PUSHED variant", pushedTree);
                   console.log(`[GEN DEBUG] PUSHED variant OK: validation=${pv.score}, source=${pushedTreeSource}`);
                 } else {
                   console.error(`[GEN DEBUG] PUSHED variant invalid: ${normalized.reason}`);
@@ -499,6 +542,7 @@ export async function POST(req: NextRequest) {
                   }
 
                   restructuredTree = tree;
+                  logTreeStructure("RESTRUCTURED variant", restructuredTree);
                   console.log(`[GEN DEBUG] RESTRUCTURED variant OK: validation=${rv.score}, source=${restructuredTreeSource}`);
                 } else {
                   console.error(`[GEN DEBUG] RESTRUCTURED variant invalid: ${normalized.reason}`);

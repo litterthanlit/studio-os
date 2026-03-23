@@ -1,0 +1,44 @@
+{
+  "benchmarkSet": "BS-01",
+  "name": "Editorial",
+  "date": "2026-03-23",
+  "compilerVersion": "v1-structural-directives",
+  "model": "claude-sonnet-4-6",
+  "fidelityMode": "balanced",
+  "referenceCount": 10,
+  "raw": {
+    "palette": 3,
+    "typography": 3,
+    "density": 2,
+    "layout": 2,
+    "overall": 2,
+    "total": 12,
+    "average": 2.4,
+    "justification": "Generic dark navy SaaS template. 6-card feature grid, stats section, no photography. Does not resemble editorial references at all."
+  },
+  "harnessed": {
+    "palette": 7,
+    "typography": 7,
+    "density": 6,
+    "layout": 5,
+    "overall": 6,
+    "total": 31,
+    "average": 6.2,
+    "justification": "Editorial magazine pacing, oversized display typography, black/white palette, asymmetric layouts. Recognizably editorial. Weakened by rounded card containers, image placeholders, and slightly dense 'Selected Looks' section."
+  },
+  "delta": {
+    "palette": 4,
+    "typography": 4,
+    "density": 4,
+    "layout": 3,
+    "overall": 4,
+    "total": 19,
+    "average": 3.8
+  },
+  "knownIssues": [
+    "Rounded corners on containers despite sharp corner directive",
+    "Image placeholders instead of actual photography",
+    "Mobile layout broken — text overflow, collapsed sections",
+    "Selected Looks section still slightly card-grid-ish"
+  ]
+}

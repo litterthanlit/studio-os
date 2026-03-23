@@ -1,0 +1,93 @@
+// lib/canvas/design-node.ts
+// V6 node model — 5 universal types with expanded CSS style properties.
+// Replaces the 16-type PageNode system for richer editorial composition.
+
+export type DesignNodeType = "frame" | "text" | "image" | "button" | "divider";
+
+export type Breakpoint = "desktop" | "mobile";
+
+export type DesignNode = {
+  id: string;
+  type: DesignNodeType;
+  name: string;
+  style: DesignNodeStyle;
+  content?: DesignNodeContent;
+  children?: DesignNode[];
+  responsiveOverrides?: Partial<Record<Breakpoint, Partial<DesignNodeStyle>>>;
+  hidden?: Partial<Record<Breakpoint, boolean>>;
+};
+
+export type DesignNodeContent = {
+  text?: string;
+  subtext?: string;
+  kicker?: string;
+  label?: string;
+  href?: string;
+  src?: string;
+  alt?: string;
+  icon?: string;
+  // Transitional — preserved from PageNode for migration, not the final model
+  price?: string;
+  badge?: string;
+  meta?: string;
+};
+
+export type DesignNodeStyle = {
+  // ── Positioning ──
+  // Default: relative (normal flow). Only breakout elements become absolute.
+  position?: "relative" | "absolute";
+  x?: number;           // left offset — only when absolute
+  y?: number;           // top offset — only when absolute
+  width?: number | "auto" | "fill";
+  height?: number | "auto" | "fill";
+  zIndex?: number;
+  overflow?: "visible" | "hidden";
+
+  // ── Layout ──
+  display?: "flex" | "grid";
+  flexDirection?: "row" | "column";
+  gap?: number;
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
+  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between";
+  gridTemplate?: string;   // MVP: "repeat(N, 1fr)", "2fr 1fr", "1fr 2fr", "1fr 1fr 1fr" only
+  flexGrow?: number;
+  flexShrink?: number;
+  aspectRatio?: number;
+
+  // ── Spacing ──
+  padding?: { top?: number; right?: number; bottom?: number; left?: number };
+
+  // ── Typography ──
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  lineHeight?: number;
+  letterSpacing?: number;
+  fontStyle?: "normal" | "italic";
+  textDecoration?: "none" | "underline";
+  textAlign?: "left" | "center" | "right";
+
+  // ── Visual ──
+  background?: string;
+  coverImage?: string;       // Raw URL — rendered as positioned <img>, NOT CSS background-image
+  coverSize?: "cover" | "contain";
+  coverPosition?: string;
+  foreground?: string;
+  muted?: string;
+  accent?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  opacity?: number;
+  shadow?: string;           // Raw CSS box-shadow value
+  blur?: number;             // CSS filter: blur(Npx)
+  objectFit?: "cover" | "contain" | "fill";
+  maxWidth?: number | string; // number=px, string=CSS value
+};
+
+// ── Helpers ──
+
+export function walkDesignTree(node: DesignNode, callback: (n: DesignNode) => void): void {
+  callback(node);
+  node.children?.forEach((child) => walkDesignTree(child, callback));
+}

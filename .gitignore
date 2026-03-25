@@ -46,3 +46,33 @@ next-env.d.ts
 public/marketing/*.webp
 # Keep the manifest so components know what's available
 !public/marketing/manifest.json
+
+# Editor/agent workspace caches (AI tooling residue)
+.agent/
+.agents/
+.claude/commands/
+.claude/skills/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.factory/
+.goose/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.windsurf/
+.zencoder/
+skills/
+skills-lock.json

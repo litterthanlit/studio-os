@@ -91,3 +91,22 @@ export function walkDesignTree(node: DesignNode, callback: (n: DesignNode) => vo
   callback(node);
   node.children?.forEach((child) => walkDesignTree(child, callback));
 }
+
+export function findDesignNodeById(node: DesignNode, targetId: string | null): DesignNode | null {
+  if (!targetId) return null;
+  if (node.id === targetId) return node;
+  for (const child of node.children ?? []) {
+    const match = findDesignNodeById(child, targetId);
+    if (match) return match;
+  }
+  return null;
+}
+
+export function findDesignNodeParent(root: DesignNode, targetId: string): DesignNode | null {
+  for (const child of root.children ?? []) {
+    if (child.id === targetId) return root;
+    const match = findDesignNodeParent(child, targetId);
+    if (match) return match;
+  }
+  return null;
+}

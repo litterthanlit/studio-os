@@ -324,6 +324,31 @@ function MediaFrame({
   );
 }
 
+/**
+ * Renders a section's mediaUrl as a full-bleed background image.
+ * Children of the section render on top of this image.
+ * Used for editorial hero sections, atmospheric photo backgrounds, etc.
+ */
+function SectionBackgroundMedia({ src, alt }: { src?: string; alt?: string }) {
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt || ""}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        zIndex: 0,
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
 function getAIPrefill(node: PageNode): string {
   const text = node.content?.text ?? "";
   const truncated = text.length > 80 ? text.slice(0, 80) + "..." : text;
@@ -968,6 +993,8 @@ function renderNode(
       const showSectionControls =
         isTopLevelReorderableSection && context.selectedNodeId === node.id;
 
+      const hasBackgroundMedia = Boolean(node.content?.mediaUrl);
+
       const sectionElement = (
         <Selectable
           node={node}
@@ -986,9 +1013,23 @@ function renderNode(
               padding: `${style.paddingY ?? 48}px ${style.paddingX ?? 48}px`,
               minHeight: style.minHeight ?? "auto",
               boxShadow: shadowValue(tokens, style.shadow),
+              ...(hasBackgroundMedia
+                ? { position: "relative" as const, overflow: "hidden" }
+                : {}),
               ...effectStyles(style),
             }}
           >
+            {hasBackgroundMedia && (
+              <>
+                <SectionBackgroundMedia src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%)",
+                  zIndex: 0,
+                }} />
+              </>
+            )}
             <div
               style={{
                 maxWidth: style.maxWidth ?? 1120,
@@ -999,9 +1040,11 @@ function renderNode(
                 gap: style.gap ?? 18,
                 alignItems: alignItemsValue(style.align),
                 textAlign: textAlignValue(style.align),
+                ...(hasBackgroundMedia
+                  ? { position: "relative" as const, zIndex: 1 }
+                  : {}),
               }}
             >
-              <MediaFrame src={node.content?.mediaUrl} alt={node.content?.mediaAlt} />
               {renderedChildren}
             </div>
           </section>

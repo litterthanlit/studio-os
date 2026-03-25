@@ -1,6 +1,7 @@
 import type { DesignSystemTokens } from "./generate-system";
 import type { SiteType } from "./templates";
 import type { TasteProfile } from "@/types/taste-profile";
+import type { DesignNode } from "./design-node";
 
 export type CanvasStage = "collect" | "compose";
 export type Breakpoint = "desktop" | "mobile";
@@ -83,7 +84,7 @@ export type PageNode = {
 export type GeneratedVariant = {
   id: string;
   name: string;
-  pageTree: PageNode;
+  pageTree: PageNode | DesignNode;
   previewImage?: string | null;
   compiledCode?: string | null;
   previewSource?: "ai" | "fallback";
@@ -105,7 +106,7 @@ export type ComposeArtboard = {
   breakpoint: Breakpoint;
   x: number;
   y: number;
-  pageTree: PageNode;
+  pageTree: PageNode | DesignNode;
   compiledCode?: string | null;
 };
 
@@ -184,9 +185,18 @@ export type ArtboardSpec = {
   label: string;
   x: number;
   y: number;
-  pageTree: PageNode;
+  pageTree: PageNode | DesignNode;
   compiledCode?: string | null;
 };
+
+/**
+ * Type guard: DesignNode root is always type "frame", PageNode root is always type "page".
+ * Only valid for root-level trees — a non-root frame child would also pass this check,
+ * but we only call this on artboard.pageTree (always a root).
+ */
+export function isDesignNodeTree(tree: PageNode | DesignNode): tree is DesignNode {
+  return tree.type === "frame";
+}
 
 /**
  * Creates two side-by-side breakpoint artboards from a single variant's page tree.

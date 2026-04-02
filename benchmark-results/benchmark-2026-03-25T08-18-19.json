@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-03-25T08:20:19.529Z",
+  "phase": "full-benchmark",
+  "version": "1.0",
+  "config": {
+    "fidelityMode": "balanced",
+    "tokens": "neutral-benchmark",
+    "scorer": "gemini-flash-realtime"
+  },
+  "summary": {
+    "setsRun": 1,
+    "setsScored": 0,
+    "averageDelta": null
+  },
+  "sets": [
+    {
+      "setId": "BS-01",
+      "name": "Editorial",
+      "category": "editorial",
+      "raw": {
+        "source": "failed",
+        "score": null
+      },
+      "harnessed": {
+        "source": "skipped",
+        "score": null
+      },
+      "delta": null
+    }
+  ]
+}

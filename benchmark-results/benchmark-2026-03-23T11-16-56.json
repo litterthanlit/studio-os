@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-03-23T11:19:08.717Z",
+  "phase": "full-benchmark",
+  "version": "1.0",
+  "config": {
+    "fidelityMode": "balanced",
+    "tokens": "neutral-benchmark",
+    "scorer": "gemini-flash-realtime"
+  },
+  "summary": {
+    "setsRun": 1,
+    "setsScored": 1,
+    "averageDelta": {
+      "palette": 4,
+      "typography": 6,
+      "density": 1,
+      "structure": 3,
+      "overall": 4
+    }
+  },
+  "sets": [
+    {
+      "setId": "BS-01",
+      "name": "Editorial",
+      "category": "editorial",
+      "raw": {
+        "source": "ai",
+        "score": {
+          "palette": 5,
+          "typography": 2,
+          "density": 7,
+          "structure": 6,
+          "overall": 5,
+          "justification": "The palette has some overlap but misses key brand colors, typography is off with a single generic font, density is somewhat aligned, and the structure shows some editorial elements but also generic sections, leading to a moderate overall alignment.",
+          "mode": "realtime",
+          "timestamp": "2026-03-23T11:19:08.706Z"
+        }
+      },
+      "harnessed": {
+        "source": "repaired",
+        "score": {
+          "palette": 9,
+          "typography": 8,
+          "density": 8,
+          "structure": 9,
+          "overall": 9,
+          "justification": "The design aligns well with the editorial-brand archetype, utilizing the specified colors and a text-dominant hero, while maintaining a spacious and structural layout.",
+          "mode": "realtime",
+          "timestamp": "2026-03-23T11:18:57.776Z"
+        }
+      },
+      "delta": {
+        "palette": 4,
+        "typography": 6,
+        "density": 1,
+        "structure": 3,
+        "overall": 4
+      }
+    }
+  ]
+}

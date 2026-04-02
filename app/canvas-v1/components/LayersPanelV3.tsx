@@ -16,6 +16,8 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
+import { findDesignNodeParent } from "@/lib/canvas/design-node";
+import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 
 // ─── Node type → icon ────────────────────────────────────────────────────────
@@ -65,10 +67,11 @@ function formatDesignNodeLabel(node: DesignNode): string {
 // ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
 
 function DesignTreeNode({
-  node, depth, selectedNodeId, artboardId, onSelectNode,
+  node, depth, selectedNodeId, artboardId, onSelectNode, onContextMenu,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
   artboardId: string; onSelectNode: (artboardId: string, nodeId: string) => void;
+  onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
 }) {
   const hasChildren = node.children && node.children.length > 0;
   const [expanded, setExpanded] = React.useState(depth < 2);
@@ -79,6 +82,7 @@ function DesignTreeNode({
       <button
         type="button"
         onClick={() => onSelectNode(artboardId, node.id)}
+        onContextMenu={(e) => onContextMenu?.(node, artboardId, e)}
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isSelected
@@ -99,7 +103,7 @@ function DesignTreeNode({
         <span className="min-w-0 flex-1 truncate text-[11px]">{formatDesignNodeLabel(node)}</span>
       </button>
       {expanded && hasChildren && node.children!.map((child) => (
-        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} />
+        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} onContextMenu={onContextMenu} />
       ))}
     </>
   );
@@ -198,6 +202,23 @@ export function LayersPanelV3() {
     dispatch({ type: "SELECT_NODE", artboardId, nodeId });
   };
 
+  // ── DesignNode context menu ──
+  const [dnContextMenu, setDnContextMenu] = React.useState<{
+    node: DesignNode;
+    artboardId: string;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const handleDesignNodeContextMenu = React.useCallback(
+    (node: DesignNode, artboardId: string, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dispatch({ type: "SELECT_NODE", artboardId, nodeId: node.id });
+      setDnContextMenu({ node, artboardId, position: { x: event.clientX, y: event.clientY } });
+    },
+    [dispatch]
+  );
+
   return (
     <div
       className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
@@ -237,6 +258,7 @@ export function LayersPanelV3() {
                           selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
                           artboardId={artboard.id}
                           onSelectNode={handleSelectNode}
+                          onContextMenu={handleDesignNodeContextMenu}
                         />
                       ))
                     : artboard.pageTree.children?.map((child) => (
@@ -305,6 +327,48 @@ export function LayersPanelV3() {
           )}
         </div>
       </div>
+
+      {/* DesignNode context menu */}
+      {dnContextMenu && (() => {
+        const artboard = artboards.find((a) => a.id === dnContextMenu.artboardId);
+        if (!artboard || !isDesignNodeTree(artboard.pageTree)) return null;
+        const tree = artboard.pageTree as DesignNode;
+        const parent = findDesignNodeParent(tree, dnContextMenu.node.id);
+        const siblings = parent?.children ?? tree.children ?? [];
+        const idx = siblings.findIndex((c) => c.id === dnContextMenu.node.id);
+        const bp = artboard.breakpoint;
+
+        return (
+          <DesignNodeContextMenu
+            node={dnContextMenu.node}
+            position={dnContextMenu.position}
+            breakpoint={bp}
+            isFirst={idx === 0}
+            isLast={idx === siblings.length - 1}
+            isHidden={Boolean(dnContextMenu.node.hidden?.[bp])}
+            onDuplicate={() => { dispatch({ type: "DUPLICATE_SECTION", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onDelete={() => { dispatch({ type: "DELETE_SECTION", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onMoveUp={() => {
+              if (idx > 0 && parent) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx - 1, parentNodeId: parent.id });
+              } else if (idx > 0) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx - 1 });
+              }
+              setDnContextMenu(null);
+            }}
+            onMoveDown={() => {
+              if (idx < siblings.length - 1 && parent) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx + 1, parentNodeId: parent.id });
+              } else if (idx < siblings.length - 1) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx + 1 });
+              }
+              setDnContextMenu(null);
+            }}
+            onToggleVisibility={() => { dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, breakpoint: bp }); setDnContextMenu(null); }}
+            onDismiss={() => setDnContextMenu(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

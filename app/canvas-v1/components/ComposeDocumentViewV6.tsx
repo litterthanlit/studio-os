@@ -28,6 +28,8 @@ type ComposeDocumentViewV6Props = {
   artboardId?: string | null;
   /** Current canvas zoom — needed for zoom-aware drag */
   zoom?: number;
+  /** Right-click context menu handler for DesignNodes */
+  onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
 };
 
 type InlineTextEditEventDetail = {
@@ -295,7 +297,7 @@ function BreakoutBadge() {
 
 // ── Main Render Function ───────────────────────────────────────────
 
-function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit }: {
+function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit, onContextMenu }: {
   node: DesignNode;
   selectedNodeId: string | null;
   editingNodeId: string | null;
@@ -303,6 +305,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
   onSelect: (nodeId: string) => void;
   onStartEdit: (nodeId: string) => void;
   onCommitEdit: (nodeId: string, newText: string) => void;
+  onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
 }): React.ReactElement | null {
   const [isHovered, setIsHovered] = React.useState(false);
   const cssStyle = designStyleToCSS(node.style);
@@ -331,6 +334,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
             onSelect={onSelect}
             onStartEdit={onStartEdit}
             onCommitEdit={onCommitEdit}
+            onContextMenu={onContextMenu}
           />
         </div>
       );
@@ -363,6 +367,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           style={frameStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
           {showBreakoutBadge && <BreakoutBadge />}
@@ -390,6 +395,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           style={textStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
           {showBreakoutBadge && <BreakoutBadge />}
@@ -434,6 +440,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           style={wrapperStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
           {showBreakoutBadge && <BreakoutBadge />}
@@ -464,6 +471,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           style={btnStyle}
           onClick={interactive ? (e) => { e.preventDefault(); e.stopPropagation(); onSelect(node.id); } : undefined}
+          onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
           {showBreakoutBadge && <BreakoutBadge />}
@@ -497,6 +505,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           style={wrapperStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
           {showBreakoutBadge && <BreakoutBadge />}
@@ -619,6 +628,7 @@ export function ComposeDocumentViewV6({
   interactive = false,
   artboardId = null,
   zoom = 1,
+  onContextMenu,
 }: ComposeDocumentViewV6Props) {
   const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
   const historyPushedRef = React.useRef(false);
@@ -854,6 +864,7 @@ export function ComposeDocumentViewV6({
           onSelect={handleSelect}
           onStartEdit={handleStartEdit}
           onCommitEdit={handleCommitEdit}
+          onContextMenu={onContextMenu}
         />
         {interactive && dragState.isDragging && snapGuidesHook.activeGuides.length > 0 && (
           <SnapGuideLines

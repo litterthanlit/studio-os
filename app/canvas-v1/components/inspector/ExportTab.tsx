@@ -58,7 +58,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-3">
+    <div className="p-4 flex flex-col gap-3 h-full min-h-0">
       {/* Scope toggle */}
       <div>
         <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono mb-1 block">Scope</span>
@@ -81,7 +81,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
         <>
           {/* HTML preview */}
           <pre
-            className="text-[11px] text-[#6B6B6B] bg-[#F5F5F0] rounded-[4px] p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-[400px] overflow-y-auto"
+            className="text-[11px] text-[#6B6B6B] bg-[#F5F5F0] rounded-[4px] p-3 overflow-x-auto whitespace-pre-wrap break-all overflow-y-auto flex-1 min-h-0"
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
             {htmlString}
@@ -91,7 +91,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors w-full"
+            className="border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors w-full shrink-0"
           >
             {copied ? <span className="text-[#1E5DF2]">Copied!</span> : "Copy HTML"}
           </button>

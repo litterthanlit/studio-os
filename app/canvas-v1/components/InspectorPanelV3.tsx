@@ -1839,8 +1839,8 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
           {/* Inspector section (top) */}
           <div
             ref={inspectorScrollRef}
-            className="overflow-y-auto shrink-0"
-            style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : "100%" }}
+            className="overflow-y-auto flex-1 min-h-0"
+            style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : undefined }}
           >
             {activeTab === "design" ? (
               <>

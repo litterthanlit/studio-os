@@ -528,7 +528,7 @@ export function canvasReducer(
       );
       if (!artboard) return state;
 
-      const insertIntoPageTree = (pageTree: PageNode): PageNode => {
+      const insertIntoPageTree = (pageTree: TreeNode): TreeNode => {
         const children = pageTree.children ?? [];
         const next = [...children];
         const insertIndex =
@@ -574,7 +574,7 @@ export function canvasReducer(
 
       const clone = deepCloneWithNewIds(children[sourceIndex]);
 
-      const insertClone = (pageTree: PageNode): PageNode => {
+      const insertClone = (pageTree: TreeNode): TreeNode => {
         const ch = pageTree.children ?? [];
         const idx = ch.findIndex((c) => c.id === action.nodeId);
         if (idx === -1) return pageTree;
@@ -612,7 +612,7 @@ export function canvasReducer(
       );
       if (!artboard) return state;
 
-      const removeSection = (pageTree: PageNode): PageNode => {
+      const removeSection = (pageTree: TreeNode): TreeNode => {
         const ch = pageTree.children ?? [];
         const filtered = ch.filter((c) => c.id !== action.nodeId);
         if (filtered.length === ch.length) return pageTree;

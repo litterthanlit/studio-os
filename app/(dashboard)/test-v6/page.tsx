@@ -131,6 +131,7 @@ export default function TestV6Page() {
           onUpdateNodeStyle={handleUpdateStyle}
           onPushHistory={pushHistory}
           interactive
+          artboardId="test-artboard"
           zoom={1}
         />
       </div>
@@ -171,7 +172,7 @@ export default function TestV6Page() {
               </div>
               <div style={{ display: "flex", gap: 0 }}>
                 <button
-                  onClick={() => !isBreakout && handleBreakoutToggle()}
+                  onClick={() => isBreakout && handleBreakoutToggle()}
                   style={{
                     flex: 1, padding: "6px 0", fontSize: 12, border: "1px solid #E5E5E0",
                     borderRight: "none", borderRadius: "4px 0 0 4px", cursor: "pointer",
@@ -183,7 +184,7 @@ export default function TestV6Page() {
                   Flow
                 </button>
                 <button
-                  onClick={() => isBreakout && handleBreakoutToggle()}
+                  onClick={() => !isBreakout && handleBreakoutToggle()}
                   style={{
                     flex: 1, padding: "6px 0", fontSize: 12, border: "1px solid #E5E5E0",
                     borderRadius: "0 4px 4px 0", cursor: "pointer",

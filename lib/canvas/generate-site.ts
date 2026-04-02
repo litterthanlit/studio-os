@@ -121,14 +121,6 @@ function getArchetypeSectionGrammar(archetype: string | undefined): string {
 
 You are generating an EDITORIAL design, NOT a SaaS landing page.
 
-USE these editorial section patterns:
-- **Full-bleed photography section**: A section dominated by one large image spanning the full width. Minimal or no text overlay. The image IS the content.
-- **Editorial spread**: Asymmetric layout with text on one side and image on the other. NOT a card grid. Think magazine spread — generous whitespace, large type, one focal image.
-- **Pullquote / breakout section**: A single large quote, statement, or typographic moment as a visual section break. Large serif text, lots of whitespace.
-- **Minimal navigation**: Logo + 2-3 text links. No mega-menu, no CTA button in nav.
-- **Large-scale typography header**: Hero with oversized serif headline (clamp 4-8rem), short subtext, maybe one subtle button. NOT a centered headline with paragraph + two buttons.
-- **Photography gallery or grid**: If showing multiple images, use an editorial grid (mixed sizes, asymmetric) NOT a uniform card grid.
-
 DO NOT USE these SaaS patterns:
 - 3-column feature card grids (icon + title + description)
 - Stats/metrics rows with big numbers
@@ -138,169 +130,61 @@ DO NOT USE these SaaS patterns:
 - "How it works" numbered step sections
 - FAQ accordions
 
-## EDITORIAL COMPOSITION EXAMPLES
-Use these PageNode JSON patterns as templates. Each shows how to compose editorial layouts using standard PageNode types. Adapt the content and exact values to match the creative brief and taste profile.
+## COMPLETE PAGE COMPOSITIONS
+Study these two complete editorial homepage compositions. They show how sections flow together into one cohesive page — not how individual sections look in isolation.
 
-### Cover Block (full-bleed hero)
-{
-  "type": "section",
-  "name": "Cover Block",
-  "style": {
-    "background": "[accent or dark color from tokens]",
-    "foreground": "[contrasting text color]",
-    "paddingX": 80,
-    "paddingY": 120,
-    "minHeight": 700,
-    "align": "center",
-    "justify": "center",
-    "gap": 24
-  },
-  "children": [
-    {
-      "type": "heading",
-      "content": { "text": "[Magazine-style headline, 4-8 words]" },
-      "style": { "fontSize": 72, "fontWeight": 300, "fontFamily": "[serif font]", "letterSpacing": -0.03 }
-    },
-    {
-      "type": "paragraph",
-      "content": { "text": "[One understated sentence]" },
-      "style": { "fontSize": 16, "fontWeight": 400, "opacity": 0.7 }
-    }
-  ]
-}
+### Composition A — Photography-Led Editorial
+[{"type":"section","name":"Nav","style":{"paddingX":64,"paddingY":20,"direction":"row","justify":"space-between","align":"center"},"children":[{"type":"heading","content":{"text":"[MAGAZINE NAME]"},"style":{"fontSize":14,"fontWeight":600,"letterSpacing":0.1}},{"type":"paragraph","content":{"text":"Stories  Archive  About"},"style":{"fontSize":13,"opacity":0.6}}]},{"type":"section","name":"Hero","style":{"paddingX":0,"paddingY":0,"minHeight":700,"align":"flex-end","justify":"flex-end"},"content":{"mediaUrl":"photo:editorial fashion photography, dramatic lighting, full frame, high contrast","mediaAlt":"Editorial cover photograph"},"children":[{"type":"heading","content":{"text":"[Bold 3-5 word editorial headline]"},"style":{"fontSize":72,"fontWeight":300,"fontFamily":"[serif]","letterSpacing":-0.03,"foreground":"#FFFFFF","paddingX":64,"paddingY":48}}]},{"type":"section","name":"Editorial Spread","style":{"paddingX":64,"paddingY":96,"direction":"row","gap":64,"align":"flex-start"},"children":[{"type":"heading","content":{"kicker":"FEATURE","text":"[Story headline, 5-8 words]","subtext":"[2-3 sentences of editorial body copy. Specific, evocative, magazine-quality writing.]"},"style":{"fontSize":36,"fontWeight":400,"fontFamily":"[serif]","maxWidth":"50%"}},{"type":"section","name":"spread-image","style":{"minHeight":500},"content":{"mediaUrl":"photo:[specific editorial image matching the story]","mediaAlt":"[descriptive alt]"},"children":[]}]},{"type":"section","name":"Pullquote","style":{"paddingX":120,"paddingY":100,"align":"center","justify":"center","background":"[subtle contrast from previous section]"},"children":[{"type":"heading","content":{"text":"\"[A single powerful editorial statement]\""},"style":{"fontSize":32,"fontWeight":300,"fontFamily":"[serif]","fontStyle":"italic","lineHeight":1.5}},{"type":"paragraph","content":{"text":"— [Attribution, title]"},"style":{"fontSize":13,"opacity":0.5,"paddingY":16}}]},{"type":"section","name":"Story Index","style":{"paddingX":64,"paddingY":80,"gap":0,"direction":"column"},"children":[{"type":"heading","content":{"kicker":"01","text":"[Article title]","subtext":"[Byline — Author Name]"},"style":{"fontSize":24,"fontFamily":"[serif]","paddingY":24,"borderColor":"[subtle border]"}},{"type":"heading","content":{"kicker":"02","text":"[Article title]","subtext":"[Byline — Author Name]"},"style":{"fontSize":24,"fontFamily":"[serif]","paddingY":24,"borderColor":"[subtle border]"}},{"type":"heading","content":{"kicker":"03","text":"[Article title]","subtext":"[Byline — Author Name]"},"style":{"fontSize":24,"fontFamily":"[serif]","paddingY":24}}]},{"type":"section","name":"Footer","style":{"paddingX":64,"paddingY":32,"direction":"row","justify":"space-between","opacity":0.5},"children":[{"type":"paragraph","content":{"text":"© 2026 [Magazine Name]"},"style":{"fontSize":12}},{"type":"paragraph","content":{"text":"Instagram  Twitter  Contact"},"style":{"fontSize":12}}]}]
 
-### Editorial Spread (asymmetric text + image)
-Uses direction "row" to place text and image side by side — NOT a card grid.
-{
-  "type": "section",
-  "name": "Editorial Spread",
-  "style": {
-    "paddingX": 64,
-    "paddingY": 96,
-    "direction": "row",
-    "gap": 48,
-    "align": "center"
-  },
-  "children": [
-    {
-      "type": "heading",
-      "content": { "text": "[Bold editorial statement]", "subtext": "[Supporting paragraph, 2-3 sentences]" },
-      "style": { "fontSize": 48, "fontWeight": 400, "fontFamily": "[serif font]" }
-    },
-    {
-      "type": "paragraph",
-      "content": { "text": "[Image placeholder: editorial photography, full height, natural composition]" },
-      "style": { "fontSize": 14, "opacity": 0.5, "minHeight": 400, "background": "[muted surface tone]", "borderRadius": 4 }
-    }
-  ]
-}
+### Composition B — Typography-Led Editorial
+[{"type":"section","name":"Nav","style":{"paddingX":64,"paddingY":20,"direction":"row","justify":"space-between","align":"center"},"children":[{"type":"heading","content":{"text":"[PUBLICATION]"},"style":{"fontSize":14,"fontWeight":600,"letterSpacing":0.1}},{"type":"paragraph","content":{"text":"Issues  About  Subscribe"},"style":{"fontSize":13,"opacity":0.6}}]},{"type":"section","name":"Hero","style":{"paddingX":64,"paddingY":140,"minHeight":600,"background":"[dark or near-black]","foreground":"[light or white]","align":"flex-start","gap":24},"children":[{"type":"paragraph","content":{"kicker":"ISSUE 47 — SPRING 2026"},"style":{"fontSize":11,"letterSpacing":0.12,"opacity":0.5}},{"type":"heading","content":{"text":"[Oversized editorial headline spanning most of the width, 4-8 words]"},"style":{"fontSize":80,"fontWeight":300,"fontFamily":"[serif]","letterSpacing":-0.04,"lineHeight":0.95,"maxWidth":"80%"}},{"type":"paragraph","content":{"text":"[One sentence teaser. Understated.]"},"style":{"fontSize":16,"opacity":0.6,"maxWidth":"40%"}}]},{"type":"section","name":"Full-bleed Photo","style":{"paddingX":0,"paddingY":0,"minHeight":500},"content":{"mediaUrl":"photo:[specific editorial photograph related to the issue theme]","mediaAlt":"[descriptive alt]"},"children":[]},{"type":"section","name":"Two-Column Editorial","style":{"paddingX":64,"paddingY":80,"direction":"row","gap":48},"children":[{"type":"heading","content":{"kicker":"ESSAY","text":"[Column heading]","subtext":"[3-4 sentences of editorial body copy. Real writing, not marketing speak.]"},"style":{"fontSize":28,"fontFamily":"[serif]"}},{"type":"section","name":"col-image","style":{"minHeight":400},"content":{"mediaUrl":"photo:[supporting editorial image]","mediaAlt":"[alt]"},"children":[]}]},{"type":"section","name":"Subscribe","style":{"paddingX":64,"paddingY":48,"align":"center","gap":12},"children":[{"type":"paragraph","content":{"text":"Receive new issues directly."},"style":{"fontSize":14,"opacity":0.6}},{"type":"button-row","children":[{"type":"button","content":{"text":"Subscribe →"},"style":{"fontSize":14,"fontWeight":400,"background":"transparent","foreground":"[text color]","borderColor":"[subtle border]","borderRadius":2}}]}]},{"type":"section","name":"Footer","style":{"paddingX":64,"paddingY":32,"direction":"row","justify":"space-between","opacity":0.4},"children":[{"type":"paragraph","content":{"text":"© 2026 [Publication]"},"style":{"fontSize":12}},{"type":"paragraph","content":{"text":"Privacy  Terms  Contact"},"style":{"fontSize":12}}]}]
 
-### Pullquote Section
-A single large typographic statement as a section break. Minimal — just one big quote.
-{
-  "type": "section",
-  "name": "Pullquote",
-  "style": {
-    "paddingX": 120,
-    "paddingY": 120,
-    "align": "center",
-    "justify": "center"
-  },
-  "children": [
-    {
-      "type": "heading",
-      "content": { "text": "\"[A single powerful quote or statement]\"" },
-      "style": { "fontSize": 36, "fontWeight": 300, "fontFamily": "[serif font]", "fontStyle": "italic" }
-    }
-  ]
-}
+Choose the composition that best matches the references and brief, then ADAPT it:
+- Replace placeholder text with real editorial copy matching the brief
+- Adjust colors to match the taste profile
+- Adjust fonts to match the taste profile
+- You may add or remove one section, but keep the overall rhythm and pacing
+- You may combine elements from both compositions
 
-### Captioned Image Block
-A large image with a small caption below — like a magazine photo spread.
-{
-  "type": "section",
-  "name": "Image Feature",
-  "style": {
-    "paddingX": 0,
-    "paddingY": 0,
-    "gap": 12,
-    "align": "center"
-  },
-  "children": [
-    {
-      "type": "paragraph",
-      "content": { "text": "[Image: full-width editorial photograph, high contrast, editorial mood]" },
-      "style": { "minHeight": 500, "background": "[muted dark tone]", "foreground": "[light color]" }
-    },
-    {
-      "type": "paragraph",
-      "content": { "text": "[Caption: photographer credit, location, or contextual note]" },
-      "style": { "fontSize": 11, "opacity": 0.5, "paddingX": 64, "paddingY": 16 }
-    }
-  ]
-}
+## PAGE-LEVEL COMPOSITION RULES
 
-### Story Index (table of contents)
-Shows 2-3 editorial entries with numbered kickers — like a magazine TOC. NOT a card grid with icons.
-{
-  "type": "section",
-  "name": "Story Index",
-  "style": {
-    "paddingX": 80,
-    "paddingY": 80,
-    "gap": 32,
-    "direction": "column"
-  },
-  "children": [
-    {
-      "type": "heading",
-      "content": { "kicker": "01", "text": "[Story title]", "subtext": "[One sentence description]" },
-      "style": { "fontSize": 28, "fontWeight": 400, "fontFamily": "[serif font]" }
-    },
-    {
-      "type": "heading",
-      "content": { "kicker": "02", "text": "[Story title]", "subtext": "[One sentence description]" },
-      "style": { "fontSize": 28, "fontWeight": 400, "fontFamily": "[serif font]" }
-    },
-    {
-      "type": "heading",
-      "content": { "kicker": "03", "text": "[Story title]", "subtext": "[One sentence description]" },
-      "style": { "fontSize": 28, "fontWeight": 400, "fontFamily": "[serif font]" }
-    }
-  ]
-}
+These rules govern how sections relate to each other. Following them prevents the "stack of blocks" problem.
 
-### Visual Collage (staggered image-text)
-Asymmetric composition with mixed-size elements — NOT a uniform grid.
-{
-  "type": "section",
-  "name": "Visual Collage",
-  "style": {
-    "paddingX": 48,
-    "paddingY": 64,
-    "direction": "row",
-    "gap": 24,
-    "columns": 2
-  },
-  "children": [
-    {
-      "type": "paragraph",
-      "content": { "text": "[Image: tall portrait photo, editorial styling]" },
-      "style": { "minHeight": 500, "background": "[muted tone]", "borderRadius": 4 }
-    },
-    {
-      "type": "heading",
-      "content": { "text": "[Short editorial caption or section title]", "subtext": "[Brief supporting text]" },
-      "style": { "fontSize": 24, "fontWeight": 400, "fontFamily": "[serif font]", "paddingY": 120 }
-    }
-  ]
-}
+1. **VISUAL RHYTHM**: Adjacent sections MUST contrast in visual weight.
+   - Image-heavy section → text-led section → image-heavy section
+   - Never put two image-heavy sections next to each other
+   - Never put two text-heavy sections next to each other
 
-IMPORTANT: These are PATTERNS, not exact templates. Vary the sizes, spacing, and composition. The point is the STRUCTURAL approach — asymmetry, photography dominance, large type, generous whitespace — not copying these exact values.
+2. **HEIGHT VARIATION**: Sections MUST vary in height.
+   - Hero: 600-700px (tallest)
+   - Feature spread: 400-500px
+   - Pullquote: 200-300px (shortest — a breath)
+   - Photo section: 400-600px
+   - Footer: minimal (60-80px)
+   - NEVER make all sections the same height
 
-SECTION COUNT: 4-6 sections total. Editorial sites have fewer, larger, more impactful sections. A 9-section template is a SaaS landing page, not a magazine.
+3. **WIDTH VARIATION**: Alternate between full-bleed and contained sections.
+   - Full-bleed: paddingX=0 (image fills edge to edge)
+   - Contained: paddingX=64-120 (text has margins)
+   - At least one section should be full-bleed (usually hero or a photo section)
 
-SECTION ORDERING: Lead with visual impact (photography or bold typography), alternate between image-heavy and text-heavy sections, end with a quiet editorial CTA (not a shouty "Start Free Trial" block).
+4. **BACKGROUND ALTERNATION**: Use at most 2-3 background colors across the page.
+   - Light → dark → light creates dramatic rhythm
+   - Don't alternate on every section — group 2-3 sections on the same background, then switch
+   - The pullquote or subscribe section is a good place to shift background
+
+5. **CTA TREATMENT**: Editorial sites do NOT have loud colored CTA blocks.
+   - Subscribe is a quiet, minimal section — one line of text + one understated button or inline text link
+   - NEVER use a full-width colored background for the CTA section
+   - NEVER use "Start Free Trial" or "Get Started" language
+   - Editorial CTAs: "Subscribe →", "Read the issue", "Join the list"
+
+6. **THE PAGE SHOULD FEEL LIKE ONE DESIGNED ARTIFACT**, not a sequence of independent blocks.
+   - Think of the page as a magazine spread that scrolls
+   - Each section should feel like it belongs to the next
+   - The reader should feel narrative momentum, not "here's another block"
+
+SECTION COUNT: 5-6 sections total. Editorial sites have fewer, larger, more impactful sections. A 9-section template is a SaaS landing page, not a magazine.
 
 COPY TONE: Write like a magazine editor, not a SaaS copywriter. No "supercharge your workflow" or "everything you need." Think: confident, understated, evocative.
 `;
@@ -745,7 +629,7 @@ A PageNode is a JSON object:
   "id": string,       // unique, e.g. "section-abc123"
   "type": PageNodeType,
   "name": string,     // human-readable label
-  "content": {        // optional — text content
+  "content": {        // optional — text content + media
     "text": string,
     "subtext": string,
     "kicker": string,
@@ -754,7 +638,9 @@ A PageNode is a JSON object:
     "price": string,
     "badge": string,
     "meta": string,
-    "icon": string
+    "icon": string,
+    "mediaUrl": "photo:description of desired image",   // use for ANY image — hero photos, editorial photography, product shots, portraits. Write a specific, descriptive prompt.
+    "mediaAlt": string   // accessible alt text for the image
   },
   "style": {          // optional — visual properties
     "background": string,    // hex color
@@ -817,6 +703,7 @@ Valid PageNodeType values:
 13. style.paddingX and style.paddingY are in pixels (40-80 typical). style.gap is in pixels (12-30 typical).
 14. For sections: borderRadius 14-30, minHeight 400-700 for hero, paddingX 40-64, paddingY 48-84
 15. For feature-grid/testimonial-grid/pricing-grid: set columns (2 or 3) and gap (14-24)
+16. IMAGES ARE CRITICAL: Use "mediaUrl": "photo:..." on section nodes and container nodes where images should appear. For editorial/portfolio archetypes, images should fill hero sections and alternate with text sections. Write specific photo descriptions like "photo:fashion model in dramatic side lighting, black and white, editorial portrait" not generic ones like "photo:image". Every section that should have a background image or featured image MUST use mediaUrl. Do NOT use paragraph nodes with gray backgrounds as image placeholders — use mediaUrl instead.
 
 ## Output
 Return ONLY valid JSON. No markdown fences. No explanation. Just the root PageNode object starting with {.`;

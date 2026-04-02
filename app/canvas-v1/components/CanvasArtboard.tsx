@@ -4,7 +4,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { ComposeDocumentView, exitAnyActiveTextEditing } from "./ComposeDocumentView";
-import { BREAKPOINT_WIDTHS, findNodeById } from "@/lib/canvas/compose";
+import { ComposeDocumentViewV6, exitAnyActiveTextEditingV6 } from "./ComposeDocumentViewV6";
+import { BREAKPOINT_WIDTHS, findNodeById, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
@@ -79,6 +80,18 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
     [dispatch, item.id, item.pageTree]
   );
 
+  const handleNodeStyleUpdate = React.useCallback(
+    (nodeId: string, style: Record<string, unknown>) => {
+      dispatch({
+        type: "UPDATE_NODE_STYLE",
+        artboardId: item.id,
+        nodeId,
+        style: style as import("@/lib/canvas/compose").PageNodeStyle,
+      });
+    },
+    [dispatch, item.id]
+  );
+
   const handleReplaceNodeImage = React.useCallback(
     (nodeId: string, file: File) => {
       const reader = new FileReader();
@@ -144,6 +157,7 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
           e.stopPropagation();
           if (!(e.target as HTMLElement).closest("[data-node-id]")) {
             exitAnyActiveTextEditing();
+            exitAnyActiveTextEditingV6();
             dispatch({ type: "SELECT_ITEM", itemId: item.id });
           }
         }}
@@ -186,6 +200,18 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
                 </span>
               </div>
             </div>
+          ) : tokens && isDesignNodeTree(item.pageTree) ? (
+            <ComposeDocumentViewV6
+              tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
+              selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
+              onSelectNode={handleNodeSelect}
+              onUpdateContent={handleNodeContentUpdate}
+              onUpdateNodeStyle={handleNodeStyleUpdate}
+              onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
+              artboardId={item.id}
+              zoom={state.viewport.zoom}
+              interactive
+            />
           ) : tokens ? (
             <ComposeDocumentView
               pageTree={item.pageTree}

@@ -283,19 +283,22 @@ function computeConfidence(
 }
 
 function fallbackTasteProfile(confidence = 0.42): TasteProfile {
+  // Generic fallback — intentionally neutral, not biased toward any archetype.
+  // Archetype-specific defaults in ARCHETYPE_DEFAULTS handle the gap-filling
+  // when Sonnet classifies correctly but omits some fields.
   return {
     summary:
-      "The project direction is intentional and system-led, with references pointing toward a refined, editorially controlled visual language. Preserve the existing palette and typography choices, then sharpen the layout and imagery to keep the result coherent rather than generic.",
-    adjectives: ["intentional", "editorial", "refined", "structured"],
-    archetypeMatch: "premium-saas",
+      "Direction could not be fully determined from references. Using neutral defaults — refine by adding more references or adjusting taste settings.",
+    adjectives: ["intentional", "structured", "considered", "restrained"],
+    archetypeMatch: "minimal-tech",
     archetypeConfidence: confidence,
     layoutBias: {
       density: "balanced",
       rhythm: "alternating",
       heroStyle: "contained",
       sectionFlow: "stacked",
-      gridBehavior: "strict",
-      whitespaceIntent: "structural",
+      gridBehavior: "fluid",
+      whitespaceIntent: "breathing",
     },
     typographyTraits: {
       scale: "expanded",
@@ -320,17 +323,17 @@ function fallbackTasteProfile(confidence = 0.42): TasteProfile {
       },
     },
     imageTreatment: {
-      style: "product",
+      style: "minimal",
       sizing: "contained",
       treatment: "raw",
       cornerRadius: "subtle",
-      borders: true,
-      shadow: "subtle",
+      borders: false,
+      shadow: "none",
       aspectPreference: "landscape",
     },
     ctaTone: {
       style: "understated",
-      shape: "subtle-radius",
+      shape: "sharp",
       hierarchy: "primary-dominant",
     },
     avoid: [
@@ -342,31 +345,242 @@ function fallbackTasteProfile(confidence = 0.42): TasteProfile {
     ],
     confidence,
     referenceCount: 0,
-    dominantReferenceType: "ui-screenshot",
+    dominantReferenceType: "mixed",
     warnings: ["Low reference count — profile may lack specificity"],
   };
 }
+
+// ── Archetype-aware defaults ─────────────────────────────────────────────────
+// When Sonnet returns an archetype but omits some fields, fill gaps from
+// archetype-appropriate defaults instead of the SaaS fallback.
+
+const ARCHETYPE_DEFAULTS: Record<string, {
+  layoutBias: Partial<TasteProfile["layoutBias"]>;
+  imageTreatment: Partial<TasteProfile["imageTreatment"]>;
+  typographyTraits: Partial<TasteProfile["typographyTraits"]>;
+  ctaTone: Partial<TasteProfile["ctaTone"]>;
+  colorBehavior: Partial<TasteProfile["colorBehavior"]>;
+}> = {
+  "editorial-brand": {
+    layoutBias: {
+      density: "spacious",
+      rhythm: "asymmetric",
+      heroStyle: "full-bleed",
+      sectionFlow: "editorial-grid",
+      gridBehavior: "editorial",
+      whitespaceIntent: "dramatic",
+    },
+    imageTreatment: {
+      style: "editorial",
+      sizing: "full-bleed",
+      treatment: "raw",
+      cornerRadius: "none",
+      borders: false,
+      shadow: "none",
+      aspectPreference: "mixed",
+    },
+    typographyTraits: {
+      scale: "dramatic",
+      headingTone: "editorial",
+      bodyTone: "literary",
+      contrast: "extreme",
+      casePreference: "mixed",
+    },
+    ctaTone: {
+      style: "editorial",
+      shape: "sharp",
+      hierarchy: "text-link-preferred",
+    },
+    colorBehavior: {
+      mode: "mixed",
+      palette: "restrained",
+      accentStrategy: "no-accent",
+      saturation: "muted",
+      temperature: "neutral",
+    },
+  },
+  "creative-portfolio": {
+    layoutBias: {
+      density: "spacious",
+      rhythm: "asymmetric",
+      heroStyle: "media-dominant",
+      sectionFlow: "editorial-grid",
+      gridBehavior: "broken",
+      whitespaceIntent: "dramatic",
+    },
+    imageTreatment: {
+      style: "editorial",
+      sizing: "mixed",
+      treatment: "raw",
+      cornerRadius: "none",
+      borders: false,
+      shadow: "none",
+      aspectPreference: "mixed",
+    },
+    typographyTraits: {
+      scale: "expanded",
+      headingTone: "display",
+      bodyTone: "neutral",
+      contrast: "high",
+      casePreference: "mixed",
+    },
+    ctaTone: {
+      style: "understated",
+      shape: "sharp",
+      hierarchy: "text-link-preferred",
+    },
+    colorBehavior: {
+      mode: "dark",
+      palette: "monochromatic",
+      accentStrategy: "single-pop",
+      saturation: "muted",
+      temperature: "cool",
+    },
+  },
+  "experimental": {
+    layoutBias: {
+      density: "dense",
+      rhythm: "asymmetric",
+      heroStyle: "text-dominant",
+      sectionFlow: "interlocking",
+      gridBehavior: "broken",
+      whitespaceIntent: "structural",
+    },
+    imageTreatment: {
+      style: "abstract",
+      sizing: "mixed",
+      treatment: "high-contrast",
+      cornerRadius: "none",
+      borders: false,
+      shadow: "none",
+      aspectPreference: "mixed",
+    },
+    typographyTraits: {
+      scale: "dramatic",
+      headingTone: "display",
+      bodyTone: "technical",
+      contrast: "extreme",
+      casePreference: "all-uppercase",
+    },
+    ctaTone: {
+      style: "bold",
+      shape: "sharp",
+      hierarchy: "primary-dominant",
+    },
+    colorBehavior: {
+      mode: "dark",
+      palette: "monochromatic",
+      accentStrategy: "single-pop",
+      saturation: "vivid",
+      temperature: "cool",
+    },
+  },
+  "culture-brand": {
+    layoutBias: {
+      density: "balanced",
+      rhythm: "alternating",
+      heroStyle: "full-bleed",
+      sectionFlow: "stacked",
+      gridBehavior: "fluid",
+      whitespaceIntent: "breathing",
+    },
+    imageTreatment: {
+      style: "documentary",
+      sizing: "full-bleed",
+      treatment: "raw",
+      cornerRadius: "subtle",
+      borders: false,
+      shadow: "subtle",
+      aspectPreference: "landscape",
+    },
+    typographyTraits: {
+      scale: "expanded",
+      headingTone: "humanist",
+      bodyTone: "warm",
+      contrast: "medium",
+      casePreference: "mixed",
+    },
+    ctaTone: {
+      style: "understated",
+      shape: "rounded",
+      hierarchy: "balanced",
+    },
+    colorBehavior: {
+      mode: "light",
+      palette: "analogous",
+      accentStrategy: "single-pop",
+      saturation: "moderate",
+      temperature: "warm",
+    },
+  },
+  "minimal-tech": {
+    layoutBias: {
+      density: "spacious",
+      rhythm: "uniform",
+      heroStyle: "text-dominant",
+      sectionFlow: "stacked",
+      gridBehavior: "strict",
+      whitespaceIntent: "structural",
+    },
+    imageTreatment: {
+      style: "product",
+      sizing: "contained",
+      treatment: "raw",
+      cornerRadius: "subtle",
+      borders: false,
+      shadow: "none",
+      aspectPreference: "landscape",
+    },
+    typographyTraits: {
+      scale: "expanded",
+      headingTone: "geometric",
+      bodyTone: "neutral",
+      contrast: "high",
+      casePreference: "mixed",
+    },
+    ctaTone: {
+      style: "technical",
+      shape: "sharp",
+      hierarchy: "primary-dominant",
+    },
+    colorBehavior: {
+      mode: "light",
+      palette: "monochromatic",
+      accentStrategy: "single-pop",
+      saturation: "desaturated",
+      temperature: "cool",
+    },
+  },
+};
 
 function normalizeTasteProfile(
   raw: Partial<TasteProfile>,
   fallback: TasteProfile,
   confidence: number
 ): TasteProfile {
+  // Use archetype-aware defaults when available, otherwise fall back to generic
+  const archetype = raw.archetypeMatch ?? fallback.archetypeMatch;
+  const archetypeDefaults = ARCHETYPE_DEFAULTS[archetype];
+
+  // Helper: pick from raw → archetype default → generic fallback
+  const pick = <T>(rawVal: T | undefined, archetypeVal: T | undefined, fallbackVal: T): T =>
+    rawVal ?? archetypeVal ?? fallbackVal;
+
   const layoutBias: TasteProfile["layoutBias"] = {
-    density: raw.layoutBias?.density ?? fallback.layoutBias.density,
-    rhythm: raw.layoutBias?.rhythm ?? fallback.layoutBias.rhythm,
-    heroStyle: raw.layoutBias?.heroStyle ?? fallback.layoutBias.heroStyle,
-    sectionFlow: raw.layoutBias?.sectionFlow ?? fallback.layoutBias.sectionFlow,
-    gridBehavior: raw.layoutBias?.gridBehavior ?? fallback.layoutBias.gridBehavior,
-    whitespaceIntent: raw.layoutBias?.whitespaceIntent ?? fallback.layoutBias.whitespaceIntent,
+    density: pick(raw.layoutBias?.density, archetypeDefaults?.layoutBias?.density, fallback.layoutBias.density),
+    rhythm: pick(raw.layoutBias?.rhythm, archetypeDefaults?.layoutBias?.rhythm, fallback.layoutBias.rhythm),
+    heroStyle: pick(raw.layoutBias?.heroStyle, archetypeDefaults?.layoutBias?.heroStyle, fallback.layoutBias.heroStyle),
+    sectionFlow: pick(raw.layoutBias?.sectionFlow, archetypeDefaults?.layoutBias?.sectionFlow, fallback.layoutBias.sectionFlow),
+    gridBehavior: pick(raw.layoutBias?.gridBehavior, archetypeDefaults?.layoutBias?.gridBehavior, fallback.layoutBias.gridBehavior),
+    whitespaceIntent: pick(raw.layoutBias?.whitespaceIntent, archetypeDefaults?.layoutBias?.whitespaceIntent, fallback.layoutBias.whitespaceIntent),
   };
 
   const typographyTraits: TasteProfile["typographyTraits"] = {
-    scale: raw.typographyTraits?.scale ?? fallback.typographyTraits.scale,
-    headingTone: raw.typographyTraits?.headingTone ?? fallback.typographyTraits.headingTone,
-    bodyTone: raw.typographyTraits?.bodyTone ?? fallback.typographyTraits.bodyTone,
-    contrast: raw.typographyTraits?.contrast ?? fallback.typographyTraits.contrast,
-    casePreference: raw.typographyTraits?.casePreference ?? fallback.typographyTraits.casePreference,
+    scale: pick(raw.typographyTraits?.scale, archetypeDefaults?.typographyTraits?.scale, fallback.typographyTraits.scale),
+    headingTone: pick(raw.typographyTraits?.headingTone, archetypeDefaults?.typographyTraits?.headingTone, fallback.typographyTraits.headingTone),
+    bodyTone: pick(raw.typographyTraits?.bodyTone, archetypeDefaults?.typographyTraits?.bodyTone, fallback.typographyTraits.bodyTone),
+    contrast: pick(raw.typographyTraits?.contrast, archetypeDefaults?.typographyTraits?.contrast, fallback.typographyTraits.contrast),
+    casePreference: pick(raw.typographyTraits?.casePreference, archetypeDefaults?.typographyTraits?.casePreference, fallback.typographyTraits.casePreference),
     recommendedPairings:
       raw.typographyTraits?.recommendedPairings?.length
         ? raw.typographyTraits.recommendedPairings
@@ -374,11 +588,11 @@ function normalizeTasteProfile(
   };
 
   const colorBehavior: TasteProfile["colorBehavior"] = {
-    mode: raw.colorBehavior?.mode ?? fallback.colorBehavior.mode,
-    palette: raw.colorBehavior?.palette ?? fallback.colorBehavior.palette,
-    accentStrategy: raw.colorBehavior?.accentStrategy ?? fallback.colorBehavior.accentStrategy,
-    saturation: raw.colorBehavior?.saturation ?? fallback.colorBehavior.saturation,
-    temperature: raw.colorBehavior?.temperature ?? fallback.colorBehavior.temperature,
+    mode: pick(raw.colorBehavior?.mode, archetypeDefaults?.colorBehavior?.mode, fallback.colorBehavior.mode),
+    palette: pick(raw.colorBehavior?.palette, archetypeDefaults?.colorBehavior?.palette, fallback.colorBehavior.palette),
+    accentStrategy: pick(raw.colorBehavior?.accentStrategy, archetypeDefaults?.colorBehavior?.accentStrategy, fallback.colorBehavior.accentStrategy),
+    saturation: pick(raw.colorBehavior?.saturation, archetypeDefaults?.colorBehavior?.saturation, fallback.colorBehavior.saturation),
+    temperature: pick(raw.colorBehavior?.temperature, archetypeDefaults?.colorBehavior?.temperature, fallback.colorBehavior.temperature),
     suggestedColors: {
       background:
         raw.colorBehavior?.suggestedColors?.background ??
@@ -399,19 +613,19 @@ function normalizeTasteProfile(
   };
 
   const imageTreatment: TasteProfile["imageTreatment"] = {
-    style: raw.imageTreatment?.style ?? fallback.imageTreatment.style,
-    sizing: raw.imageTreatment?.sizing ?? fallback.imageTreatment.sizing,
-    treatment: raw.imageTreatment?.treatment ?? fallback.imageTreatment.treatment,
-    cornerRadius: raw.imageTreatment?.cornerRadius ?? fallback.imageTreatment.cornerRadius,
-    borders: raw.imageTreatment?.borders ?? fallback.imageTreatment.borders,
-    shadow: raw.imageTreatment?.shadow ?? fallback.imageTreatment.shadow,
-    aspectPreference: raw.imageTreatment?.aspectPreference ?? fallback.imageTreatment.aspectPreference,
+    style: pick(raw.imageTreatment?.style, archetypeDefaults?.imageTreatment?.style, fallback.imageTreatment.style),
+    sizing: pick(raw.imageTreatment?.sizing, archetypeDefaults?.imageTreatment?.sizing, fallback.imageTreatment.sizing),
+    treatment: pick(raw.imageTreatment?.treatment, archetypeDefaults?.imageTreatment?.treatment, fallback.imageTreatment.treatment),
+    cornerRadius: pick(raw.imageTreatment?.cornerRadius, archetypeDefaults?.imageTreatment?.cornerRadius, fallback.imageTreatment.cornerRadius),
+    borders: raw.imageTreatment?.borders ?? archetypeDefaults?.imageTreatment?.borders ?? fallback.imageTreatment.borders,
+    shadow: pick(raw.imageTreatment?.shadow, archetypeDefaults?.imageTreatment?.shadow, fallback.imageTreatment.shadow),
+    aspectPreference: pick(raw.imageTreatment?.aspectPreference, archetypeDefaults?.imageTreatment?.aspectPreference, fallback.imageTreatment.aspectPreference),
   };
 
   const ctaTone: TasteProfile["ctaTone"] = {
-    style: raw.ctaTone?.style ?? fallback.ctaTone.style,
-    shape: raw.ctaTone?.shape ?? fallback.ctaTone.shape,
-    hierarchy: raw.ctaTone?.hierarchy ?? fallback.ctaTone.hierarchy,
+    style: pick(raw.ctaTone?.style, archetypeDefaults?.ctaTone?.style, fallback.ctaTone.style),
+    shape: pick(raw.ctaTone?.shape, archetypeDefaults?.ctaTone?.shape, fallback.ctaTone.shape),
+    hierarchy: pick(raw.ctaTone?.hierarchy, archetypeDefaults?.ctaTone?.hierarchy, fallback.ctaTone.hierarchy),
   };
 
   return {

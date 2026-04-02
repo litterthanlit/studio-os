@@ -10,14 +10,21 @@ import { useEffect } from "react";
 import type { CanvasAction } from "@/lib/canvas/canvas-reducer";
 import type { ArtboardItem, UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
 import {
+  isDesignNodeTree,
   findNodeById,
   findNodePath,
   findParentNode,
   type PageNodeStyle,
 } from "@/lib/canvas/compose";
+import { findDesignNodeById, findDesignNodeParent } from "@/lib/canvas/design-node";
 
 export const ENTER_TEXT_EDIT_MODE_EVENT = "studio:enter-edit-mode";
 export const FLASH_NODE_OUTLINES_EVENT = "studio:flash-node-outlines";
+
+type InlineTextEditEventDetail = {
+  artboardId: string;
+  nodeId: string;
+};
 
 type FlashNodeOutlinesEventDetail = {
   artboardId: string;
@@ -278,11 +285,33 @@ export function useCanvasKeyboard({
               item.kind === "artboard" && item.id === state.selection.activeArtboardId
           );
           if (artboard) {
-            const parent = findParentNode(artboard.pageTree, state.selection.selectedNodeId);
-            if (parent && parent.type !== "page") {
-              // Walk up to parent node
-              dispatch({ type: "SELECT_NODE", artboardId: state.selection.activeArtboardId, nodeId: parent.id });
-              return;
+            if (isDesignNodeTree(artboard.pageTree)) {
+              const parent = findDesignNodeParent(
+                artboard.pageTree,
+                state.selection.selectedNodeId
+              );
+              if (parent && parent.id !== artboard.pageTree.id) {
+                dispatch({
+                  type: "SELECT_NODE",
+                  artboardId: state.selection.activeArtboardId,
+                  nodeId: parent.id,
+                });
+                return;
+              }
+            } else {
+              const parent = findParentNode(
+                artboard.pageTree,
+                state.selection.selectedNodeId
+              );
+              if (parent && parent.type !== "page") {
+                // Walk up to parent node
+                dispatch({
+                  type: "SELECT_NODE",
+                  artboardId: state.selection.activeArtboardId,
+                  nodeId: parent.id,
+                });
+                return;
+              }
             }
           }
         }
@@ -321,27 +350,58 @@ export function useCanvasKeyboard({
           const activeArtboard = getActiveArtboard();
           if (!activeArtboard) return;
 
-          const selectedNode =
-            state.selection.selectedNodeId
-              ? findNodeById(activeArtboard.pageTree, state.selection.selectedNodeId)
-              : null;
+          if (state.selection.selectedNodeId) {
+            if (isDesignNodeTree(activeArtboard.pageTree)) {
+              const selectedNode = findDesignNodeById(
+                activeArtboard.pageTree,
+                state.selection.selectedNodeId
+              );
 
-          if (
-            selectedNode &&
-            (selectedNode.type === "heading" ||
-              selectedNode.type === "paragraph" ||
-              selectedNode.type === "button")
-          ) {
-            e.preventDefault();
-            window.dispatchEvent(
-              new CustomEvent(ENTER_TEXT_EDIT_MODE_EVENT, {
-                detail: {
-                  artboardId: activeArtboard.id,
-                  nodeId: selectedNode.id,
-                },
-              })
-            );
-            return;
+              if (
+                selectedNode &&
+                (selectedNode.type === "text" || selectedNode.type === "button")
+              ) {
+                e.preventDefault();
+                window.dispatchEvent(
+                  new CustomEvent<InlineTextEditEventDetail>(
+                    ENTER_TEXT_EDIT_MODE_EVENT,
+                    {
+                      detail: {
+                        artboardId: activeArtboard.id,
+                        nodeId: selectedNode.id,
+                      },
+                    }
+                  )
+                );
+                return;
+              }
+            } else {
+              const selectedNode = findNodeById(
+                activeArtboard.pageTree,
+                state.selection.selectedNodeId
+              );
+
+              if (
+                selectedNode &&
+                (selectedNode.type === "heading" ||
+                  selectedNode.type === "paragraph" ||
+                  selectedNode.type === "button")
+              ) {
+                e.preventDefault();
+                window.dispatchEvent(
+                  new CustomEvent<InlineTextEditEventDetail>(
+                    ENTER_TEXT_EDIT_MODE_EVENT,
+                    {
+                      detail: {
+                        artboardId: activeArtboard.id,
+                        nodeId: selectedNode.id,
+                      },
+                    }
+                  )
+                );
+                return;
+              }
+            }
           }
         }
 

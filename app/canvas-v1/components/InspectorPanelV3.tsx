@@ -23,7 +23,10 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { findNodeById, getNodeStyle, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
+import { findNodeById, getNodeStyle, BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
+import { findDesignNodeById } from "@/lib/canvas/design-node";
+import type { DesignNode } from "@/lib/canvas/design-node";
+import { DesignNodeInspector } from "./inspector/DesignNodeInspector";
 import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
 import { getProjectState, getProjectById, upsertProjectState } from "@/lib/project-store";
 import {
@@ -1329,6 +1332,7 @@ function PromptComposer({
           siteName: prompt.value.trim().slice(0, 50),
           tasteProfile: resolvedTaste,
           fidelityMode: "balanced",
+          useDesignNode: true,
         }),
       });
 
@@ -1636,12 +1640,19 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
     selectedItems.length === 1 ? selectedItems[0] : null;
 
   const activeArtboard = singleSelected?.kind === "artboard" ? singleSelected : null;
+  const isV6Tree = activeArtboard ? isDesignNodeTree(activeArtboard.pageTree) : false;
+
   const selectedNode: PageNode | null =
-    activeArtboard && selection.selectedNodeId
-      ? findNodeById(activeArtboard.pageTree, selection.selectedNodeId)
+    activeArtboard && selection.selectedNodeId && !isV6Tree
+      ? findNodeById(activeArtboard.pageTree as PageNode, selection.selectedNodeId)
       : null;
 
-  const isNodeInspector = Boolean(selectedNode && activeArtboard);
+  const selectedDesignNode: DesignNode | null =
+    activeArtboard && selection.selectedNodeId && isV6Tree
+      ? findDesignNodeById(activeArtboard.pageTree as unknown as DesignNode, selection.selectedNodeId)
+      : null;
+
+  const isNodeInspector = Boolean((selectedNode || selectedDesignNode) && activeArtboard);
 
   // ── Header: zoom + node type ──────────────────────────────────────
   const zoomPercent = Math.round(state.viewport.zoom * 100);
@@ -1659,13 +1670,23 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
   const showBreakpointBadge = artboardBreakpoint !== "desktop";
 
   const resolvedStyle: PageNodeStyle | null = React.useMemo(() => {
-    if (!selectedNode || !activeArtboard) return null;
-    return getNodeStyle(selectedNode, activeArtboard.breakpoint);
-  }, [selectedNode, activeArtboard]);
+    if (!activeArtboard) return null;
+    if (selectedNode) return getNodeStyle(selectedNode, activeArtboard.breakpoint);
+    if (selectedDesignNode) return selectedDesignNode.style as unknown as PageNodeStyle;
+    return null;
+  }, [selectedNode, selectedDesignNode, activeArtboard]);
 
   let inspectorContent: React.ReactNode;
 
-  if (selectedNode && activeArtboard) {
+  if (selectedDesignNode && activeArtboard) {
+    inspectorContent = (
+      <DesignNodeInspector
+        artboard={activeArtboard}
+        node={selectedDesignNode}
+        documentColors={documentColors}
+      />
+    );
+  } else if (selectedNode && activeArtboard) {
     inspectorContent = (
       <InspectorSkeleton
         artboard={activeArtboard}
@@ -1765,8 +1786,8 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
     >
       {/* Header area */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] shrink-0">
-        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", selectedNode ? "text-[#1A1A1A]" : "text-[#A0A0A0]")}>
-          {selectedNode ? formatNodeType(selectedNode.type) : "No Selection"}
+        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNode) ? "text-[#1A1A1A]" : "text-[#A0A0A0]")}>
+          {selectedDesignNode ? `${selectedDesignNode.type} — ${selectedDesignNode.name}` : selectedNode ? formatNodeType(selectedNode.type) : "No Selection"}
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <span

@@ -9,12 +9,15 @@ import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
-  CreditCard, Layers, Image as ImageIcon, StickyNote,
+  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
+import { BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { PageNode } from "@/lib/canvas/compose";
+import type { DesignNode } from "@/lib/canvas/design-node";
+import { findDesignNodeParent } from "@/lib/canvas/design-node";
+import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 
 // ─── Node type → icon ────────────────────────────────────────────────────────
@@ -39,6 +42,71 @@ function NodeIcon({ type }: { type: PageNode["type"] }) {
 function formatLabel(node: PageNode): string {
   const content = node.content?.text || node.content?.label || node.name;
   return content.length > 28 ? `${content.slice(0, 28)}…` : content;
+}
+
+// ─── DesignNode type → icon ─────────────────────────────────────────────────
+
+function DesignNodeIcon({ type }: { type: DesignNode["type"] }) {
+  const cls = "shrink-0 text-[#A0A0A0]";
+  const props = { size: 14, strokeWidth: 1.5, className: cls } as const;
+  switch (type) {
+    case "frame": return <Layers {...props} />;
+    case "text": return <Type {...props} />;
+    case "image": return <ImageIcon {...props} />;
+    case "button": return <RectangleHorizontal {...props} />;
+    case "divider": return <Minus {...props} />;
+    default: return <Layout {...props} />;
+  }
+}
+
+function formatDesignNodeLabel(node: DesignNode): string {
+  const label = node.name || node.content?.text || node.type;
+  return label.length > 28 ? `${label.slice(0, 28)}…` : label;
+}
+
+// ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
+
+function DesignTreeNode({
+  node, depth, selectedNodeId, artboardId, onSelectNode, onContextMenu,
+}: {
+  node: DesignNode; depth: number; selectedNodeId: string | null;
+  artboardId: string; onSelectNode: (artboardId: string, nodeId: string) => void;
+  onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
+}) {
+  const hasChildren = node.children && node.children.length > 0;
+  const [expanded, setExpanded] = React.useState(depth < 2);
+  const isSelected = selectedNodeId === node.id;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onSelectNode(artboardId, node.id)}
+        onContextMenu={(e) => onContextMenu?.(node, artboardId, e)}
+        className={cn(
+          "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
+          isSelected
+            ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
+            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+        )}
+        style={{ height: 26, paddingLeft: depth * 12 + (hasChildren ? 4 : 16) }}
+      >
+        {hasChildren && (
+          <span
+            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm hover:bg-[#E5E5E0]"
+          >
+            <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", expanded && "rotate-90")} />
+          </span>
+        )}
+        <DesignNodeIcon type={node.type} />
+        <span className="min-w-0 flex-1 truncate text-[11px]">{formatDesignNodeLabel(node)}</span>
+      </button>
+      {expanded && hasChildren && node.children!.map((child) => (
+        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} onContextMenu={onContextMenu} />
+      ))}
+    </>
+  );
 }
 
 function BreakpointIcon({ bp }: { bp: string }) {
@@ -134,6 +202,23 @@ export function LayersPanelV3() {
     dispatch({ type: "SELECT_NODE", artboardId, nodeId });
   };
 
+  // ── DesignNode context menu ──
+  const [dnContextMenu, setDnContextMenu] = React.useState<{
+    node: DesignNode;
+    artboardId: string;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  const handleDesignNodeContextMenu = React.useCallback(
+    (node: DesignNode, artboardId: string, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dispatch({ type: "SELECT_NODE", artboardId, nodeId: node.id });
+      setDnContextMenu({ node, artboardId, position: { x: event.clientX, y: event.clientY } });
+    },
+    [dispatch]
+  );
+
   return (
     <div
       className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
@@ -163,17 +248,30 @@ export function LayersPanelV3() {
                       {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
                     </span>
                   </button>
-                  {/* Page tree */}
-                  {artboard.pageTree.children?.map((child) => (
-                    <TreeNode
-                      key={child.id}
-                      node={child}
-                      depth={2}
-                      selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
-                      artboardId={artboard.id}
-                      onSelectNode={handleSelectNode}
-                    />
-                  ))}
+                  {/* Page tree — DesignNode or PageNode */}
+                  {isDesignNodeTree(artboard.pageTree)
+                    ? (artboard.pageTree as DesignNode).children?.map((child) => (
+                        <DesignTreeNode
+                          key={child.id}
+                          node={child}
+                          depth={2}
+                          selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                          artboardId={artboard.id}
+                          onSelectNode={handleSelectNode}
+                          onContextMenu={handleDesignNodeContextMenu}
+                        />
+                      ))
+                    : artboard.pageTree.children?.map((child) => (
+                        <TreeNode
+                          key={child.id}
+                          node={child}
+                          depth={2}
+                          selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                          artboardId={artboard.id}
+                          onSelectNode={handleSelectNode}
+                        />
+                      ))
+                  }
                 </div>
               ))}
             </Group>
@@ -229,6 +327,48 @@ export function LayersPanelV3() {
           )}
         </div>
       </div>
+
+      {/* DesignNode context menu */}
+      {dnContextMenu && (() => {
+        const artboard = artboards.find((a) => a.id === dnContextMenu.artboardId);
+        if (!artboard || !isDesignNodeTree(artboard.pageTree)) return null;
+        const tree = artboard.pageTree as DesignNode;
+        const parent = findDesignNodeParent(tree, dnContextMenu.node.id);
+        const siblings = parent?.children ?? tree.children ?? [];
+        const idx = siblings.findIndex((c) => c.id === dnContextMenu.node.id);
+        const bp = artboard.breakpoint;
+
+        return (
+          <DesignNodeContextMenu
+            node={dnContextMenu.node}
+            position={dnContextMenu.position}
+            breakpoint={bp}
+            isFirst={idx === 0}
+            isLast={idx === siblings.length - 1}
+            isHidden={Boolean(dnContextMenu.node.hidden?.[bp])}
+            onDuplicate={() => { dispatch({ type: "DUPLICATE_SECTION", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onDelete={() => { dispatch({ type: "DELETE_SECTION", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onMoveUp={() => {
+              if (idx > 0 && parent) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx - 1, parentNodeId: parent.id });
+              } else if (idx > 0) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx - 1 });
+              }
+              setDnContextMenu(null);
+            }}
+            onMoveDown={() => {
+              if (idx < siblings.length - 1 && parent) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx + 1, parentNodeId: parent.id });
+              } else if (idx < siblings.length - 1) {
+                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx + 1 });
+              }
+              setDnContextMenu(null);
+            }}
+            onToggleVisibility={() => { dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, breakpoint: bp }); setDnContextMenu(null); }}
+            onDismiss={() => setDnContextMenu(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

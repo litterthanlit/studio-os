@@ -7,6 +7,7 @@
  */
 
 import type { PageNode } from "./compose";
+import type { DesignNode } from "./design-node";
 import type { SiteType } from "./templates";
 import {
   listProjectReferences,
@@ -81,7 +82,7 @@ export type ArtboardItem = BaseCanvasItem & {
   siteId: string;
   breakpoint: Breakpoint;
   name: string;
-  pageTree: PageNode;
+  pageTree: PageNode | DesignNode;
   compiledCode?: string | null;
 };
 

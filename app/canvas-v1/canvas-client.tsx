@@ -3741,6 +3741,7 @@ export function CanvasPage({
           siteName: setName || inferSiteName(promptValue),
           variantStrategy,
           regenerationIntent,
+          useDesignNode: true,
         }),
       });
 

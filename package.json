@@ -8,12 +8,18 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "supabase db push",
-    "generate:marketing-images": "npx tsx scripts/generate-marketing-images.ts"
+    "generate:marketing-images": "npx tsx scripts/generate-marketing-images.ts",
+    "benchmark": "npx tsx scripts/benchmark-harness.ts",
+    "benchmark:preflight": "npx tsx scripts/benchmark-harness.ts --preflight",
+    "benchmark:v6": "npx tsx scripts/benchmark-harness.ts --v6",
+    "benchmark:v5": "npx tsx scripts/benchmark-harness.ts --v5",
+    "benchmark:compare": "npx tsx scripts/benchmark-harness.ts --compare"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@google/genai": "^1.45.0",
     "@google/generative-ai": "^0.24.1",
+    "@next/swc-linux-arm64-gnu": "^16.2.1",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
@@ -39,9 +45,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "agentation": "^3.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

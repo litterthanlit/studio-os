@@ -18,9 +18,67 @@ import {
   type PageNode,
 } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
+import { resolveMediaUrls } from "@/lib/canvas/media-resolver";
 import type { TasteProfile } from "@/types/taste-profile";
 import { callModel, getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
 import { scoreRealtimeFidelity, type TasteFidelityScore } from "@/lib/canvas/taste-evaluator";
+
+// ── V6 DesignNode pipeline imports ──
+import type { DesignNode } from "@/lib/canvas/design-node";
+import { buildDesignTreePrompt, buildDesignPushedVariantPrompt, buildDesignRestructuredVariantPrompt } from "@/lib/canvas/design-tree-prompt";
+import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
+import { resolveDesignMediaUrls } from "@/lib/canvas/design-media-resolver";
+
+// ─── Truncated JSON Recovery ────────────────────────────────────────────────
+
+/**
+ * Attempt to recover a truncated JSON string by closing unclosed braces/brackets.
+ * Returns the patched JSON string if JSON.parse succeeds, null otherwise.
+ */
+function tryRecoverTruncatedJSON(raw: string): string | null {
+  // Extract the JSON object start
+  const jsonStart = raw.match(/\{[\s\S]*/);
+  if (!jsonStart) return null;
+
+  let str = jsonStart[0];
+
+  // Strip any trailing incomplete string literal (e.g. `"some truncated tex`)
+  // by removing a dangling open quote that isn't closed
+  str = str.replace(/"[^"]*$/, '""');
+
+  // Remove trailing comma before we close brackets
+  str = str.replace(/,\s*$/, '');
+
+  // Count unclosed braces and brackets
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (escapeNext) { escapeNext = false; continue; }
+    if (ch === '\\' && inString) { escapeNext = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') openBraces++;
+    else if (ch === '}') openBraces--;
+    else if (ch === '[') openBrackets++;
+    else if (ch === ']') openBrackets--;
+  }
+
+  // Append needed closing characters
+  // Close brackets first (inner), then braces (outer)
+  for (let i = 0; i < openBrackets; i++) str += ']';
+  for (let i = 0; i < openBraces; i++) str += '}';
+
+  try {
+    JSON.parse(str);
+    return str;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Tree Debug Logging ─────────────────────────────────────────────────────
 
@@ -227,6 +285,7 @@ export async function POST(req: NextRequest) {
       variantStrategy,
       regenerationIntent,
       fidelityMode,
+      useDesignNode,
     } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
@@ -240,6 +299,7 @@ export async function POST(req: NextRequest) {
       variantStrategy?: VariantMode;
       regenerationIntent?: "more-like-this" | "different-approach";
       fidelityMode?: FidelityMode;
+      useDesignNode?: boolean;
     };
 
     console.log(`[GEN DEBUG] generate-component called: mode=${mode}, prompt="${prompt?.slice(0, 60)}...", tasteProfile=${tasteProfile ? "YES" : "NULL"}, referenceUrls=${referenceUrls?.length ?? 0}, OPENROUTER_API_KEY=${!!process.env.OPENROUTER_API_KEY}`);
@@ -262,6 +322,195 @@ export async function POST(req: NextRequest) {
 
     if (mode === "variants") {
       const resolvedSiteName = siteName || inferSiteName(prompt);
+
+      // ── V6 DesignNode Generation Path ──────────────────────────────────
+      if (useDesignNode && process.env.OPENROUTER_API_KEY) {
+        console.log(`[V6-GEN] Starting DesignNode generation for "${resolvedSiteName}"`);
+
+        const designPrompt = buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
+          variantMode: "safe",
+          tasteProfile: tasteProfile ?? null,
+          fidelityMode: fidelityMode ?? "balanced",
+        });
+
+        console.log(`[V6-GEN] Prompt length: ${designPrompt.length} chars`);
+
+        const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+          .slice(0, 4)
+          .map((url) => imageUrlBlock(url, "low"));
+
+        // ── Generate base DesignNode tree ──
+        let baseTree: DesignNode | null = null;
+        try {
+          const router = getRouter();
+          const response = await router.chat.completions.create({
+            model: SONNET_4_6,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "text", text: designPrompt },
+                ...referenceImageBlocks,
+              ],
+            }],
+            max_tokens: 16000,
+            temperature: 0.5,
+            response_format: { type: "json_object" },
+          });
+
+          const raw = response.choices[0]?.message?.content ?? "";
+          const finishReason = response.choices[0]?.finish_reason;
+          console.log(`[V6-GEN] Response: ${raw.length} chars, finish_reason: ${finishReason}`);
+
+          if (raw.length === 0) throw new Error("Empty response");
+
+          // Handle truncation
+          let jsonStr = raw;
+          if (finishReason === "length") {
+            console.warn(`[V6-GEN] Truncated — attempting recovery`);
+            const recovered = tryRecoverTruncatedJSON(raw);
+            if (recovered) {
+              jsonStr = recovered;
+              console.log(`[V6-GEN] Recovery succeeded (${recovered.length} chars)`);
+            } else {
+              throw new Error("Truncated and recovery failed");
+            }
+          }
+
+          const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error("No JSON found");
+
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch {
+            const recovered = tryRecoverTruncatedJSON(jsonStr);
+            if (recovered) parsed = JSON.parse(recovered);
+            else throw new Error("JSON parse failed");
+          }
+
+          const validated = validateAndNormalizeDesignTree(parsed);
+          if (!validated.ok) throw new Error(`Validation failed: ${validated.reason}`);
+
+          baseTree = validated.tree;
+          console.log(`[V6-GEN] Base tree validated: ${baseTree.children?.length ?? 0} sections`);
+        } catch (err) {
+          console.error(`[V6-GEN] Base generation failed:`, err instanceof Error ? err.message : err);
+        }
+
+        if (baseTree) {
+          // Resolve media
+          baseTree = await resolveDesignMediaUrls(baseTree);
+          console.log(`[V6-GEN] Media resolved`);
+
+          // Derive pushed + restructured variants in parallel
+          let pushedTree: DesignNode = JSON.parse(JSON.stringify(baseTree));
+          let restructuredTree: DesignNode = JSON.parse(JSON.stringify(baseTree));
+
+          if (tasteProfile) {
+            const [pushedResult, restructuredResult] = await Promise.allSettled([
+              callModel({
+                model: SONNET_4_6,
+                messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree, tasteProfile) }],
+                maxTokens: 16000,
+                temperature: 0.4,
+                jsonMode: true,
+              }),
+              callModel({
+                model: SONNET_4_6,
+                messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree, tasteProfile) }],
+                maxTokens: 16000,
+                temperature: 0.5,
+                jsonMode: true,
+              }),
+            ]);
+
+            // Parse pushed
+            if (pushedResult.status === "fulfilled") {
+              try {
+                const jsonMatch = pushedResult.value.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  let parsed: unknown;
+                  try { parsed = JSON.parse(jsonMatch[0]); } catch {
+                    const rec = tryRecoverTruncatedJSON(pushedResult.value);
+                    if (rec) parsed = JSON.parse(rec); else throw new Error("parse failed");
+                  }
+                  const v = validateAndNormalizeDesignTree(parsed);
+                  if (v.ok) {
+                    pushedTree = await resolveDesignMediaUrls(v.tree);
+                    console.log(`[V6-GEN] Pushed variant OK`);
+                  }
+                }
+              } catch (e) { console.warn(`[V6-GEN] Pushed variant failed:`, e); }
+            }
+
+            // Parse restructured
+            if (restructuredResult.status === "fulfilled") {
+              try {
+                const jsonMatch = restructuredResult.value.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  let parsed: unknown;
+                  try { parsed = JSON.parse(jsonMatch[0]); } catch {
+                    const rec = tryRecoverTruncatedJSON(restructuredResult.value);
+                    if (rec) parsed = JSON.parse(rec); else throw new Error("parse failed");
+                  }
+                  const v = validateAndNormalizeDesignTree(parsed);
+                  if (v.ok) {
+                    restructuredTree = await resolveDesignMediaUrls(v.tree);
+                    console.log(`[V6-GEN] Restructured variant OK`);
+                  }
+                }
+              } catch (e) { console.warn(`[V6-GEN] Restructured variant failed:`, e); }
+            }
+          }
+
+          // Assemble response — same shape as PageNode variants
+          const variants = [
+            {
+              id: `v6-base-${Date.now()}`,
+              name: "Variant A — Faithful",
+              pageTree: baseTree,
+              pageTreeSource: "ai" as const,
+              description: "V6 DesignNode — editorial quality generation.",
+              previewImage: createVariantPreviewImage("Faithful", tokens),
+              sourcePrompt: prompt,
+              createdAt: new Date().toISOString(),
+              strategy: "safe" as VariantMode,
+              strategyLabel: "Faithful",
+            },
+            {
+              id: `v6-pushed-${Date.now()}`,
+              name: "Variant B — Pushed",
+              pageTree: pushedTree,
+              pageTreeSource: "ai" as const,
+              description: "V6 DesignNode — bolder interpretation.",
+              previewImage: createVariantPreviewImage("Pushed", tokens),
+              sourcePrompt: prompt,
+              createdAt: new Date().toISOString(),
+              strategy: "creative" as VariantMode,
+              strategyLabel: "Pushed",
+            },
+            {
+              id: `v6-restructured-${Date.now()}`,
+              name: "Variant C — Restructured",
+              pageTree: restructuredTree,
+              pageTreeSource: "ai" as const,
+              description: "V6 DesignNode — different layout, same taste.",
+              previewImage: createVariantPreviewImage("Restructured", tokens),
+              sourcePrompt: prompt,
+              createdAt: new Date().toISOString(),
+              strategy: "alternative" as VariantMode,
+              strategyLabel: "Restructured",
+            },
+          ];
+
+          console.log(`[V6-GEN] Complete — returning 3 DesignNode variants`);
+          return NextResponse.json({ siteName: resolvedSiteName, variants });
+        } else {
+          console.warn(`[V6-GEN] DesignNode generation failed — falling through to PageNode path`);
+        }
+      }
+      // ── End V6 DesignNode Path ──────────────────────────────────────────
+
       const regenerationNote =
         regenerationIntent === "more-like-this"
           ? "Strengthen the same direction, double down on its taste alignment, and sharpen what already works."
@@ -317,7 +566,7 @@ export async function POST(req: NextRequest) {
           .map((url) => imageUrlBlock(url, "low"));
 
         // ── Step 1: Generate BASE variant (full generation) ──
-        const generateBaseTree = async (temperature: number): Promise<PageNode | null> => {
+        const generateBaseTree = async (temperature: number, opts?: { skipImages?: boolean; maxTokensOverride?: number }): Promise<PageNode | null> => {
           try {
             const treePrompt = buildPageTreePrompt(
               tokens,
@@ -329,7 +578,9 @@ export async function POST(req: NextRequest) {
                 fidelityMode: fidelityMode ?? "balanced",
               }
             );
-            console.log(`[GEN DEBUG] Calling Sonnet for BASE PageNode tree: temp=${temperature}, prompt=${treePrompt.length} chars`);
+            const imageBlocks = opts?.skipImages ? [] : referenceImageBlocks;
+            const maxTok = opts?.maxTokensOverride ?? 16000;
+            console.log(`[GEN DEBUG] Calling Sonnet for BASE PageNode tree: temp=${temperature}, prompt=${treePrompt.length} chars, images=${imageBlocks.length}, max_tokens=${maxTok}`);
 
             const router = getRouter();
             const response = await router.chat.completions.create({
@@ -338,34 +589,81 @@ export async function POST(req: NextRequest) {
                 role: "user",
                 content: [
                   { type: "text", text: treePrompt },
-                  ...referenceImageBlocks,
+                  ...imageBlocks,
                 ],
               }],
-              max_tokens: 8000,
+              max_tokens: maxTok,
               temperature,
               response_format: { type: "json_object" },
             });
 
             const raw = response.choices[0]?.message?.content ?? "";
-            console.log(`[GEN DEBUG] BASE tree response: ${raw.length} chars, finish_reason: ${response.choices[0]?.finish_reason}`);
+            const finishReason = response.choices[0]?.finish_reason;
+            console.log(`[GEN DEBUG] BASE tree response: ${raw.length} chars, finish_reason: ${finishReason}`);
             if (raw.length === 0) throw new Error("Empty PageNode tree response");
+
+            // Detect truncation
+            if (finishReason === "length") {
+              console.warn(`[GEN DEBUG] BASE tree truncated (finish_reason=length) — attempting JSON recovery`);
+              const recovered = tryRecoverTruncatedJSON(raw);
+              if (recovered) {
+                console.log(`[GEN DEBUG] BASE tree JSON recovery succeeded (${recovered.length} chars)`);
+                const parsed = JSON.parse(recovered);
+                const validation = validateAndNormalizePageTree(parsed);
+                if (validation.ok) return validation.tree as PageNode;
+                console.warn(`[GEN DEBUG] BASE tree recovered JSON invalid: ${validation.reason}`);
+              } else {
+                console.warn(`[GEN DEBUG] BASE tree JSON recovery failed`);
+              }
+              // Signal truncation to caller
+              throw Object.assign(new Error("PageNode tree truncated"), { truncated: true });
+            }
 
             const jsonMatch = raw.match(/\{[\s\S]*\}/);
             if (!jsonMatch) throw new Error("No JSON found in PageNode tree response");
 
-            const parsed = JSON.parse(jsonMatch[0]);
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(jsonMatch[0]);
+            } catch {
+              // Try recovery on malformed but non-truncated JSON
+              const recovered = tryRecoverTruncatedJSON(raw);
+              if (recovered) {
+                console.log(`[GEN DEBUG] BASE tree JSON recovery succeeded on parse error (${recovered.length} chars)`);
+                parsed = JSON.parse(recovered);
+              } else {
+                throw new Error("JSON parse failed and recovery unsuccessful");
+              }
+            }
+
             const validation = validateAndNormalizePageTree(parsed);
             if (!validation.ok) throw new Error(`PageNode tree invalid: ${validation.reason}`);
 
             return validation.tree as PageNode;
           } catch (err) {
             console.error(`[GEN DEBUG] BASE tree generation failed:`, err instanceof Error ? err.message : err);
+            // Re-throw truncation errors so the caller can retry
+            if (err && typeof err === "object" && "truncated" in err) throw err;
             return null;
           }
         };
 
         // First attempt
-        let candidateTree = await generateBaseTree(0.5);
+        let candidateTree: PageNode | null = null;
+        try {
+          candidateTree = await generateBaseTree(0.5);
+        } catch (err) {
+          if (err && typeof err === "object" && "truncated" in err) {
+            // Retry once without reference images and with higher token limit
+            console.warn(`[GEN DEBUG] BASE tree truncated (finish_reason=length) — retrying with reduced prompt`);
+            try {
+              candidateTree = await generateBaseTree(0.5, { skipImages: true, maxTokensOverride: 24000 });
+            } catch (retryErr) {
+              console.error(`[GEN DEBUG] BASE tree truncation retry also failed:`, retryErr instanceof Error ? retryErr.message : retryErr);
+              candidateTree = null;
+            }
+          }
+        }
 
         if (candidateTree) {
           baseTree = candidateTree;
@@ -402,6 +700,9 @@ export async function POST(req: NextRequest) {
             baseTree = fallbackTrees[0];
             baseTreeSource = "template";
           }
+
+          // Resolve photo intent strings to real image URLs
+          baseTree = await resolveMediaUrls(baseTree);
 
           // ── Step 3: Score ──
           if (tasteProfile && baseTreeSource !== "template") {
@@ -470,14 +771,14 @@ export async function POST(req: NextRequest) {
             callModel({
               model: SONNET_4_6,
               messages: [{ role: "user", content: pushedPrompt }],
-              maxTokens: 8000,
+              maxTokens: 16000,
               temperature: 0.4,
               jsonMode: true,
             }),
             callModel({
               model: SONNET_4_6,
               messages: [{ role: "user", content: restructuredPrompt }],
-              maxTokens: 8000,
+              maxTokens: 16000,
               temperature: 0.5,
               jsonMode: true,
             }),
@@ -486,9 +787,22 @@ export async function POST(req: NextRequest) {
           // Parse pushed variant
           if (pushedResult.status === "fulfilled") {
             try {
-              const jsonMatch = pushedResult.value.match(/\{[\s\S]*\}/);
+              const rawPushed = pushedResult.value;
+              const jsonMatch = rawPushed.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
+                let parsed: unknown;
+                try {
+                  parsed = JSON.parse(jsonMatch[0]);
+                } catch {
+                  console.warn(`[GEN DEBUG] PUSHED variant JSON parse failed — attempting recovery`);
+                  const recovered = tryRecoverTruncatedJSON(rawPushed);
+                  if (recovered) {
+                    console.log(`[GEN DEBUG] PUSHED variant JSON recovery succeeded (${recovered.length} chars)`);
+                    parsed = JSON.parse(recovered);
+                  } else {
+                    throw new Error("PUSHED JSON parse failed and recovery unsuccessful");
+                  }
+                }
                 const normalized = validateAndNormalizePageTree(parsed);
                 if (normalized.ok) {
                   let tree = normalized.tree as PageNode;
@@ -506,6 +820,8 @@ export async function POST(req: NextRequest) {
                   }
 
                   pushedTree = tree;
+                  // Resolve photo intent strings to real image URLs
+                  pushedTree = await resolveMediaUrls(pushedTree);
                   logTreeStructure("PUSHED variant", pushedTree);
                   console.log(`[GEN DEBUG] PUSHED variant OK: validation=${pv.score}, source=${pushedTreeSource}`);
                 } else {
@@ -522,9 +838,22 @@ export async function POST(req: NextRequest) {
           // Parse restructured variant
           if (restructuredResult.status === "fulfilled") {
             try {
-              const jsonMatch = restructuredResult.value.match(/\{[\s\S]*\}/);
+              const rawRestructured = restructuredResult.value;
+              const jsonMatch = rawRestructured.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
+                let parsed: unknown;
+                try {
+                  parsed = JSON.parse(jsonMatch[0]);
+                } catch {
+                  console.warn(`[GEN DEBUG] RESTRUCTURED variant JSON parse failed — attempting recovery`);
+                  const recovered = tryRecoverTruncatedJSON(rawRestructured);
+                  if (recovered) {
+                    console.log(`[GEN DEBUG] RESTRUCTURED variant JSON recovery succeeded (${recovered.length} chars)`);
+                    parsed = JSON.parse(recovered);
+                  } else {
+                    throw new Error("RESTRUCTURED JSON parse failed and recovery unsuccessful");
+                  }
+                }
                 const normalized = validateAndNormalizePageTree(parsed);
                 if (normalized.ok) {
                   let tree = normalized.tree as PageNode;
@@ -542,6 +871,8 @@ export async function POST(req: NextRequest) {
                   }
 
                   restructuredTree = tree;
+                  // Resolve photo intent strings to real image URLs
+                  restructuredTree = await resolveMediaUrls(restructuredTree);
                   logTreeStructure("RESTRUCTURED variant", restructuredTree);
                   console.log(`[GEN DEBUG] RESTRUCTURED variant OK: validation=${rv.score}, source=${restructuredTreeSource}`);
                 } else {

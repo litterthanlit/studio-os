@@ -1,7 +1,7 @@
 "use client";
 
 type BreakpointBadgeProps = {
-  breakpoint: "mobile";
+  breakpoint: string;
   width: number;
 };
 

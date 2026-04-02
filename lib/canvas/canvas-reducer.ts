@@ -6,6 +6,7 @@
  */
 
 import type { PageNode, PageNodeStyle, Breakpoint } from "./compose";
+import type { DesignNode } from "./design-node";
 import type {
   UnifiedCanvasState,
   CanvasItem,
@@ -98,6 +99,9 @@ function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Tree node union — both PageNode and DesignNode share .id, .children, .type, .name
+type TreeNode = PageNode | DesignNode;
+
 function now(): string {
   return new Date().toISOString();
 }
@@ -109,16 +113,16 @@ function isTextNodeType(type: PageNode["type"]): boolean {
 /**
  * Recursively update a node within a PageNode tree by nodeId.
  */
-function updateNodeInTree(
-  node: PageNode,
+function updateNodeInTree<T extends TreeNode>(
+  node: T,
   nodeId: string,
-  updater: (n: PageNode) => PageNode
-): PageNode {
+  updater: (n: T) => T
+): T {
   if (node.id === nodeId) return updater(node);
   if (!node.children) return node;
 
   const updatedChildren = node.children.map((child) =>
-    updateNodeInTree(child, nodeId, updater)
+    updateNodeInTree(child as T, nodeId, updater)
   );
 
   // Only create a new object if a child actually changed
@@ -126,16 +130,19 @@ function updateNodeInTree(
     return node;
   }
 
-  return { ...node, children: updatedChildren };
+  return { ...node, children: updatedChildren } as T;
 }
 
 function reorderTopLevelSections(
-  pageTree: PageNode,
+  pageTree: TreeNode,
   nodeId: string,
   newIndex: number
-): PageNode | null {
+): TreeNode | null {
   const children = pageTree.children ?? [];
-  const topLevelSections = children.filter((child) => child.type === "section");
+  // PageNode trees: only reorder "section" type children
+  // DesignNode trees: all top-level children are sections (frames)
+  const isDesignTree = pageTree.type !== "page";
+  const topLevelSections = isDesignTree ? children : children.filter((child) => child.type === "section");
   const currentIndex = topLevelSections.findIndex((child) => child.id === nodeId);
 
   if (
@@ -152,9 +159,11 @@ function reorderTopLevelSections(
   reorderedSections.splice(newIndex, 0, movedSection);
 
   let sectionCursor = 0;
-  const nextChildren = children.map((child) =>
-    child.type === "section" ? reorderedSections[sectionCursor++] : child
-  );
+  const nextChildren = isDesignTree
+    ? reorderedSections
+    : children.map((child) =>
+        child.type === "section" ? reorderedSections[sectionCursor++] : child
+      );
 
   return {
     ...pageTree,
@@ -162,20 +171,20 @@ function reorderTopLevelSections(
   };
 }
 
-function deepCloneWithNewIds(node: PageNode): PageNode {
+function deepCloneWithNewIds<T extends TreeNode>(node: T): T {
   return {
     ...node,
     id: uid(node.type),
-    children: node.children?.map(deepCloneWithNewIds),
-  };
+    children: node.children?.map((child) => deepCloneWithNewIds(child as T)),
+  } as T;
 }
 
 function reorderWithinParent(
-  pageTree: PageNode,
+  pageTree: TreeNode,
   parentNodeId: string,
   nodeId: string,
   newIndex: number
-): PageNode | null {
+): TreeNode | null {
   if (pageTree.id === parentNodeId) {
     const children = pageTree.children ?? [];
     const currentIndex = children.findIndex((c) => c.id === nodeId);
@@ -185,7 +194,7 @@ function reorderWithinParent(
     const reordered = [...children];
     const [moved] = reordered.splice(currentIndex, 1);
     reordered.splice(newIndex, 0, moved);
-    return { ...pageTree, children: reordered };
+    return { ...pageTree, children: reordered } as TreeNode;
   }
 
   if (!pageTree.children) return null;
@@ -195,7 +204,7 @@ function reorderWithinParent(
     if (result) {
       const newChildren = [...pageTree.children];
       newChildren[i] = result;
-      return { ...pageTree, children: newChildren };
+      return { ...pageTree, children: newChildren } as TreeNode;
     }
   }
   return null;
@@ -204,7 +213,7 @@ function reorderWithinParent(
 function updateArtboardsForSite(
   items: CanvasItem[],
   artboardId: string,
-  updater: (pageTree: PageNode) => PageNode
+  updater: (pageTree: TreeNode) => TreeNode
 ): CanvasItem[] | null {
   const sourceArtboard = items.find(
     (item): item is ArtboardItem =>

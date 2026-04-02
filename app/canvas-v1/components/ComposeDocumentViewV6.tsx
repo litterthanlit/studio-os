@@ -13,6 +13,59 @@ import { useSnapGuides } from "@/app/canvas-v1/hooks/useSnapGuides";
 import { ENTER_TEXT_EDIT_MODE_EVENT } from "@/app/canvas-v1/hooks/useCanvasKeyboard";
 import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
 import { SnapGuideLines } from "./SnapGuideLines";
+import { Plus } from "lucide-react";
+
+// ── Blank section factory for insertion ────────────────────────────────────
+let _insertCounter = 0;
+function createBlankDesignSection(): DesignNode {
+  const id = `frame-${Date.now()}-${++_insertCounter}`;
+  return {
+    id,
+    type: "frame",
+    name: "Section",
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 24,
+      padding: { top: 80, right: 40, bottom: 80, left: 40 },
+    },
+    children: [],
+  };
+}
+
+// ── Insertion Bar ──────────────────────────────────────────────────
+function V6InsertionBar({
+  onInsert,
+}: {
+  onInsert: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ height: 8 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Dashed line */}
+      <div
+        className="absolute inset-x-0 top-1/2 border-t border-dashed border-[#E5E5E0] transition-opacity duration-100"
+        style={{ opacity: hovered ? 0.8 : 0 }}
+      />
+      {/* Plus button */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onInsert(); }}
+        className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] transition-all duration-100 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+        style={{ opacity: hovered ? 1 : 0, transform: hovered ? "scale(1)" : "scale(0.8)" }}
+      >
+        <Plus size={12} />
+      </button>
+    </div>
+  );
+}
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -30,6 +83,8 @@ type ComposeDocumentViewV6Props = {
   zoom?: number;
   /** Right-click context menu handler for DesignNodes */
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
+  /** Insert a new blank section at a given index within the root frame */
+  onInsertSection?: (index: number, section: DesignNode) => void;
 };
 
 type InlineTextEditEventDetail = {
@@ -297,7 +352,7 @@ function BreakoutBadge() {
 
 // ── Main Render Function ───────────────────────────────────────────
 
-function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit, onContextMenu }: {
+function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection }: {
   node: DesignNode;
   selectedNodeId: string | null;
   editingNodeId: string | null;
@@ -306,6 +361,10 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
   onStartEdit: (nodeId: string) => void;
   onCommitEdit: (nodeId: string, newText: string) => void;
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
+  /** ID of the root node — used to detect root frame for insertion bars */
+  rootNodeId?: string;
+  /** Insert callback — only used at root frame level */
+  onInsertSection?: (index: number, section: DesignNode) => void;
 }): React.ReactElement | null {
   const [isHovered, setIsHovered] = React.useState(false);
   const cssStyle = designStyleToCSS(node.style);
@@ -361,6 +420,47 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         frameStyle.position = "relative";
       }
 
+      // Check if this is the root frame — interleave insertion bars
+      const isRootFrame = rootNodeId != null && node.id === rootNodeId;
+      const showInsertionBars = isRootFrame && interactive && onInsertSection;
+
+      const renderedChildren = showInsertionBars
+        ? (() => {
+            const children = node.children ?? [];
+            const elements: React.ReactNode[] = [];
+            children.forEach((child, index) => {
+              const wrapper = hasCover ? { position: "relative" as const, zIndex: 1 } : {};
+              elements.push(
+                <V6InsertionBar
+                  key={`insert-${index}`}
+                  onInsert={() => onInsertSection(index, createBlankDesignSection())}
+                />
+              );
+              elements.push(
+                <div key={child.id} style={wrapper}>
+                  <RenderDesignNode
+                    node={child}
+                    selectedNodeId={selectedNodeId}
+                    editingNodeId={editingNodeId}
+                    interactive={interactive}
+                    onSelect={onSelect}
+                    onStartEdit={onStartEdit}
+                    onCommitEdit={onCommitEdit}
+                    onContextMenu={onContextMenu}
+                  />
+                </div>
+              );
+            });
+            elements.push(
+              <V6InsertionBar
+                key="insert-end"
+                onInsert={() => onInsertSection(children.length, createBlankDesignSection())}
+              />
+            );
+            return elements;
+          })()
+        : renderChildren(hasCover);
+
       return (
         <div
           key={node.id}
@@ -373,7 +473,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           {showBreakoutBadge && <BreakoutBadge />}
           {hasCover && <CoverImage src={node.style.coverImage!} size={node.style.coverSize} position={node.style.coverPosition} />}
           {needsScrim && <CoverScrim />}
-          {renderChildren(hasCover)}
+          {renderedChildren}
         </div>
       );
     }
@@ -629,6 +729,7 @@ export function ComposeDocumentViewV6({
   artboardId = null,
   zoom = 1,
   onContextMenu,
+  onInsertSection,
 }: ComposeDocumentViewV6Props) {
   const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
   const historyPushedRef = React.useRef(false);
@@ -865,6 +966,8 @@ export function ComposeDocumentViewV6({
           onStartEdit={handleStartEdit}
           onCommitEdit={handleCommitEdit}
           onContextMenu={onContextMenu}
+          rootNodeId={tree.id}
+          onInsertSection={onInsertSection}
         />
         {interactive && dragState.isDragging && snapGuidesHook.activeGuides.length > 0 && (
           <SnapGuideLines

@@ -80,6 +80,7 @@ export type DesignNodeStyle = {
   borderRadius?: number;
   opacity?: number;
   shadow?: string;           // Raw CSS box-shadow value
+  scrimEnabled?: boolean;    // undefined = auto (light foreground detection), true = always, false = never
   blur?: number;             // CSS filter: blur(Npx)
   objectFit?: "cover" | "contain" | "fill";
   maxWidth?: number | string; // number=px, string=CSS value

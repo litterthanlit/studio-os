@@ -666,17 +666,81 @@ export function DesignNodeInspector({
               />
             </div>
 
-            {/* Cover Image URL (frame only, shown when coverImage is set) */}
-            {node.type === "frame" && style.coverImage != null && (
-              <div>
-                <InspectorLabel>Cover Image</InspectorLabel>
-                <InspectorTextInput
-                  value={style.coverImage || ""}
-                  placeholder="https://..."
-                  onChange={(e) => updateStyle({ coverImage: (e.target as HTMLInputElement).value || undefined })}
-                  onBlur={() => history.flush()}
-                />
-              </div>
+            {/* Cover Image (frame only) */}
+            {node.type === "frame" && (
+              <InlineAddableRow
+                label="Cover Image"
+                hasValue={Boolean(style.coverImage)}
+                onAdd={() => applyImmediate({ coverImage: "https://", coverSize: "cover" }, "Added cover image")}
+                onRemove={() => applyImmediate({ coverImage: undefined, coverSize: undefined, coverPosition: undefined, scrimEnabled: undefined }, "Removed cover image")}
+              >
+                <div className="space-y-1.5">
+                  {/* URL */}
+                  <InspectorLabel>URL</InspectorLabel>
+                  <InspectorTextInput
+                    value={style.coverImage || ""}
+                    placeholder="https://..."
+                    onChange={(e) => updateStyle({ coverImage: (e.target as HTMLInputElement).value || undefined })}
+                    onBlur={() => history.flush()}
+                  />
+
+                  {/* Preview thumbnail */}
+                  {style.coverImage && style.coverImage !== "https://" && (
+                    <div
+                      className="w-full h-[80px] rounded-[2px] border border-[#E5E5E0] overflow-hidden bg-[#F5F5F0]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={style.coverImage}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Cover Size */}
+                  <div>
+                    <InspectorLabel>Size</InspectorLabel>
+                    <InspectorSegmented
+                      value={style.coverSize || "cover"}
+                      options={[
+                        { value: "cover", label: "Cover" },
+                        { value: "contain", label: "Contain" },
+                      ]}
+                      onChange={(v) => applyImmediate({ coverSize: v as "cover" | "contain" }, "Changed cover size")}
+                    />
+                  </div>
+
+                  {/* Cover Position */}
+                  <div>
+                    <InspectorLabel>Position</InspectorLabel>
+                    <InspectorTextInput
+                      value={style.coverPosition || ""}
+                      placeholder="center"
+                      onChange={(e) => updateStyle({ coverPosition: (e.target as HTMLInputElement).value || undefined })}
+                      onBlur={() => history.flush()}
+                    />
+                  </div>
+
+                  {/* Scrim */}
+                  <div>
+                    <InspectorLabel>Scrim</InspectorLabel>
+                    <InspectorSegmented
+                      value={style.scrimEnabled === true ? "on" : style.scrimEnabled === false ? "off" : "auto"}
+                      options={[
+                        { value: "auto", label: "Auto" },
+                        { value: "on", label: "On" },
+                        { value: "off", label: "Off" },
+                      ]}
+                      onChange={(v) => {
+                        const val = v === "auto" ? undefined : v === "on";
+                        applyImmediate({ scrimEnabled: val }, "Changed scrim");
+                      }}
+                    />
+                  </div>
+                </div>
+              </InlineAddableRow>
             )}
           </div>
         </InspectorCollapsible>

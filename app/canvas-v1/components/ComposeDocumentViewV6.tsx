@@ -339,7 +339,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
   switch (node.type) {
     case "frame": {
       const hasCover = Boolean(node.style.coverImage);
-      const needsScrim = hasCover && isLightColor(node.style.foreground);
+      const needsScrim = hasCover && (
+        node.style.scrimEnabled !== undefined
+          ? node.style.scrimEnabled
+          : isLightColor(node.style.foreground)
+      );
 
       const frameStyle: React.CSSProperties = {
         ...cssStyle,
@@ -624,12 +628,17 @@ export function ComposeDocumentViewV6({
   const hoverElRef = React.useRef<HTMLElement | null>(null);
 
   const clearHoverOutline = React.useCallback(() => {
-    if (hoverElRef.current) {
-      hoverElRef.current.style.outline = "";
-      hoverElRef.current.style.outlineOffset = "";
-      hoverElRef.current = null;
+    const el = hoverElRef.current;
+    if (el) {
+      // Only clear the outline if React hasn't taken ownership (i.e. it's not the selected node)
+      const nodeId = el.getAttribute("data-node-id");
+      if (nodeId !== selectedNodeId) {
+        el.style.outline = "";
+        el.style.outlineOffset = "";
+      }
     }
-  }, []);
+    hoverElRef.current = null;
+  }, [selectedNodeId]);
 
   const handleHoverMove = React.useCallback(
     (e: React.MouseEvent) => {

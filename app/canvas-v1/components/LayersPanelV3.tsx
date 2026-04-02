@@ -9,12 +9,13 @@ import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
-  CreditCard, Layers, Image as ImageIcon, StickyNote,
+  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
+import { BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { PageNode } from "@/lib/canvas/compose";
+import type { DesignNode } from "@/lib/canvas/design-node";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 
 // ─── Node type → icon ────────────────────────────────────────────────────────
@@ -39,6 +40,69 @@ function NodeIcon({ type }: { type: PageNode["type"] }) {
 function formatLabel(node: PageNode): string {
   const content = node.content?.text || node.content?.label || node.name;
   return content.length > 28 ? `${content.slice(0, 28)}…` : content;
+}
+
+// ─── DesignNode type → icon ─────────────────────────────────────────────────
+
+function DesignNodeIcon({ type }: { type: DesignNode["type"] }) {
+  const cls = "shrink-0 text-[#A0A0A0]";
+  const props = { size: 14, strokeWidth: 1.5, className: cls } as const;
+  switch (type) {
+    case "frame": return <Layers {...props} />;
+    case "text": return <Type {...props} />;
+    case "image": return <ImageIcon {...props} />;
+    case "button": return <RectangleHorizontal {...props} />;
+    case "divider": return <Minus {...props} />;
+    default: return <Layout {...props} />;
+  }
+}
+
+function formatDesignNodeLabel(node: DesignNode): string {
+  const label = node.name || node.content?.text || node.type;
+  return label.length > 28 ? `${label.slice(0, 28)}…` : label;
+}
+
+// ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
+
+function DesignTreeNode({
+  node, depth, selectedNodeId, artboardId, onSelectNode,
+}: {
+  node: DesignNode; depth: number; selectedNodeId: string | null;
+  artboardId: string; onSelectNode: (artboardId: string, nodeId: string) => void;
+}) {
+  const hasChildren = node.children && node.children.length > 0;
+  const [expanded, setExpanded] = React.useState(depth < 2);
+  const isSelected = selectedNodeId === node.id;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onSelectNode(artboardId, node.id)}
+        className={cn(
+          "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
+          isSelected
+            ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
+            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+        )}
+        style={{ height: 26, paddingLeft: depth * 12 + (hasChildren ? 4 : 16) }}
+      >
+        {hasChildren && (
+          <span
+            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm hover:bg-[#E5E5E0]"
+          >
+            <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", expanded && "rotate-90")} />
+          </span>
+        )}
+        <DesignNodeIcon type={node.type} />
+        <span className="min-w-0 flex-1 truncate text-[11px]">{formatDesignNodeLabel(node)}</span>
+      </button>
+      {expanded && hasChildren && node.children!.map((child) => (
+        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} />
+      ))}
+    </>
+  );
 }
 
 function BreakpointIcon({ bp }: { bp: string }) {
@@ -163,17 +227,29 @@ export function LayersPanelV3() {
                       {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
                     </span>
                   </button>
-                  {/* Page tree */}
-                  {artboard.pageTree.children?.map((child) => (
-                    <TreeNode
-                      key={child.id}
-                      node={child}
-                      depth={2}
-                      selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
-                      artboardId={artboard.id}
-                      onSelectNode={handleSelectNode}
-                    />
-                  ))}
+                  {/* Page tree — DesignNode or PageNode */}
+                  {isDesignNodeTree(artboard.pageTree)
+                    ? (artboard.pageTree as DesignNode).children?.map((child) => (
+                        <DesignTreeNode
+                          key={child.id}
+                          node={child}
+                          depth={2}
+                          selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                          artboardId={artboard.id}
+                          onSelectNode={handleSelectNode}
+                        />
+                      ))
+                    : artboard.pageTree.children?.map((child) => (
+                        <TreeNode
+                          key={child.id}
+                          node={child}
+                          depth={2}
+                          selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                          artboardId={artboard.id}
+                          onSelectNode={handleSelectNode}
+                        />
+                      ))
+                  }
                 </div>
               ))}
             </Group>

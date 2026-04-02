@@ -47,6 +47,7 @@ import { InspectorSegmented } from "./inspector/InspectorSegmented";
 import { InspectorTabs, type InspectorTabId } from "./inspector/InspectorTabs";
 import { BreakpointBadge } from "./inspector/BreakpointBadge";
 import { CSSTab } from "./inspector/CSSTab";
+import { ExportTab } from "./inspector/ExportTab";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { SiteType } from "@/lib/canvas/templates";
@@ -1856,6 +1857,11 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
 
                 <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
               </>
+            ) : activeTab === "export" ? (
+              <ExportTab
+                artboard={activeArtboard}
+                selectedNodeId={selection.selectedNodeId}
+              />
             ) : (
               <CSSTab resolvedStyle={resolvedStyle} />
             )}

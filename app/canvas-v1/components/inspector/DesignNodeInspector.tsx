@@ -30,9 +30,10 @@ import {
 } from "./InspectorField";
 import { InspectorCollapsible } from "./InspectorCollapsible";
 import { InspectorSegmented } from "./InspectorSegmented";
+import { BreakpointBadge } from "./BreakpointBadge";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
-import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
+import type { DesignNode, DesignNodeStyle, Breakpoint } from "@/lib/canvas/design-node";
 import { findDesignNodeParent } from "@/lib/canvas/design-node";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 
@@ -219,6 +220,26 @@ export function DesignNodeInspector({
   const style = node.style;
   const sections = classifyDesignNode(node);
 
+  // ── Breakpoint override helpers ──
+  const breakpoint: Breakpoint = artboard.breakpoint;
+  const isNonDesktop = breakpoint !== "desktop";
+  const overrides = node.responsiveOverrides?.[breakpoint];
+
+  function hasOverride(property: keyof DesignNodeStyle): boolean {
+    if (!isNonDesktop || !overrides) return false;
+    return (overrides as Record<string, unknown>)[property] !== undefined;
+  }
+
+  function resetOverride(property: keyof DesignNodeStyle) {
+    dispatch({
+      type: "RESET_NODE_STYLE_OVERRIDE",
+      artboardId: artboard.id,
+      nodeId: node.id,
+      breakpoint,
+      property,
+    });
+  }
+
   // Resolve inherited typography from parent chain
   const tree = isDesignNodeTree(artboard.pageTree) ? artboard.pageTree : null;
   const resolved = React.useMemo(
@@ -295,11 +316,16 @@ export function DesignNodeInspector({
 
   return (
     <div data-inspector-first-section>
+      {isNonDesktop && (
+        <div className="mb-2">
+          <BreakpointBadge breakpoint={breakpoint} width={artboard.width} />
+        </div>
+      )}
       {/* ── POSITION ─────────────────────────────────────────────────── */}
       <InspectorCollapsible label="Position">
         <div className="space-y-1.5">
           <div className="space-y-0.5">
-            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Mode</span>
+            <InspectorLabel hasOverride={hasOverride("position")} onResetOverride={() => resetOverride("position")}>Mode</InspectorLabel>
             <InspectorSegmented
               value={isBreakout ? "absolute" : "relative"}
               options={[
@@ -314,7 +340,7 @@ export function DesignNodeInspector({
             <>
               <div className="grid grid-cols-2 gap-1.5">
                 <div className="space-y-0.5">
-                  <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">X</span>
+                  <InspectorLabel hasOverride={hasOverride("x")} onResetOverride={() => resetOverride("x")}>X</InspectorLabel>
                   <InspectorNumberInput
                     value={style.x ?? 0}
                     placeholder="0"
@@ -327,7 +353,7 @@ export function DesignNodeInspector({
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Y</span>
+                  <InspectorLabel hasOverride={hasOverride("y")} onResetOverride={() => resetOverride("y")}>Y</InspectorLabel>
                   <InspectorNumberInput
                     value={style.y ?? 0}
                     placeholder="0"
@@ -341,7 +367,7 @@ export function DesignNodeInspector({
                 </div>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Z-Index</span>
+                <InspectorLabel hasOverride={hasOverride("zIndex")} onResetOverride={() => resetOverride("zIndex")}>Z-Index</InspectorLabel>
                 <InspectorNumberInput
                   value={style.zIndex ?? 1}
                   placeholder="1"
@@ -365,7 +391,7 @@ export function DesignNodeInspector({
           <div className="space-y-1.5">
             {/* Display */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Display</span>
+              <InspectorLabel hasOverride={hasOverride("display")} onResetOverride={() => resetOverride("display")}>Display</InspectorLabel>
               <InspectorSegmented
                 value={style.display || "flex"}
                 options={[
@@ -379,7 +405,7 @@ export function DesignNodeInspector({
             {/* Flex Direction (only when flex) */}
             {(style.display || "flex") === "flex" && (
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Direction</span>
+                <InspectorLabel hasOverride={hasOverride("flexDirection")} onResetOverride={() => resetOverride("flexDirection")}>Direction</InspectorLabel>
                 <InspectorSegmented
                   value={style.flexDirection || "column"}
                   options={[
@@ -394,7 +420,7 @@ export function DesignNodeInspector({
             {/* Grid Template (only when grid) */}
             {style.display === "grid" && (
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Grid Template</span>
+                <InspectorLabel hasOverride={hasOverride("gridTemplate")} onResetOverride={() => resetOverride("gridTemplate")}>Grid Template</InspectorLabel>
                 <InspectorTextInput
                   value={style.gridTemplate || ""}
                   placeholder="repeat(3, 1fr)"
@@ -406,7 +432,7 @@ export function DesignNodeInspector({
 
             {/* Align Items */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Align</span>
+              <InspectorLabel hasOverride={hasOverride("alignItems")} onResetOverride={() => resetOverride("alignItems")}>Align</InspectorLabel>
               <InspectorSegmented
                 value={style.alignItems || "stretch"}
                 options={[
@@ -421,7 +447,7 @@ export function DesignNodeInspector({
 
             {/* Justify Content */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Justify</span>
+              <InspectorLabel hasOverride={hasOverride("justifyContent")} onResetOverride={() => resetOverride("justifyContent")}>Justify</InspectorLabel>
               <InspectorSegmented
                 value={style.justifyContent || "flex-start"}
                 options={[
@@ -436,7 +462,7 @@ export function DesignNodeInspector({
 
             {/* Gap */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Gap</span>
+              <InspectorLabel hasOverride={hasOverride("gap")} onResetOverride={() => resetOverride("gap")}>Gap</InspectorLabel>
               <InspectorNumberInput
                 value={style.gap ?? ""}
                 placeholder="0"
@@ -457,7 +483,7 @@ export function DesignNodeInspector({
       {sections.showSpacing && (
         <InspectorCollapsible label="Spacing">
           <div className="space-y-1.5">
-            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Padding</span>
+            <InspectorLabel hasOverride={hasOverride("padding")} onResetOverride={() => resetOverride("padding")}>Padding</InspectorLabel>
             <div className="grid grid-cols-4 gap-1.5">
               {(["top", "right", "bottom", "left"] as const).map((side) => (
                 <div key={side} className="space-y-0.5">
@@ -488,9 +514,9 @@ export function DesignNodeInspector({
           <div className="space-y-1.5">
             {/* Font Family */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">
+              <InspectorLabel hasOverride={hasOverride("fontFamily")} onResetOverride={() => resetOverride("fontFamily")}>
                 Font{resolved?.isInherited.fontFamily ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
-              </span>
+              </InspectorLabel>
               <InspectorSelect
                 value={style.fontFamily || resolved?.fontFamily || ""}
                 onChange={(e) => {
@@ -517,9 +543,9 @@ export function DesignNodeInspector({
             {/* Weight + Size */}
             <div className="grid grid-cols-[1fr_60px] gap-1.5">
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">
+                <InspectorLabel hasOverride={hasOverride("fontWeight")} onResetOverride={() => resetOverride("fontWeight")}>
                   Weight{resolved?.isInherited.fontWeight ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
-                </span>
+                </InspectorLabel>
                 <InspectorNumberInput
                   value={style.fontWeight ?? resolved?.fontWeight ?? ""}
                   placeholder="400"
@@ -535,9 +561,9 @@ export function DesignNodeInspector({
                 />
               </div>
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">
+                <InspectorLabel hasOverride={hasOverride("fontSize")} onResetOverride={() => resetOverride("fontSize")}>
                   Size{resolved?.isInherited.fontSize ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
-                </span>
+                </InspectorLabel>
                 <InspectorNumberInput
                   value={style.fontSize ?? resolved?.fontSize ?? ""}
                   placeholder="16"
@@ -555,7 +581,7 @@ export function DesignNodeInspector({
             {/* Line Height + Letter Spacing */}
             <div className="grid grid-cols-2 gap-1.5">
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Height</span>
+                <InspectorLabel hasOverride={hasOverride("lineHeight")} onResetOverride={() => resetOverride("lineHeight")}>Height</InspectorLabel>
                 <InspectorNumberInput
                   value={style.lineHeight ?? ""}
                   placeholder="Auto"
@@ -569,7 +595,7 @@ export function DesignNodeInspector({
                 />
               </div>
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Tracking</span>
+                <InspectorLabel hasOverride={hasOverride("letterSpacing")} onResetOverride={() => resetOverride("letterSpacing")}>Tracking</InspectorLabel>
                 <InspectorNumberInput
                   value={style.letterSpacing ?? ""}
                   placeholder="0"
@@ -586,7 +612,7 @@ export function DesignNodeInspector({
 
             {/* Text Align */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Align</span>
+              <InspectorLabel hasOverride={hasOverride("textAlign")} onResetOverride={() => resetOverride("textAlign")}>Align</InspectorLabel>
               <div className="flex gap-0.5">
                 {[
                   { value: "left" as const, icon: <AlignLeft size={14} />, title: "Left" },
@@ -614,7 +640,7 @@ export function DesignNodeInspector({
             {/* Font Style + Text Decoration */}
             <div className="grid grid-cols-2 gap-1.5">
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Style</span>
+                <InspectorLabel hasOverride={hasOverride("fontStyle")} onResetOverride={() => resetOverride("fontStyle")}>Style</InspectorLabel>
                 <InspectorSegmented
                   value={style.fontStyle || "normal"}
                   options={[
@@ -625,7 +651,7 @@ export function DesignNodeInspector({
                 />
               </div>
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Decoration</span>
+                <InspectorLabel hasOverride={hasOverride("textDecoration")} onResetOverride={() => resetOverride("textDecoration")}>Decoration</InspectorLabel>
                 <InspectorSegmented
                   value={style.textDecoration || "none"}
                   options={[
@@ -646,7 +672,7 @@ export function DesignNodeInspector({
           <div className="space-y-2">
             {/* Background */}
             <div>
-              <InspectorLabel>Background</InspectorLabel>
+              <InspectorLabel hasOverride={hasOverride("background")} onResetOverride={() => resetOverride("background")}>Background</InspectorLabel>
               <InspectorColorField
                 color={style.background || ""}
                 documentColors={documentColors}
@@ -657,7 +683,7 @@ export function DesignNodeInspector({
 
             {/* Foreground */}
             <div>
-              <InspectorLabel>Foreground</InspectorLabel>
+              <InspectorLabel hasOverride={hasOverride("foreground")} onResetOverride={() => resetOverride("foreground")}>Foreground</InspectorLabel>
               <InspectorColorField
                 color={style.foreground || ""}
                 documentColors={documentColors}
@@ -676,7 +702,7 @@ export function DesignNodeInspector({
               >
                 <div className="space-y-1.5">
                   {/* URL */}
-                  <InspectorLabel>URL</InspectorLabel>
+                  <InspectorLabel hasOverride={hasOverride("coverImage")} onResetOverride={() => resetOverride("coverImage")}>URL</InspectorLabel>
                   <InspectorTextInput
                     value={style.coverImage || ""}
                     placeholder="https://..."
@@ -701,7 +727,7 @@ export function DesignNodeInspector({
 
                   {/* Cover Size */}
                   <div>
-                    <InspectorLabel>Size</InspectorLabel>
+                    <InspectorLabel hasOverride={hasOverride("coverSize")} onResetOverride={() => resetOverride("coverSize")}>Size</InspectorLabel>
                     <InspectorSegmented
                       value={style.coverSize || "cover"}
                       options={[
@@ -714,7 +740,7 @@ export function DesignNodeInspector({
 
                   {/* Cover Position */}
                   <div>
-                    <InspectorLabel>Position</InspectorLabel>
+                    <InspectorLabel hasOverride={hasOverride("coverPosition")} onResetOverride={() => resetOverride("coverPosition")}>Position</InspectorLabel>
                     <InspectorTextInput
                       value={style.coverPosition || ""}
                       placeholder="center"
@@ -725,7 +751,7 @@ export function DesignNodeInspector({
 
                   {/* Scrim */}
                   <div>
-                    <InspectorLabel>Scrim</InspectorLabel>
+                    <InspectorLabel hasOverride={hasOverride("scrimEnabled")} onResetOverride={() => resetOverride("scrimEnabled")}>Scrim</InspectorLabel>
                     <InspectorSegmented
                       value={style.scrimEnabled === true ? "on" : style.scrimEnabled === false ? "off" : "auto"}
                       options={[
@@ -751,7 +777,7 @@ export function DesignNodeInspector({
         <InspectorCollapsible label="Appearance">
           {node.type !== "divider" && (
             <div>
-              <InspectorLabel>Radius</InspectorLabel>
+              <InspectorLabel hasOverride={hasOverride("borderRadius")} onResetOverride={() => resetOverride("borderRadius")}>Radius</InspectorLabel>
               <InspectorNumberInput
                 value={style.borderRadius ?? ""}
                 min={0}
@@ -770,7 +796,7 @@ export function DesignNodeInspector({
 
           {node.type === "divider" ? (
             <div>
-              <InspectorLabel>Line Color</InspectorLabel>
+              <InspectorLabel hasOverride={hasOverride("borderColor")} onResetOverride={() => resetOverride("borderColor")}>Line Color</InspectorLabel>
               <InspectorColorField
                 color={style.borderColor || "rgba(0,0,0,0.1)"}
                 documentColors={documentColors}
@@ -793,7 +819,7 @@ export function DesignNodeInspector({
                   onChange={(c) => updateStyle({ borderColor: c })}
                 />
                 <div>
-                  <InspectorLabel>Width</InspectorLabel>
+                  <InspectorLabel hasOverride={hasOverride("borderWidth")} onResetOverride={() => resetOverride("borderWidth")}>Width</InspectorLabel>
                   <InspectorNumberInput
                     value={style.borderWidth ?? 1}
                     min={0}
@@ -814,7 +840,7 @@ export function DesignNodeInspector({
 
           {node.type !== "divider" && (
             <div>
-              <InspectorLabel>Shadow</InspectorLabel>
+              <InspectorLabel hasOverride={hasOverride("shadow")} onResetOverride={() => resetOverride("shadow")}>Shadow</InspectorLabel>
               <InspectorTextInput
                 value={style.shadow || ""}
                 placeholder="0 4px 12px rgba(0,0,0,0.08)"
@@ -826,7 +852,7 @@ export function DesignNodeInspector({
 
           {/* Opacity */}
           <div>
-            <InspectorLabel>Opacity</InspectorLabel>
+            <InspectorLabel hasOverride={hasOverride("opacity")} onResetOverride={() => resetOverride("opacity")}>Opacity</InspectorLabel>
             <InspectorNumberInput
               value={style.opacity != null ? Math.round((style.opacity ?? 1) * 100) : 100}
               min={0}

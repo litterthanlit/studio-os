@@ -5,8 +5,14 @@
 "use client";
 
 import React from "react";
-import type { DesignNode } from "@/lib/canvas/design-node";
+import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
+import { findDesignNodeById } from "@/lib/canvas/design-node";
 import { designStyleToCSS } from "@/lib/canvas/design-style-to-css";
+import { useDragDesignNode } from "@/app/canvas-v1/hooks/useDragDesignNode";
+import { useSnapGuides } from "@/app/canvas-v1/hooks/useSnapGuides";
+import { ENTER_TEXT_EDIT_MODE_EVENT } from "@/app/canvas-v1/hooks/useCanvasKeyboard";
+import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
+import { SnapGuideLines } from "./SnapGuideLines";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -15,13 +21,19 @@ type ComposeDocumentViewV6Props = {
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string | null) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
+  onUpdateNodeStyle?: (nodeId: string, style: Partial<DesignNodeStyle>) => void;
   onPushHistory?: (description: string) => void;
   interactive?: boolean;
+  /** Artboard ID — needed for drag-to-reposition dispatch */
+  artboardId?: string | null;
+  /** Current canvas zoom — needed for zoom-aware drag */
+  zoom?: number;
 };
 
-// ── Custom event for Enter-to-edit ─────────────────────────────────
-
-const ENTER_TEXT_EDIT_MODE_EVENT = "studio-os:enter-text-edit";
+type InlineTextEditEventDetail = {
+  artboardId: string;
+  nodeId: string;
+};
 
 // ── Exit any active text editing (exported for CanvasArtboard) ─────
 
@@ -104,9 +116,10 @@ function selectionOutlineStyle(isSelected: boolean): React.CSSProperties {
 
 // ── Text Content Renderer ──────────────────────────────────────────
 
-function TextContent({ node, isEditing, onStartEdit, onCommitEdit }: {
+function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCommitEdit }: {
   node: DesignNode;
   isEditing: boolean;
+  dragProtected?: boolean;
   onStartEdit: () => void;
   onCommitEdit: (newText: string) => void;
 }) {
@@ -173,6 +186,13 @@ function TextContent({ node, isEditing, onStartEdit, onCommitEdit }: {
       <div
         ref={textRef}
         data-text-edit-target="true"
+        onPointerDownCapture={
+          dragProtected
+            ? (e) => {
+                e.stopPropagation();
+              }
+            : undefined
+        }
         onDoubleClick={(e) => {
           e.stopPropagation();
           onStartEdit();
@@ -204,6 +224,13 @@ function TextContent({ node, isEditing, onStartEdit, onCommitEdit }: {
         <div
           ref={textRef}
           data-text-edit-target="true"
+          onPointerDownCapture={
+            dragProtected
+              ? (e) => {
+                  e.stopPropagation();
+                }
+              : undefined
+          }
           onDoubleClick={(e) => {
             e.stopPropagation();
             onStartEdit();
@@ -223,6 +250,49 @@ function TextContent({ node, isEditing, onStartEdit, onCommitEdit }: {
   );
 }
 
+// ── Breakout Badge ────────────────────────────────────────────────
+
+function BreakoutBadge() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 4,
+        left: 4,
+        display: "flex",
+        alignItems: "center",
+        gap: 3,
+        padding: "1px 5px 1px 4px",
+        borderRadius: 3,
+        background: "rgba(30, 93, 242, 0.12)",
+        border: "1px solid rgba(30, 93, 242, 0.25)",
+        fontSize: 9,
+        fontFamily: "var(--font-mono, monospace)",
+        fontWeight: 500,
+        color: "#1E5DF2",
+        letterSpacing: "0.04em",
+        textTransform: "uppercase" as const,
+        lineHeight: 1,
+        pointerEvents: "none" as const,
+        zIndex: 9999,
+        userSelect: "none" as const,
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: "#1E5DF2",
+          flexShrink: 0,
+        }}
+      />
+      Breakout
+    </div>
+  );
+}
+
 // ── Main Render Function ───────────────────────────────────────────
 
 function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit }: {
@@ -234,9 +304,19 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
   onStartEdit: (nodeId: string) => void;
   onCommitEdit: (nodeId: string, newText: string) => void;
 }): React.ReactElement | null {
+  const [isHovered, setIsHovered] = React.useState(false);
   const cssStyle = designStyleToCSS(node.style);
   const isSelected = node.id === selectedNodeId;
   const isEditing = node.id === editingNodeId;
+  const isAbsolute = node.style.position === "absolute";
+  const showBreakoutBadge = interactive && isAbsolute && (isSelected || isHovered);
+
+  const hoverHandlers = interactive && isAbsolute
+    ? {
+        onMouseEnter: () => setIsHovered(true),
+        onMouseLeave: () => setIsHovered(false),
+      }
+    : {};
 
   const renderChildren = (hasCover: boolean) =>
     node.children?.map((child) => {
@@ -268,13 +348,20 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         ...selectionOutlineStyle(isSelected && interactive),
       };
 
+      // Breakout badge needs a positioning context
+      if (showBreakoutBadge && !hasCover && frameStyle.position !== "absolute") {
+        frameStyle.position = "relative";
+      }
+
       return (
         <div
           key={node.id}
           data-node-id={node.id}
           style={frameStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          {...hoverHandlers}
         >
+          {showBreakoutBadge && <BreakoutBadge />}
           {hasCover && <CoverImage src={node.style.coverImage!} size={node.style.coverSize} position={node.style.coverPosition} />}
           {needsScrim && <CoverScrim />}
           {renderChildren(hasCover)}
@@ -289,16 +376,23 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         ...selectionOutlineStyle(isSelected && interactive),
       };
 
+      if (showBreakoutBadge && textStyle.position !== "absolute") {
+        textStyle.position = "relative";
+      }
+
       return (
         <div
           key={node.id}
           data-node-id={node.id}
           style={textStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          {...hoverHandlers}
         >
+          {showBreakoutBadge && <BreakoutBadge />}
           <TextContent
             node={node}
             isEditing={isEditing}
+            dragProtected={interactive && isSelected && isAbsolute}
             onStartEdit={() => onStartEdit(node.id)}
             onCommitEdit={(newText) => onCommitEdit(node.id, newText)}
           />
@@ -309,61 +403,204 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
     case "image": {
       const src = node.content?.src;
       if (!src) return null;
+
+      const wrapperStyle: React.CSSProperties = {
+        ...cssStyle,
+        display: "block",
+        boxSizing: "border-box",
+        overflow: cssStyle.overflow ?? "hidden",
+        ...selectionOutlineStyle(isSelected && interactive),
+      };
+
+      if (showBreakoutBadge && wrapperStyle.position !== "absolute") {
+        wrapperStyle.position = "relative";
+      }
+
+      const imgStyle: React.CSSProperties = {
+        display: "block",
+        width: "100%",
+        height: cssStyle.height != null ? "100%" : "auto",
+        objectFit: node.style.objectFit || "cover",
+        pointerEvents: "none",
+      };
+
       return (
-        <img
+        <div
           key={node.id}
           data-node-id={node.id}
-          src={src}
-          alt={node.content?.alt || ""}
-          style={{
-            ...cssStyle,
-            display: "block",
-            boxSizing: "border-box",
-            ...selectionOutlineStyle(isSelected && interactive),
-          }}
+          style={wrapperStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
-        />
+          {...hoverHandlers}
+        >
+          {showBreakoutBadge && <BreakoutBadge />}
+          <img
+            src={src}
+            alt={node.content?.alt || ""}
+            style={imgStyle}
+          />
+        </div>
       );
     }
 
     case "button": {
+      const btnStyle: React.CSSProperties = {
+        ...cssStyle,
+        cursor: interactive ? "default" : "pointer",
+        boxSizing: "border-box",
+        ...selectionOutlineStyle(isSelected && interactive),
+      };
+
+      if (showBreakoutBadge && btnStyle.position !== "absolute") {
+        btnStyle.position = "relative";
+      }
+
       return (
         <button
           key={node.id}
           data-node-id={node.id}
-          style={{
-            ...cssStyle,
-            cursor: interactive ? "default" : "pointer",
-            boxSizing: "border-box",
-            ...selectionOutlineStyle(isSelected && interactive),
-          }}
+          style={btnStyle}
           onClick={interactive ? (e) => { e.preventDefault(); e.stopPropagation(); onSelect(node.id); } : undefined}
+          {...hoverHandlers}
         >
+          {showBreakoutBadge && <BreakoutBadge />}
           {node.content?.text || "Button"}
         </button>
       );
     }
 
     case "divider": {
+      const wrapperStyle: React.CSSProperties = {
+        ...cssStyle,
+        boxSizing: "border-box",
+        ...selectionOutlineStyle(isSelected && interactive),
+      };
+
+      if (showBreakoutBadge && wrapperStyle.position !== "absolute") {
+        wrapperStyle.position = "relative";
+      }
+
+      const hrStyle: React.CSSProperties = {
+        border: "none",
+        borderTop: `${node.style.borderWidth ?? 1}px solid ${node.style.borderColor || "rgba(0,0,0,0.1)"}`,
+        width: "100%",
+        margin: 0,
+        pointerEvents: "none",
+      };
+
       return (
-        <hr
+        <div
           key={node.id}
           data-node-id={node.id}
-          style={{
-            border: "none",
-            borderTop: `1px solid ${node.style.borderColor || "rgba(0,0,0,0.1)"}`,
-            width: "100%",
-            ...cssStyle,
-            ...selectionOutlineStyle(isSelected && interactive),
-          }}
+          style={wrapperStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
-        />
+          {...hoverHandlers}
+        >
+          {showBreakoutBadge && <BreakoutBadge />}
+          <hr style={hrStyle} />
+        </div>
       );
     }
 
     default:
       return null;
   }
+}
+
+// ── Resize Overlay ────────────────────────────────────────────────
+// Measures the selected node's DOM element and positions resize handles over it.
+
+function ResizeOverlay({
+  selectedNodeId,
+  editingNodeId,
+  tree,
+  containerRef,
+  zoom,
+  onUpdateNodeStyle,
+  onPushHistory,
+}: {
+  selectedNodeId: string | null;
+  editingNodeId: string | null;
+  tree: DesignNode;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  zoom: number;
+  onUpdateNodeStyle?: (nodeId: string, style: Partial<DesignNodeStyle>) => void;
+  onPushHistory?: (description: string) => void;
+}) {
+  const [nodeRect, setNodeRect] = React.useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  // Measure the selected node's bounding box relative to the container
+  React.useEffect(() => {
+    if (!selectedNodeId || editingNodeId || !containerRef.current) {
+      setNodeRect(null);
+      return;
+    }
+
+    const container = containerRef.current;
+    const nodeEl = container.querySelector<HTMLElement>(`[data-node-id="${selectedNodeId}"]`);
+    if (!nodeEl) {
+      setNodeRect(null);
+      return;
+    }
+
+    const measure = () => {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = nodeEl.getBoundingClientRect();
+      setNodeRect({
+        top: (elRect.top - containerRect.top) / zoom,
+        left: (elRect.left - containerRect.left) / zoom,
+        width: elRect.width / zoom,
+        height: elRect.height / zoom,
+      });
+    };
+
+    measure();
+
+    // Re-measure on resize/mutation (handles layout changes during resize)
+    const observer = new ResizeObserver(measure);
+    observer.observe(nodeEl);
+
+    // Also observe mutations on the container in case DOM structure changes
+    const mutationObserver = new MutationObserver(measure);
+    mutationObserver.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [selectedNodeId, editingNodeId, containerRef, zoom, tree]);
+
+  const selectedNode = selectedNodeId ? findDesignNodeById(tree, selectedNodeId) : null;
+
+  if (!nodeRect || !selectedNode || !onUpdateNodeStyle || editingNodeId) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: nodeRect.top,
+        left: nodeRect.left,
+        width: nodeRect.width,
+        height: nodeRect.height,
+        pointerEvents: "none",
+        zIndex: 10,
+      }}
+    >
+      <div style={{ pointerEvents: "auto" }}>
+        <DesignNodeResizeHandles
+          node={selectedNode}
+          nodeRect={{ width: nodeRect.width, height: nodeRect.height }}
+          zoom={zoom}
+          onResize={(styleUpdate) => {
+            onUpdateNodeStyle(selectedNode.id, styleUpdate);
+          }}
+          onResizeEnd={(styleUpdate) => {
+            onUpdateNodeStyle(selectedNode.id, styleUpdate);
+            onPushHistory?.("Resize element");
+          }}
+        />
+      </div>
+    </div>
+  );
 }
 
 // ── Public Component ───────────────────────────────────────────────
@@ -373,11 +610,101 @@ export function ComposeDocumentViewV6({
   selectedNodeId = null,
   onSelectNode,
   onUpdateContent,
+  onUpdateNodeStyle,
   onPushHistory,
   interactive = false,
+  artboardId = null,
+  zoom = 1,
 }: ComposeDocumentViewV6Props) {
   const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
   const historyPushedRef = React.useRef(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // ── Hover outline (direct DOM, zero re-renders) ────────────────────
+  const hoverElRef = React.useRef<HTMLElement | null>(null);
+
+  const clearHoverOutline = React.useCallback(() => {
+    if (hoverElRef.current) {
+      hoverElRef.current.style.outline = "";
+      hoverElRef.current.style.outlineOffset = "";
+      hoverElRef.current = null;
+    }
+  }, []);
+
+  const handleHoverMove = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (!interactive) return;
+      const target = (e.target as HTMLElement).closest<HTMLElement>("[data-node-id]");
+      if (!target) {
+        clearHoverOutline();
+        return;
+      }
+      // Same element — nothing to do
+      if (target === hoverElRef.current) return;
+      // Don't hover-outline the selected node
+      const nodeId = target.getAttribute("data-node-id");
+      if (nodeId && nodeId === selectedNodeId) {
+        clearHoverOutline();
+        return;
+      }
+      // Swap outline
+      clearHoverOutline();
+      target.style.outline = "1px dashed rgba(30, 93, 242, 0.4)";
+      target.style.outlineOffset = "-1px";
+      hoverElRef.current = target;
+    },
+    [interactive, selectedNodeId, clearHoverOutline]
+  );
+
+  const handleHoverLeave = React.useCallback(() => {
+    clearHoverOutline();
+  }, [clearHoverOutline]);
+
+  // Clear hover outline when selected node changes (it now gets the solid outline)
+  React.useEffect(() => {
+    if (
+      hoverElRef.current &&
+      hoverElRef.current.getAttribute("data-node-id") === selectedNodeId
+    ) {
+      clearHoverOutline();
+    }
+  }, [selectedNodeId, clearHoverOutline]);
+
+  // ── Snap guides for drag alignment ──────────────────────────────
+  // Track drag state at the component level so snap hook can react
+  const [dragState, setDragState] = React.useState<{ isDragging: boolean; draggedNodeId: string | null }>({
+    isDragging: false,
+    draggedNodeId: null,
+  });
+
+  const snapGuidesHook = useSnapGuides({
+    tree,
+    draggedNodeId: dragState.draggedNodeId,
+    isDragging: dragState.isDragging,
+  });
+
+  // ── Drag-to-reposition for absolute-positioned nodes ────────────
+  const { isDragging, draggedNodeId } = useDragDesignNode({
+    tree,
+    selectedNodeId,
+    artboardId,
+    zoom,
+    interactive,
+    containerRef,
+    snapPosition: snapGuidesHook.snapPosition,
+  });
+
+  // Sync drag state from the drag hook into the snap hook's input
+  React.useEffect(() => {
+    setDragState({ isDragging, draggedNodeId: draggedNodeId ?? null });
+  }, [isDragging, draggedNodeId]);
+
+  // Determine if selected node is absolute (for move cursor)
+  const selectedNodeIsAbsolute = React.useMemo(() => {
+    if (!selectedNodeId || !interactive) return false;
+    const node = findDesignNodeById(tree, selectedNodeId);
+    return node?.style.position === "absolute";
+  }, [selectedNodeId, interactive, tree]);
 
   // Clear editing state when selection changes
   React.useEffect(() => {
@@ -386,17 +713,18 @@ export function ComposeDocumentViewV6({
     }
   }, [selectedNodeId, editingNodeId]);
 
-  // Listen for Enter key to start text editing
+  // Apply move cursor to selected absolute node
   React.useEffect(() => {
-    if (!interactive) return;
-    const handler = () => {
-      if (selectedNodeId) {
-        setEditingNodeId(selectedNodeId);
-      }
+    if (!containerRef.current || !selectedNodeId || !selectedNodeIsAbsolute) return;
+    const el = containerRef.current.querySelector<HTMLElement>(
+      `[data-node-id="${selectedNodeId}"]`
+    );
+    if (!el) return;
+    el.style.cursor = "move";
+    return () => {
+      el.style.cursor = "";
     };
-    window.addEventListener(ENTER_TEXT_EDIT_MODE_EVENT, handler);
-    return () => window.removeEventListener(ENTER_TEXT_EDIT_MODE_EVENT, handler);
-  }, [interactive, selectedNodeId]);
+  }, [selectedNodeId, selectedNodeIsAbsolute]);
 
   const handleSelect = React.useCallback(
     (nodeId: string) => {
@@ -429,25 +757,114 @@ export function ComposeDocumentViewV6({
     [onUpdateContent]
   );
 
+  // Listen for keyboard-initiated Enter-to-edit and route through the
+  // normal V6 edit path so history/edit state stays coherent.
+  React.useEffect(() => {
+    if (!interactive || !artboardId) return;
+
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<InlineTextEditEventDetail>).detail;
+      if (!detail) return;
+      if (detail.artboardId !== artboardId || detail.nodeId !== selectedNodeId) return;
+      handleStartEdit(detail.nodeId);
+    };
+
+    window.addEventListener(
+      ENTER_TEXT_EDIT_MODE_EVENT,
+      handler as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        ENTER_TEXT_EDIT_MODE_EVENT,
+        handler as EventListener
+      );
+    };
+  }, [interactive, artboardId, selectedNodeId, handleStartEdit]);
+
+  // ── Double-click to drill into children (Framer-style) ────────────
+  const handleDoubleClick = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (!interactive || !onSelectNode) return;
+
+      // If text is currently being edited, don't interfere — let native
+      // word selection / contentEditable behavior handle it
+      if (editingNodeId) return;
+
+      // Find all elements at the click point with data-node-id
+      const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
+      const nodeElements = elementsAtPoint.filter(
+        (el) => el.hasAttribute("data-node-id")
+      );
+
+      if (nodeElements.length === 0) return;
+
+      // The deepest node in the DOM tree is the first element returned by
+      // elementsFromPoint (topmost in stacking order = deepest in tree)
+      const deepestEl = nodeElements[0];
+      const deepestId = deepestEl.getAttribute("data-node-id");
+      if (!deepestId) return;
+
+      // If the deepest node is already selected, this is a text node
+      // double-click — let existing contentEditable behavior handle it
+      if (deepestId === selectedNodeId) return;
+
+      // Select the deepest node
+      e.preventDefault();
+      exitAnyActiveTextEditingV6();
+      setEditingNodeId(null);
+      onSelectNode(deepestId);
+    },
+    [interactive, onSelectNode, selectedNodeId, editingNodeId]
+  );
+
+  // ── Container dimensions for snap guide lines ──────────────────
+  const containerWidth = typeof tree.style.width === "number" ? tree.style.width : 0;
+  const containerHeight = typeof tree.style.height === "number" ? tree.style.height : 0;
+
   return (
-    <div
-      style={{ width: "100%", overflow: "hidden" }}
-      onClick={interactive ? (e) => {
-        // Click on empty space — deselect
-        if (!(e.target as HTMLElement).closest("[data-node-id]")) {
-          onSelectNode?.(null);
-        }
-      } : undefined}
-    >
-      <RenderDesignNode
-        node={tree}
-        selectedNodeId={selectedNodeId}
-        editingNodeId={editingNodeId}
-        interactive={interactive}
-        onSelect={handleSelect}
-        onStartEdit={handleStartEdit}
-        onCommitEdit={handleCommitEdit}
-      />
+    <div style={{ position: "relative", width: "100%" }}>
+      <div
+        ref={containerRef}
+        tabIndex={-1}
+        style={{ width: "100%", overflow: "hidden", outline: "none", position: "relative" }}
+        onMouseMove={interactive ? handleHoverMove : undefined}
+        onMouseLeave={interactive ? handleHoverLeave : undefined}
+        onDoubleClick={interactive ? handleDoubleClick : undefined}
+        onClick={interactive ? (e) => {
+          // Click on empty space — deselect
+          if (!(e.target as HTMLElement).closest("[data-node-id]")) {
+            onSelectNode?.(null);
+          }
+        } : undefined}
+      >
+        <RenderDesignNode
+          node={tree}
+          selectedNodeId={selectedNodeId}
+          editingNodeId={editingNodeId}
+          interactive={interactive}
+          onSelect={handleSelect}
+          onStartEdit={handleStartEdit}
+          onCommitEdit={handleCommitEdit}
+        />
+        {interactive && dragState.isDragging && snapGuidesHook.activeGuides.length > 0 && (
+          <SnapGuideLines
+            guides={snapGuidesHook.activeGuides}
+            containerWidth={containerWidth || 1200}
+            containerHeight={containerHeight || 2000}
+          />
+        )}
+      </div>
+      {interactive && selectedNodeId && !editingNodeId && (
+        <ResizeOverlay
+          selectedNodeId={selectedNodeId}
+          editingNodeId={editingNodeId}
+          tree={tree}
+          containerRef={containerRef}
+          zoom={zoom}
+          onUpdateNodeStyle={onUpdateNodeStyle}
+          onPushHistory={onPushHistory}
+        />
+      )}
     </div>
   );
 }

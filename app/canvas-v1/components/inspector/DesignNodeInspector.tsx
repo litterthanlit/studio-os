@@ -33,30 +33,33 @@ import { InspectorSegmented } from "./InspectorSegmented";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
+import { findDesignNodeParent } from "@/lib/canvas/design-node";
+import { isDesignNodeTree } from "@/lib/canvas/compose";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function useDebouncedHistoryPush(
+function useDebouncedHistoryBurst(
   pushHistory: (description: string) => void,
   delay: number
 ) {
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRef = React.useRef<string | null>(null);
+  const burstActiveRef = React.useRef(false);
   const callbackRef = React.useRef(pushHistory);
 
   React.useEffect(() => {
     callbackRef.current = pushHistory;
   }, [pushHistory]);
 
-  const schedule = React.useCallback(
+  const begin = React.useCallback(
     (description: string) => {
-      pendingRef.current = description;
+      if (!burstActiveRef.current) {
+        callbackRef.current(description);
+        burstActiveRef.current = true;
+      }
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        if (pendingRef.current) {
-          callbackRef.current(pendingRef.current);
-          pendingRef.current = null;
-        }
+        burstActiveRef.current = false;
+        timerRef.current = null;
       }, delay);
     },
     [delay]
@@ -65,22 +68,18 @@ function useDebouncedHistoryPush(
   const flush = React.useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
-    if (pendingRef.current) {
-      callbackRef.current(pendingRef.current);
-      pendingRef.current = null;
-    }
+    burstActiveRef.current = false;
   }, []);
 
   React.useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      if (pendingRef.current) {
-        callbackRef.current(pendingRef.current);
-      }
+      timerRef.current = null;
+      burstActiveRef.current = false;
     };
   }, []);
 
-  return { schedule, flush };
+  return { begin, flush };
 }
 
 // ── Inline addable row (for Border inside Appearance) ───────────────────────
@@ -134,6 +133,56 @@ function InlineAddableRow({
   );
 }
 
+// ── Inherited typography resolver ────────────────────────────────────────────
+
+type ResolvedTypography = {
+  fontFamily: string;
+  fontWeight: number;
+  fontSize: number;
+  isInherited: { fontFamily: boolean; fontWeight: boolean; fontSize: boolean };
+};
+
+/** Walk up the DesignNode tree to resolve inherited typography values. */
+function resolveInheritedTypography(
+  node: DesignNode,
+  tree: DesignNode
+): ResolvedTypography {
+  const result: ResolvedTypography = {
+    fontFamily: node.style.fontFamily || "",
+    fontWeight: node.style.fontWeight ?? 0,
+    fontSize: node.style.fontSize ?? 0,
+    isInherited: {
+      fontFamily: !node.style.fontFamily,
+      fontWeight: node.style.fontWeight == null,
+      fontSize: node.style.fontSize == null,
+    },
+  };
+
+  // Walk up parents to find inherited values
+  let current = node;
+  while (result.fontFamily === "" || result.fontWeight === 0 || result.fontSize === 0) {
+    const parent = findDesignNodeParent(tree, current.id);
+    if (!parent) break;
+
+    if (result.fontFamily === "" && parent.style.fontFamily) {
+      result.fontFamily = parent.style.fontFamily;
+    }
+    if (result.fontWeight === 0 && parent.style.fontWeight != null) {
+      result.fontWeight = parent.style.fontWeight;
+    }
+    if (result.fontSize === 0 && parent.style.fontSize != null) {
+      result.fontSize = parent.style.fontSize;
+    }
+    current = parent;
+  }
+
+  // Browser defaults if nothing found in the tree
+  if (result.fontWeight === 0) result.fontWeight = 400;
+  if (result.fontSize === 0) result.fontSize = 16;
+
+  return result;
+}
+
 // ── Node classification ─────────────────────────────────────────────────────
 
 function classifyDesignNode(node: DesignNode) {
@@ -170,23 +219,31 @@ export function DesignNodeInspector({
   const style = node.style;
   const sections = classifyDesignNode(node);
 
+  // Resolve inherited typography from parent chain
+  const tree = isDesignNodeTree(artboard.pageTree) ? artboard.pageTree : null;
+  const resolved = React.useMemo(
+    () => tree ? resolveInheritedTypography(node, tree) : null,
+    [node, tree]
+  );
+
   // Debounced history
-  const history = useDebouncedHistoryPush(
+  const history = useDebouncedHistoryBurst(
     (desc) => dispatch({ type: "PUSH_HISTORY", description: desc }),
     400
   );
 
   function updateStyle(patch: Partial<DesignNodeStyle>) {
+    history.begin(`Styled ${node.type}`);
     dispatch({
       type: "UPDATE_NODE_STYLE",
       artboardId: artboard.id,
       nodeId: node.id,
       style: patch as Record<string, unknown>,
     });
-    history.schedule(`Styled ${node.type}`);
   }
 
   function applyImmediate(patch: Partial<DesignNodeStyle>, description: string) {
+    history.flush();
     dispatch({ type: "PUSH_HISTORY", description });
     dispatch({
       type: "UPDATE_NODE_STYLE",
@@ -197,13 +254,13 @@ export function DesignNodeInspector({
   }
 
   function updatePadding(side: "top" | "right" | "bottom" | "left", value: number | undefined) {
+    history.begin(`Styled ${node.type} padding`);
     dispatch({
       type: "UPDATE_NODE_STYLE",
       artboardId: artboard.id,
       nodeId: node.id,
       style: { padding: { ...node.style.padding, [side]: value } } as Record<string, unknown>,
     });
-    history.schedule(`Styled ${node.type} padding`);
   }
 
   // ── Border addable state ──
@@ -216,8 +273,92 @@ export function DesignNodeInspector({
     applyImmediate({ borderColor: undefined, borderWidth: undefined }, "Removed border");
   }
 
+  // ── Position mode ──
+  const isBreakout = style.position === "absolute";
+
+  function togglePositionMode(mode: string) {
+    if (mode === "absolute") {
+      // Preserve the current static-position offset when possible by not
+      // inventing explicit coordinates in the inspector. The renderer can
+      // later measure and persist exact x/y if needed.
+      applyImmediate(
+        { position: "absolute", x: style.x, y: style.y, zIndex: style.zIndex ?? 1 },
+        "Switched to breakout"
+      );
+    } else {
+      applyImmediate(
+        { position: "relative", x: undefined, y: undefined, zIndex: undefined },
+        "Switched to flow"
+      );
+    }
+  }
+
   return (
     <div data-inspector-first-section>
+      {/* ── POSITION ─────────────────────────────────────────────────── */}
+      <InspectorCollapsible label="Position">
+        <div className="space-y-1.5">
+          <div className="space-y-0.5">
+            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Mode</span>
+            <InspectorSegmented
+              value={isBreakout ? "absolute" : "relative"}
+              options={[
+                { value: "relative", label: "Flow" },
+                { value: "absolute", label: "Breakout" },
+              ]}
+              onChange={togglePositionMode}
+            />
+          </div>
+
+          {isBreakout && (
+            <>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">X</span>
+                  <InspectorNumberInput
+                    value={style.x ?? 0}
+                    placeholder="0"
+                    className="w-full"
+                    onChange={(e) => {
+                      const val = (e.target as HTMLInputElement).value;
+                      updateStyle({ x: val ? Number(val) : 0 });
+                    }}
+                    onBlur={() => history.flush()}
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Y</span>
+                  <InspectorNumberInput
+                    value={style.y ?? 0}
+                    placeholder="0"
+                    className="w-full"
+                    onChange={(e) => {
+                      const val = (e.target as HTMLInputElement).value;
+                      updateStyle({ y: val ? Number(val) : 0 });
+                    }}
+                    onBlur={() => history.flush()}
+                  />
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Z-Index</span>
+                <InspectorNumberInput
+                  value={style.zIndex ?? 1}
+                  placeholder="1"
+                  min={0}
+                  className="w-full"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle({ zIndex: val ? Number(val) : undefined });
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </InspectorCollapsible>
+
       {/* ── LAYOUT (frame only) ──────────────────────────────────────── */}
       {sections.showLayout && (
         <InspectorCollapsible label="Layout">
@@ -347,14 +488,20 @@ export function DesignNodeInspector({
           <div className="space-y-1.5">
             {/* Font Family */}
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Font</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">
+                Font{resolved?.isInherited.fontFamily ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
+              </span>
               <InspectorSelect
-                value={style.fontFamily || ""}
+                value={style.fontFamily || resolved?.fontFamily || ""}
                 onChange={(e) => {
                   updateStyle({ fontFamily: (e.target as HTMLSelectElement).value || undefined });
                 }}
               >
-                <option value="">Default</option>
+                {!style.fontFamily && resolved?.fontFamily ? (
+                  <option value={resolved.fontFamily}>{resolved.fontFamily} (inherited)</option>
+                ) : (
+                  <option value="">Default</option>
+                )}
                 {getFontsByCategory().map(({ category, label, fonts }) => (
                   <optgroup key={category} label={label}>
                     {fonts.map((f) => (
@@ -370,14 +517,16 @@ export function DesignNodeInspector({
             {/* Weight + Size */}
             <div className="grid grid-cols-[1fr_60px] gap-1.5">
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Weight</span>
+                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">
+                  Weight{resolved?.isInherited.fontWeight ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
+                </span>
                 <InspectorNumberInput
-                  value={style.fontWeight ?? ""}
+                  value={style.fontWeight ?? resolved?.fontWeight ?? ""}
                   placeholder="400"
                   min={100}
                   max={900}
                   step={100}
-                  className="w-full"
+                  className={cn("w-full", resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0]")}
                   onChange={(e) => {
                     const val = (e.target as HTMLInputElement).value;
                     updateStyle({ fontWeight: val ? Number(val) : undefined });
@@ -386,12 +535,14 @@ export function DesignNodeInspector({
                 />
               </div>
               <div className="space-y-0.5">
-                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Size</span>
+                <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">
+                  Size{resolved?.isInherited.fontSize ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
+                </span>
                 <InspectorNumberInput
-                  value={style.fontSize ?? ""}
+                  value={style.fontSize ?? resolved?.fontSize ?? ""}
                   placeholder="16"
                   min={1}
-                  className="w-full"
+                  className={cn("w-full", resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0]")}
                   onChange={(e) => {
                     const val = (e.target as HTMLInputElement).value;
                     updateStyle({ fontSize: val ? Number(val) : undefined });
@@ -534,67 +685,80 @@ export function DesignNodeInspector({
       {/* ── APPEARANCE (all types) ───────────────────────────────────── */}
       {sections.showAppearance && (
         <InspectorCollapsible label="Appearance">
-          {/* Border Radius */}
-          <div>
-            <InspectorLabel>Radius</InspectorLabel>
-            <InspectorNumberInput
-              value={style.borderRadius ?? ""}
-              min={0}
-              max={999}
-              step={1}
-              placeholder="0"
-              className="w-full"
-              onChange={(e) => {
-                const val = (e.target as HTMLInputElement).value;
-                updateStyle({ borderRadius: val ? Number(val) : undefined });
-              }}
-              onBlur={() => history.flush()}
-            />
-          </div>
+          {node.type !== "divider" && (
+            <div>
+              <InspectorLabel>Radius</InspectorLabel>
+              <InspectorNumberInput
+                value={style.borderRadius ?? ""}
+                min={0}
+                max={999}
+                step={1}
+                placeholder="0"
+                className="w-full"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle({ borderRadius: val ? Number(val) : undefined });
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          )}
 
-          {/* Border (+) */}
-          <InlineAddableRow
-            label="Border"
-            hasValue={hasBorder}
-            onAdd={addBorder}
-            onRemove={removeBorder}
-          >
-            <div className="space-y-1.5">
+          {node.type === "divider" ? (
+            <div>
+              <InspectorLabel>Line Color</InspectorLabel>
               <InspectorColorField
-                color={style.borderColor || "#E5E5E0"}
+                color={style.borderColor || "rgba(0,0,0,0.1)"}
                 documentColors={documentColors}
                 onCommit={() => history.flush()}
                 onChange={(c) => updateStyle({ borderColor: c })}
               />
-              <div>
-                <InspectorLabel>Width</InspectorLabel>
-                <InspectorNumberInput
-                  value={style.borderWidth ?? 1}
-                  min={0}
-                  max={20}
-                  step={1}
-                  placeholder="1"
-                  className="w-full"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ borderWidth: val ? Number(val) : undefined });
-                  }}
-                  onBlur={() => history.flush()}
-                />
-              </div>
             </div>
-          </InlineAddableRow>
+          ) : (
+            <InlineAddableRow
+              label="Border"
+              hasValue={hasBorder}
+              onAdd={addBorder}
+              onRemove={removeBorder}
+            >
+              <div className="space-y-1.5">
+                <InspectorColorField
+                  color={style.borderColor || "#E5E5E0"}
+                  documentColors={documentColors}
+                  onCommit={() => history.flush()}
+                  onChange={(c) => updateStyle({ borderColor: c })}
+                />
+                <div>
+                  <InspectorLabel>Width</InspectorLabel>
+                  <InspectorNumberInput
+                    value={style.borderWidth ?? 1}
+                    min={0}
+                    max={20}
+                    step={1}
+                    placeholder="1"
+                    className="w-full"
+                    onChange={(e) => {
+                      const val = (e.target as HTMLInputElement).value;
+                      updateStyle({ borderWidth: val ? Number(val) : undefined });
+                    }}
+                    onBlur={() => history.flush()}
+                  />
+                </div>
+              </div>
+            </InlineAddableRow>
+          )}
 
-          {/* Shadow */}
-          <div>
-            <InspectorLabel>Shadow</InspectorLabel>
-            <InspectorTextInput
-              value={style.shadow || ""}
-              placeholder="0 4px 12px rgba(0,0,0,0.08)"
-              onChange={(e) => updateStyle({ shadow: (e.target as HTMLInputElement).value || undefined })}
-              onBlur={() => history.flush()}
-            />
-          </div>
+          {node.type !== "divider" && (
+            <div>
+              <InspectorLabel>Shadow</InspectorLabel>
+              <InspectorTextInput
+                value={style.shadow || ""}
+                placeholder="0 4px 12px rgba(0,0,0,0.08)"
+                onChange={(e) => updateStyle({ shadow: (e.target as HTMLInputElement).value || undefined })}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          )}
 
           {/* Opacity */}
           <div>

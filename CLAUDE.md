@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Studio OS is not just an editor — it's a **design harness** that improves AI model design output quality, the same way Cursor's harness improved code completion by 11%+. The goal: make AI models produce better design output than they would on their own, calibrated to each designer's taste.
 
+**Proven:** First benchmark (2026-03-23) — BS-01 Editorial set. Raw model scored 5/10, harnessed output scored 9/10. **Delta: +4 overall.** Typography was the biggest win (+6). Target of +3 exceeded.
+
+**V6 Renderer Proof (2026-03-23):** PageNode renderer hit a quality ceiling — editorial output looked like 'well-styled blocks' regardless of harness quality. V6 renderer architecture (5 universal node types: frame/text/image/button/divider, expanded CSS style model, hybrid auto-layout + breakout positioning) passed the visual proof gate. Hand-authored DesignNode editorial homepage renders at magazine quality. Next: teach AI generation to target the new model.
+
 Designers think in images and references, not text prompts. Studio OS bridges that gap:
 1. **Import** moodboards, screenshots, references onto the canvas
 2. **Analyze** — AI extracts color palettes, typography, spacing rhythms, layout patterns, density, mood (the "taste skill")
@@ -23,9 +27,11 @@ npm run build                      # Production build (TS errors ignored via nex
 npm run lint                       # ESLint 9 flat config — pre-existing warnings are not regressions
 npm run db:push                    # Push Supabase migrations
 npm run generate:marketing-images  # Fetch + crop Lummi images into public/marketing/
+npm run benchmark                  # Full benchmark: image resolution + taste extraction + raw vs harnessed generation + scoring
+npm run benchmark:preflight        # Phase 1 only: image resolution + taste extraction (no dev server needed)
 ```
 
-No automated test suite exists. Manual browser testing is the primary verification method.
+No automated test suite exists. Manual browser testing is the primary verification method. The benchmark harness (`scripts/benchmark-harness.ts`) is the primary automated quality measurement — it compares raw model output against harnessed output across reference sets.
 
 ## Environment
 
@@ -103,7 +109,48 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - `embeddings.ts` — OpenAI embeddings for similarity search
 - `taste-profile-compat.ts` — bridges `TasteProfile` type to canvas pipeline
 
-The pipeline: references → `/api/taste/extract` → `TasteProfile` → `tasteToDesignDirectives()` + `referenceFidelityRules()` → model prompt → `PageNode` JSON tree → canvas. The taste profile is persisted per-project in localStorage via `project-store.ts`.
+**V5 Alpha harness layers (shipped 2026-03-22/23):**
+
+- `lib/canvas/directive-compiler.ts` — converts `TasteProfile` into structured `HARD / SOFT / AVOID` directives with fidelity modes (close/balanced/push)
+- `lib/canvas/directive-validator.ts` — validates generated `PageNode` trees against compiled directives, auto-repairs violations (palette snapping, padding adjustment, banned node removal)
+- `lib/canvas/taste-evaluator.ts` — AI-judged fidelity scoring (Gemini Flash, 0-10 across palette/typography/density/structure/overall)
+- `lib/canvas/archetype-bans.ts` — banned node types per archetype (e.g. editorial bans feature-grid, pricing-grid, logo-row)
+- `app/api/benchmark/score/route.ts` — scoring endpoint for benchmark script (scores raw PageNode trees against TasteProfile)
+- `scripts/benchmark-harness.ts` — end-to-end benchmark: image resolution → taste extraction → raw generation → harnessed generation → scoring → delta comparison
+- `benchmark-sets.json` — 4 curated benchmark sets (Editorial, Clean SaaS, Creative Agency, Brutalist)
+- `benchmark-refs/BS-01/` — 10 pre-resolved reference images for editorial benchmark
+
+**V6 Renderer (Phase 1a, 1b, 1c, 2a, 2b complete):**
+
+- `lib/canvas/design-node.ts` — V6 node model: 5 universal types (frame, text, image, button, divider) with expanded CSS style properties (positioning, grid, coverImage, z-index)
+- `lib/canvas/design-style-to-css.ts` — single translation layer from DesignNodeStyle to React CSSProperties
+- `lib/canvas/design-node-migration.ts` — PageNode → DesignNode bridge (converts all 16 old types, resolves tokens, decomposes card content)
+- `app/canvas-v1/components/ComposeDocumentViewV6.tsx` — V6 renderer: renders DesignNode trees as live HTML/CSS with coverImage backgrounds, gradient scrim, CSS Grid, click-to-select, hover outlines, double-click drill-down, Escape hierarchy nav, drag-to-reposition, resize handles, snap guides
+- `lib/canvas/test-editorial-tree.ts` — hand-authored editorial proof tree
+- `app/(dashboard)/test-v6/page.tsx` — visual proof gate test page (http://localhost:3000/test-v6)
+- `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` — V6 inspector with Position (flow/breakout toggle, x/y/z-index), Layout (flex/grid, direction, align, justify, gap), Spacing (4-side padding), Typography (font family with inheritance, weight, size, line-height, tracking, align, style, decoration), Fill (background, foreground, cover image), Appearance (radius, border +/-, shadow, opacity) sections
+- `app/canvas-v1/hooks/useDragDesignNode.ts` — drag-to-reposition for absolute-positioned DesignNodes (zoom-aware, shift-axis lock, snap guide integration, history on pointerup)
+- `app/canvas-v1/hooks/useSnapGuides.ts` — smart snap guide calculation during drag (caches sibling bounds, 5px threshold, snaps to edges + centers)
+- `app/canvas-v1/components/DesignNodeResizeHandles.tsx` — 8-handle resize for DesignNodes (corners + edges, shift aspect-ratio lock, alt center-resize, min 20px, zoom-aware)
+- `app/canvas-v1/components/SnapGuideLines.tsx` — magenta snap alignment line overlay (full-container-width lines at snap positions during drag)
+
+**V6 Interaction Layer:**
+
+- Phase 1b (Selection + Editing): Click-to-select via `data-node-id` attributes, `DesignNodeInspector` for property editing, inline text editing (double-click enters contentEditable with blue caret, Enter commits, Escape cancels), undo/redo via existing history engine
+- Phase 1c (Direct Manipulation): Drag-to-reposition for absolute-positioned nodes (`useDragDesignNode`), 8-handle resize (`DesignNodeResizeHandles`) with shift aspect-lock and alt center-resize, breakout mode toggle (flow/absolute) in inspector Position section
+- Interaction polish: Hover outlines (dashed blue, direct DOM mutation for zero re-renders), double-click drill-down to deepest child (`elementsFromPoint`), Escape hierarchy navigation (selected node → parent → deselect), smart snap guides (magenta lines, 5px threshold, edge + center alignment) via `useSnapGuides` + `SnapGuideLines`, breakout badge on absolute-positioned nodes, move cursor on selected absolute nodes
+
+The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compileTasteToDirectives()` → `buildPageTreePrompt()` → model → `PageNode` JSON → `validateDirectiveCompliance()` → `repairViolations()` → `scoreRealtimeFidelity()` → quality gate → 1+2 variant derivation. The taste profile is persisted per-project in localStorage via `project-store.ts`.
+
+**V6 pipeline (generation proven, consistency gate passed 3/3 BS-01 runs):** Same taste extraction → directive compilation, but generation targets DesignNode (5 types, richer CSS) instead of PageNode (16 types, flexbox only). Renderer produces live HTML/CSS at editorial quality. Composition vocabulary + 5-type system broke the PageNode quality ceiling. See `docs/superpowers/specs/2026-03-23-v6-renderer-architecture-design.md` for full spec.
+
+**V6 generation pipeline files (Phase 2a + 2b):**
+
+- `lib/canvas/design-tree-prompt.ts` — AI prompt builder for DesignNode JSON generation (replaces `buildPageTreePrompt()`, teaches 5-type system, composition vocabulary, archetype-specific grammars)
+- `lib/canvas/design-tree-validator.ts` — validates and normalizes AI-generated DesignNode JSON (structural validation, ID deduplication, grid constraint enforcement)
+- `lib/canvas/design-media-resolver.ts` — resolves placeholder image references in generated DesignNode trees to real stock photos via Lummi API
+- `lib/canvas/design-archetype-bans.ts` — V6 style-pattern-based bans (replaces PageNode type bans with structural pattern detection from style properties at runtime)
+- `lib/canvas/design-taste-evaluator.ts` — AI-judged fidelity scoring for DesignNode trees (summarizes tree structure, scores against TasteProfile via Gemini Flash)
 
 ### Theme System
 
@@ -325,6 +372,12 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/inspector/InspectorCollapsible.tsx` | Collapsible inspector section with chevron toggle |
 | `app/canvas-v1/components/inspector/InspectorSegmented.tsx` | Segmented control for inspector options (direction, shadow style) |
 | `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder, action menu, floating toolbar |
+| `app/canvas-v1/components/ComposeDocumentViewV6.tsx` | V6 renderer — DesignNode trees as live HTML/CSS, full interaction layer (select, hover, drill-down, drag, resize, snap guides) |
+| `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` | V6 inspector — Position, Layout, Spacing, Typography, Fill, Appearance sections for DesignNode editing |
+| `app/canvas-v1/hooks/useDragDesignNode.ts` | V6 drag-to-reposition — absolute-positioned DesignNodes, zoom-aware, shift-axis lock, snap guide integration |
+| `app/canvas-v1/hooks/useSnapGuides.ts` | Smart snap guides — sibling edge/center alignment during drag, 5px threshold, cached bounds |
+| `app/canvas-v1/components/DesignNodeResizeHandles.tsx` | V6 8-handle resize — corners + edges, shift aspect-lock, alt center-resize, min 20px |
+| `app/canvas-v1/components/SnapGuideLines.tsx` | Magenta snap alignment line overlay — full-container lines at active snap positions |
 | `app/canvas-v1/hooks/useDrag.ts` | Drag hook — pointer cycle, zoom-aware, shift-axis lock |
 | `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |
 | `app/canvas-v1/hooks/useCanvasKeyboard.ts` | Full keyboard shortcut set |

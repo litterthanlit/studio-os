@@ -2,7 +2,10 @@
  * Benchmark harness — Studio OS V5 Alpha
  *
  * Usage:
- *   npx tsx scripts/benchmark-harness.ts                 # Full benchmark (Phase 1 + Phase 2)
+ *   npx tsx scripts/benchmark-harness.ts                 # Full benchmark — V6 mode (default)
+ *   npx tsx scripts/benchmark-harness.ts --v6            # Explicit V6 mode (DesignNode path)
+ *   npx tsx scripts/benchmark-harness.ts --v5            # V5 mode (PageNode path)
+ *   npx tsx scripts/benchmark-harness.ts --compare       # Run V5 then V6, print side-by-side table
  *   npx tsx scripts/benchmark-harness.ts --preflight     # Phase 1 only (image resolution + taste extraction)
  *
  * Phase 1: Image URL resolution + Taste extraction (standalone, no dev server needed)
@@ -50,6 +53,16 @@ loadEnv();
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
 const PREFLIGHT_ONLY = process.argv.includes("--preflight");
+const COMPARE_MODE = process.argv.includes("--compare");
+
+// CLI mode: --v5 forces PageNode path, --v6 forces DesignNode path (default)
+const GENERATION_MODE: "v5" | "v6" = process.argv.includes("--v5") ? "v5" : "v6";
+const USE_DESIGN_NODE = GENERATION_MODE === "v6";
+
+if (!PREFLIGHT_ONLY) {
+  console.log(`\n[BENCHMARK] Generation mode: ${GENERATION_MODE.toUpperCase()} (useDesignNode: ${USE_DESIGN_NODE})`);
+}
+
 const DEV_PORT = process.env.BENCHMARK_PORT || "3000";
 const DEV_BASE = `http://localhost:${DEV_PORT}`;
 
@@ -577,7 +590,8 @@ async function checkDevServer(): Promise<boolean> {
 async function generateVariants(
   brief: string,
   tasteProfile: Record<string, unknown> | null,
-  referenceUrls: string[]
+  referenceUrls: string[],
+  useDesignNodeOverride?: boolean
 ): Promise<{
   siteName: string;
   variants: VariantResult[];
@@ -587,6 +601,9 @@ async function generateVariants(
     ? referenceUrls.slice(0, 4).map(toSendableUrl)
     : [];
 
+  const useDesignNodeValue =
+    useDesignNodeOverride !== undefined ? useDesignNodeOverride : USE_DESIGN_NODE;
+
   const body = {
     prompt: brief,
     tokens: NEUTRAL_TOKENS,
@@ -594,7 +611,7 @@ async function generateVariants(
     tasteProfile: tasteProfile ?? null,
     referenceUrls: sendableRefs,
     fidelityMode: tasteProfile ? "balanced" : undefined,
-    useDesignNode: true,
+    useDesignNode: useDesignNodeValue,
   };
 
   try {
@@ -665,12 +682,231 @@ function computeDelta(
   };
 }
 
+// ── Phase 2 runner (extracted so compare mode can call it twice) ─────────────
+
+async function runPhase2(
+  sets: BenchmarkSet[],
+  setsWithTaste: SetPhase1Result[],
+  useDesignNodeForRun: boolean
+): Promise<SetBenchmarkResult[]> {
+  const modeLabel = useDesignNodeForRun ? "V6" : "V5";
+  const benchmarkResults: SetBenchmarkResult[] = [];
+
+  for (const p1 of setsWithTaste) {
+    const set = sets.find((s) => s.id === p1.setId)!;
+    const sep = "─".repeat(Math.max(2, 64 - set.id.length - set.name.length));
+    console.log(`── [${modeLabel}] ${set.id}: ${set.name} ${sep}`);
+    console.log(`  Brief: "${set.brief.slice(0, 80)}..."`);
+    console.log(
+      `  Taste: ${p1.tasteProfile!.archetypeMatch} (confidence: ${p1.tasteProfile!.confidence})`
+    );
+
+    // RAW generation (no taste, no references)
+    process.stdout.write("  [RAW]       Generating variants (no taste)... ");
+    const rawResult = await generateVariants(set.brief, null, [], useDesignNodeForRun);
+
+    if (!rawResult) {
+      console.log("FAILED — skipping set");
+      benchmarkResults.push({
+        setId: set.id,
+        name: set.name,
+        category: set.category,
+        rawVariantA: { source: "failed", fidelityScore: null },
+        harnessedVariantA: { source: "skipped", fidelityScore: null },
+        delta: null,
+      });
+      continue;
+    }
+
+    const rawA = rawResult.variants[0];
+    console.log(`✓ source=${rawA.pageTreeSource}`);
+
+    // HARNESSED generation (with taste + references)
+    process.stdout.write("  [HARNESSED] Generating variants (with taste)... ");
+    const harnessedResult = await generateVariants(
+      set.brief,
+      p1.tasteProfile,
+      p1.resolvedUrls,
+      useDesignNodeForRun
+    );
+
+    if (!harnessedResult) {
+      console.log("FAILED — skipping set");
+      benchmarkResults.push({
+        setId: set.id,
+        name: set.name,
+        category: set.category,
+        rawVariantA: { source: rawA.pageTreeSource, fidelityScore: null },
+        harnessedVariantA: { source: "failed", fidelityScore: null },
+        delta: null,
+      });
+      continue;
+    }
+
+    const harnessedA = harnessedResult.variants[0];
+    console.log(`✓ source=${harnessedA.pageTreeSource}`);
+
+    // Score RAW
+    process.stdout.write("  [SCORE RAW] Scoring raw output vs taste... ");
+    const rawScore = await scorePageTree(
+      rawA.pageTree as Record<string, unknown>,
+      p1.tasteProfile!
+    );
+    if (rawScore) {
+      console.log(
+        `✓ palette=${rawScore.palette} type=${rawScore.typography} density=${rawScore.density} struct=${rawScore.structure} overall=${rawScore.overall}`
+      );
+    } else {
+      console.log("✗ scoring failed");
+    }
+
+    // Score HARNESSED (may already be in response)
+    let harnessedScore = harnessedA.fidelityScore;
+    if (!harnessedScore) {
+      process.stdout.write("  [SCORE HAR] Scoring harnessed output vs taste... ");
+      harnessedScore = await scorePageTree(
+        harnessedA.pageTree as Record<string, unknown>,
+        p1.tasteProfile!
+      );
+      if (harnessedScore) {
+        console.log(
+          `✓ palette=${harnessedScore.palette} type=${harnessedScore.typography} density=${harnessedScore.density} struct=${harnessedScore.structure} overall=${harnessedScore.overall}`
+        );
+      } else {
+        console.log("✗ scoring failed");
+      }
+    } else {
+      console.log(
+        `  [SCORE HAR] From generation: palette=${harnessedScore.palette} type=${harnessedScore.typography} density=${harnessedScore.density} struct=${harnessedScore.structure} overall=${harnessedScore.overall}`
+      );
+    }
+
+    const delta = computeDelta(rawScore, harnessedScore);
+    if (delta) {
+      const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+      console.log(
+        `  [DELTA]     palette=${sign(delta.palette)} type=${sign(delta.typography)} density=${sign(delta.density)} struct=${sign(delta.structure)} overall=${sign(delta.overall)}`
+      );
+    }
+
+    benchmarkResults.push({
+      setId: set.id,
+      name: set.name,
+      category: set.category,
+      rawVariantA: { source: rawA.pageTreeSource, fidelityScore: rawScore },
+      harnessedVariantA: {
+        source: harnessedA.pageTreeSource,
+        fidelityScore: harnessedScore,
+      },
+      delta,
+    });
+
+    console.log();
+  }
+
+  return benchmarkResults;
+}
+
+// ── Compare table printer ─────────────────────────────────────────────────────
+
+function printCompareTable(
+  v5Results: SetBenchmarkResult[],
+  v6Results: SetBenchmarkResult[]
+): void {
+  const dimensions: Array<keyof NonNullable<SetBenchmarkResult["delta"]>> = [
+    "palette",
+    "typography",
+    "density",
+    "structure",
+    "overall",
+  ];
+
+  console.log("\n══ V5 vs V6 Comparison ═════════════════════════════════════════════════\n");
+
+  // Per-set comparison
+  const allSetIds = [...new Set([...v5Results.map((r) => r.setId), ...v6Results.map((r) => r.setId)])];
+
+  for (const setId of allSetIds) {
+    const v5 = v5Results.find((r) => r.setId === setId);
+    const v6 = v6Results.find((r) => r.setId === setId);
+    const name = v5?.name ?? v6?.name ?? setId;
+
+    console.log(`  ${setId}: ${name}`);
+    console.log(`  ${"─".repeat(57)}`);
+    console.log(
+      `  ${"Dimension".padEnd(13)} ${"V5 Raw".padStart(8)} ${"V6 Raw".padStart(8)} ${"Delta".padStart(8)}`
+    );
+    console.log(`  ${"─".repeat(57)}`);
+
+    for (const dim of dimensions) {
+      const v5Score = v5?.rawVariantA.fidelityScore?.[dim] ?? null;
+      const v6Score = v6?.rawVariantA.fidelityScore?.[dim] ?? null;
+      const delta =
+        v5Score !== null && v6Score !== null
+          ? Math.round((v6Score - v5Score) * 10) / 10
+          : null;
+      const deltaStr =
+        delta !== null ? (delta > 0 ? `+${delta}` : `${delta}`) : "-";
+      const label = dim.charAt(0).toUpperCase() + dim.slice(1);
+      console.log(
+        `  ${label.padEnd(13)} ${String(v5Score ?? "-").padStart(8)} ${String(v6Score ?? "-").padStart(8)} ${deltaStr.padStart(8)}`
+      );
+    }
+    console.log();
+  }
+
+  // Aggregate averages across all sets
+  const avgV5 = (dim: keyof NonNullable<SetBenchmarkResult["delta"]>) => {
+    const scores = v5Results
+      .map((r) => r.rawVariantA.fidelityScore?.[dim])
+      .filter((s): s is number => s !== null && s !== undefined);
+    return scores.length > 0
+      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+      : null;
+  };
+
+  const avgV6 = (dim: keyof NonNullable<SetBenchmarkResult["delta"]>) => {
+    const scores = v6Results
+      .map((r) => r.rawVariantA.fidelityScore?.[dim])
+      .filter((s): s is number => s !== null && s !== undefined);
+    return scores.length > 0
+      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+      : null;
+  };
+
+  if (allSetIds.length > 1) {
+    console.log(`  AVERAGES (${allSetIds.length} sets)`);
+    console.log(`  ${"─".repeat(57)}`);
+    console.log(
+      `  ${"Dimension".padEnd(13)} ${"V5 Raw".padStart(8)} ${"V6 Raw".padStart(8)} ${"Delta".padStart(8)}`
+    );
+    console.log(`  ${"─".repeat(57)}`);
+
+    for (const dim of dimensions) {
+      const a5 = avgV5(dim);
+      const a6 = avgV6(dim);
+      const delta =
+        a5 !== null && a6 !== null
+          ? Math.round((a6 - a5) * 10) / 10
+          : null;
+      const deltaStr =
+        delta !== null ? (delta > 0 ? `+${delta}` : `${delta}`) : "-";
+      const label = dim.charAt(0).toUpperCase() + dim.slice(1);
+      console.log(
+        `  ${label.padEnd(13)} ${String(a5 ?? "-").padStart(8)} ${String(a6 ?? "-").padStart(8)} ${deltaStr.padStart(8)}`
+      );
+    }
+    console.log();
+  }
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function runBenchmark(): Promise<void> {
   console.log("=== Studio OS Benchmark Harness — V5 Alpha ===\n");
   console.log(`Date: ${new Date().toISOString()}`);
-  console.log(`Mode: ${PREFLIGHT_ONLY ? "preflight only" : "full benchmark"}\n`);
+  const modeDisplay = COMPARE_MODE ? "compare (V5 vs V6)" : PREFLIGHT_ONLY ? "preflight only" : `full benchmark (${GENERATION_MODE.toUpperCase()})`;
+  console.log(`Mode: ${modeDisplay}\n`);
 
   // ── Preflight ──────────────────────────────────────────────────────────────
   const openRouterKey = process.env.OPENROUTER_API_KEY;
@@ -985,134 +1221,39 @@ async function runBenchmark(): Promise<void> {
   }
   console.log("✓ running\n");
 
-  const benchmarkResults: SetBenchmarkResult[] = [];
+  // ── Compare mode: run V5 then V6, print side-by-side table ──
+  if (COMPARE_MODE) {
+    console.log("── V5 Run ──────────────────────────────────────────────────────────────\n");
+    const v5Results = await runPhase2(sets, setsWithTaste, false);
 
-  for (const p1 of setsWithTaste) {
-    const set = sets.find((s) => s.id === p1.setId)!;
-    const sep = "─".repeat(
-      Math.max(2, 64 - set.id.length - set.name.length)
-    );
-    console.log(`── ${set.id}: ${set.name} ${sep}`);
-    console.log(`  Brief: "${set.brief.slice(0, 80)}..."`);
-    console.log(
-      `  Taste: ${p1.tasteProfile!.archetypeMatch} (confidence: ${p1.tasteProfile!.confidence})`
-    );
+    console.log("\n── V6 Run ──────────────────────────────────────────────────────────────\n");
+    const v6Results = await runPhase2(sets, setsWithTaste, true);
 
-    // ── Step 1: RAW generation (no taste, no references) ──
-    process.stdout.write("  [RAW]       Generating variants (no taste)... ");
-    const rawResult = await generateVariants(set.brief, null, []);
+    printCompareTable(v5Results, v6Results);
 
-    if (!rawResult) {
-      console.log("FAILED — skipping set");
-      benchmarkResults.push({
-        setId: set.id,
-        name: set.name,
-        category: set.category,
-        rawVariantA: { source: "failed", fidelityScore: null },
-        harnessedVariantA: { source: "skipped", fidelityScore: null },
-        delta: null,
-      });
-      continue;
-    }
-
-    const rawA = rawResult.variants[0];
-    console.log(`✓ source=${rawA.pageTreeSource}`);
-
-    // ── Step 2: HARNESSED generation (with taste + references) ──
-    process.stdout.write(
-      "  [HARNESSED] Generating variants (with taste)... "
-    );
-    const harnessedResult = await generateVariants(
-      set.brief,
-      p1.tasteProfile,
-      p1.resolvedUrls
-    );
-
-    if (!harnessedResult) {
-      console.log("FAILED — skipping set");
-      benchmarkResults.push({
-        setId: set.id,
-        name: set.name,
-        category: set.category,
-        rawVariantA: {
-          source: rawA.pageTreeSource,
-          fidelityScore: null,
+    // Write compare output
+    const comparePath = path.join(outDir, `benchmark-compare-${timestamp}.json`);
+    fs.writeFileSync(
+      comparePath,
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          phase: "compare-v5-vs-v6",
+          version: setsFile.version,
+          v5: v5Results,
+          v6: v6Results,
         },
-        harnessedVariantA: { source: "failed", fidelityScore: null },
-        delta: null,
-      });
-      continue;
-    }
-
-    const harnessedA = harnessedResult.variants[0];
-    console.log(
-      `✓ source=${harnessedA.pageTreeSource}`
+        null,
+        2
+      )
     );
-
-    // ── Step 3: Score RAW Variant A against taste profile ──
-    process.stdout.write("  [SCORE RAW] Scoring raw output vs taste... ");
-    const rawScore = await scorePageTree(
-      rawA.pageTree as Record<string, unknown>,
-      p1.tasteProfile!
-    );
-
-    if (rawScore) {
-      console.log(
-        `✓ palette=${rawScore.palette} type=${rawScore.typography} density=${rawScore.density} struct=${rawScore.structure} overall=${rawScore.overall}`
-      );
-    } else {
-      console.log("✗ scoring failed");
-    }
-
-    // ── Step 4: Get harnessed score (already in response, or score if missing) ──
-    let harnessedScore = harnessedA.fidelityScore;
-    if (!harnessedScore) {
-      process.stdout.write(
-        "  [SCORE HAR] Scoring harnessed output vs taste... "
-      );
-      harnessedScore = await scorePageTree(
-        harnessedA.pageTree as Record<string, unknown>,
-        p1.tasteProfile!
-      );
-      if (harnessedScore) {
-        console.log(
-          `✓ palette=${harnessedScore.palette} type=${harnessedScore.typography} density=${harnessedScore.density} struct=${harnessedScore.structure} overall=${harnessedScore.overall}`
-        );
-      } else {
-        console.log("✗ scoring failed");
-      }
-    } else {
-      console.log(
-        `  [SCORE HAR] From generation: palette=${harnessedScore.palette} type=${harnessedScore.typography} density=${harnessedScore.density} struct=${harnessedScore.structure} overall=${harnessedScore.overall}`
-      );
-    }
-
-    // ── Step 5: Compute delta ──
-    const delta = computeDelta(rawScore, harnessedScore);
-    if (delta) {
-      const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
-      console.log(
-        `  [DELTA]     palette=${sign(delta.palette)} type=${sign(delta.typography)} density=${sign(delta.density)} struct=${sign(delta.structure)} overall=${sign(delta.overall)}`
-      );
-    }
-
-    benchmarkResults.push({
-      setId: set.id,
-      name: set.name,
-      category: set.category,
-      rawVariantA: {
-        source: rawA.pageTreeSource,
-        fidelityScore: rawScore,
-      },
-      harnessedVariantA: {
-        source: harnessedA.pageTreeSource,
-        fidelityScore: harnessedScore,
-      },
-      delta,
-    });
-
-    console.log();
+    console.log(`\n✓ Compare output: benchmark-results/benchmark-compare-${timestamp}.json`);
+    console.log("\n=== Compare benchmark complete ===");
+    return;
   }
+
+  // ── Single-mode run ──
+  const benchmarkResults = await runPhase2(sets, setsWithTaste, USE_DESIGN_NODE);
 
   // ══════════════════════════════════════════════════════════════════════════
   // RESULTS
@@ -1208,13 +1349,15 @@ async function runBenchmark(): Promise<void> {
   // ── Write benchmark output ──
   const benchmarkPath = path.join(
     outDir,
-    `benchmark-${timestamp}.json`
+    `benchmark-${GENERATION_MODE}-${timestamp}.json`
   );
 
   const benchmarkOutput = {
     timestamp: new Date().toISOString(),
     phase: "full-benchmark",
     version: setsFile.version,
+    mode: GENERATION_MODE,
+    useDesignNode: USE_DESIGN_NODE,
     config: {
       fidelityMode: "balanced",
       tokens: "neutral-benchmark",
@@ -1277,7 +1420,7 @@ async function runBenchmark(): Promise<void> {
 
   fs.writeFileSync(benchmarkPath, JSON.stringify(benchmarkOutput, null, 2));
   console.log(
-    `\n✓ Benchmark output: benchmark-results/benchmark-${timestamp}.json`
+    `\n✓ Benchmark output: benchmark-results/benchmark-${GENERATION_MODE}-${timestamp}.json`
   );
   console.log("\n=== Benchmark complete ===");
 }

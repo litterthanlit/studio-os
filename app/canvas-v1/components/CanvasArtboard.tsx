@@ -80,6 +80,18 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
     [dispatch, item.id, item.pageTree]
   );
 
+  const handleNodeStyleUpdate = React.useCallback(
+    (nodeId: string, style: Record<string, unknown>) => {
+      dispatch({
+        type: "UPDATE_NODE_STYLE",
+        artboardId: item.id,
+        nodeId,
+        style: style as import("@/lib/canvas/compose").PageNodeStyle,
+      });
+    },
+    [dispatch, item.id]
+  );
+
   const handleReplaceNodeImage = React.useCallback(
     (nodeId: string, file: File) => {
       const reader = new FileReader();
@@ -194,7 +206,10 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
               selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
               onSelectNode={handleNodeSelect}
               onUpdateContent={handleNodeContentUpdate}
+              onUpdateNodeStyle={handleNodeStyleUpdate}
               onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
+              artboardId={item.id}
+              zoom={state.viewport.zoom}
               interactive
             />
           ) : tokens ? (

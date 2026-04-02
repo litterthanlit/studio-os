@@ -10,7 +10,10 @@
     "db:push": "supabase db push",
     "generate:marketing-images": "npx tsx scripts/generate-marketing-images.ts",
     "benchmark": "npx tsx scripts/benchmark-harness.ts",
-    "benchmark:preflight": "npx tsx scripts/benchmark-harness.ts --preflight"
+    "benchmark:preflight": "npx tsx scripts/benchmark-harness.ts --preflight",
+    "benchmark:v6": "npx tsx scripts/benchmark-harness.ts --v6",
+    "benchmark:v5": "npx tsx scripts/benchmark-harness.ts --v5",
+    "benchmark:compare": "npx tsx scripts/benchmark-harness.ts --compare"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

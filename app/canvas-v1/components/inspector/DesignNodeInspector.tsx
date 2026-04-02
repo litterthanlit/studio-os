@@ -28,6 +28,7 @@ import {
   InspectorColorField,
   InspectorTextInput,
 } from "./InspectorField";
+import { GridTemplatePicker } from "./GridTemplatePicker";
 import { InspectorCollapsible } from "./InspectorCollapsible";
 import { InspectorSegmented } from "./InspectorSegmented";
 import { BreakpointBadge } from "./BreakpointBadge";
@@ -421,11 +422,10 @@ export function DesignNodeInspector({
             {style.display === "grid" && (
               <div className="space-y-0.5">
                 <InspectorLabel hasOverride={hasOverride("gridTemplate")} onResetOverride={() => resetOverride("gridTemplate")}>Grid Template</InspectorLabel>
-                <InspectorTextInput
+                <GridTemplatePicker
                   value={style.gridTemplate || ""}
-                  placeholder="repeat(3, 1fr)"
-                  onChange={(e) => updateStyle({ gridTemplate: (e.target as HTMLInputElement).value || undefined })}
-                  onBlur={() => history.flush()}
+                  onChange={(v) => updateStyle({ gridTemplate: v })}
+                  onCommit={() => history.flush()}
                 />
               </div>
             )}

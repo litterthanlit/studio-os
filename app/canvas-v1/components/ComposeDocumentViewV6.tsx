@@ -6,7 +6,7 @@
 
 import React from "react";
 import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
-import { findDesignNodeById } from "@/lib/canvas/design-node";
+import { findDesignNodeById, findDesignNodeParent } from "@/lib/canvas/design-node";
 import { designStyleToCSS } from "@/lib/canvas/design-style-to-css";
 import { useDragDesignNode } from "@/app/canvas-v1/hooks/useDragDesignNode";
 import { useSnapGuides } from "@/app/canvas-v1/hooks/useSnapGuides";
@@ -479,6 +479,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         <div
           key={node.id}
           data-node-id={node.id}
+          data-node-type={node.type}
           style={frameStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -507,6 +508,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         <div
           key={node.id}
           data-node-id={node.id}
+          data-node-type={node.type}
           style={textStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -552,6 +554,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         <div
           key={node.id}
           data-node-id={node.id}
+          data-node-type={node.type}
           style={wrapperStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -583,6 +586,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         <button
           key={node.id}
           data-node-id={node.id}
+          data-node-type={node.type}
           style={btnStyle}
           onClick={interactive ? (e) => { e.preventDefault(); e.stopPropagation(); onSelect(node.id); } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -617,6 +621,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         <div
           key={node.id}
           data-node-id={node.id}
+          data-node-type={node.type}
           style={wrapperStyle}
           onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -790,6 +795,27 @@ export function ComposeDocumentViewV6({
   // ── Hover outline (direct DOM, zero re-renders) ────────────────────
   const hoverElRef = React.useRef<HTMLElement | null>(null);
 
+  // ── Hover label (direct DOM mutation, same pattern as hover outline) ──
+  const hoverLabelRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const label = document.createElement("div");
+    label.style.cssText = `
+      position: absolute; z-index: 10001; pointer-events: none;
+      opacity: 0; transition: opacity 100ms ease;
+    `;
+    label.innerHTML = `<span style="
+      font-size: 9px; font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      color: #A0A0A0; background: rgba(255,255,255,0.8);
+      padding: 1px 4px; border-radius: 2px; white-space: nowrap;
+    "></span>`;
+    containerRef.current.appendChild(label);
+    hoverLabelRef.current = label;
+    return () => { label.remove(); };
+  }, []);
+
   const clearHoverOutline = React.useCallback(() => {
     const el = hoverElRef.current;
     if (el) {
@@ -802,6 +828,9 @@ export function ComposeDocumentViewV6({
       }
     }
     hoverElRef.current = null;
+    if (hoverLabelRef.current) {
+      hoverLabelRef.current.style.opacity = "0";
+    }
   }, [selectedNodeId]);
 
   const handleHoverMove = React.useCallback(
@@ -815,6 +844,9 @@ export function ComposeDocumentViewV6({
           hoverElRef.current.style.outlineOffset = "";
           hoverElRef.current.style.cursor = "";
           hoverElRef.current = null;
+        }
+        if (hoverLabelRef.current) {
+          hoverLabelRef.current.style.opacity = "0";
         }
         return;
       }
@@ -839,8 +871,21 @@ export function ComposeDocumentViewV6({
       // ── Cursor: pointer for unselected hovered nodes ──────────────
       target.style.cursor = "pointer";
       hoverElRef.current = target;
+
+      // ── Hover label: position and show ──────────────────────────────
+      if (hoverLabelRef.current && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const nodeRect = target.getBoundingClientRect();
+        const nodeType = target.getAttribute("data-node-type") || "frame";
+        const displayType = nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+
+        hoverLabelRef.current.style.top = `${(nodeRect.top - containerRect.top) / zoom - 18}px`;
+        hoverLabelRef.current.style.left = `${(nodeRect.left - containerRect.left) / zoom}px`;
+        hoverLabelRef.current.querySelector("span")!.textContent = displayType;
+        hoverLabelRef.current.style.opacity = "1";
+      }
     },
-    [interactive, selectedNodeId, clearHoverOutline]
+    [interactive, selectedNodeId, clearHoverOutline, zoom]
   );
 
   const handleHoverLeave = React.useCallback(() => {
@@ -892,6 +937,61 @@ export function ComposeDocumentViewV6({
   React.useEffect(() => {
     isInteractingRef.current = isDragging || isResizing || editingNodeId !== null;
   }, [isDragging, isResizing, editingNodeId]);
+
+  // ── Selection label (React-rendered, only changes on selection) ──────
+  const selectedNodeInfo = React.useMemo(() => {
+    if (!selectedNodeId || editingNodeId) return null;
+    const node = findDesignNodeById(tree, selectedNodeId);
+    if (!node) return null;
+    return {
+      text: node.name || node.type.charAt(0).toUpperCase() + node.type.slice(1),
+      nodeId: selectedNodeId,
+    };
+  }, [selectedNodeId, editingNodeId, tree]);
+
+  const [selLabelPos, setSelLabelPos] = React.useState<{ top: number; left: number } | null>(null);
+
+  React.useEffect(() => {
+    if (!selectedNodeInfo || !containerRef.current) { setSelLabelPos(null); return; }
+    const el = containerRef.current.querySelector<HTMLElement>(
+      `[data-node-id="${selectedNodeInfo.nodeId}"]`
+    );
+    if (!el) { setSelLabelPos(null); return; }
+    const cr = containerRef.current.getBoundingClientRect();
+    const nr = el.getBoundingClientRect();
+    setSelLabelPos({
+      top: (nr.top - cr.top) / zoom - 18,
+      left: (nr.left - cr.left) / zoom,
+    });
+  }, [selectedNodeInfo, zoom, tree]);
+
+  // ── Parent boundary on drill-in (React-rendered) ────────────────────
+  const parentBoundaryId = React.useMemo(() => {
+    if (!selectedNodeId) return null;
+    const parent = findDesignNodeParent(tree, selectedNodeId);
+    if (!parent || parent.id === tree.id) return null;
+    return parent.id;
+  }, [selectedNodeId, tree]);
+
+  const [parentBounds, setParentBounds] = React.useState<{
+    top: number; left: number; width: number; height: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!parentBoundaryId || !containerRef.current) { setParentBounds(null); return; }
+    const el = containerRef.current.querySelector<HTMLElement>(
+      `[data-node-id="${parentBoundaryId}"]`
+    );
+    if (!el) { setParentBounds(null); return; }
+    const cr = containerRef.current.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    setParentBounds({
+      top: (er.top - cr.top) / zoom,
+      left: (er.left - cr.left) / zoom,
+      width: er.width / zoom,
+      height: er.height / zoom,
+    });
+  }, [parentBoundaryId, zoom, tree]);
 
   // Determine if selected node is absolute (for move cursor)
   const selectedNodeIsAbsolute = React.useMemo(() => {
@@ -1080,6 +1180,32 @@ export function ComposeDocumentViewV6({
           onResizeStart={() => setIsResizing(true)}
           onResizeDone={() => setIsResizing(false)}
         />
+      )}
+      {/* ── Selection label ── */}
+      {interactive && selectedNodeInfo && selLabelPos && (
+        <div style={{
+          position: "absolute", top: selLabelPos.top, left: selLabelPos.left,
+          zIndex: 10001, pointerEvents: "none",
+        }}>
+          <span style={{
+            fontSize: 9, fontFamily: "'IBM Plex Mono', monospace",
+            textTransform: "uppercase", letterSpacing: "0.05em",
+            color: "white", background: "#1E5DF2",
+            padding: "1px 6px", borderRadius: 2, whiteSpace: "nowrap",
+          }}>
+            {selectedNodeInfo.text}
+          </span>
+        </div>
+      )}
+      {/* ── Parent boundary on drill-in ── */}
+      {interactive && parentBounds && (
+        <div style={{
+          position: "absolute",
+          top: parentBounds.top, left: parentBounds.left,
+          width: parentBounds.width, height: parentBounds.height,
+          border: "1px dashed #E5E5E0",
+          pointerEvents: "none", zIndex: 9998,
+        }} />
       )}
     </div>
   );

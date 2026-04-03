@@ -65,6 +65,10 @@ export function CanvasProvider({
     hydratedRef.current = true;
   }, [projectId]);
 
+  // Keep a ref to the latest state so the unmount flush can access it
+  const latestStateRef = useRef(reducerState);
+  latestStateRef.current = reducerState;
+
   // On state change (debounced 500ms): persist
   useEffect(() => {
     if (!hydratedRef.current) return;
@@ -83,6 +87,17 @@ export function CanvasProvider({
       }
     };
   }, [projectId, reducerState]);
+
+  // Flush pending save on unmount (HMR, navigation) so state is never lost
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      // Synchronous flush — always save latest state before unmount
+      saveUnifiedCanvas(projectId, extractCanvasState(latestStateRef.current));
+    };
+  }, [projectId]);
 
   // NOTE: Keyboard shortcuts (Cmd+Z, etc.) are handled by useCanvasKeyboard
   // hook in UnifiedCanvasView — removed duplicate listener here to prevent

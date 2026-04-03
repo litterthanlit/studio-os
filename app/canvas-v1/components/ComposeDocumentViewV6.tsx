@@ -14,6 +14,7 @@ import { ENTER_TEXT_EDIT_MODE_EVENT } from "@/app/canvas-v1/hooks/useCanvasKeybo
 import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
 import { SnapGuideLines } from "./SnapGuideLines";
 import { Plus } from "lucide-react";
+import { ComponentQuickPicker } from "./ComponentQuickPicker";
 
 // ── Blank section factory for insertion ────────────────────────────────────
 let _insertCounter = 0;
@@ -37,10 +38,14 @@ function createBlankDesignSection(): DesignNode {
 // ── Insertion Bar ──────────────────────────────────────────────────
 function V6InsertionBar({
   onInsert,
+  onOpenGallery,
 }: {
-  onInsert: () => void;
+  onInsert: (node: DesignNode) => void;
+  onOpenGallery?: () => void;
 }) {
   const [hovered, setHovered] = React.useState(false);
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
 
   return (
     <div
@@ -56,13 +61,22 @@ function V6InsertionBar({
       />
       {/* Plus button */}
       <button
+        ref={buttonRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); onInsert(); }}
+        onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
         className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] transition-all duration-100 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
-        style={{ opacity: hovered ? 1 : 0, transform: hovered ? "scale(1)" : "scale(0.8)" }}
+        style={{ opacity: hovered || pickerOpen ? 1 : 0, transform: hovered || pickerOpen ? "scale(1)" : "scale(0.8)" }}
       >
         <Plus size={12} />
       </button>
+      {pickerOpen && buttonRef.current && (
+        <ComponentQuickPicker
+          anchorRect={buttonRef.current.getBoundingClientRect()}
+          onInsert={(node) => { onInsert(node); setPickerOpen(false); }}
+          onBrowseAll={() => { onOpenGallery?.(); setPickerOpen(false); }}
+          onDismiss={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -433,7 +447,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
               elements.push(
                 <V6InsertionBar
                   key={`insert-${index}`}
-                  onInsert={() => onInsertSection(index, createBlankDesignSection())}
+                  onInsert={(node) => onInsertSection(index, node)}
                 />
               );
               elements.push(
@@ -454,7 +468,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
             elements.push(
               <V6InsertionBar
                 key="insert-end"
-                onInsert={() => onInsertSection(children.length, createBlankDesignSection())}
+                onInsert={(node) => onInsertSection(children.length, node)}
               />
             );
             return elements;

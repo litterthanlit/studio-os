@@ -10,7 +10,6 @@ import type { DesignNode } from "./design-node";
 import {
   findDesignNodeById,
   findDesignNodeParent,
-  cloneDesignNode,
 } from "./design-node";
 import type {
   UnifiedCanvasState,
@@ -1106,17 +1105,18 @@ export function canvasReducer(
         return updateNodeInTree(pageTree, parent!.id, (parentNode) => {
           const ch = parentNode.children ?? [];
           const withoutSelected = ch.filter((c) => !selectedSet.has(c.id));
-          // Find insertion index — where the topmost selected node was
-          let insertIdx = 0;
-          let selectedCount = 0;
-          for (let i = 0; i < ch.length; i++) {
-            if (selectedSet.has(ch[i].id)) {
-              if (selectedCount === 0) insertIdx = i - selectedCount;
-              selectedCount++;
+          // Find the first selected child's original index, then count
+          // how many non-selected children precede it — that count is the
+          // correct insertion index in the filtered (withoutSelected) array.
+          let insertIdx = withoutSelected.length; // fallback: append
+          const firstSelectedOrigIdx = ch.findIndex((c) => selectedSet.has(c.id));
+          if (firstSelectedOrigIdx !== -1) {
+            let nonSelectedBefore = 0;
+            for (let i = 0; i < firstSelectedOrigIdx; i++) {
+              if (!selectedSet.has(ch[i].id)) nonSelectedBefore++;
             }
+            insertIdx = nonSelectedBefore;
           }
-          // Recalculate: insertIdx in the filtered array
-          insertIdx = Math.min(insertIdx, withoutSelected.length);
           const next = [...withoutSelected];
           next.splice(insertIdx, 0, groupNode as unknown as typeof ch[0]);
           return { ...parentNode, children: next };
@@ -1414,7 +1414,10 @@ export function canvasReducer(
       return {
         ...state,
         items: state.aiPreview.beforeItems,
-        selection: state.aiPreview.beforeSelection,
+        selection: {
+          ...state.aiPreview.beforeSelection,
+          selectedNodeIds: state.aiPreview.beforeSelection.selectedNodeIds ?? [],
+        },
         aiPreview: null,
         updatedAt: now(),
       };

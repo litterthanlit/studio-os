@@ -180,8 +180,8 @@ function isLightColor(hex?: string): boolean {
 function selectionOutlineStyle(isSelected: boolean): React.CSSProperties {
   if (!isSelected) return {};
   return {
-    outline: "2px solid #1E5DF2",
-    outlineOffset: -2,
+    outline: "1.5px solid #1E5DF2",
+    outlineOffset: -1.5,
   };
 }
 
@@ -644,6 +644,8 @@ function ResizeOverlay({
   zoom,
   onUpdateNodeStyle,
   onPushHistory,
+  onResizeStart,
+  onResizeDone,
 }: {
   selectedNodeId: string | null;
   editingNodeId: string | null;
@@ -652,6 +654,8 @@ function ResizeOverlay({
   zoom: number;
   onUpdateNodeStyle?: (nodeId: string, style: Partial<DesignNodeStyle>) => void;
   onPushHistory?: (description: string) => void;
+  onResizeStart?: () => void;
+  onResizeDone?: () => void;
 }) {
   const [nodeRect, setNodeRect] = React.useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
@@ -724,6 +728,8 @@ function ResizeOverlay({
             onUpdateNodeStyle(selectedNode.id, styleUpdate);
             onPushHistory?.("Resize element");
           }}
+          onResizeStart={onResizeStart}
+          onResizeDone={onResizeDone}
         />
       </div>
     </div>
@@ -749,6 +755,38 @@ export function ComposeDocumentViewV6({
   const historyPushedRef = React.useRef(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
+  // ── Resize state lifted from DesignNodeResizeHandles ──────────────
+  const [isResizing, setIsResizing] = React.useState(false);
+
+  // ── Shared interaction suppression flag ────────────────────────────
+  // True when ANY interaction is active: drag, resize, pan, text edit.
+  // The hover handler reads this to suppress outlines during interactions.
+  const isInteractingRef = React.useRef(false);
+
+  // ── Local space-held tracking (for hover suppression) ─────────────
+  const spaceHeldRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+        spaceHeldRef.current = true;
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        spaceHeldRef.current = false;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
+
   // ── Hover outline (direct DOM, zero re-renders) ────────────────────
   const hoverElRef = React.useRef<HTMLElement | null>(null);
 
@@ -760,6 +798,7 @@ export function ComposeDocumentViewV6({
       if (nodeId !== selectedNodeId) {
         el.style.outline = "";
         el.style.outlineOffset = "";
+        el.style.cursor = "";
       }
     }
     hoverElRef.current = null;
@@ -768,6 +807,18 @@ export function ComposeDocumentViewV6({
   const handleHoverMove = React.useCallback(
     (e: React.MouseEvent) => {
       if (!interactive) return;
+
+      // ── Suppress hover during any active interaction ──────────────
+      if (isInteractingRef.current || spaceHeldRef.current) {
+        if (hoverElRef.current) {
+          hoverElRef.current.style.outline = "";
+          hoverElRef.current.style.outlineOffset = "";
+          hoverElRef.current.style.cursor = "";
+          hoverElRef.current = null;
+        }
+        return;
+      }
+
       const target = (e.target as HTMLElement).closest<HTMLElement>("[data-node-id]");
       if (!target) {
         clearHoverOutline();
@@ -783,8 +834,10 @@ export function ComposeDocumentViewV6({
       }
       // Swap outline
       clearHoverOutline();
-      target.style.outline = "1px dashed rgba(30, 93, 242, 0.4)";
+      target.style.outline = "1px solid rgba(30, 93, 242, 0.4)";
       target.style.outlineOffset = "-1px";
+      // ── Cursor: pointer for unselected hovered nodes ──────────────
+      target.style.cursor = "pointer";
       hoverElRef.current = target;
     },
     [interactive, selectedNodeId, clearHoverOutline]
@@ -833,6 +886,13 @@ export function ComposeDocumentViewV6({
     setDragState({ isDragging, draggedNodeId: draggedNodeId ?? null });
   }, [isDragging, draggedNodeId]);
 
+  // ── Update interaction suppression flag ────────────────────────────
+  // isDragging, isResizing, editingNodeId are reactive — update ref in effect.
+  // spaceHeld is read directly from ref in the hover handler (no effect needed).
+  React.useEffect(() => {
+    isInteractingRef.current = isDragging || isResizing || editingNodeId !== null;
+  }, [isDragging, isResizing, editingNodeId]);
+
   // Determine if selected node is absolute (for move cursor)
   const selectedNodeIsAbsolute = React.useMemo(() => {
     if (!selectedNodeId || !interactive) return false;
@@ -859,6 +919,23 @@ export function ComposeDocumentViewV6({
       el.style.cursor = "";
     };
   }, [selectedNodeId, selectedNodeIsAbsolute]);
+
+  // ── Drag opacity: dim selection outline during drag ────────────────
+  React.useEffect(() => {
+    if (!isDragging || !selectedNodeId || !containerRef.current) return;
+    const el = containerRef.current.querySelector<HTMLElement>(
+      `[data-node-id="${selectedNodeId}"]`
+    );
+    if (!el) return;
+    // Drop selection outline to 60% opacity during drag
+    el.style.outline = "1.5px solid rgba(30, 93, 242, 0.6)";
+    el.style.outlineOffset = "-1.5px";
+    return () => {
+      // Restore full selection outline on drag end
+      el.style.outline = "1.5px solid #1E5DF2";
+      el.style.outlineOffset = "-1.5px";
+    };
+  }, [isDragging, selectedNodeId]);
 
   const handleSelect = React.useCallback(
     (nodeId: string) => {
@@ -1000,6 +1077,8 @@ export function ComposeDocumentViewV6({
           zoom={zoom}
           onUpdateNodeStyle={onUpdateNodeStyle}
           onPushHistory={onPushHistory}
+          onResizeStart={() => setIsResizing(true)}
+          onResizeDone={() => setIsResizing(false)}
         />
       )}
     </div>

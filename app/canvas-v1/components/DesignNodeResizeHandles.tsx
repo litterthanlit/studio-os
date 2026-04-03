@@ -100,6 +100,10 @@ type DesignNodeResizeHandlesProps = {
   onResize: (styleUpdate: Partial<DesignNodeStyle>) => void;
   /** Called at the start of a resize burst to capture history before mutation */
   onResizeEnd: (styleUpdate: Partial<DesignNodeStyle>) => void;
+  /** Called when a resize drag starts */
+  onResizeStart?: () => void;
+  /** Called when a resize drag ends (pointer up or cancel) */
+  onResizeDone?: () => void;
 };
 
 // ── Component ────────────────────────────────────────────────────────
@@ -110,6 +114,8 @@ export function DesignNodeResizeHandles({
   zoom,
   onResize,
   onResizeEnd,
+  onResizeStart,
+  onResizeDone,
 }: DesignNodeResizeHandlesProps) {
   const resizingRef = useRef<{
     handle: HandlePosition;
@@ -173,6 +179,8 @@ export function DesignNodeResizeHandles({
         historyCaptured: false,
         lastUpdateKey: null,
       };
+
+      onResizeStart?.();
 
       const computeUpdate = (
         screenX: number,
@@ -327,6 +335,7 @@ export function DesignNodeResizeHandles({
 
       const cleanup = () => {
         resizingRef.current = null;
+        onResizeDone?.();
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", handlePointerUp);
         window.removeEventListener("pointercancel", handlePointerCancel);
@@ -368,7 +377,7 @@ export function DesignNodeResizeHandles({
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
     },
-    [canResizeHeight, canResizeWidth, node.style, nodeRect, zoom, onResize, onResizeEnd]
+    [canResizeHeight, canResizeWidth, node.style, nodeRect, zoom, onResize, onResizeEnd, onResizeStart, onResizeDone]
   );
 
   const w = nodeRect.width;

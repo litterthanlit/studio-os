@@ -42,6 +42,9 @@ import {
   InspectorDivider,
 } from "./inspector/InspectorField";
 import { SpacingDiagram } from "./inspector/SpacingDiagram";
+import { TasteCard } from "./TasteCard";
+import { ReferenceRail } from "./ReferenceRail";
+import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import { AIPreviewBar } from "./AIPreviewBar";
 import { InspectorCollapsible } from "./inspector/InspectorCollapsible";
 import { InspectorSegmented } from "./inspector/InspectorSegmented";
@@ -1170,6 +1173,26 @@ function PromptComposer({
     () => (projectId ? getProjectState(projectId).canvas?.tasteProfile ?? null : null)
   );
 
+  // Fidelity mode: persisted in project state, same pattern as tasteProfile
+  const [fidelityMode, setFidelityMode] = React.useState<FidelityMode>(
+    () => {
+      if (!projectId) return "balanced";
+      const ps = getProjectState(projectId);
+      return (ps.canvas as any)?.fidelityMode ?? "balanced";
+    }
+  );
+
+  // Persist fidelityMode changes to project state
+  const handleFidelityChange = React.useCallback(
+    (mode: FidelityMode) => {
+      setFidelityMode(mode);
+      if (projectId) {
+        upsertProjectState(projectId, { canvas: { fidelityMode: mode } as any });
+      }
+    },
+    [projectId]
+  );
+
   // Reference context: selected references, or all references if none selected
   const referenceItems = React.useMemo(() => {
     const selectedRefs = items.filter(
@@ -1182,6 +1205,49 @@ function PromptComposer({
       (item): item is ReferenceItem => item.kind === "reference"
     );
   }, [items, selection.selectedItemIds]);
+
+  const [isRefreshingTaste, setIsRefreshingTaste] = React.useState(false);
+  const [refreshError, setRefreshError] = React.useState(false);
+
+  // Count references with actual usable image URLs
+  const usableRefCount = React.useMemo(
+    () => referenceItems.filter((r) => r.imageUrl).length,
+    [referenceItems]
+  );
+
+  const handleRefreshTaste = React.useCallback(async () => {
+    if (isRefreshingTaste || usableRefCount === 0 || !projectId) return;
+    setIsRefreshingTaste(true);
+    setRefreshError(false);
+    try {
+      const imageUrls = referenceItems
+        .map((r) => r.imageUrl)
+        .filter(Boolean);
+
+      const res = await fetch("/api/taste/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          referenceUrls: imageUrls,
+          prompt: prompt.value?.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("Taste extraction failed");
+      const data = await res.json();
+      if (data && typeof data === "object" && data.summary) {
+        const profile = data as TasteProfile;
+        setTasteProfile(profile);
+        upsertProjectState(projectId, { canvas: { tasteProfile: profile } });
+      }
+    } catch (err) {
+      console.error("[TasteCard] Refresh failed:", err);
+      setRefreshError(true);
+      setTimeout(() => setRefreshError(false), 1500);
+    } finally {
+      setIsRefreshingTaste(false);
+    }
+  }, [isRefreshingTaste, usableRefCount, referenceItems, projectId, prompt.value]);
 
   const hasArtboards = items.some((i) => i.kind === "artboard");
   const chips = getSuggestionChips(selectedNode, hasArtboards);
@@ -1333,7 +1399,7 @@ function PromptComposer({
           siteType: prompt.siteType,
           siteName: prompt.value.trim().slice(0, 50),
           tasteProfile: resolvedTaste,
-          fidelityMode: "balanced",
+          fidelityMode,
           useDesignNode: true,
         }),
       });
@@ -1408,7 +1474,7 @@ function PromptComposer({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
 
   // ── Vary: re-trigger generation when varySignal increments ──────────
 
@@ -1472,6 +1538,24 @@ function PromptComposer({
 
       {/* Scrollable area: history + chips */}
       <div className="flex-1 overflow-y-auto px-3 min-h-0">
+        {/* Taste Intelligence surfaces — scroll with content */}
+        <div className="-mx-3">
+          <div className="border-b border-[#E5E5E0]">
+            <TasteCard
+              tasteProfile={tasteProfile}
+              fidelityMode={fidelityMode}
+              onFidelityChange={handleFidelityChange}
+              onRefresh={handleRefreshTaste}
+              isRefreshing={isRefreshingTaste}
+              refreshError={refreshError}
+              hasReferences={usableRefCount > 0}
+            />
+          </div>
+          <div className="border-b border-[#E5E5E0]">
+            <ReferenceRail references={referenceItems} />
+          </div>
+        </div>
+
         {/* Prompt history */}
         {prompt.history.length > 0 && (
           <div className="space-y-1 mb-3">

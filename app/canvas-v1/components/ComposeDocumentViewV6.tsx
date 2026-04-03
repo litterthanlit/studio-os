@@ -266,6 +266,8 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
         }
         onDoubleClick={(e) => {
           e.stopPropagation();
+          // Already editing — let native double-click-to-select-word work
+          if (isEditing) return;
           onStartEdit();
         }}
         suppressContentEditableWarning
@@ -304,6 +306,8 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
           }
           onDoubleClick={(e) => {
             e.stopPropagation();
+            // Already editing — let native double-click-to-select-word work
+            if (isEditing) return;
             onStartEdit();
           }}
           suppressContentEditableWarning
@@ -523,7 +527,12 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           data-node-type={node.type}
           style={textStyle}
-          onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onClick={interactive ? (e) => {
+            e.stopPropagation();
+            // Don't re-select (which exits edit mode) if clicking inside active contentEditable
+            if (isEditing) return;
+            onSelect(node.id);
+          } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >

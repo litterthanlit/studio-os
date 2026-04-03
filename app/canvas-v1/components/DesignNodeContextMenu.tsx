@@ -4,6 +4,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {
   Copy, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Type, Bookmark,
+  Group, Ungroup,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignNode, Breakpoint } from "@/lib/canvas/design-node";
@@ -22,18 +23,24 @@ type DesignNodeContextMenuProps = {
   onToggleVisibility: () => void;
   onEditText?: () => void;
   onSaveToLibrary?: (name: string) => void;
+  onGroup?: () => void;
+  onUngroup?: () => void;
+  isGroupNode?: boolean;
+  multiSelectCount?: number;
   onDismiss: () => void;
 };
 
 function MenuItem({
   icon,
   label,
+  shortcut,
   onClick,
   danger,
   disabled,
 }: {
   icon: React.ReactNode;
   label: string;
+  shortcut?: string;
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
@@ -56,7 +63,8 @@ function MenuItem({
       )}
     >
       {icon}
-      {label}
+      <span className="flex-1">{label}</span>
+      {shortcut && <span className="ml-auto text-[10px] text-[#A0A0A0]">{shortcut}</span>}
     </button>
   );
 }
@@ -79,6 +87,10 @@ export function DesignNodeContextMenu({
   onToggleVisibility,
   onEditText,
   onSaveToLibrary,
+  onGroup,
+  onUngroup,
+  isGroupNode,
+  multiSelectCount,
   onDismiss,
 }: DesignNodeContextMenuProps) {
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -214,6 +226,29 @@ export function DesignNodeContextMenu({
           )}
         </>
       )}
+
+      {/* Group / Ungroup */}
+      {(onGroup && (multiSelectCount ?? 0) >= 2) || (onUngroup && isGroupNode) ? (
+        <>
+          <Divider />
+          {onGroup && (multiSelectCount ?? 0) >= 2 && (
+            <MenuItem
+              icon={<Group {...iconProps} />}
+              label={`Group ${multiSelectCount} nodes`}
+              shortcut="\u2318G"
+              onClick={() => { onGroup(); onDismiss(); }}
+            />
+          )}
+          {onUngroup && isGroupNode && (
+            <MenuItem
+              icon={<Ungroup {...iconProps} />}
+              label="Ungroup"
+              shortcut="\u2318\u21E7G"
+              onClick={() => { onUngroup(); onDismiss(); }}
+            />
+          )}
+        </>
+      ) : null}
 
       <Divider />
 

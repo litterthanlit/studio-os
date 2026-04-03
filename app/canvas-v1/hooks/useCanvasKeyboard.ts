@@ -59,6 +59,8 @@ type KeyboardOptions = {
   onToggleInspector: () => void;
   onFocusPrompt: () => void;
   onSetActiveTool?: (tool: string) => void;
+  zoomToFit?: () => void;
+  zoomToSelection?: () => void;
 };
 
 export function useCanvasKeyboard({
@@ -68,6 +70,8 @@ export function useCanvasKeyboard({
   onToggleInspector,
   onFocusPrompt,
   onSetActiveTool,
+  zoomToFit,
+  zoomToSelection,
 }: KeyboardOptions) {
   useEffect(() => {
     const getActiveArtboard = () =>
@@ -165,6 +169,20 @@ export function useCanvasKeyboard({
       const isEditing = isEditingText();
 
       if (isEditing) {
+        return;
+      }
+
+      // Cmd+0 — Zoom to fit all artboards
+      if (isMeta && e.key === "0") {
+        e.preventDefault();
+        zoomToFit?.();
+        return;
+      }
+
+      // Cmd+1 — Zoom to selection (falls back to zoom-to-fit if nothing selected)
+      if (isMeta && e.key === "1") {
+        e.preventDefault();
+        zoomToSelection?.();
         return;
       }
 
@@ -446,5 +464,5 @@ export function useCanvasKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt, onSetActiveTool]);
+  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt, onSetActiveTool, zoomToFit, zoomToSelection]);
 }

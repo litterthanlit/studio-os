@@ -24,8 +24,7 @@ import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
 import { InspectorPanelV3, type InspectorPanelV3Handle } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
-// BottomBarV3 — zoom UI removed (now in inspector header). Component renders null.
-// import { BottomBarV3 } from "./BottomBarV3";
+import { BottomBarV3 } from "./BottomBarV3";
 // BreadcrumbBar removed from rendering — info available via layers panel and escape hierarchy
 import { exitAnyActiveTextEditing } from "./ComposeDocumentView";
 import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
@@ -124,6 +123,16 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     setSectionLibraryInsertIndex(insertAtIndex);
   }, []);
 
+  // Discrete zoom flag — enables CSS transition during step/zoom-to-fit/zoom-to-selection actions
+  const [isDiscreteZoom, setIsDiscreteZoom] = React.useState(false);
+  const discreteZoomTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerDiscreteZoom = React.useCallback(() => {
+    setIsDiscreteZoom(true);
+    if (discreteZoomTimerRef.current) clearTimeout(discreteZoomTimerRef.current);
+    discreteZoomTimerRef.current = setTimeout(() => setIsDiscreteZoom(false), 200);
+  }, []);
+
   // Prompt textarea ref for focus management
   const promptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const inspectorPanelRef = React.useRef<InspectorPanelV3Handle>(null);
@@ -149,6 +158,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     }, 0);
   }, [dispatch]);
 
+  // Stable refs so zoom keyboard shortcuts can call implementations defined after containerRef
+  const zoomToFitRef = React.useRef<(() => void) | null>(null);
+  const zoomToSelectionRef = React.useRef<(() => void) | null>(null);
+  const zoomToFitStable = React.useCallback(() => zoomToFitRef.current?.(), []);
+  const zoomToSelectionStable = React.useCallback(() => zoomToSelectionRef.current?.(), []);
+
   // Keyboard shortcuts
   useCanvasKeyboard({
     state,
@@ -157,6 +172,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     onToggleInspector: () => setShowInspector((v) => !v),
     onFocusPrompt: handleFocusPrompt,
     onSetActiveTool: setActiveTool,
+    zoomToFit: zoomToFitStable,
+    zoomToSelection: zoomToSelectionStable,
   });
 
   // Load design tokens from project state for artboard rendering
@@ -223,6 +240,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const gestureHandlers = useCanvasGestures({
     currentZoom: viewport.zoom,
     activeTool,
+    onDiscreteZoom: triggerDiscreteZoom,
     onPan: (delta) => {
       dispatch({
         type: "SET_VIEWPORT",
@@ -262,6 +280,124 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     },
     [containerRef, viewport]
   );
+
+  // ── Zoom-to-fit: center all artboards in viewport ──────────────────
+
+  const zoomToFit = React.useCallback(() => {
+    const artboards = items.filter((i) => i.kind === "artboard");
+    if (artboards.length === 0) return;
+
+    const PADDING = 64;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const ab of artboards) {
+      minX = Math.min(minX, ab.x);
+      minY = Math.min(minY, ab.y);
+      maxX = Math.max(maxX, ab.x + ab.width);
+      maxY = Math.max(maxY, ab.y + ab.height);
+    }
+
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const viewW = container.clientWidth;
+    const viewH = container.clientHeight;
+    const newZoom = Math.min((viewW - PADDING * 2) / contentW, (viewH - PADDING * 2) / contentH, 4);
+    const clampedZoom = Math.max(0.1, Math.min(8, newZoom));
+
+    const newPanX = (viewW - contentW * clampedZoom) / 2 - minX * clampedZoom;
+    const newPanY = (viewH - contentH * clampedZoom) / 2 - minY * clampedZoom;
+
+    triggerDiscreteZoom();
+    dispatch({
+      type: "SET_VIEWPORT",
+      pan: { x: newPanX, y: newPanY },
+      zoom: clampedZoom,
+    });
+  }, [items, containerRef, dispatch, triggerDiscreteZoom]);
+
+  // ── Zoom-to-selection: zoom to selected item or selected node ────────
+
+  const zoomToSelection = React.useCallback(() => {
+    const { selectedItemIds, activeArtboardId, selectedNodeId } = state.selection;
+
+    // Try selected canvas item first
+    const selectedItemId = selectedItemIds[0];
+    if (selectedItemId) {
+      const item = items.find((i) => i.id === selectedItemId);
+      if (item) {
+        const PADDING = 64;
+        const container = containerRef.current;
+        if (!container) return;
+        const viewW = container.clientWidth;
+        const viewH = container.clientHeight;
+        const newZoom = Math.min((viewW - PADDING * 2) / item.width, (viewH - PADDING * 2) / item.height, 4);
+        const clampedZoom = Math.max(0.1, Math.min(8, newZoom));
+        const newPanX = (viewW - item.width * clampedZoom) / 2 - item.x * clampedZoom;
+        const newPanY = (viewH - item.height * clampedZoom) / 2 - item.y * clampedZoom;
+        triggerDiscreteZoom();
+        dispatch({ type: "SET_VIEWPORT", pan: { x: newPanX, y: newPanY }, zoom: clampedZoom });
+        return;
+      }
+    }
+
+    // Try selected design node via DOM bounds
+    if (activeArtboardId && selectedNodeId) {
+      const nodeEl = document.querySelector(`[data-node-id="${selectedNodeId}"]`) as HTMLElement | null;
+      if (nodeEl && containerRef.current) {
+        const container = containerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const nodeRect = nodeEl.getBoundingClientRect();
+        const PADDING = 64;
+        const viewW = container.clientWidth;
+        const viewH = container.clientHeight;
+        // Convert screen rect to canvas coords
+        const nodeCanvasX = (nodeRect.left - containerRect.left - viewport.pan.x) / viewport.zoom;
+        const nodeCanvasY = (nodeRect.top - containerRect.top - viewport.pan.y) / viewport.zoom;
+        const nodeCanvasW = nodeRect.width / viewport.zoom;
+        const nodeCanvasH = nodeRect.height / viewport.zoom;
+        const newZoom = Math.min((viewW - PADDING * 2) / nodeCanvasW, (viewH - PADDING * 2) / nodeCanvasH, 4);
+        const clampedZoom = Math.max(0.1, Math.min(8, newZoom));
+        const newPanX = (viewW - nodeCanvasW * clampedZoom) / 2 - nodeCanvasX * clampedZoom;
+        const newPanY = (viewH - nodeCanvasH * clampedZoom) / 2 - nodeCanvasY * clampedZoom;
+        triggerDiscreteZoom();
+        dispatch({ type: "SET_VIEWPORT", pan: { x: newPanX, y: newPanY }, zoom: clampedZoom });
+        return;
+      }
+    }
+
+    // Nothing selected — fall back to zoom-to-fit
+    zoomToFit();
+  }, [state.selection, items, containerRef, viewport, dispatch, triggerDiscreteZoom, zoomToFit]);
+
+  // ── Zoom change handler for BottomBarV3 ──────────────────────────────
+
+  const handleZoomChange = React.useCallback(
+    (newZoom: number) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const viewW = container.clientWidth;
+      const viewH = container.clientHeight;
+      const centerX = viewW / 2;
+      const centerY = viewH / 2;
+      const zoomRatio = newZoom / viewport.zoom;
+      triggerDiscreteZoom();
+      dispatch({
+        type: "SET_VIEWPORT",
+        pan: {
+          x: centerX - (centerX - viewport.pan.x) * zoomRatio,
+          y: centerY - (centerY - viewport.pan.y) * zoomRatio,
+        },
+        zoom: newZoom,
+      });
+    },
+    [containerRef, viewport, dispatch, triggerDiscreteZoom]
+  );
+
+  // Wire stable refs so keyboard shortcuts can call the real implementations
+  zoomToFitRef.current = zoomToFit;
+  zoomToSelectionRef.current = zoomToSelection;
 
   // ── Drag box selection ─────────────────────────────────────────────
 
@@ -549,6 +685,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
           position: "absolute",
           top: 0,
           left: 0,
+          transition: isDiscreteZoom ? "transform 150ms ease-out" : undefined,
         }}
         data-canvas-surface="true"
       >
@@ -653,7 +790,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         )}
       </AnimatePresence>
 
-      {/* Bottom bar removed — zoom now in inspector header, shortcuts still work */}
+      {/* Bottom bar — zoom display */}
+      <BottomBarV3
+        zoom={viewport.zoom}
+        onZoomChange={handleZoomChange}
+        onZoomToFit={zoomToFit}
+      />
       </div>
     </div>
   );

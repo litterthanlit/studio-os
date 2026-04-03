@@ -5,13 +5,36 @@ import { useCallback, useEffect, useRef } from "react";
 type GestureCallbacks = {
   onPan: (delta: { dx: number; dy: number }) => void;
   onZoom: (zoom: number, center: { x: number; y: number }) => void;
+  onDiscreteZoom?: () => void;
   currentZoom: number;
   activeTool?: string;
 };
 
-const MIN_ZOOM = 0.05;
-const MAX_ZOOM = 3;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 8;
 const ZOOM_SENSITIVITY = 0.002;
+
+const ZOOM_STEPS = [0.1, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
+
+function getStepZoom(currentZoom: number, direction: "in" | "out"): number {
+  // Find the closest step index
+  let closestIdx = 0;
+  let closestDist = Infinity;
+  for (let i = 0; i < ZOOM_STEPS.length; i++) {
+    const dist = Math.abs(ZOOM_STEPS[i] - currentZoom);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestIdx = i;
+    }
+  }
+  if (direction === "in") {
+    const nextIdx = Math.min(closestIdx + 1, ZOOM_STEPS.length - 1);
+    return ZOOM_STEPS[nextIdx];
+  } else {
+    const nextIdx = Math.max(closestIdx - 1, 0);
+    return ZOOM_STEPS[nextIdx];
+  }
+}
 
 /**
  * Hook for canvas pan/zoom gestures.
@@ -26,7 +49,7 @@ const ZOOM_SENSITIVITY = 0.002;
  * plus state for cursor styling.
  */
 export function useCanvasGestures(options: GestureCallbacks) {
-  const { onPan, onZoom, currentZoom, activeTool } = options;
+  const { onPan, onZoom, onDiscreteZoom, currentZoom, activeTool } = options;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const spaceHeldRef = useRef(false);
@@ -167,14 +190,30 @@ export function useCanvasGestures(options: GestureCallbacks) {
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
-      const isZoomGesture = e.metaKey || e.ctrlKey;
+      const isPinch = e.ctrlKey && !e.metaKey;
+      const isCmdWheel = e.metaKey;
 
-      // Cmd/Ctrl + wheel zoom
-      if (isZoomGesture) {
+      // Pinch gesture (trackpad two-finger pinch → ctrlKey=true on macOS)
+      // Keep continuous — no stepping
+      if (isPinch) {
         e.preventDefault();
         const delta = -e.deltaY * ZOOM_SENSITIVITY;
         const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * (1 + delta * 10)));
         const rect = container.getBoundingClientRect();
+        onZoom(newZoom, {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        });
+        return;
+      }
+
+      // Cmd + wheel → discrete step zoom
+      if (isCmdWheel) {
+        e.preventDefault();
+        const direction = e.deltaY > 0 ? "out" : "in";
+        const newZoom = getStepZoom(currentZoom, direction);
+        const rect = container.getBoundingClientRect();
+        onDiscreteZoom?.();
         onZoom(newZoom, {
           x: e.clientX - rect.left,
           y: e.clientY - rect.top,
@@ -192,7 +231,7 @@ export function useCanvasGestures(options: GestureCallbacks) {
 
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
-  }, [currentZoom, onPan, onZoom]);
+  }, [currentZoom, onPan, onZoom, onDiscreteZoom]);
 
   // ── Native middle-mouse pan ────────────────────────────────────────
 

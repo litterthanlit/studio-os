@@ -61,7 +61,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable} h-full`}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -75,10 +75,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={GeistSans.className} suppressHydrationWarning>
+      <body className={`${GeistSans.className} h-full`} suppressHydrationWarning>
         <ThemeProvider>
           <Preloader>
-            <div className="min-h-screen">{children}</div>
+            <div className="h-full">{children}</div>
           </Preloader>
           <SpeedInsights />
         </ThemeProvider>

@@ -1258,7 +1258,14 @@ function PromptComposer({
 
   // Scroll history to bottom on new entry
   React.useEffect(() => {
-    historyEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = historyEndRef.current;
+    if (!el) return;
+    // Use manual scrollTop on the closest scrollable parent to avoid
+    // scrollIntoView bubbling up and shifting the page/shell.
+    const scrollParent = el.closest(".overflow-y-auto") as HTMLElement | null;
+    if (scrollParent) {
+      scrollParent.scrollTo({ top: scrollParent.scrollHeight, behavior: "smooth" });
+    }
   }, [prompt.history.length]);
 
   // ── Generation pipeline ────────────────────────────────────────────
@@ -1805,7 +1812,9 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
     if (!scrollEl) return;
     const target = scrollEl.querySelector("[data-inspector-first-section]");
     if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Use block:"nearest" to prevent scroll from escaping the
+      // inspector panel and shifting the page/canvas shell.
+      target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     }
   }, [selection.selectedNodeId]);
 

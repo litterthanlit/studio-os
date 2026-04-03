@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-html {
-  scroll-behavior: smooth;
-}
-
 /* Light mode only — dark theme removed */
 
 /* Search bar ring pulse — 2 iterations then stops */
@@ -367,8 +363,8 @@ html[data-theme="light"] {
   display: none;
 }
 
-html {
-  scroll-behavior: smooth;
+html, body {
+  height: 100%;
 }
 
 body {

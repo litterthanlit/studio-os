@@ -5,7 +5,7 @@ import { CommandPalette } from "@/components/navigation/command-palette";
 export default function CanvasLayout({ children }: { children: ReactNode }) {
   return (
     <NewProjectModalProvider>
-      <div className="flex h-screen overflow-hidden bg-bg-primary">
+      <div className="flex h-screen overflow-clip bg-bg-primary">
         {/* MiniRail is rendered inside UnifiedCanvasView (where panel toggle state lives) */}
 
         {/* Canvas area — fills remaining space, NO max-width, NO scroll */}

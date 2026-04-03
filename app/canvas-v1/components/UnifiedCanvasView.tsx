@@ -22,7 +22,7 @@ import { CanvasReference } from "./CanvasReference";
 import { CanvasArtboard } from "./CanvasArtboard";
 import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
-import { InspectorPanelV3 } from "./InspectorPanelV3";
+import { InspectorPanelV3, type InspectorPanelV3Handle } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
 // BottomBarV3 — zoom UI removed (now in inspector header). Component renders null.
 // import { BottomBarV3 } from "./BottomBarV3";
@@ -126,22 +126,19 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // Prompt textarea ref for focus management
   const promptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const inspectorPanelRef = React.useRef<InspectorPanelV3Handle>(null);
 
-  // Focus prompt: ensure inspector is visible, prompt expanded, textarea focused
+  // Focus prompt: ensure inspector is visible, switch to prompt tab, focus textarea
   const handleFocusPrompt = React.useCallback(() => {
     setShowInspector(true);
-    if (!state.prompt.isOpen) {
-      dispatch({ type: "TOGGLE_PROMPT_PANEL" });
-    }
+    inspectorPanelRef.current?.switchToPromptTab();
     // Focus after state updates render
     setTimeout(() => promptTextareaRef.current?.focus(), 0);
-  }, [state.prompt.isOpen, dispatch]);
+  }, []);
 
   const focusPromptWithPrefill = React.useCallback((prefill: string) => {
     setShowInspector(true);
-    if (!state.prompt.isOpen) {
-      dispatch({ type: "TOGGLE_PROMPT_PANEL" });
-    }
+    inspectorPanelRef.current?.switchToPromptTab();
     dispatch({ type: "SET_PROMPT", value: prefill });
     setTimeout(() => {
       const textarea = promptTextareaRef.current;
@@ -150,7 +147,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         textarea.setSelectionRange(prefill.length, prefill.length);
       }
     }, 0);
-  }, [state.prompt.isOpen, dispatch]);
+  }, [dispatch]);
 
   // Keyboard shortcuts
   useCanvasKeyboard({
@@ -636,11 +633,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       {/* Tool palette */}
       <ToolPalette activeTool={activeTool} onToolChange={setActiveTool} />
 
-      {/* Inspector panel (now includes embedded prompt) */}
+      {/* Inspector panel — single-mode tabs (Design/CSS/Export/Prompt) */}
       {showInspector && (
         <InspectorPanelV3
           projectId={projectId}
           promptTextareaRef={promptTextareaRef}
+          panelRef={inspectorPanelRef}
         />
       )}
 

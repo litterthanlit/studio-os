@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * V3 Inspector Panel — split panel: inspector (top) + embedded prompt composer (bottom).
+ * V3 Inspector Panel — single-mode tabbed panel (Design | CSS | Export | Prompt).
  *
- * Replaces the old floating PromptPanel. Contains selection-adaptive property
- * editing in the top section and generation, history, suggestion chips in the
- * bottom section. Draggable divider between sections; split ratio persisted.
+ * Each tab gets full height. Design/CSS/Export show inspector content only.
+ * Prompt tab shows the prompt composer at full height. No split panel, no divider.
+ * Layout chain: panel (absolute, flex-col) -> header (shrink-0) -> tabs (shrink-0)
+ * -> content (flex-1 min-h-0 overflow).
  */
 
 import * as React from "react";
@@ -1600,24 +1601,32 @@ function formatNodeType(type: string): string {
 
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
-const MIN_SECTION_HEIGHT = 120;
+export type InspectorPanelV3Handle = {
+  switchToPromptTab: () => void;
+};
 
 type InspectorPanelV3Props = {
   projectId?: string;
   promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  panelRef?: React.RefObject<InspectorPanelV3Handle | null>;
 };
 
-export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPanelV3Props) {
+export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: externalPanelRef }: InspectorPanelV3Props) {
   const { state, dispatch } = useCanvas();
   const { selection, items, prompt } = state;
   const projectTokens = projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null;
 
-  const panelRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const textareaRef = promptTextareaRef ?? internalTextareaRef;
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = React.useState<InspectorTabId>("design");
+
+  // Expose imperative handle so parent can switch to prompt tab
+  React.useImperativeHandle(externalPanelRef, () => ({
+    switchToPromptTab: () => setActiveTab("prompt"),
+  }));
 
   // ── Inspector content logic ────────────────────────────────────────
 
@@ -1735,57 +1744,14 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
     setVarySignal((v) => v + 1);
   }, [dispatch, state.aiPreview?.prompt]);
 
-  // ── Split ratio ────────────────────────────────────────────────────
-
-  const hasSelection = selection.selectedItemIds.length > 0;
-  const defaultRatio = hasSelection ? 0.6 : 0.4;
-  const splitRatio = prompt.splitRatio ?? defaultRatio;
-
-  // Divider drag
-  const isDraggingDivider = React.useRef(false);
-
-  const handleDividerPointerDown = React.useCallback(
-    (e: React.PointerEvent) => {
-      e.preventDefault();
-      isDraggingDivider.current = true;
-
-      const panel = panelRef.current;
-      if (!panel) return;
-
-      const handleMove = (moveEvent: PointerEvent) => {
-        if (!isDraggingDivider.current || !panel) return;
-        const panelRect = panel.getBoundingClientRect();
-        const panelHeight = panelRect.height;
-        const pointerY = moveEvent.clientY - panelRect.top;
-
-        // Clamp so both sections are >= MIN_SECTION_HEIGHT
-        const minRatio = MIN_SECTION_HEIGHT / panelHeight;
-        const maxRatio = 1 - MIN_SECTION_HEIGHT / panelHeight;
-        const newRatio = Math.max(minRatio, Math.min(maxRatio, pointerY / panelHeight));
-
-        dispatch({ type: "SET_SPLIT_RATIO", ratio: newRatio });
-      };
-
-      const handleUp = () => {
-        isDraggingDivider.current = false;
-        window.removeEventListener("pointermove", handleMove);
-        window.removeEventListener("pointerup", handleUp);
-      };
-
-      window.addEventListener("pointermove", handleMove);
-      window.addEventListener("pointerup", handleUp);
-    },
-    [dispatch]
-  );
-
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
     <div
-      ref={panelRef}
+      ref={containerRef}
       className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
     >
-      {/* Header area */}
+      {/* Header area — shrink-0 so it never grows/shrinks */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] shrink-0">
         <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNode) ? "text-[#1A1A1A]" : "text-[#A0A0A0]")}>
           {selectedDesignNode ? `${selectedDesignNode.type} — ${selectedDesignNode.name}` : selectedNode ? formatNodeType(selectedNode.type) : "No Selection"}
@@ -1813,19 +1779,21 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
         </div>
       </div>
 
-      {/* Tabs (sticky at top) */}
+      {/* Tabs — shrink-0, never participates in flex distribution */}
       <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} isGenerating={prompt.isGenerating ?? false} />
 
-      {/* Breakpoint badge (below tabs, non-desktop only) */}
+      {/* Breakpoint badge (below tabs, non-desktop only) — shrink-0 */}
       {showBreakpointBadge && activeArtboard && (
-        <BreakpointBadge
-          breakpoint={artboardBreakpoint as "mobile"}
-          width={BREAKPOINT_WIDTHS[artboardBreakpoint]}
-        />
+        <div className="shrink-0">
+          <BreakpointBadge
+            breakpoint={artboardBreakpoint as "mobile"}
+            width={BREAKPOINT_WIDTHS[artboardBreakpoint]}
+          />
+        </div>
       )}
 
-      {/* ── AI tab: full-height prompt composer, no split ── */}
-      {activeTab === "ai" ? (
+      {/* ── Single content area — flex-1 min-h-0, one mode at a time ── */}
+      {activeTab === "prompt" ? (
         <div className="flex-1 min-h-0 overflow-hidden">
           <PromptComposer
             textareaRef={textareaRef}
@@ -1835,68 +1803,34 @@ export function InspectorPanelV3({ projectId, promptTextareaRef }: InspectorPane
           />
         </div>
       ) : (
-        <>
-          {/* Inspector section (top) */}
-          <div
-            ref={inspectorScrollRef}
-            className="overflow-y-auto flex-1 min-h-0"
-            style={{ height: prompt.isOpen ? `${splitRatio * 100}%` : undefined }}
-          >
-            {activeTab === "design" ? (
-              <>
-                {/* AI Preview bar */}
-                <AnimatePresence>
-                  {state.aiPreview?.active && !prompt.isGenerating && (
-                    <AIPreviewBar
-                      onAccept={handleAcceptPreview}
-                      onReject={handleRejectPreview}
-                      onVary={handleVaryPreview}
-                    />
-                  )}
-                </AnimatePresence>
-
-                <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
-              </>
-            ) : activeTab === "export" ? (
-              <ExportTab
-                artboard={activeArtboard}
-                selectedNodeId={selection.selectedNodeId}
-              />
-            ) : (
-              <CSSTab resolvedStyle={resolvedStyle} />
-            )}
-          </div>
-
-          {/* Divider + Prompt section (bottom) */}
-          {prompt.isOpen && (
+        <div
+          ref={inspectorScrollRef}
+          className="flex-1 min-h-0 overflow-y-auto"
+        >
+          {activeTab === "design" ? (
             <>
-              {/* Draggable divider — improved visibility */}
-              <div
-                className="h-[6px] cursor-row-resize group relative shrink-0"
-                onPointerDown={handleDividerPointerDown}
-              >
-                {/* Default: thin centered line */}
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-[#E5E5E0] group-hover:h-[3px] group-hover:bg-[#D1E4FC] transition-all" />
-                {/* Grip dots centered on divider */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-[3px] opacity-40 group-hover:opacity-70 transition-opacity">
-                  <span className="block w-[3px] h-[3px] rounded-full bg-[#A0A0A0]" />
-                  <span className="block w-[3px] h-[3px] rounded-full bg-[#A0A0A0]" />
-                  <span className="block w-[3px] h-[3px] rounded-full bg-[#A0A0A0]" />
-                </div>
-              </div>
+              {/* AI Preview bar */}
+              <AnimatePresence>
+                {state.aiPreview?.active && !prompt.isGenerating && (
+                  <AIPreviewBar
+                    onAccept={handleAcceptPreview}
+                    onReject={handleRejectPreview}
+                    onVary={handleVaryPreview}
+                  />
+                )}
+              </AnimatePresence>
 
-              {/* Prompt composer section (bottom) — accent top border */}
-              <div className="flex-1 min-h-0 overflow-hidden border-t-2 border-t-[#1E5DF2]/20">
-                <PromptComposer
-                  textareaRef={textareaRef}
-                  selectedNode={selectedNode}
-                  projectId={projectId}
-                  varySignal={varySignal}
-                />
-              </div>
+              <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
             </>
+          ) : activeTab === "export" ? (
+            <ExportTab
+              artboard={activeArtboard}
+              selectedNodeId={selection.selectedNodeId}
+            />
+          ) : (
+            <CSSTab resolvedStyle={resolvedStyle} />
           )}
-        </>
+        </div>
       )}
     </div>
   );

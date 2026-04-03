@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type InspectorTabId = "design" | "css" | "export" | "ai";
+export type InspectorTabId = "design" | "css" | "export" | "prompt";
 
 type InspectorTabsProps = {
   activeTab: InspectorTabId;
@@ -14,7 +14,7 @@ const tabs: Array<{ id: InspectorTabId; label: string }> = [
   { id: "design", label: "Design" },
   { id: "css", label: "CSS" },
   { id: "export", label: "Export" },
-  { id: "ai", label: "AI" },
+  { id: "prompt", label: "Prompt" },
 ];
 
 export function InspectorTabs({ activeTab, onTabChange, isGenerating }: InspectorTabsProps) {
@@ -33,8 +33,8 @@ export function InspectorTabs({ activeTab, onTabChange, isGenerating }: Inspecto
           )}
         >
           {tab.label}
-          {/* Generating pulse dot on AI tab */}
-          {tab.id === "ai" && isGenerating && (
+          {/* Generating pulse dot on Prompt tab */}
+          {tab.id === "prompt" && isGenerating && (
             <span className="relative flex h-[6px] w-[6px]">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1E5DF2] opacity-75" />
               <span className="relative inline-flex rounded-full h-[6px] w-[6px] bg-[#1E5DF2]" />

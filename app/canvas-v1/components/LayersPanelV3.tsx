@@ -20,6 +20,7 @@ import { findDesignNodeParent, cloneDesignNode } from "@/lib/canvas/design-node"
 import { saveComponent, type DesignComponent } from "@/lib/canvas/design-component-library";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
+import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/useLayersDragReorder";
 
 // ─── Node type → icon ────────────────────────────────────────────────────────
 
@@ -65,32 +66,78 @@ function formatDesignNodeLabel(node: DesignNode): string {
   return label.length > 28 ? `${label.slice(0, 28)}…` : label;
 }
 
+// ─── Drop Indicator ─────────────────────────────────────────────────────────
+
+function DropIndicatorLine({ depth }: { depth: number }) {
+  return (
+    <div
+      className="pointer-events-none h-[2px] bg-[#1E5DF2]"
+      style={{ marginLeft: depth * 12 + 16 }}
+    />
+  );
+}
+
 // ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
 
 function DesignTreeNode({
-  node, depth, selectedNodeId, artboardId, onSelectNode, onContextMenu,
+  node, depth, selectedNodeId, selectedNodeIds, artboardId, parentId, index,
+  onSelectNode, onContextMenu, dispatch,
+  draggedId, dropTarget, onDragPointerDown,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
-  artboardId: string; onSelectNode: (artboardId: string, nodeId: string) => void;
+  selectedNodeIds: string[]; artboardId: string;
+  parentId: string; index: number;
+  onSelectNode: (artboardId: string, nodeId: string) => void;
   onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
+  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
+  draggedId: string | null;
+  dropTarget: DropTarget | null;
+  onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
 }) {
   const hasChildren = node.children && node.children.length > 0;
   const [expanded, setExpanded] = React.useState(depth < 2);
-  const isSelected = selectedNodeId === node.id;
+  const isPrimary = selectedNodeId === node.id;
+  const isSecondary = !isPrimary && selectedNodeIds.includes(node.id);
+  const isDragged = draggedId === node.id;
+
+  // Show drop indicator above this row when drop target index matches this row's index
+  const showDropAbove =
+    dropTarget !== null &&
+    dropTarget.parentId === parentId &&
+    dropTarget.index === index;
 
   return (
     <>
+      {showDropAbove && <DropIndicatorLine depth={depth} />}
       <button
         type="button"
-        onClick={() => onSelectNode(artboardId, node.id)}
+        data-layer-node-id={node.id}
+        data-layer-parent-id={parentId}
+        data-layer-index={index}
+        onClick={(e) => {
+          // Don't fire click if we were just dragging
+          if (draggedId) return;
+          if (e.shiftKey) {
+            dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId, nodeId: node.id });
+          } else {
+            onSelectNode(artboardId, node.id);
+          }
+        }}
+        onPointerDown={(e) => onDragPointerDown(e, node.id, parentId)}
         onContextMenu={(e) => onContextMenu?.(node, artboardId, e)}
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
-          isSelected
+          isPrimary
             ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
-            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+            : isSecondary
+              ? "bg-[#D1E4FC]/25 text-[rgba(30,93,242,0.7)] border-l-2 border-[rgba(30,93,242,0.45)]"
+              : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
         )}
-        style={{ height: 26, paddingLeft: depth * 12 + (hasChildren ? 4 : 16) }}
+        style={{
+          height: 26,
+          paddingLeft: depth * 12 + (hasChildren ? 4 : 16),
+          opacity: isDragged ? 0.4 : 1,
+        }}
       >
         {hasChildren && (
           <span
@@ -102,10 +149,28 @@ function DesignTreeNode({
         )}
         <DesignNodeIcon type={node.type} />
         <span className="min-w-0 flex-1 truncate text-[11px]">{formatDesignNodeLabel(node)}</span>
+        {node.isGroup && (
+          <span className="text-[10px] text-[#A0A0A0] ml-auto mr-1">Group</span>
+        )}
+        {isPrimary && selectedNodeIds.length > 1 && (
+          <span className="ml-auto mr-2 text-[9px] text-[#1E5DF2] bg-[#D1E4FC]/50 px-1 rounded-[2px]">primary</span>
+        )}
       </button>
-      {expanded && hasChildren && node.children!.map((child) => (
-        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} onContextMenu={onContextMenu} />
+      {expanded && hasChildren && node.children!.map((child, childIdx) => (
+        <DesignTreeNode
+          key={child.id} node={child} depth={depth + 1}
+          selectedNodeId={selectedNodeId} selectedNodeIds={selectedNodeIds}
+          artboardId={artboardId} parentId={node.id} index={childIdx}
+          onSelectNode={onSelectNode} onContextMenu={onContextMenu} dispatch={dispatch}
+          draggedId={draggedId} dropTarget={dropTarget} onDragPointerDown={onDragPointerDown}
+        />
       ))}
+      {/* Drop indicator after last sibling */}
+      {dropTarget !== null &&
+        dropTarget.parentId === parentId &&
+        dropTarget.index === index + 1 && (
+          <DropIndicatorLine depth={depth} />
+        )}
     </>
   );
 }
@@ -220,6 +285,26 @@ export function LayersPanelV3() {
     [dispatch]
   );
 
+  // ── Drag reorder hook ──
+  const { draggedId, dropTarget, handlePointerDown: dragPointerDown, handlePointerMove, handlePointerUp, handlePointerCancel } = useLayersDragReorder({
+    onReorder: React.useCallback((nodeId: string, parentId: string | undefined, newIndex: number) => {
+      const activeArtboardId = selection.activeArtboardId;
+      if (!activeArtboardId) return;
+
+      dispatch({
+        type: "REORDER_NODE",
+        artboardId: activeArtboardId,
+        nodeId,
+        newIndex,
+        parentNodeId: parentId,
+      });
+    }, [selection.activeArtboardId, dispatch]),
+    selectedNodeIds: selection.selectedNodeIds,
+    onCollapseToSingle: React.useCallback((artboardId: string, nodeId: string) => {
+      dispatch({ type: "SELECT_NODE", artboardId, nodeId });
+    }, [dispatch]),
+  });
+
   return (
     <div
       className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
@@ -227,7 +312,12 @@ export function LayersPanelV3() {
     >
       {/* Scrollable content — isolated from the positioning shell above so
           scroll position can never shift the panel's top edge. */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+      >
         <div className="pt-3 pb-2">
           {/* Site group */}
           {orderedArtboards.length > 0 && (
@@ -251,15 +341,22 @@ export function LayersPanelV3() {
                   </button>
                   {/* Page tree — DesignNode or PageNode */}
                   {isDesignNodeTree(artboard.pageTree)
-                    ? (artboard.pageTree as DesignNode).children?.map((child) => (
+                    ? (artboard.pageTree as DesignNode).children?.map((child, childIdx) => (
                         <DesignTreeNode
                           key={child.id}
                           node={child}
                           depth={2}
                           selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                          selectedNodeIds={selection.activeArtboardId === artboard.id ? selection.selectedNodeIds : []}
                           artboardId={artboard.id}
+                          parentId={(artboard.pageTree as DesignNode).id}
+                          index={childIdx}
                           onSelectNode={handleSelectNode}
                           onContextMenu={handleDesignNodeContextMenu}
+                          dispatch={dispatch}
+                          draggedId={draggedId}
+                          dropTarget={dropTarget}
+                          onDragPointerDown={dragPointerDown}
                         />
                       ))
                     : artboard.pageTree.children?.map((child) => (
@@ -386,6 +483,10 @@ export function LayersPanelV3() {
               saveComponent(entry);
               setDnContextMenu(null);
             } : undefined}
+            onGroup={() => { dispatch({ type: "GROUP_NODES", artboardId: dnContextMenu.artboardId }); setDnContextMenu(null); }}
+            onUngroup={() => { dispatch({ type: "UNGROUP_NODES", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            isGroupNode={Boolean(dnContextMenu.node.isGroup)}
+            multiSelectCount={selection.selectedNodeIds.length}
             onDismiss={() => setDnContextMenu(null)}
           />
         );

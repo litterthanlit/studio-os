@@ -16,7 +16,8 @@ import {
   findParentNode,
   type PageNodeStyle,
 } from "@/lib/canvas/compose";
-import { findDesignNodeById, findDesignNodeParent } from "@/lib/canvas/design-node";
+import { findDesignNodeById, findDesignNodeParent, type DesignNode } from "@/lib/canvas/design-node";
+import { normalizeSelection, allSameParent } from "@/lib/canvas/multi-select-helpers";
 
 export const ENTER_TEXT_EDIT_MODE_EVENT = "studio:enter-edit-mode";
 export const FLASH_NODE_OUTLINES_EVENT = "studio:flash-node-outlines";
@@ -212,6 +213,28 @@ export function useCanvasKeyboard({
         return;
       }
 
+      // Cmd+Shift+G — Ungroup selected node (must come before Cmd+G to avoid false match)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "G" || (e.key === "g" && e.shiftKey))) {
+        e.preventDefault();
+        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+          dispatch({
+            type: "UNGROUP_NODES",
+            artboardId: state.selection.activeArtboardId,
+            nodeId: state.selection.selectedNodeId,
+          });
+        }
+        return;
+      }
+
+      // Cmd+G — Group selected nodes
+      if ((e.metaKey || e.ctrlKey) && e.key === "g" && !e.shiftKey) {
+        e.preventDefault();
+        if (state.selection.selectedNodeIds.length >= 2 && state.selection.activeArtboardId) {
+          dispatch({ type: "GROUP_NODES", artboardId: state.selection.activeArtboardId });
+        }
+        return;
+      }
+
       if (isMeta && e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
         copySelectedNodeStyle();
@@ -224,47 +247,155 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // Cmd+[ / Cmd+] — Move selected node among its siblings
-      if (isMeta && (e.key === "[" || e.key === "]")) {
+      // Cmd+[ / Cmd+] / Cmd+Shift+[ / Cmd+Shift+] — Reorder selected node(s) among siblings
+      if (isMeta && (e.key === "[" || e.key === "]" || e.key === "{" || e.key === "}")) {
         e.preventDefault();
 
+        const activeArtboard = getActiveArtboard();
+        if (!activeArtboard) return;
+
+        const isForward = e.key === "]" || e.key === "}";
+        const isExtreme = e.shiftKey || e.key === "{" || e.key === "}";
+
+        // Multi-select z-order (DesignNode trees only)
+        if (
+          state.selection.selectedNodeIds.length > 1 &&
+          state.selection.activeArtboardId &&
+          isDesignNodeTree(activeArtboard.pageTree)
+        ) {
+          const tree = activeArtboard.pageTree as DesignNode;
+          const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
+          if (normalized.length === 0) return;
+
+          const parent = allSameParent(normalized, tree);
+          if (!parent) return; // cross-parent — z-order disabled
+
+          const siblings = parent.children ?? [];
+          const selectedSet = new Set(normalized);
+          const selectedIndices = siblings
+            .map((child, idx) => ({ id: child.id, idx }))
+            .filter((entry) => selectedSet.has(entry.id));
+
+          if (selectedIndices.length === 0) return;
+
+          dispatch({ type: "PUSH_HISTORY", description: "Reordered elements" });
+
+          const parentNodeId = parent.id !== tree.id ? parent.id : undefined;
+
+          if (isExtreme) {
+            // Bring to Front / Send to Back
+            if (isForward) {
+              // Move all selected to end, preserving relative order (process from lowest index)
+              const sorted = [...selectedIndices].sort((a, b) => a.idx - b.idx);
+              for (const entry of sorted) {
+                dispatch({
+                  type: "REORDER_NODE",
+                  artboardId: activeArtboard.id,
+                  nodeId: entry.id,
+                  newIndex: siblings.length - 1,
+                  parentNodeId,
+                });
+              }
+            } else {
+              // Move all selected to start, preserving relative order (process from highest index)
+              const sorted = [...selectedIndices].sort((a, b) => b.idx - a.idx);
+              for (const entry of sorted) {
+                dispatch({
+                  type: "REORDER_NODE",
+                  artboardId: activeArtboard.id,
+                  nodeId: entry.id,
+                  newIndex: 0,
+                  parentNodeId,
+                });
+              }
+            }
+          } else {
+            // Bring Forward / Send Backward by one position
+            if (isForward) {
+              // Process from highest index first to avoid collisions
+              const sorted = [...selectedIndices].sort((a, b) => b.idx - a.idx);
+              for (const entry of sorted) {
+                const newIndex = entry.idx + 1;
+                if (newIndex >= siblings.length) continue;
+                dispatch({
+                  type: "REORDER_NODE",
+                  artboardId: activeArtboard.id,
+                  nodeId: entry.id,
+                  newIndex,
+                  parentNodeId,
+                });
+              }
+            } else {
+              // Process from lowest index first to avoid collisions
+              const sorted = [...selectedIndices].sort((a, b) => a.idx - b.idx);
+              for (const entry of sorted) {
+                const newIndex = entry.idx - 1;
+                if (newIndex < 0) continue;
+                dispatch({
+                  type: "REORDER_NODE",
+                  artboardId: activeArtboard.id,
+                  nodeId: entry.id,
+                  newIndex,
+                  parentNodeId,
+                });
+              }
+            }
+          }
+          return;
+        }
+
+        // Single-select z-order (original behavior)
         const metadata = getSelectedNodeMetadata();
         if (!metadata) return;
 
-        const direction = e.key === "[" ? -1 : 1;
-        const newIndex = metadata.index + direction;
-        if (newIndex < 0 || newIndex >= metadata.siblings.length) return;
-
-        dispatch({
-          type: "REORDER_NODE",
-          artboardId: metadata.activeArtboard.id,
-          nodeId: metadata.node.id,
-          newIndex,
-          parentNodeId:
-            metadata.parent && metadata.parent.id !== metadata.activeArtboard.pageTree.id
-              ? metadata.parent.id
-              : undefined,
-        });
+        if (isExtreme) {
+          // Bring to Front / Send to Back
+          const newIndex = isForward ? metadata.siblings.length - 1 : 0;
+          if (newIndex === metadata.index) return;
+          dispatch({
+            type: "REORDER_NODE",
+            artboardId: metadata.activeArtboard.id,
+            nodeId: metadata.node.id,
+            newIndex,
+            parentNodeId:
+              metadata.parent && metadata.parent.id !== metadata.activeArtboard.pageTree.id
+                ? metadata.parent.id
+                : undefined,
+          });
+        } else {
+          // Bring Forward / Send Backward by one
+          const direction = isForward ? 1 : -1;
+          const newIndex = metadata.index + direction;
+          if (newIndex < 0 || newIndex >= metadata.siblings.length) return;
+          dispatch({
+            type: "REORDER_NODE",
+            artboardId: metadata.activeArtboard.id,
+            nodeId: metadata.node.id,
+            newIndex,
+            parentNodeId:
+              metadata.parent && metadata.parent.id !== metadata.activeArtboard.pageTree.id
+                ? metadata.parent.id
+                : undefined,
+          });
+        }
         return;
       }
 
-      // Cmd+A — Select all top-level sections on the active artboard, or all canvas items otherwise
+      // Cmd+A — Select all top-level children on the active artboard, or all canvas items otherwise
       if (isMeta && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
 
         const activeArtboard = getActiveArtboard();
-        const topLevelSectionIds =
-          activeArtboard?.pageTree.children
-            ?.filter((child) => child.type === "section")
-            .map((child) => child.id) ?? [];
-
-        if (activeArtboard && topLevelSectionIds.length > 0) {
-          dispatch({
-            type: "SELECT_NODE",
-            artboardId: activeArtboard.id,
-            nodeId: topLevelSectionIds[0],
-          });
-          flashTopLevelSections(activeArtboard.id, topLevelSectionIds);
+        if (activeArtboard) {
+          const children = activeArtboard.pageTree.children ?? [];
+          const childIds = children.map((c) => c.id);
+          if (childIds.length > 0) {
+            dispatch({
+              type: "SET_SELECTED_NODES",
+              artboardId: activeArtboard.id,
+              nodeIds: childIds,
+            });
+          }
           return;
         }
 
@@ -291,11 +422,17 @@ export function useCanvasKeyboard({
       }
 
       // Escape — Walk up the node hierarchy (Figma behavior)
-      // Node selected → parent node → grandparent → ... → top-level section → deselect node → deselect all
+      // Multi-select → primary only → parent node → grandparent → ... → top-level section → deselect node → deselect all
       if (e.key === "Escape") {
         // If another handler already handled this Escape (popover, menu, etc.), skip
         if (e.defaultPrevented) return;
         e.preventDefault();
+
+        // Layer 1: Multi-select → collapse to primary only
+        if (state.selection.selectedNodeIds.length > 1) {
+          dispatch({ type: "CLEAR_MULTI_SELECTION" });
+          return;
+        }
 
         if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
           const artboard = state.items.find(

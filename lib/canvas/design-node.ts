@@ -10,6 +10,7 @@ export type DesignNode = {
   id: string;
   type: DesignNodeType;
   name: string;
+  isGroup?: boolean;
   style: DesignNodeStyle;
   content?: DesignNodeContent;
   children?: DesignNode[];

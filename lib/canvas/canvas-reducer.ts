@@ -7,6 +7,10 @@
 
 import type { PageNode, PageNodeStyle, Breakpoint } from "./compose";
 import type { DesignNode } from "./design-node";
+import {
+  findDesignNodeById,
+  findDesignNodeParent,
+} from "./design-node";
 import type {
   UnifiedCanvasState,
   CanvasItem,
@@ -22,6 +26,18 @@ import {
   canRedo as historyCanRedo,
   type HistoryStack,
 } from "./history";
+import {
+  normalizeSelection,
+  allAbsolute,
+  allSameParent,
+  getSelectionBounds,
+  computeAlignment,
+  computeDistribution,
+  findLCA,
+  getNodeDepth,
+  type AlignDirection,
+  type DistributeAxis,
+} from "./multi-select-helpers";
 
 // ─── Action Types ────────────────────────────────────────────────────────────
 
@@ -51,6 +67,15 @@ export type CanvasAction =
   | { type: "SELECT_NODE"; artboardId: string; nodeId: string }
   | { type: "DESELECT_ALL" }
   | { type: "ESCAPE" }
+
+  // Multi-select
+  | { type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }
+  | { type: "SET_SELECTED_NODES"; artboardId: string; nodeIds: string[] }
+  | { type: "CLEAR_MULTI_SELECTION" }
+  | { type: "ALIGN_NODES"; artboardId: string; direction: AlignDirection }
+  | { type: "DISTRIBUTE_NODES"; artboardId: string; axis: DistributeAxis }
+  | { type: "GROUP_NODES"; artboardId: string }
+  | { type: "UNGROUP_NODES"; artboardId: string; nodeId: string }
 
   // Viewport
   | { type: "SET_VIEWPORT"; pan: { x: number; y: number }; zoom: number }
@@ -281,6 +306,7 @@ export function canvasReducer(
     }
 
     case "REMOVE_ITEM": {
+      const clearNodes = state.selection.activeArtboardId === action.itemId;
       return {
         ...state,
         items: state.items.filter((item) => item.id !== action.itemId),
@@ -289,14 +315,9 @@ export function canvasReducer(
           selectedItemIds: state.selection.selectedItemIds.filter(
             (id) => id !== action.itemId
           ),
-          activeArtboardId:
-            state.selection.activeArtboardId === action.itemId
-              ? null
-              : state.selection.activeArtboardId,
-          selectedNodeId:
-            state.selection.activeArtboardId === action.itemId
-              ? null
-              : state.selection.selectedNodeId,
+          activeArtboardId: clearNodes ? null : state.selection.activeArtboardId,
+          selectedNodeId: clearNodes ? null : state.selection.selectedNodeId,
+          selectedNodeIds: clearNodes ? [] : state.selection.selectedNodeIds,
         },
         updatedAt: now(),
       };
@@ -323,6 +344,7 @@ export function canvasReducer(
           selectedItemIds: [duplicate.id],
           activeArtboardId: null,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
         updatedAt: now(),
       };
@@ -555,6 +577,7 @@ export function canvasReducer(
         selection: {
           ...state.selection,
           selectedNodeId: action.section.id,
+          selectedNodeIds: [action.section.id],
         },
         history: historyAfterInsert,
         updatedAt: now(),
@@ -568,18 +591,35 @@ export function canvasReducer(
       );
       if (!artboard) return state;
 
+      // When multi-select is active, duplicate all normalized selected nodes
+      const idsToDuplicate = state.selection.selectedNodeIds.length > 1
+        ? normalizeSelection(
+            state.selection.selectedNodeIds,
+            artboard.pageTree as DesignNode
+          )
+        : [action.nodeId];
+
       const children = artboard.pageTree.children ?? [];
-      const sourceIndex = children.findIndex((c) => c.id === action.nodeId);
-      if (sourceIndex === -1) return state;
+      const clones: Array<{ sourceId: string; clone: TreeNode }> = [];
 
-      const clone = deepCloneWithNewIds(children[sourceIndex]);
+      for (const id of idsToDuplicate) {
+        const sourceIndex = children.findIndex((c) => c.id === id);
+        if (sourceIndex === -1) continue;
+        clones.push({ sourceId: id, clone: deepCloneWithNewIds(children[sourceIndex]) });
+      }
 
-      const insertClone = (pageTree: TreeNode): TreeNode => {
+      if (clones.length === 0) return state;
+
+      const insertClones = (pageTree: TreeNode): TreeNode => {
         const ch = pageTree.children ?? [];
-        const idx = ch.findIndex((c) => c.id === action.nodeId);
-        if (idx === -1) return pageTree;
-        const next = [...ch];
-        next.splice(idx + 1, 0, clone);
+        const next: TreeNode[] = [];
+        for (const child of ch) {
+          next.push(child);
+          const cloneEntry = clones.find((c) => c.sourceId === child.id);
+          if (cloneEntry) {
+            next.push(cloneEntry.clone);
+          }
+        }
         return { ...pageTree, children: next };
       };
 
@@ -590,15 +630,18 @@ export function canvasReducer(
         state.selection
       );
 
+      const cloneIds = clones.map((c) => c.clone.id);
+
       return {
         ...state,
         items: state.items.map((item) => {
           if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
-          return { ...item, pageTree: insertClone(item.pageTree) };
+          return { ...item, pageTree: insertClones(item.pageTree) };
         }),
         selection: {
           ...state.selection,
-          selectedNodeId: clone.id,
+          selectedNodeId: cloneIds[0],
+          selectedNodeIds: cloneIds,
         },
         history: historyAfterDup,
         updatedAt: now(),
@@ -612,9 +655,19 @@ export function canvasReducer(
       );
       if (!artboard) return state;
 
-      const removeSection = (pageTree: TreeNode): TreeNode => {
+      // When multi-select is active, delete all normalized selected nodes
+      const idsToDelete = state.selection.selectedNodeIds.length > 1
+        ? normalizeSelection(
+            state.selection.selectedNodeIds,
+            artboard.pageTree as DesignNode
+          )
+        : [action.nodeId];
+
+      const deleteSet = new Set(idsToDelete);
+
+      const removeSections = (pageTree: TreeNode): TreeNode => {
         const ch = pageTree.children ?? [];
-        const filtered = ch.filter((c) => c.id !== action.nodeId);
+        const filtered = ch.filter((c) => !deleteSet.has(c.id));
         if (filtered.length === ch.length) return pageTree;
         return { ...pageTree, children: filtered };
       };
@@ -630,11 +683,12 @@ export function canvasReducer(
         ...state,
         items: state.items.map((item) => {
           if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
-          return { ...item, pageTree: removeSection(item.pageTree) };
+          return { ...item, pageTree: removeSections(item.pageTree) };
         }),
         selection: {
           ...state.selection,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
         history: historyAfterDel,
         updatedAt: now(),
@@ -731,6 +785,7 @@ export function canvasReducer(
           selectedItemIds: ids,
           activeArtboardId: null,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
       };
     }
@@ -742,6 +797,7 @@ export function canvasReducer(
           selectedItemIds: [action.artboardId],
           activeArtboardId: action.artboardId,
           selectedNodeId: action.nodeId,
+          selectedNodeIds: [action.nodeId],
         },
       };
     }
@@ -753,11 +809,24 @@ export function canvasReducer(
           selectedItemIds: [],
           activeArtboardId: null,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
       };
     }
 
     case "ESCAPE": {
+      // If multi-select is active, collapse to primary only first
+      if (state.selection.selectedNodeIds.length > 1) {
+        return {
+          ...state,
+          selection: {
+            ...state.selection,
+            selectedNodeIds: state.selection.selectedNodeId
+              ? [state.selection.selectedNodeId]
+              : [],
+          },
+        };
+      }
       // Hierarchical: clear selectedNodeId first, then clear top-level selection
       if (state.selection.selectedNodeId) {
         return {
@@ -765,6 +834,7 @@ export function canvasReducer(
           selection: {
             ...state.selection,
             selectedNodeId: null,
+            selectedNodeIds: [],
           },
         };
       }
@@ -774,7 +844,372 @@ export function canvasReducer(
           selectedItemIds: [],
           activeArtboardId: null,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
+      };
+    }
+
+    // ── Multi-Select ────────────────────────────────────────────────────
+
+    case "TOGGLE_NODE_SELECTION": {
+      const currentIds = state.selection.selectedNodeIds;
+      const nodeId = action.nodeId;
+      const isInSet = currentIds.includes(nodeId);
+
+      if (isInSet) {
+        // Remove from set
+        const remaining = currentIds.filter((id) => id !== nodeId);
+        if (remaining.length === 0) {
+          // Last node removed → deselect all
+          return {
+            ...state,
+            selection: {
+              selectedItemIds: [],
+              activeArtboardId: null,
+              selectedNodeId: null,
+              selectedNodeIds: [],
+            },
+          };
+        }
+        // If primary was removed, promote last remaining node
+        const newPrimary =
+          state.selection.selectedNodeId === nodeId
+            ? remaining[remaining.length - 1]
+            : state.selection.selectedNodeId;
+        return {
+          ...state,
+          selection: {
+            ...state.selection,
+            activeArtboardId: action.artboardId,
+            selectedNodeId: newPrimary,
+            selectedNodeIds: remaining,
+          },
+        };
+      } else {
+        // Add to set and make primary
+        return {
+          ...state,
+          selection: {
+            ...state.selection,
+            selectedItemIds: [action.artboardId],
+            activeArtboardId: action.artboardId,
+            selectedNodeId: nodeId,
+            selectedNodeIds: [...currentIds, nodeId],
+          },
+        };
+      }
+    }
+
+    case "SET_SELECTED_NODES": {
+      if (action.nodeIds.length === 0) {
+        return {
+          ...state,
+          selection: {
+            selectedItemIds: [],
+            activeArtboardId: null,
+            selectedNodeId: null,
+            selectedNodeIds: [],
+          },
+        };
+      }
+      return {
+        ...state,
+        selection: {
+          selectedItemIds: [action.artboardId],
+          activeArtboardId: action.artboardId,
+          selectedNodeId: action.nodeIds[0],
+          selectedNodeIds: action.nodeIds,
+        },
+      };
+    }
+
+    case "CLEAR_MULTI_SELECTION": {
+      return {
+        ...state,
+        selection: {
+          ...state.selection,
+          selectedNodeIds: state.selection.selectedNodeId
+            ? [state.selection.selectedNodeId]
+            : [],
+        },
+      };
+    }
+
+    case "ALIGN_NODES": {
+      const alignArtboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!alignArtboard) return state;
+
+      const tree = alignArtboard.pageTree as DesignNode;
+      const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
+      if (normalized.length < 2) return state;
+      if (!allAbsolute(normalized, tree)) return state;
+
+      const positions = computeAlignment(normalized, tree, action.direction);
+      if (positions.size === 0) return state;
+
+      const historyAfterAlign = pushHistory(
+        state.history,
+        `Aligned nodes ${action.direction}`,
+        state.items,
+        state.selection
+      );
+
+      const applyPositions = (pageTree: TreeNode): TreeNode => {
+        let result = pageTree;
+        for (const [nodeId, pos] of positions) {
+          result = updateNodeInTree(result, nodeId, (node) => ({
+            ...node,
+            style: { ...node.style, x: pos.x, y: pos.y },
+          }));
+        }
+        return result;
+      };
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== alignArtboard.siteId) return item;
+          return { ...item, pageTree: applyPositions(item.pageTree) };
+        }),
+        history: historyAfterAlign,
+        updatedAt: now(),
+      };
+    }
+
+    case "DISTRIBUTE_NODES": {
+      const distArtboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!distArtboard) return state;
+
+      const distTree = distArtboard.pageTree as DesignNode;
+      const distNormalized = normalizeSelection(state.selection.selectedNodeIds, distTree);
+      if (distNormalized.length < 3) return state;
+      if (!allAbsolute(distNormalized, distTree)) return state;
+
+      const distPositions = computeDistribution(distNormalized, distTree, action.axis);
+      if (distPositions.size === 0) return state;
+
+      const historyAfterDist = pushHistory(
+        state.history,
+        `Distributed nodes ${action.axis}`,
+        state.items,
+        state.selection
+      );
+
+      const applyDistPositions = (pageTree: TreeNode): TreeNode => {
+        let result = pageTree;
+        for (const [nodeId, pos] of distPositions) {
+          result = updateNodeInTree(result, nodeId, (node) => ({
+            ...node,
+            style: { ...node.style, x: pos.x, y: pos.y },
+          }));
+        }
+        return result;
+      };
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== distArtboard.siteId) return item;
+          return { ...item, pageTree: applyDistPositions(item.pageTree) };
+        }),
+        history: historyAfterDist,
+        updatedAt: now(),
+      };
+    }
+
+    case "GROUP_NODES": {
+      const groupArtboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!groupArtboard) return state;
+
+      const groupTree = groupArtboard.pageTree as DesignNode;
+      const groupNormalized = normalizeSelection(state.selection.selectedNodeIds, groupTree);
+      if (groupNormalized.length < 2) return state;
+      if (!allAbsolute(groupNormalized, groupTree)) return state;
+
+      // Compute bounding box
+      const bounds = getSelectionBounds(groupNormalized, groupTree);
+      if (!bounds) return state;
+
+      // Determine parent — prefer same-parent, fall back to LCA
+      let parent = allSameParent(groupNormalized, groupTree);
+      if (!parent) {
+        parent = findLCA(groupNormalized, groupTree);
+        if (!parent) return state;
+
+        // Bail out if LCA is more than 2 levels above any selected node
+        for (const nodeId of groupNormalized) {
+          const nodeDepth = getNodeDepth(nodeId, groupTree);
+          const parentDepth = getNodeDepth(parent.id, groupTree);
+          if (nodeDepth === -1 || parentDepth === -1) return state;
+          if (nodeDepth - parentDepth > 2) return state;
+        }
+      }
+
+      // Create group frame
+      const groupId = uid("frame");
+      const groupNode: DesignNode = {
+        id: groupId,
+        type: "frame",
+        name: "Group",
+        isGroup: true,
+        style: {
+          position: "absolute",
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          background: "transparent",
+        },
+        children: [],
+      };
+
+      // Collect children and recalculate positions relative to group origin
+      const selectedSet = new Set(groupNormalized);
+      const groupChildren: DesignNode[] = [];
+      for (const nodeId of groupNormalized) {
+        const node = findDesignNodeById(groupTree, nodeId);
+        if (!node) continue;
+        groupChildren.push({
+          ...node,
+          style: {
+            ...node.style,
+            x: (node.style.x ?? 0) - bounds.x,
+            y: (node.style.y ?? 0) - bounds.y,
+          },
+        });
+      }
+      groupNode.children = groupChildren;
+
+      // Find the topmost z-position among selected nodes in the parent's children
+      const parentChildren = parent.children ?? [];
+      let topmostIndex = -1;
+      for (let i = 0; i < parentChildren.length; i++) {
+        if (selectedSet.has(parentChildren[i].id)) {
+          if (topmostIndex === -1 || i < topmostIndex) {
+            topmostIndex = i;
+          }
+        }
+      }
+
+      // Build new parent children: remove selected, insert group at topmost position
+      const applyGroup = (pageTree: TreeNode): TreeNode => {
+        return updateNodeInTree(pageTree, parent!.id, (parentNode) => {
+          const ch = parentNode.children ?? [];
+          const withoutSelected = ch.filter((c) => !selectedSet.has(c.id));
+          // Find the first selected child's original index, then count
+          // how many non-selected children precede it — that count is the
+          // correct insertion index in the filtered (withoutSelected) array.
+          let insertIdx = withoutSelected.length; // fallback: append
+          const firstSelectedOrigIdx = ch.findIndex((c) => selectedSet.has(c.id));
+          if (firstSelectedOrigIdx !== -1) {
+            let nonSelectedBefore = 0;
+            for (let i = 0; i < firstSelectedOrigIdx; i++) {
+              if (!selectedSet.has(ch[i].id)) nonSelectedBefore++;
+            }
+            insertIdx = nonSelectedBefore;
+          }
+          const next = [...withoutSelected];
+          next.splice(insertIdx, 0, groupNode as unknown as typeof ch[0]);
+          return { ...parentNode, children: next };
+        });
+      };
+
+      const historyAfterGroup = pushHistory(
+        state.history,
+        "Grouped nodes",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== groupArtboard.siteId) return item;
+          return { ...item, pageTree: applyGroup(item.pageTree) };
+        }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: groupId,
+          selectedNodeIds: [groupId],
+        },
+        history: historyAfterGroup,
+        updatedAt: now(),
+      };
+    }
+
+    case "UNGROUP_NODES": {
+      const ungroupArtboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!ungroupArtboard) return state;
+
+      const ungroupTree = ungroupArtboard.pageTree as DesignNode;
+      const groupToUngroup = findDesignNodeById(ungroupTree, action.nodeId);
+      if (!groupToUngroup) return state;
+      if (groupToUngroup.isGroup !== true) return state;
+
+      const groupParent = findDesignNodeParent(ungroupTree, action.nodeId);
+      if (!groupParent) return state;
+
+      const groupX = groupToUngroup.style.x ?? 0;
+      const groupY = groupToUngroup.style.y ?? 0;
+
+      // Recalculate child positions (add group's x/y)
+      const promotedChildren: DesignNode[] = (groupToUngroup.children ?? []).map(
+        (child) => ({
+          ...child,
+          style: {
+            ...child.style,
+            x: (child.style.x ?? 0) + groupX,
+            y: (child.style.y ?? 0) + groupY,
+          },
+        })
+      );
+
+      const promotedChildIds = promotedChildren.map((c) => c.id);
+
+      const applyUngroup = (pageTree: TreeNode): TreeNode => {
+        return updateNodeInTree(pageTree, groupParent.id, (parentNode) => {
+          const ch = parentNode.children ?? [];
+          const groupIndex = ch.findIndex((c) => c.id === action.nodeId);
+          if (groupIndex === -1) return parentNode;
+          const next = [...ch];
+          // Replace group with its children at the same position
+          next.splice(groupIndex, 1, ...(promotedChildren as unknown as typeof ch));
+          return { ...parentNode, children: next };
+        });
+      };
+
+      const historyAfterUngroup = pushHistory(
+        state.history,
+        "Ungrouped nodes",
+        state.items,
+        state.selection
+      );
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== ungroupArtboard.siteId) return item;
+          return { ...item, pageTree: applyUngroup(item.pageTree) };
+        }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: promotedChildIds[0] ?? null,
+          selectedNodeIds: promotedChildIds,
+        },
+        history: historyAfterUngroup,
+        updatedAt: now(),
       };
     }
 
@@ -804,10 +1239,14 @@ export function canvasReducer(
     case "UNDO": {
       // Cmd+Z while AI preview is active → reject (restore pre-edit snapshot)
       if (state.aiPreview) {
+        const restoredSel = state.aiPreview.beforeSelection;
         return {
           ...state,
           items: state.aiPreview.beforeItems,
-          selection: state.aiPreview.beforeSelection,
+          selection: {
+            ...restoredSel,
+            selectedNodeIds: restoredSel.selectedNodeIds ?? [],
+          },
           aiPreview: null,
           updatedAt: now(),
         };
@@ -817,7 +1256,10 @@ export function canvasReducer(
       return {
         ...state,
         items: result.items,
-        selection: result.selection,
+        selection: {
+          ...result.selection,
+          selectedNodeIds: result.selection.selectedNodeIds ?? [],
+        },
         history: result.stack,
         updatedAt: now(),
       };
@@ -829,7 +1271,10 @@ export function canvasReducer(
       return {
         ...state,
         items: result.items,
-        selection: result.selection,
+        selection: {
+          ...result.selection,
+          selectedNodeIds: result.selection.selectedNodeIds ?? [],
+        },
         history: result.stack,
         updatedAt: now(),
       };
@@ -913,6 +1358,7 @@ export function canvasReducer(
           selectedItemIds: [],
           activeArtboardId: null,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
         history: historyAfterPush,
         updatedAt: now(),
@@ -936,6 +1382,7 @@ export function canvasReducer(
           selectedItemIds: [],
           activeArtboardId: null,
           selectedNodeId: null,
+          selectedNodeIds: [],
         },
         history: historyAfterPush,
         updatedAt: now(),
@@ -967,7 +1414,10 @@ export function canvasReducer(
       return {
         ...state,
         items: state.aiPreview.beforeItems,
-        selection: state.aiPreview.beforeSelection,
+        selection: {
+          ...state.aiPreview.beforeSelection,
+          selectedNodeIds: state.aiPreview.beforeSelection.selectedNodeIds ?? [],
+        },
         aiPreview: null,
         updatedAt: now(),
       };
@@ -978,6 +1428,10 @@ export function canvasReducer(
     case "LOAD_STATE": {
       return {
         ...action.state,
+        selection: {
+          ...action.state.selection,
+          selectedNodeIds: action.state.selection.selectedNodeIds ?? [],
+        },
         aiPreview: null, // Never restore transient AI preview state
         history: state.history, // Preserve in-memory history stack across loads
       };

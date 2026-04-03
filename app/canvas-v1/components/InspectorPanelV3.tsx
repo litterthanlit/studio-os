@@ -53,6 +53,7 @@ import { BreakpointBadge } from "./inspector/BreakpointBadge";
 import { CSSTab } from "./inspector/CSSTab";
 import { ExportTab } from "./inspector/ExportTab";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
+import { MultiSelectActionBar } from "./MultiSelectActionBar";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { SiteType } from "@/lib/canvas/templates";
 import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
@@ -1781,11 +1782,14 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
 
   if (selectedDesignNode && activeArtboard) {
     inspectorContent = (
-      <DesignNodeInspector
-        artboard={activeArtboard}
-        node={selectedDesignNode}
-        documentColors={documentColors}
-      />
+      <>
+        {selection.selectedNodeIds.length > 1 && <MultiSelectActionBar />}
+        <DesignNodeInspector
+          artboard={activeArtboard}
+          node={selectedDesignNode}
+          documentColors={documentColors}
+        />
+      </>
     );
   } else if (selectedNode && activeArtboard) {
     inspectorContent = (

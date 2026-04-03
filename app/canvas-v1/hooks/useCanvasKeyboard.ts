@@ -187,7 +187,7 @@ export function useCanvasKeyboard({
       }
 
       // Cmd+Z / Cmd+Shift+Z — Undo / Redo
-      if (isMeta && e.key === "z" && e.shiftKey) {
+      if (isMeta && (e.key === "z" || e.key === "Z") && e.shiftKey) {
         e.preventDefault();
         dispatch({ type: "REDO" });
         return;

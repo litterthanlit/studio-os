@@ -14,12 +14,15 @@
 import { useCallback, useRef, useEffect, useContext, useState } from "react";
 import { CanvasContext } from "@/lib/canvas/canvas-context";
 import { findDesignNodeById, type DesignNode } from "@/lib/canvas/design-node";
+import { allAbsolute } from "@/lib/canvas/multi-select-helpers";
 
 type UseDragDesignNodeOptions = {
   /** The root DesignNode tree (to look up node styles) */
   tree: DesignNode;
   /** Currently selected node ID */
   selectedNodeId: string | null;
+  /** All selected node IDs (multi-select). Primary = selectedNodeId, rest = secondary. */
+  selectedNodeIds?: string[];
   /** Artboard ID for dispatch actions */
   artboardId: string | null;
   /** Current canvas zoom level */
@@ -38,6 +41,14 @@ type UseDragDesignNodeOptions = {
   ) => { x: number; y: number };
 };
 
+type PeerNodeOffset = {
+  id: string;
+  startX: number;
+  startY: number;
+  width: number;
+  height: number;
+};
+
 type DragState = {
   nodeId: string;
   startScreenX: number;
@@ -48,12 +59,14 @@ type DragState = {
   nodeHeight: number;
   hasStarted: boolean;
   historyPushed: boolean;
+  /** When multi-dragging, offsets for ALL selected nodes (including primary). */
+  peers: PeerNodeOffset[];
 };
 
 const DRAG_THRESHOLD_PX = 4;
 
 export function useDragDesignNode(options: UseDragDesignNodeOptions) {
-  const { tree, selectedNodeId, artboardId, zoom, interactive, containerRef, snapPosition } = options;
+  const { tree, selectedNodeId, selectedNodeIds = [], artboardId, zoom, interactive, containerRef, snapPosition } = options;
 
   // Use context directly — returns null when no CanvasProvider (e.g. test-v6 page).
   // This avoids the throw from useCanvas() so the hook is safe in all contexts.
@@ -78,6 +91,9 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   const snapPositionRef = useRef(snapPosition);
   snapPositionRef.current = snapPosition;
 
+  const selectedNodeIdsRef = useRef(selectedNodeIds);
+  selectedNodeIdsRef.current = selectedNodeIds;
+
   const cleanupActiveDrag = useCallback(() => {
     const drag = draggingRef.current;
     const snap = snapPositionRef.current;
@@ -92,9 +108,10 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
 
   /**
    * Start a drag on a specific node. Called from pointerdown handler.
+   * peers: when multi-dragging, includes offsets for all selected nodes.
    */
   const startDrag = useCallback(
-    (e: PointerEvent, nodeId: string, startX: number, startY: number, nodeWidth: number, nodeHeight: number) => {
+    (e: PointerEvent, nodeId: string, startX: number, startY: number, nodeWidth: number, nodeHeight: number, peers: PeerNodeOffset[] = []) => {
       const d = dispatchRef.current;
       // No dispatch available (no CanvasProvider) — skip
       if (!d) return;
@@ -119,6 +136,7 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
         nodeHeight,
         hasStarted: false,
         historyPushed: false,
+        peers,
       };
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
@@ -153,7 +171,7 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
           }
         }
 
-        // Apply snap guides (before rounding)
+        // Apply snap guides to primary node (before rounding)
         const snap = snapPositionRef.current;
         if (snap) {
           const snapped = snap(newX, newY, drag.nodeWidth, drag.nodeHeight, drag.nodeId);
@@ -171,17 +189,35 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
         if (!drag.historyPushed) {
           dd({
             type: "PUSH_HISTORY",
-            description: "Moved element",
+            description: drag.peers.length > 1 ? "Moved elements" : "Moved element",
           });
           drag.historyPushed = true;
         }
 
+        // Update primary node
         dd({
           type: "UPDATE_NODE_STYLE",
           artboardId: abId,
           nodeId: drag.nodeId,
           style: { x: newX, y: newY } as Record<string, unknown>,
         });
+
+        // Update peer nodes (multi-drag)
+        // Use the effective delta (primary's new position minus its start) to compute peer positions.
+        // This inherently accounts for shift-axis lock and snap.
+        const effectiveDx = newX - drag.startNodeX;
+        const effectiveDy = newY - drag.startNodeY;
+        for (const peer of drag.peers) {
+          if (peer.id === drag.nodeId) continue;
+          const peerNewX = Math.round(peer.startX + effectiveDx);
+          const peerNewY = Math.round(peer.startY + effectiveDy);
+          dd({
+            type: "UPDATE_NODE_STYLE",
+            artboardId: abId,
+            nodeId: peer.id,
+            style: { x: peerNewX, y: peerNewY } as Record<string, unknown>,
+          });
+        }
       };
 
       const handlePointerUp = (upEvent: PointerEvent) => {
@@ -222,13 +258,28 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
 
         const abId = artboardIdRef.current;
         if (abId && dd) {
-          // Final position update
+          // Final position update for primary node
           dd({
             type: "UPDATE_NODE_STYLE",
             artboardId: abId,
             nodeId: drag.nodeId,
             style: { x: finalX, y: finalY } as Record<string, unknown>,
           });
+
+          // Final position update for peer nodes (multi-drag)
+          const effectiveDx = finalX - drag.startNodeX;
+          const effectiveDy = finalY - drag.startNodeY;
+          for (const peer of drag.peers) {
+            if (peer.id === drag.nodeId) continue;
+            const peerFinalX = Math.round(peer.startX + effectiveDx);
+            const peerFinalY = Math.round(peer.startY + effectiveDy);
+            dd({
+              type: "UPDATE_NODE_STYLE",
+              artboardId: abId,
+              nodeId: peer.id,
+              style: { x: peerFinalX, y: peerFinalY } as Record<string, unknown>,
+            });
+          }
         }
 
         cleanupActiveDrag();
@@ -251,38 +302,96 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   );
 
   /**
+   * Build peer offsets for all selected nodes.
+   * Used during multi-drag initiation.
+   */
+  const buildPeers = useCallback(
+    (latestTree: DesignNode, currentIds: string[], currentZoom: number): PeerNodeOffset[] => {
+      const peers: PeerNodeOffset[] = [];
+      for (const peerId of currentIds) {
+        const peerNode = findDesignNodeById(latestTree, peerId);
+        if (!peerNode) continue;
+        const peerEl = containerRef.current?.querySelector<HTMLElement>(
+          `[data-node-id="${peerId}"]`
+        );
+        const peerRect = peerEl?.getBoundingClientRect();
+        const pw = typeof peerNode.style.width === "number"
+          ? peerNode.style.width
+          : (peerRect ? peerRect.width / currentZoom : 0);
+        const ph = typeof peerNode.style.height === "number"
+          ? peerNode.style.height
+          : (peerRect ? peerRect.height / currentZoom : 0);
+        peers.push({
+          id: peerId,
+          startX: peerNode.style.x ?? 0,
+          startY: peerNode.style.y ?? 0,
+          width: pw,
+          height: ph,
+        });
+      }
+      return peers;
+    },
+    [containerRef]
+  );
+
+  /**
    * Attach pointerdown listener to the selected node's DOM element
-   * when it has position: absolute.
+   * when it has position: absolute. Also attaches to secondary-selected
+   * nodes so any node in a multi-selection can initiate multi-drag.
    */
   useEffect(() => {
     if (!interactive || !selectedNodeId || !artboardId || !dispatch || !containerRef.current) return;
 
-    // Find the DOM element
-    const el = containerRef.current.querySelector<HTMLElement>(
-      `[data-node-id="${selectedNodeId}"]`
-    );
-    if (!el) return;
+    // Determine which node IDs to attach drag listeners to.
+    // Always include primary; include secondaries for multi-drag.
+    const dragTargetIds = selectedNodeIds.length > 1
+      ? [...new Set([selectedNodeId, ...selectedNodeIds])]
+      : [selectedNodeId];
 
-    const handlePointerDown = (e: PointerEvent) => {
-      const latestTree = treeRef.current;
-      const node = findDesignNodeById(latestTree, selectedNodeId);
-      if (!node || node.style.position !== "absolute") return;
+    const cleanups: Array<() => void> = [];
 
-      const rect = el.getBoundingClientRect();
-      const currentZoom = zoomRef.current || 1;
-      const nodeWidth =
-        typeof node.style.width === "number" ? node.style.width : rect.width / currentZoom;
-      const nodeHeight =
-        typeof node.style.height === "number" ? node.style.height : rect.height / currentZoom;
+    for (const targetId of dragTargetIds) {
+      const el = containerRef.current.querySelector<HTMLElement>(
+        `[data-node-id="${targetId}"]`
+      );
+      if (!el) continue;
 
-      startDrag(e, node.id, node.style.x ?? 0, node.style.y ?? 0, nodeWidth, nodeHeight);
-    };
+      const handlePointerDown = (e: PointerEvent) => {
+        const latestTree = treeRef.current;
+        const node = findDesignNodeById(latestTree, targetId);
+        if (!node || node.style.position !== "absolute") return;
 
-    el.addEventListener("pointerdown", handlePointerDown);
+        const currentIds = selectedNodeIdsRef.current;
+        const isMultiSelect = currentIds.length > 1 && currentIds.includes(targetId);
+
+        // Guard: disable drag for mixed (absolute + flow) selections
+        if (isMultiSelect && !allAbsolute(currentIds, latestTree)) {
+          return;
+        }
+
+        const currentZoom = zoomRef.current || 1;
+        const rect = el.getBoundingClientRect();
+        const nodeWidth =
+          typeof node.style.width === "number" ? node.style.width : rect.width / currentZoom;
+        const nodeHeight =
+          typeof node.style.height === "number" ? node.style.height : rect.height / currentZoom;
+
+        // Build peer offsets for multi-drag
+        const peers: PeerNodeOffset[] = isMultiSelect
+          ? buildPeers(latestTree, currentIds, currentZoom)
+          : [];
+
+        startDrag(e, node.id, node.style.x ?? 0, node.style.y ?? 0, nodeWidth, nodeHeight, peers);
+      };
+
+      el.addEventListener("pointerdown", handlePointerDown);
+      cleanups.push(() => el.removeEventListener("pointerdown", handlePointerDown));
+    }
+
     return () => {
-      el.removeEventListener("pointerdown", handlePointerDown);
+      for (const cleanup of cleanups) cleanup();
     };
-  }, [interactive, selectedNodeId, artboardId, dispatch, containerRef, startDrag]);
+  }, [interactive, selectedNodeId, selectedNodeIds, artboardId, dispatch, containerRef, startDrag, buildPeers]);
 
   useEffect(() => cleanupActiveDrag, [cleanupActiveDrag]);
 

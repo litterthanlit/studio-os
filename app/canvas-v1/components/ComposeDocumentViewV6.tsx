@@ -1179,6 +1179,7 @@ export function ComposeDocumentViewV6({
   const { isDragging, draggedNodeId } = useDragDesignNode({
     tree,
     selectedNodeId,
+    selectedNodeIds,
     artboardId,
     zoom,
     interactive,

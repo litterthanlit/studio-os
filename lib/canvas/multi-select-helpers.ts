@@ -20,10 +20,10 @@ export type Bounds = {
 
 export type AlignDirection =
   | "left"
-  | "center"
+  | "centerH"
   | "right"
   | "top"
-  | "middle"
+  | "centerV"
   | "bottom";
 
 export type DistributeAxis = "horizontal" | "vertical";
@@ -250,7 +250,7 @@ export function computeAlignment(
       }
       break;
     }
-    case "center": {
+    case "centerH": {
       const minX = Math.min(...nodes.map((n) => n.x));
       const maxRight = Math.max(...nodes.map((n) => n.x + n.w));
       const centerX = (minX + maxRight) / 2;
@@ -273,7 +273,7 @@ export function computeAlignment(
       }
       break;
     }
-    case "middle": {
+    case "centerV": {
       const minY = Math.min(...nodes.map((n) => n.y));
       const maxBottom = Math.max(...nodes.map((n) => n.y + n.h));
       const centerY = (minY + maxBottom) / 2;

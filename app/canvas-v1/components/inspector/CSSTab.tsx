@@ -129,7 +129,7 @@ export function CSSTab({ resolvedStyle }: CSSTabProps) {
     <div className="p-4 flex flex-col gap-3">
       <h3 className="text-[12px] font-medium text-[#1A1A1A]">Computed CSS</h3>
       <p className="text-[11px] text-[#A0A0A0]">
-        Full CSS inspector coming in V5
+        Full CSS inspector coming soon
       </p>
 
       {resolvedStyle && cssString && (

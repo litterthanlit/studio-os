@@ -55,7 +55,7 @@ export function TasteCard({
 
   // Color swatches: prefer suggestedColors, fall back to palette name
   const colors: string[] = [];
-  if (colorBehavior.suggestedColors) {
+  if (colorBehavior?.suggestedColors) {
     const sc = colorBehavior.suggestedColors;
     if (sc.background) colors.push(sc.background);
     if (sc.surface) colors.push(sc.surface);

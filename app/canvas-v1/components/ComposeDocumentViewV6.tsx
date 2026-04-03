@@ -15,6 +15,7 @@ import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
 import { SnapGuideLines } from "./SnapGuideLines";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
+import { useRubberBandSelection } from "@/app/canvas-v1/hooks/useRubberBandSelection";
 
 // ── Blank section factory for insertion ────────────────────────────────────
 let _insertCounter = 0;
@@ -91,6 +92,8 @@ type ComposeDocumentViewV6Props = {
   onSelectNode?: (nodeId: string | null) => void;
   /** Toggle a node in/out of multi-selection (Shift+Click). */
   onToggleNodeSelection?: (nodeId: string) => void;
+  /** Set the full multi-select set (rubber-band marquee). First ID = primary. */
+  onSetSelectedNodes?: (nodeIds: string[]) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   onUpdateNodeStyle?: (nodeId: string, style: Partial<DesignNodeStyle>) => void;
   onPushHistory?: (description: string) => void;
@@ -183,12 +186,15 @@ function isLightColor(hex?: string): boolean {
 
 type SelectionLevel = "primary" | "secondary" | "none";
 
-function selectionOutlineStyle(level: SelectionLevel): React.CSSProperties {
+function selectionOutlineStyle(level: SelectionLevel, isLiveHit?: boolean): React.CSSProperties {
   if (level === "primary") {
     return { outline: "1.5px solid #1E5DF2", outlineOffset: -1.5 };
   }
   if (level === "secondary") {
     return { outline: "1.5px solid rgba(30, 93, 242, 0.45)", outlineOffset: -1.5 };
+  }
+  if (isLiveHit) {
+    return { outline: "1.5px solid rgba(30, 93, 242, 0.3)", outlineOffset: -1.5 };
   }
   return {};
 }
@@ -399,7 +405,7 @@ function EmptyFrameLabel({ style }: { style: DesignNodeStyle }) {
 
 // ── Main Render Function ───────────────────────────────────────────
 
-function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection }: {
+function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection, liveHits }: {
   node: DesignNode;
   selectedNodeId: string | null;
   /** All selected node IDs for multi-select outline rendering. */
@@ -416,11 +422,14 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
   rootNodeId?: string;
   /** Insert callback — only used at root frame level */
   onInsertSection?: (index: number, section: DesignNode) => void;
+  /** Node IDs currently intersecting the rubber-band marquee. */
+  liveHits?: Set<string>;
 }): React.ReactElement | null {
   const [isHovered, setIsHovered] = React.useState(false);
   const cssStyle = designStyleToCSS(node.style);
   const selLevel = interactive ? getSelectionLevel(node.id, selectedNodeId, selectedNodeIds) : "none";
   const isSelected = selLevel !== "none";
+  const isLiveHit = interactive && !isSelected && liveHits?.has(node.id);
   const isEditing = node.id === editingNodeId;
   const isAbsolute = node.style.position === "absolute";
   const showBreakoutBadge = interactive && isAbsolute && (isSelected || isHovered);
@@ -448,6 +457,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             onStartEdit={onStartEdit}
             onCommitEdit={onCommitEdit}
             onContextMenu={onContextMenu}
+            liveHits={liveHits}
           />
         </div>
       );
@@ -466,7 +476,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
         ...cssStyle,
         ...(hasCover ? { position: "relative", overflow: "hidden" } : {}),
         boxSizing: "border-box",
-        ...selectionOutlineStyle(selLevel),
+        ...selectionOutlineStyle(selLevel, isLiveHit),
       };
 
       // Breakout badge needs a positioning context
@@ -503,6 +513,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
                     onStartEdit={onStartEdit}
                     onCommitEdit={onCommitEdit}
                     onContextMenu={onContextMenu}
+                    liveHits={liveHits}
                   />
                 </div>
               );
@@ -546,7 +557,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
       const textStyle: React.CSSProperties = {
         ...cssStyle,
         boxSizing: "border-box",
-        ...selectionOutlineStyle(selLevel),
+        ...selectionOutlineStyle(selLevel, isLiveHit),
       };
 
       if (showBreakoutBadge && textStyle.position !== "absolute") {
@@ -590,7 +601,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
         display: "block",
         boxSizing: "border-box",
         overflow: cssStyle.overflow ?? "hidden",
-        ...selectionOutlineStyle(selLevel),
+        ...selectionOutlineStyle(selLevel, isLiveHit),
       };
 
       if (showBreakoutBadge && wrapperStyle.position !== "absolute") {
@@ -634,7 +645,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
         ...cssStyle,
         cursor: interactive ? "default" : "pointer",
         boxSizing: "border-box",
-        ...selectionOutlineStyle(selLevel),
+        ...selectionOutlineStyle(selLevel, isLiveHit),
       };
 
       if (showBreakoutBadge && btnStyle.position !== "absolute") {
@@ -665,7 +676,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
       const wrapperStyle: React.CSSProperties = {
         ...cssStyle,
         boxSizing: "border-box",
-        ...selectionOutlineStyle(selLevel),
+        ...selectionOutlineStyle(selLevel, isLiveHit),
       };
 
       if (showBreakoutBadge && wrapperStyle.position !== "absolute") {
@@ -816,6 +827,7 @@ export function ComposeDocumentViewV6({
   selectedNodeIds = [],
   onSelectNode,
   onToggleNodeSelection,
+  onSetSelectedNodes,
   onUpdateContent,
   onUpdateNodeStyle,
   onPushHistory,
@@ -1179,12 +1191,48 @@ export function ComposeDocumentViewV6({
     setDragState({ isDragging, draggedNodeId: draggedNodeId ?? null });
   }, [isDragging, draggedNodeId]);
 
+  // ── Rubber-band (marquee) selection ───────────────────────────────
+  const rubberBandHandleSetNodes = React.useCallback(
+    (nodeIds: string[]) => {
+      if (nodeIds.length === 0) return;
+      if (nodeIds.length === 1) {
+        // Single node — equivalent to single-select
+        onSelectNode?.(nodeIds[0]);
+        return;
+      }
+      // Multi-select — use batch setter if available, fall back to single-select on primary
+      if (onSetSelectedNodes) {
+        onSetSelectedNodes(nodeIds);
+      } else {
+        onSelectNode?.(nodeIds[0]);
+      }
+    },
+    [onSelectNode, onSetSelectedNodes],
+  );
+
+  const rubberBandHandleDeselectAll = React.useCallback(() => {
+    onSelectNode?.(null);
+  }, [onSelectNode]);
+
+  const rubberBand = useRubberBandSelection({
+    containerRef,
+    tree,
+    zoom,
+    interactive: interactive ?? false,
+    spaceHeldRef,
+    isInteractingRef,
+    existingSelection: selectedNodeIds,
+    artboardId: artboardId ?? null,
+    onSetSelectedNodes: rubberBandHandleSetNodes,
+    onDeselectAll: rubberBandHandleDeselectAll,
+  });
+
   // ── Update interaction suppression flag ────────────────────────────
-  // isDragging, isResizing, editingNodeId are reactive — update ref in effect.
+  // isDragging, isResizing, editingNodeId, marquee are reactive — update ref in effect.
   // spaceHeld is read directly from ref in the hover handler (no effect needed).
   React.useEffect(() => {
-    isInteractingRef.current = isDragging || isResizing || editingNodeId !== null;
-  }, [isDragging, isResizing, editingNodeId]);
+    isInteractingRef.current = isDragging || isResizing || editingNodeId !== null || rubberBand.marqueeRect !== null;
+  }, [isDragging, isResizing, editingNodeId, rubberBand.marqueeRect]);
 
   // ── Selection label (React-rendered, only changes on selection) ──────
   const selectedNodeInfo = React.useMemo(() => {
@@ -1412,12 +1460,9 @@ export function ComposeDocumentViewV6({
         onMouseMove={interactive ? handleHoverMove : undefined}
         onMouseLeave={interactive ? handleHoverLeave : undefined}
         onDoubleClick={interactive ? handleDoubleClick : undefined}
-        onClick={interactive ? (e) => {
-          // Click on empty space — deselect
-          if (!(e.target as HTMLElement).closest("[data-node-id]")) {
-            onSelectNode?.(null);
-          }
-        } : undefined}
+        onPointerDown={interactive ? rubberBand.handlePointerDown : undefined}
+        onPointerMove={interactive ? rubberBand.handlePointerMove : undefined}
+        onPointerUp={interactive ? rubberBand.handlePointerUp : undefined}
       >
         <RenderDesignNode
           node={tree}
@@ -1432,12 +1477,29 @@ export function ComposeDocumentViewV6({
           onContextMenu={onContextMenu}
           rootNodeId={tree.id}
           onInsertSection={onInsertSection}
+          liveHits={rubberBand.liveHits}
         />
         {interactive && dragState.isDragging && snapGuidesHook.activeGuides.length > 0 && (
           <SnapGuideLines
             guides={snapGuidesHook.activeGuides}
             containerWidth={containerWidth || 1200}
             containerHeight={containerHeight || 2000}
+          />
+        )}
+        {/* ── Rubber-band marquee overlay ── */}
+        {interactive && rubberBand.marqueeRect && (
+          <div
+            style={{
+              position: "absolute",
+              left: rubberBand.marqueeRect.x,
+              top: rubberBand.marqueeRect.y,
+              width: rubberBand.marqueeRect.width,
+              height: rubberBand.marqueeRect.height,
+              border: "1px solid rgba(30, 93, 242, 0.3)",
+              background: "rgba(209, 228, 252, 0.05)",
+              pointerEvents: "none",
+              zIndex: 9999,
+            }}
           />
         )}
       </div>

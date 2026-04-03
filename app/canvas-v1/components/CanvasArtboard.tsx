@@ -209,6 +209,9 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
               onToggleNodeSelection={(nodeId) => {
                 dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId: item.id, nodeId });
               }}
+              onSetSelectedNodes={(nodeIds) => {
+                dispatch({ type: "SET_SELECTED_NODES", artboardId: item.id, nodeIds });
+              }}
               onUpdateContent={handleNodeContentUpdate}
               onUpdateNodeStyle={handleNodeStyleUpdate}
               onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}

@@ -86,7 +86,11 @@ function V6InsertionBar({
 type ComposeDocumentViewV6Props = {
   tree: DesignNode;
   selectedNodeId?: string | null;
+  /** All selected node IDs (multi-select). Primary = selectedNodeId, rest = secondary. */
+  selectedNodeIds?: string[];
   onSelectNode?: (nodeId: string | null) => void;
+  /** Toggle a node in/out of multi-selection (Shift+Click). */
+  onToggleNodeSelection?: (nodeId: string) => void;
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   onUpdateNodeStyle?: (nodeId: string, style: Partial<DesignNodeStyle>) => void;
   onPushHistory?: (description: string) => void;
@@ -177,12 +181,27 @@ function isLightColor(hex?: string): boolean {
 
 // ── Selection outline style ────────────────────────────────────────
 
-function selectionOutlineStyle(isSelected: boolean): React.CSSProperties {
-  if (!isSelected) return {};
-  return {
-    outline: "1.5px solid #1E5DF2",
-    outlineOffset: -1.5,
-  };
+type SelectionLevel = "primary" | "secondary" | "none";
+
+function selectionOutlineStyle(level: SelectionLevel): React.CSSProperties {
+  if (level === "primary") {
+    return { outline: "1.5px solid #1E5DF2", outlineOffset: -1.5 };
+  }
+  if (level === "secondary") {
+    return { outline: "1.5px solid rgba(30, 93, 242, 0.45)", outlineOffset: -1.5 };
+  }
+  return {};
+}
+
+/** Determine selection level for a node given primary ID and full multi-select array. */
+function getSelectionLevel(
+  nodeId: string,
+  selectedNodeId: string | null,
+  selectedNodeIds: string[],
+): SelectionLevel {
+  if (nodeId === selectedNodeId) return "primary";
+  if (selectedNodeIds.includes(nodeId)) return "secondary";
+  return "none";
 }
 
 // ── Text Content Renderer ──────────────────────────────────────────
@@ -380,12 +399,16 @@ function EmptyFrameLabel({ style }: { style: DesignNodeStyle }) {
 
 // ── Main Render Function ───────────────────────────────────────────
 
-function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection }: {
+function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection }: {
   node: DesignNode;
   selectedNodeId: string | null;
+  /** All selected node IDs for multi-select outline rendering. */
+  selectedNodeIds: string[];
   editingNodeId: string | null;
   interactive: boolean;
   onSelect: (nodeId: string) => void;
+  /** Shift+Click toggle handler for multi-select. */
+  onToggleSelect?: (nodeId: string) => void;
   onStartEdit: (nodeId: string) => void;
   onCommitEdit: (nodeId: string, newText: string) => void;
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
@@ -396,7 +419,8 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
 }): React.ReactElement | null {
   const [isHovered, setIsHovered] = React.useState(false);
   const cssStyle = designStyleToCSS(node.style);
-  const isSelected = node.id === selectedNodeId;
+  const selLevel = interactive ? getSelectionLevel(node.id, selectedNodeId, selectedNodeIds) : "none";
+  const isSelected = selLevel !== "none";
   const isEditing = node.id === editingNodeId;
   const isAbsolute = node.style.position === "absolute";
   const showBreakoutBadge = interactive && isAbsolute && (isSelected || isHovered);
@@ -416,9 +440,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           <RenderDesignNode
             node={child}
             selectedNodeId={selectedNodeId}
+            selectedNodeIds={selectedNodeIds}
             editingNodeId={editingNodeId}
             interactive={interactive}
             onSelect={onSelect}
+            onToggleSelect={onToggleSelect}
             onStartEdit={onStartEdit}
             onCommitEdit={onCommitEdit}
             onContextMenu={onContextMenu}
@@ -440,7 +466,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         ...cssStyle,
         ...(hasCover ? { position: "relative", overflow: "hidden" } : {}),
         boxSizing: "border-box",
-        ...selectionOutlineStyle(isSelected && interactive),
+        ...selectionOutlineStyle(selLevel),
       };
 
       // Breakout badge needs a positioning context
@@ -469,9 +495,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
                   <RenderDesignNode
                     node={child}
                     selectedNodeId={selectedNodeId}
+                    selectedNodeIds={selectedNodeIds}
                     editingNodeId={editingNodeId}
                     interactive={interactive}
                     onSelect={onSelect}
+                    onToggleSelect={onToggleSelect}
                     onStartEdit={onStartEdit}
                     onCommitEdit={onCommitEdit}
                     onContextMenu={onContextMenu}
@@ -495,7 +523,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           data-node-type={node.type}
           style={frameStyle}
-          onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onClick={interactive ? (e) => {
+            e.stopPropagation();
+            if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
+            onSelect(node.id);
+          } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
@@ -514,7 +546,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
       const textStyle: React.CSSProperties = {
         ...cssStyle,
         boxSizing: "border-box",
-        ...selectionOutlineStyle(isSelected && interactive),
+        ...selectionOutlineStyle(selLevel),
       };
 
       if (showBreakoutBadge && textStyle.position !== "absolute") {
@@ -531,6 +563,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
             e.stopPropagation();
             // Don't re-select (which exits edit mode) if clicking inside active contentEditable
             if (isEditing) return;
+            if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
             onSelect(node.id);
           } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -557,7 +590,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         display: "block",
         boxSizing: "border-box",
         overflow: cssStyle.overflow ?? "hidden",
-        ...selectionOutlineStyle(isSelected && interactive),
+        ...selectionOutlineStyle(selLevel),
       };
 
       if (showBreakoutBadge && wrapperStyle.position !== "absolute") {
@@ -578,7 +611,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           data-node-type={node.type}
           style={wrapperStyle}
-          onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onClick={interactive ? (e) => {
+            e.stopPropagation();
+            if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
+            onSelect(node.id);
+          } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
@@ -597,7 +634,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
         ...cssStyle,
         cursor: interactive ? "default" : "pointer",
         boxSizing: "border-box",
-        ...selectionOutlineStyle(isSelected && interactive),
+        ...selectionOutlineStyle(selLevel),
       };
 
       if (showBreakoutBadge && btnStyle.position !== "absolute") {
@@ -610,7 +647,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           data-node-type={node.type}
           style={btnStyle}
-          onClick={interactive ? (e) => { e.preventDefault(); e.stopPropagation(); onSelect(node.id); } : undefined}
+          onClick={interactive ? (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
+            onSelect(node.id);
+          } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
@@ -624,7 +665,7 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
       const wrapperStyle: React.CSSProperties = {
         ...cssStyle,
         boxSizing: "border-box",
-        ...selectionOutlineStyle(isSelected && interactive),
+        ...selectionOutlineStyle(selLevel),
       };
 
       if (showBreakoutBadge && wrapperStyle.position !== "absolute") {
@@ -645,7 +686,11 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           data-node-id={node.id}
           data-node-type={node.type}
           style={wrapperStyle}
-          onClick={interactive ? (e) => { e.stopPropagation(); onSelect(node.id); } : undefined}
+          onClick={interactive ? (e) => {
+            e.stopPropagation();
+            if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
+            onSelect(node.id);
+          } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
         >
@@ -768,7 +813,9 @@ function ResizeOverlay({
 export function ComposeDocumentViewV6({
   tree,
   selectedNodeId = null,
+  selectedNodeIds = [],
   onSelectNode,
+  onToggleNodeSelection,
   onUpdateContent,
   onUpdateNodeStyle,
   onPushHistory,
@@ -888,9 +935,9 @@ export function ComposeDocumentViewV6({
   const clearHoverOutline = React.useCallback(() => {
     const el = hoverElRef.current;
     if (el) {
-      // Only clear the outline if React hasn't taken ownership (i.e. it's not the selected node)
+      // Only clear the outline if React hasn't taken ownership (i.e. it's not a selected node)
       const nodeId = el.getAttribute("data-node-id");
-      if (nodeId !== selectedNodeId) {
+      if (nodeId !== selectedNodeId && !(nodeId && selectedNodeIds.includes(nodeId))) {
         el.style.outline = "";
         el.style.outlineOffset = "";
         el.style.cursor = "";
@@ -901,7 +948,7 @@ export function ComposeDocumentViewV6({
       hoverLabelRef.current.style.opacity = "0";
     }
     hideMeasureGuides();
-  }, [selectedNodeId]);
+  }, [selectedNodeId, selectedNodeIds]);
 
   const handleHoverMove = React.useCallback(
     (e: React.MouseEvent) => {
@@ -929,9 +976,9 @@ export function ComposeDocumentViewV6({
       }
       // Same element — nothing to do
       if (target === hoverElRef.current) return;
-      // Don't hover-outline the selected node
+      // Don't hover-outline any selected node (primary or secondary)
       const nodeId = target.getAttribute("data-node-id");
-      if (nodeId && nodeId === selectedNodeId) {
+      if (nodeId && (nodeId === selectedNodeId || selectedNodeIds.includes(nodeId))) {
         clearHoverOutline();
         return;
       }
@@ -958,7 +1005,7 @@ export function ComposeDocumentViewV6({
 
       // ── Measurement guides: show spacing to nearest siblings ────────
       const hoveredNodeId = target.getAttribute("data-node-id");
-      if (hoveredNodeId && hoveredNodeId !== selectedNodeId && measureGuidesRef.current) {
+      if (hoveredNodeId && hoveredNodeId !== selectedNodeId && !selectedNodeIds.includes(hoveredNodeId) && measureGuidesRef.current) {
         const parent = findDesignNodeParent(tree, hoveredNodeId);
         if (parent && containerRef.current) {
           const cr = containerRef.current.getBoundingClientRect();
@@ -1085,7 +1132,7 @@ export function ComposeDocumentViewV6({
         hideMeasureGuides();
       }
     },
-    [interactive, selectedNodeId, clearHoverOutline, zoom, tree]
+    [interactive, selectedNodeId, selectedNodeIds, clearHoverOutline, zoom, tree]
   );
 
   const handleHoverLeave = React.useCallback(() => {
@@ -1093,15 +1140,15 @@ export function ComposeDocumentViewV6({
     hideMeasureGuides();
   }, [clearHoverOutline]);
 
-  // Clear hover outline when selected node changes (it now gets the solid outline)
+  // Clear hover outline when selection changes (it now gets the solid outline)
   React.useEffect(() => {
-    if (
-      hoverElRef.current &&
-      hoverElRef.current.getAttribute("data-node-id") === selectedNodeId
-    ) {
-      clearHoverOutline();
+    if (hoverElRef.current) {
+      const hoveredId = hoverElRef.current.getAttribute("data-node-id");
+      if (hoveredId === selectedNodeId || (hoveredId && selectedNodeIds.includes(hoveredId))) {
+        clearHoverOutline();
+      }
     }
-  }, [selectedNodeId, clearHoverOutline]);
+  }, [selectedNodeId, selectedNodeIds, clearHoverOutline]);
 
   // ── Snap guides for drag alignment ──────────────────────────────
   // Track drag state at the component level so snap hook can react
@@ -1247,6 +1294,15 @@ export function ComposeDocumentViewV6({
     [onSelectNode]
   );
 
+  const handleToggleSelect = React.useCallback(
+    (nodeId: string) => {
+      exitAnyActiveTextEditingV6();
+      setEditingNodeId(null);
+      onToggleNodeSelection?.(nodeId);
+    },
+    [onToggleNodeSelection]
+  );
+
   const handleStartEdit = React.useCallback(
     (nodeId: string) => {
       if (!interactive) return;
@@ -1302,6 +1358,20 @@ export function ComposeDocumentViewV6({
       // word selection / contentEditable behavior handle it
       if (editingNodeId) return;
 
+      // Multi-select collapse: if multiple nodes are selected, double-click
+      // collapses to single-select on the clicked node instead of drilling
+      if (selectedNodeIds.length > 1) {
+        const target = (e.target as HTMLElement).closest<HTMLElement>("[data-node-id]");
+        const clickedId = target?.getAttribute("data-node-id");
+        if (clickedId) {
+          e.preventDefault();
+          exitAnyActiveTextEditingV6();
+          setEditingNodeId(null);
+          onSelectNode(clickedId);
+        }
+        return;
+      }
+
       // Find all elements at the click point with data-node-id
       const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
       const nodeElements = elementsAtPoint.filter(
@@ -1326,7 +1396,7 @@ export function ComposeDocumentViewV6({
       setEditingNodeId(null);
       onSelectNode(deepestId);
     },
-    [interactive, onSelectNode, selectedNodeId, editingNodeId]
+    [interactive, onSelectNode, selectedNodeId, selectedNodeIds, editingNodeId]
   );
 
   // ── Container dimensions for snap guide lines ──────────────────
@@ -1352,9 +1422,11 @@ export function ComposeDocumentViewV6({
         <RenderDesignNode
           node={tree}
           selectedNodeId={selectedNodeId}
+          selectedNodeIds={selectedNodeIds}
           editingNodeId={editingNodeId}
           interactive={interactive}
           onSelect={handleSelect}
+          onToggleSelect={onToggleNodeSelection ? handleToggleSelect : undefined}
           onStartEdit={handleStartEdit}
           onCommitEdit={handleCommitEdit}
           onContextMenu={onContextMenu}
@@ -1369,7 +1441,7 @@ export function ComposeDocumentViewV6({
           />
         )}
       </div>
-      {interactive && selectedNodeId && !editingNodeId && (
+      {interactive && selectedNodeId && !editingNodeId && selectedNodeIds.length <= 1 && (
         <ResizeOverlay
           selectedNodeId={selectedNodeId}
           editingNodeId={editingNodeId}

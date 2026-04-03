@@ -68,27 +68,38 @@ function formatDesignNodeLabel(node: DesignNode): string {
 // ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
 
 function DesignTreeNode({
-  node, depth, selectedNodeId, artboardId, onSelectNode, onContextMenu,
+  node, depth, selectedNodeId, selectedNodeIds, artboardId, onSelectNode, onContextMenu, dispatch,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
-  artboardId: string; onSelectNode: (artboardId: string, nodeId: string) => void;
+  selectedNodeIds: string[]; artboardId: string;
+  onSelectNode: (artboardId: string, nodeId: string) => void;
   onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
+  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
 }) {
   const hasChildren = node.children && node.children.length > 0;
   const [expanded, setExpanded] = React.useState(depth < 2);
-  const isSelected = selectedNodeId === node.id;
+  const isPrimary = selectedNodeId === node.id;
+  const isSecondary = !isPrimary && selectedNodeIds.includes(node.id);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => onSelectNode(artboardId, node.id)}
+        onClick={(e) => {
+          if (e.shiftKey) {
+            dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId, nodeId: node.id });
+          } else {
+            onSelectNode(artboardId, node.id);
+          }
+        }}
         onContextMenu={(e) => onContextMenu?.(node, artboardId, e)}
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
-          isSelected
+          isPrimary
             ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
-            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+            : isSecondary
+              ? "bg-[#D1E4FC]/25 text-[rgba(30,93,242,0.7)] border-l-2 border-[rgba(30,93,242,0.45)]"
+              : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
         )}
         style={{ height: 26, paddingLeft: depth * 12 + (hasChildren ? 4 : 16) }}
       >
@@ -102,9 +113,12 @@ function DesignTreeNode({
         )}
         <DesignNodeIcon type={node.type} />
         <span className="min-w-0 flex-1 truncate text-[11px]">{formatDesignNodeLabel(node)}</span>
+        {isPrimary && selectedNodeIds.length > 1 && (
+          <span className="ml-auto mr-2 text-[9px] text-[#1E5DF2] bg-[#D1E4FC]/50 px-1 rounded-[2px]">primary</span>
+        )}
       </button>
       {expanded && hasChildren && node.children!.map((child) => (
-        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} onContextMenu={onContextMenu} />
+        <DesignTreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} selectedNodeIds={selectedNodeIds} artboardId={artboardId} onSelectNode={onSelectNode} onContextMenu={onContextMenu} dispatch={dispatch} />
       ))}
     </>
   );
@@ -257,9 +271,11 @@ export function LayersPanelV3() {
                           node={child}
                           depth={2}
                           selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
+                          selectedNodeIds={selection.activeArtboardId === artboard.id ? selection.selectedNodeIds : []}
                           artboardId={artboard.id}
                           onSelectNode={handleSelectNode}
                           onContextMenu={handleDesignNodeContextMenu}
+                          dispatch={dispatch}
                         />
                       ))
                     : artboard.pageTree.children?.map((child) => (

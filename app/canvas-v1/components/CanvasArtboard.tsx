@@ -204,7 +204,11 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
             <ComposeDocumentViewV6
               tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
               selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
+              selectedNodeIds={isActiveArtboard ? state.selection.selectedNodeIds : []}
               onSelectNode={handleNodeSelect}
+              onToggleNodeSelection={(nodeId) => {
+                dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId: item.id, nodeId });
+              }}
               onUpdateContent={handleNodeContentUpdate}
               onUpdateNodeStyle={handleNodeStyleUpdate}
               onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}

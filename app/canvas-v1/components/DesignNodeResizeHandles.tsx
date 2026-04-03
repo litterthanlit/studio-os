@@ -34,7 +34,7 @@ type HandlePosition =
 
 // ── Constants ────────────────────────────────────────────────────────
 
-const HANDLE_SIZE = 6;
+const HANDLE_SIZE = 8;
 const HALF = HANDLE_SIZE / 2;
 const MIN_SIZE = 20;
 
@@ -401,14 +401,19 @@ export function DesignNodeResizeHandles({
             backgroundColor: "white",
             cursor,
             zIndex: 10,
+            transition: "transform 100ms ease, background-color 100ms ease",
             ...getStyle(w, h),
           }}
           onPointerDown={(e) => handlePointerDown(e, position)}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = "#1E5DF2";
+            const el = e.currentTarget as HTMLElement;
+            el.style.backgroundColor = "#1E5DF2";
+            el.style.transform = "scale(1.25)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = "white";
+            const el = e.currentTarget as HTMLElement;
+            el.style.backgroundColor = "white";
+            el.style.transform = "scale(1)";
           }}
         />
       ))}

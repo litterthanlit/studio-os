@@ -328,37 +328,22 @@ function BreakoutBadge() {
     <div
       style={{
         position: "absolute",
-        top: 4,
-        left: 4,
-        display: "flex",
-        alignItems: "center",
-        gap: 3,
-        padding: "1px 5px 1px 4px",
-        borderRadius: 3,
-        background: "rgba(30, 93, 242, 0.12)",
-        border: "1px solid rgba(30, 93, 242, 0.25)",
-        fontSize: 9,
-        fontFamily: "var(--font-mono, monospace)",
-        fontWeight: 500,
-        color: "#1E5DF2",
-        letterSpacing: "0.04em",
-        textTransform: "uppercase" as const,
-        lineHeight: 1,
-        pointerEvents: "none" as const,
+        top: -18,
+        right: 0,
         zIndex: 9999,
-        userSelect: "none" as const,
+        fontSize: 9,
+        fontFamily: "'IBM Plex Mono', monospace",
+        textTransform: "uppercase" as const,
+        letterSpacing: "0.05em",
+        color: "#A0A0A0",
+        background: "#F5F5F0",
+        border: "1px solid #E5E5E0",
+        padding: "1px 4px",
+        borderRadius: 2,
+        pointerEvents: "none" as const,
+        whiteSpace: "nowrap" as const,
       }}
     >
-      <span
-        style={{
-          display: "inline-block",
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: "#1E5DF2",
-          flexShrink: 0,
-        }}
-      />
       Breakout
     </div>
   );
@@ -798,6 +783,53 @@ export function ComposeDocumentViewV6({
   // ── Hover label (direct DOM mutation, same pattern as hover outline) ──
   const hoverLabelRef = React.useRef<HTMLDivElement | null>(null);
 
+  // ── Measurement guides (direct DOM mutation — up to 4 line+pill pairs) ──
+  const measureGuidesRef = React.useRef<{
+    lines: HTMLDivElement[];
+    pills: HTMLDivElement[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const lines: HTMLDivElement[] = [];
+    const pills: HTMLDivElement[] = [];
+
+    for (let i = 0; i < 4; i++) {
+      const line = document.createElement("div");
+      line.style.cssText = `
+        position: absolute; background: rgba(255, 105, 180, 0.7);
+        pointer-events: none; z-index: 10000; display: none;
+      `;
+      containerRef.current.appendChild(line);
+      lines.push(line);
+
+      const pill = document.createElement("div");
+      pill.style.cssText = `
+        position: absolute; z-index: 10001; pointer-events: none; display: none;
+        transform: translate(-50%, -50%);
+      `;
+      pill.innerHTML = `<span style="
+        font-size: 9px; font-family: 'IBM Plex Mono', monospace;
+        color: white; background: #FF69B4;
+        padding: 0 4px; border-radius: 2px; white-space: nowrap;
+      ">0</span>`;
+      containerRef.current.appendChild(pill);
+      pills.push(pill);
+    }
+
+    measureGuidesRef.current = { lines, pills };
+    return () => {
+      lines.forEach(l => l.remove());
+      pills.forEach(p => p.remove());
+    };
+  }, []);
+
+  function hideMeasureGuides() {
+    if (!measureGuidesRef.current) return;
+    for (const line of measureGuidesRef.current.lines) line.style.display = "none";
+    for (const pill of measureGuidesRef.current.pills) pill.style.display = "none";
+  }
+
   React.useEffect(() => {
     if (!containerRef.current) return;
     const label = document.createElement("div");
@@ -831,6 +863,7 @@ export function ComposeDocumentViewV6({
     if (hoverLabelRef.current) {
       hoverLabelRef.current.style.opacity = "0";
     }
+    hideMeasureGuides();
   }, [selectedNodeId]);
 
   const handleHoverMove = React.useCallback(
@@ -848,6 +881,7 @@ export function ComposeDocumentViewV6({
         if (hoverLabelRef.current) {
           hoverLabelRef.current.style.opacity = "0";
         }
+        hideMeasureGuides();
         return;
       }
 
@@ -884,12 +918,142 @@ export function ComposeDocumentViewV6({
         hoverLabelRef.current.querySelector("span")!.textContent = displayType;
         hoverLabelRef.current.style.opacity = "1";
       }
+
+      // ── Measurement guides: show spacing to nearest siblings ────────
+      const hoveredNodeId = target.getAttribute("data-node-id");
+      if (hoveredNodeId && hoveredNodeId !== selectedNodeId && measureGuidesRef.current) {
+        const parent = findDesignNodeParent(tree, hoveredNodeId);
+        if (parent && containerRef.current) {
+          const cr = containerRef.current.getBoundingClientRect();
+          const hr = target.getBoundingClientRect();
+
+          // Hovered node rect in container-relative coords
+          const H = {
+            top: (hr.top - cr.top) / zoom,
+            left: (hr.left - cr.left) / zoom,
+            right: (hr.right - cr.left) / zoom,
+            bottom: (hr.bottom - cr.top) / zoom,
+          };
+
+          const MAX_GAP = 500;
+          let guideIndex = 0;
+
+          // Check each sibling — find closest per direction
+          type SiblingGap = { direction: "top" | "bottom" | "left" | "right"; gap: number; sRect: typeof H };
+          const closestPerDir: Record<string, SiblingGap> = {};
+
+          for (const sibling of parent.children ?? []) {
+            if (sibling.id === hoveredNodeId) continue;
+            const sibEl = containerRef.current.querySelector<HTMLElement>(
+              `[data-node-id="${sibling.id}"]`
+            );
+            if (!sibEl) continue;
+            const sr = sibEl.getBoundingClientRect();
+            const S = {
+              top: (sr.top - cr.top) / zoom,
+              left: (sr.left - cr.left) / zoom,
+              right: (sr.right - cr.left) / zoom,
+              bottom: (sr.bottom - cr.top) / zoom,
+            };
+
+            // Horizontal overlap check
+            const hOverlap = S.right > H.left && S.left < H.right;
+            // Vertical overlap check
+            const vOverlap = S.bottom > H.top && S.top < H.bottom;
+
+            // Above
+            if (hOverlap && S.bottom <= H.top) {
+              const gap = H.top - S.bottom;
+              if (gap > 0 && gap < MAX_GAP && (!closestPerDir.top || gap < closestPerDir.top.gap)) {
+                closestPerDir.top = { direction: "top", gap, sRect: S };
+              }
+            }
+            // Below
+            if (hOverlap && S.top >= H.bottom) {
+              const gap = S.top - H.bottom;
+              if (gap > 0 && gap < MAX_GAP && (!closestPerDir.bottom || gap < closestPerDir.bottom.gap)) {
+                closestPerDir.bottom = { direction: "bottom", gap, sRect: S };
+              }
+            }
+            // Left
+            if (vOverlap && S.right <= H.left) {
+              const gap = H.left - S.right;
+              if (gap > 0 && gap < MAX_GAP && (!closestPerDir.left || gap < closestPerDir.left.gap)) {
+                closestPerDir.left = { direction: "left", gap, sRect: S };
+              }
+            }
+            // Right
+            if (vOverlap && S.left >= H.right) {
+              const gap = S.left - H.right;
+              if (gap > 0 && gap < MAX_GAP && (!closestPerDir.right || gap < closestPerDir.right.gap)) {
+                closestPerDir.right = { direction: "right", gap, sRect: S };
+              }
+            }
+          }
+
+          // Position the guide elements
+          const { lines, pills } = measureGuidesRef.current;
+
+          for (const [dir, info] of Object.entries(closestPerDir)) {
+            if (guideIndex >= 4) break;
+            const line = lines[guideIndex];
+            const pill = pills[guideIndex];
+            const dist = Math.round(info.gap);
+
+            if (dir === "top" || dir === "bottom") {
+              // Vertical line between nodes
+              const x = (H.left + H.right) / 2;
+              const y1 = dir === "top" ? info.sRect.bottom : H.bottom;
+              const y2 = dir === "top" ? H.top : info.sRect.top;
+              line.style.cssText = `
+                position: absolute; background: rgba(255, 105, 180, 0.7);
+                pointer-events: none; z-index: 10000; display: block;
+                left: ${x}px; top: ${y1}px; width: 1px; height: ${y2 - y1}px;
+              `;
+              pill.style.cssText = `
+                position: absolute; z-index: 10001; pointer-events: none; display: block;
+                transform: translate(-50%, -50%);
+                left: ${x}px; top: ${(y1 + y2) / 2}px;
+              `;
+            } else {
+              // Horizontal line between nodes
+              const y = (H.top + H.bottom) / 2;
+              const x1 = dir === "left" ? info.sRect.right : H.right;
+              const x2 = dir === "left" ? H.left : info.sRect.left;
+              line.style.cssText = `
+                position: absolute; background: rgba(255, 105, 180, 0.7);
+                pointer-events: none; z-index: 10000; display: block;
+                left: ${x1}px; top: ${y}px; width: ${x2 - x1}px; height: 1px;
+              `;
+              pill.style.cssText = `
+                position: absolute; z-index: 10001; pointer-events: none; display: block;
+                transform: translate(-50%, -50%);
+                left: ${(x1 + x2) / 2}px; top: ${y}px;
+              `;
+            }
+
+            pill.querySelector("span")!.textContent = String(dist);
+            guideIndex++;
+          }
+
+          // Hide unused guides
+          for (let i = guideIndex; i < 4; i++) {
+            lines[i].style.display = "none";
+            pills[i].style.display = "none";
+          }
+        } else {
+          hideMeasureGuides();
+        }
+      } else {
+        hideMeasureGuides();
+      }
     },
-    [interactive, selectedNodeId, clearHoverOutline, zoom]
+    [interactive, selectedNodeId, clearHoverOutline, zoom, tree]
   );
 
   const handleHoverLeave = React.useCallback(() => {
     clearHoverOutline();
+    hideMeasureGuides();
   }, [clearHoverOutline]);
 
   // Clear hover outline when selected node changes (it now gets the solid outline)

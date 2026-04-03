@@ -9,6 +9,19 @@
 
 import type { SnapGuide } from "@/app/canvas-v1/hooks/useSnapGuides";
 
+// Inject snap flash keyframe animation once into the document head
+if (typeof document !== "undefined" && !document.getElementById("snap-flash-css")) {
+  const style = document.createElement("style");
+  style.id = "snap-flash-css";
+  style.textContent = `
+    @keyframes snapFlash {
+      0% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 type SnapGuideLinesProps = {
   guides: SnapGuide[];
   containerWidth: number;
@@ -35,6 +48,7 @@ export function SnapGuideLines({ guides, containerWidth, containerHeight }: Snap
                 background: "rgba(255, 0, 102, 0.7)",
                 pointerEvents: "none",
                 zIndex: 9999,
+                animation: "snapFlash 150ms ease-out forwards",
               }}
             />
           );
@@ -52,6 +66,7 @@ export function SnapGuideLines({ guides, containerWidth, containerHeight }: Snap
               background: "rgba(255, 0, 102, 0.7)",
               pointerEvents: "none",
               zIndex: 9999,
+              animation: "snapFlash 150ms ease-out forwards",
             }}
           />
         );

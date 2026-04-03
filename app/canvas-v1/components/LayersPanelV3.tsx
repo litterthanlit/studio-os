@@ -16,7 +16,8 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
-import { findDesignNodeParent } from "@/lib/canvas/design-node";
+import { findDesignNodeParent, cloneDesignNode } from "@/lib/canvas/design-node";
+import { saveComponent, type DesignComponent } from "@/lib/canvas/design-component-library";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 
@@ -337,6 +338,7 @@ export function LayersPanelV3() {
         const siblings = parent?.children ?? tree.children ?? [];
         const idx = siblings.findIndex((c) => c.id === dnContextMenu.node.id);
         const bp = artboard.breakpoint;
+        const isNonRootFrame = dnContextMenu.node.type === "frame" && dnContextMenu.node.id !== tree.id;
 
         return (
           <DesignNodeContextMenu
@@ -365,6 +367,25 @@ export function LayersPanelV3() {
               setDnContextMenu(null);
             }}
             onToggleVisibility={() => { dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, breakpoint: bp }); setDnContextMenu(null); }}
+            onSaveToLibrary={isNonRootFrame ? (name: string) => {
+              const clonedNode = cloneDesignNode(dnContextMenu.node);
+              const projectId = artboard?.siteId ?? "unknown";
+              const now = new Date().toISOString();
+              const entry: DesignComponent = {
+                id: `saved-${Math.random().toString(36).slice(2, 10)}`,
+                name,
+                category: "Saved",
+                source: "saved",
+                version: 1,
+                projectId,
+                projectName: projectId,
+                createdAt: now,
+                updatedAt: now,
+                node: clonedNode,
+              };
+              saveComponent(entry);
+              setDnContextMenu(null);
+            } : undefined}
             onDismiss={() => setDnContextMenu(null)}
           />
         );

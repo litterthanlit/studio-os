@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {
-  Copy, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Type,
+  Copy, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Type, Bookmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignNode, Breakpoint } from "@/lib/canvas/design-node";
@@ -21,6 +21,7 @@ type DesignNodeContextMenuProps = {
   onMoveDown: () => void;
   onToggleVisibility: () => void;
   onEditText?: () => void;
+  onSaveToLibrary?: (name: string) => void;
   onDismiss: () => void;
 };
 
@@ -77,9 +78,12 @@ export function DesignNodeContextMenu({
   onMoveDown,
   onToggleVisibility,
   onEditText,
+  onSaveToLibrary,
   onDismiss,
 }: DesignNodeContextMenuProps) {
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const [saveMode, setSaveMode] = React.useState(false);
+  const [saveName, setSaveName] = React.useState(node.name);
 
   // Viewport clamping
   React.useLayoutEffect(() => {
@@ -170,6 +174,46 @@ export function DesignNodeContextMenu({
         label="Duplicate"
         onClick={() => { onDuplicate(); onDismiss(); }}
       />
+
+      {/* Save to Library (non-root frames only) */}
+      {onSaveToLibrary && (
+        <>
+          {saveMode ? (
+            <div className="px-3 py-1.5 flex items-center gap-1.5">
+              <input
+                type="text"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && saveName.trim()) {
+                    onSaveToLibrary(saveName.trim());
+                  }
+                }}
+                className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-2 py-1 text-[12px] outline-none focus:border-[#D1E4FC]"
+                autoFocus
+                placeholder="Component name"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (saveName.trim()) {
+                    onSaveToLibrary(saveName.trim());
+                  }
+                }}
+                className="text-[12px] text-[#1E5DF2] font-medium shrink-0 px-1"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <MenuItem
+              icon={<Bookmark {...iconProps} />}
+              label="Save to Library"
+              onClick={() => setSaveMode(true)}
+            />
+          )}
+        </>
+      )}
 
       <Divider />
 

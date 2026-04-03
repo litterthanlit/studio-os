@@ -56,7 +56,7 @@ function V6InsertionBar({
     >
       {/* Dashed line */}
       <div
-        className="absolute inset-x-0 top-1/2 border-t border-dashed border-[#E5E5E0] transition-opacity duration-100"
+        className={`absolute inset-x-0 top-1/2 border-t border-dashed transition-colors transition-opacity duration-100 ${hovered ? "border-[#D1E4FC]" : "border-[#E5E5E0]"}`}
         style={{ opacity: hovered ? 0.8 : 0 }}
       />
       {/* Plus button */}
@@ -64,7 +64,7 @@ function V6InsertionBar({
         ref={buttonRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-        className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] transition-all duration-100 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+        className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white transition-all duration-100 ${hovered ? "border border-[#1E5DF2] text-[#1E5DF2]" : "border border-[#E5E5E0] text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"}`}
         style={{ opacity: hovered || pickerOpen ? 1 : 0, transform: hovered || pickerOpen ? "scale(1)" : "scale(0.8)" }}
       >
         <Plus size={12} />
@@ -349,6 +349,31 @@ function BreakoutBadge() {
   );
 }
 
+// ── Empty Frame Indicator ─────────────────────────────────────────
+
+function EmptyFrameLabel({ style }: { style: DesignNodeStyle }) {
+  const w = typeof style.width === "number" ? style.width : 0;
+  const h = typeof style.height === "number" ? style.height : 0;
+  if (w < 100 || h < 60) return null;
+  return (
+    <span
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        fontSize: 10,
+        color: "#A0A0A0",
+        fontStyle: "italic",
+        pointerEvents: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Empty
+    </span>
+  );
+}
+
 // ── Main Render Function ───────────────────────────────────────────
 
 function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, onSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection }: {
@@ -474,6 +499,9 @@ function RenderDesignNode({ node, selectedNodeId, editingNodeId, interactive, on
           {hasCover && <CoverImage src={node.style.coverImage!} size={node.style.coverSize} position={node.style.coverPosition} />}
           {needsScrim && <CoverScrim />}
           {renderedChildren}
+          {(!node.children || node.children.length === 0) && (
+            <EmptyFrameLabel style={node.style} />
+          )}
         </div>
       );
     }

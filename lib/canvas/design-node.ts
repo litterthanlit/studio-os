@@ -111,3 +111,12 @@ export function findDesignNodeParent(root: DesignNode, targetId: string): Design
   }
   return null;
 }
+
+/** Deep-clone a DesignNode tree with fresh IDs on every node. */
+export function cloneDesignNode(node: DesignNode): DesignNode {
+  return {
+    ...node,
+    id: `${node.type}-${Math.random().toString(36).slice(2, 10)}`,
+    children: node.children?.map(cloneDesignNode),
+  };
+}

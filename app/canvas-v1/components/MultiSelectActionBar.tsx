@@ -105,25 +105,29 @@ export function MultiSelectActionBar() {
 
   const handleAlign = React.useCallback(
     (direction: AlignDirection) => {
-      dispatch({ type: "ALIGN_NODES", direction });
+      if (!activeArtboardId) return;
+      dispatch({ type: "ALIGN_NODES", artboardId: activeArtboardId, direction });
     },
-    [dispatch]
+    [dispatch, activeArtboardId]
   );
 
   const handleDistribute = React.useCallback(
     (axis: DistributeAxis) => {
-      dispatch({ type: "DISTRIBUTE_NODES", axis });
+      if (!activeArtboardId) return;
+      dispatch({ type: "DISTRIBUTE_NODES", artboardId: activeArtboardId, axis });
     },
-    [dispatch]
+    [dispatch, activeArtboardId]
   );
 
   const handleGroup = React.useCallback(() => {
-    dispatch({ type: "GROUP_NODES" });
-  }, [dispatch]);
+    if (!activeArtboardId) return;
+    dispatch({ type: "GROUP_NODES", artboardId: activeArtboardId });
+  }, [dispatch, activeArtboardId]);
 
   const handleUngroup = React.useCallback(() => {
-    dispatch({ type: "UNGROUP_NODES" });
-  }, [dispatch]);
+    if (!activeArtboardId || !selection.selectedNodeId) return;
+    dispatch({ type: "UNGROUP_NODES", artboardId: activeArtboardId, nodeId: selection.selectedNodeId });
+  }, [dispatch, activeArtboardId, selection.selectedNodeId]);
 
   // Don't render if not in multi-select
   if (selectedNodeIds.length < 2) return null;

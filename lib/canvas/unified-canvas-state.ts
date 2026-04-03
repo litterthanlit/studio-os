@@ -40,6 +40,7 @@ export type UnifiedCanvasState = {
     selectedItemIds: string[];
     activeArtboardId: string | null;
     selectedNodeId: string | null;
+    selectedNodeIds: string[];
   };
   prompt: {
     value: string;
@@ -172,7 +173,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     schemaVersion: 3,
     viewport: { pan: { x: 0, y: 0 }, zoom: 0.5 },
     items: [],
-    selection: { selectedItemIds: [], activeArtboardId: null, selectedNodeId: null },
+    selection: { selectedItemIds: [], activeArtboardId: null, selectedNodeId: null, selectedNodeIds: [] },
     prompt: {
       value: "",
       siteType: "auto",
@@ -628,11 +629,16 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.schemaVersion === 3 && Array.isArray(parsed.items)) {
+        const loadedState = parsed as UnifiedCanvasState;
         return {
-          ...(parsed as UnifiedCanvasState),
+          ...loadedState,
+          selection: {
+            ...loadedState.selection,
+            selectedNodeIds: loadedState.selection.selectedNodeIds ?? [],
+          },
           prompt: {
             ...createEmptyCanvas().prompt,
-            ...(parsed as UnifiedCanvasState).prompt,
+            ...loadedState.prompt,
             isGenerating: false,
             agentSteps: [],
           },

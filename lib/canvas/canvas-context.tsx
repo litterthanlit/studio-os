@@ -94,8 +94,10 @@ export function CanvasProvider({
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
-      // Synchronous flush — always save latest state before unmount
-      saveUnifiedCanvas(projectId, extractCanvasState(latestStateRef.current));
+      // Only flush if hydration completed — never write empty initial state
+      if (hydratedRef.current) {
+        saveUnifiedCanvas(projectId, extractCanvasState(latestStateRef.current));
+      }
     };
   }, [projectId]);
 

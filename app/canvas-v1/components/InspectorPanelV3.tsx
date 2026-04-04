@@ -1151,11 +1151,13 @@ function PromptComposer({
   selectedNode,
   projectId,
   varySignal = 0,
+  retryRef,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   selectedNode: PageNode | null;
   projectId?: string;
   varySignal?: number;
+  retryRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const { state, dispatch } = useCanvas();
   const { prompt, items, selection } = state;
@@ -1512,6 +1514,12 @@ function PromptComposer({
     }
   }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
 
+  // Expose handleGenerate to parent via ref for retry wiring
+  React.useEffect(() => {
+    if (retryRef) retryRef.current = handleGenerate;
+    return () => { if (retryRef) retryRef.current = null; };
+  }, [retryRef, handleGenerate]);
+
   // ── Vary: re-trigger generation when varySignal increments ──────────
 
   const varySignalRef = React.useRef(varySignal);
@@ -1709,6 +1717,7 @@ function formatNodeType(type: string): string {
 
 export type InspectorPanelV3Handle = {
   switchToPromptTab: () => void;
+  retryGeneration: () => void;
 };
 
 type InspectorPanelV3Props = {
@@ -1729,9 +1738,13 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = React.useState<InspectorTabId>("design");
 
-  // Expose imperative handle so parent can switch to prompt tab
+  // Ref for PromptComposer's generate function — set by PromptComposer, read by imperative handle
+  const retryRef = React.useRef<(() => void) | null>(null);
+
+  // Expose imperative handle so parent can switch to prompt tab or retry generation
   React.useImperativeHandle(externalPanelRef, () => ({
     switchToPromptTab: () => setActiveTab("prompt"),
+    retryGeneration: () => retryRef.current?.(),
   }));
 
   // ── Inspector content logic ────────────────────────────────────────
@@ -1911,6 +1924,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
             selectedNode={selectedNode}
             projectId={projectId}
             varySignal={varySignal}
+            retryRef={retryRef}
           />
         </div>
       ) : (

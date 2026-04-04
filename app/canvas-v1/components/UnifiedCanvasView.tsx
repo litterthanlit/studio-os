@@ -145,6 +145,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     setTimeout(() => promptTextareaRef.current?.focus(), 0);
   }, []);
 
+  const handleRetryGeneration = React.useCallback(() => {
+    inspectorPanelRef.current?.retryGeneration();
+  }, []);
+
   const focusPromptWithPrefill = React.useCallback((prefill: string) => {
     setShowInspector(true);
     inspectorPanelRef.current?.switchToPromptTab();
@@ -716,6 +720,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   onOpenSectionLibrary={handleOpenSectionLibrary}
                   onFocusPromptWithPrefill={focusPromptWithPrefill}
                   onPointerDown={dragHandlers.onPointerDown}
+                  onRetry={handleRetryGeneration}
                 />
               );
             case "note":
@@ -750,6 +755,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               tokens={tokens}
               isGenerating
               agentSteps={state.prompt.agentSteps}
+              generationResult={state.prompt.generationResult}
+              onRetry={handleRetryGeneration}
             />
           ))}
 

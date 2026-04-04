@@ -39,8 +39,8 @@ export type DesignNodeStyle = {
   position?: "relative" | "absolute";
   x?: number;           // left offset — only when absolute
   y?: number;           // top offset — only when absolute
-  width?: number | "auto" | "fill";
-  height?: number | "auto" | "fill";
+  width?: number | "hug" | "fill";
+  height?: number | "hug" | "fill";
   zIndex?: number;
   overflow?: "visible" | "hidden";
 

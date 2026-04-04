@@ -33,6 +33,57 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
   const label = `${item.breakpoint.toUpperCase()} · ${breakpointWidth}PX`;
   const isDesktop = item.breakpoint === "desktop";
 
+  // ── Handoff sequence state ─────────────────────────────────────────
+  // Tracks the transition from animation → real content
+  const [handoffState, setHandoffState] = React.useState<
+    "idle" | "animating" | "collapsing" | "revealing" | "normalizing"
+  >("idle");
+  const [contentOpacity, setContentOpacity] = React.useState(1);
+  const [warmBg, setWarmBg] = React.useState(false);
+  const prevIsGeneratingRef = React.useRef(isGenerating);
+  const isTemplateFallback = generationResult === "template-fallback";
+
+  // Detect isGenerating flipping from true→false (generation complete)
+  React.useEffect(() => {
+    const wasGenerating = prevIsGeneratingRef.current;
+    prevIsGeneratingRef.current = isGenerating;
+
+    if (wasGenerating && !isGenerating && (generationResult === "success" || isTemplateFallback)) {
+      // Start handoff: animation is still showing, begin collapse phase
+      setHandoffState("collapsing");
+      setContentOpacity(0);
+      setWarmBg(true);
+    }
+  }, [isGenerating, generationResult, isTemplateFallback]);
+
+  // Handle handoff complete callback from GenerationAnimation
+  const handleHandoffComplete = React.useCallback(() => {
+    // Animation collapsed + cleared. Now reveal the real content.
+    setHandoffState("revealing");
+    // Trigger content fade-in on next frame
+    requestAnimationFrame(() => {
+      setContentOpacity(1);
+      // After content reveal (400ms), normalize background
+      setTimeout(() => {
+        setHandoffState("normalizing");
+        setWarmBg(false);
+        // After background normalizes (150ms), done
+        setTimeout(() => {
+          setHandoffState("idle");
+        }, 150);
+      }, 400);
+    });
+  }, []);
+
+  // Reset handoff state when generation starts
+  React.useEffect(() => {
+    if (isGenerating) {
+      setHandoffState("animating");
+      setContentOpacity(1);
+      setWarmBg(false);
+    }
+  }, [isGenerating]);
+
   const handleNodeSelect = React.useCallback(
     (nodeId: string | null) => {
       if (nodeId) {
@@ -151,11 +202,17 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
       {/* Artboard body */}
       <div
         className={cn(
-          "canvas-artboard relative bg-white",
+          "canvas-artboard relative",
           isDesktop ? "border-t-2 border-t-[#1E5DF2]" : "border-t border-t-[#E5E5E0]",
           isSelected && "outline outline-1 outline-[#1E5DF2]",
-          isActiveArtboard && "editing"
+          isActiveArtboard && "editing",
+          // Template fallback: persistent amber border
+          isTemplateFallback && !isGenerating && "outline outline-2 outline-[#F59E0B]"
         )}
+        style={{
+          background: warmBg ? "#F5F5F4" : "#FFFFFF",
+          transition: handoffState === "normalizing" ? "background 150ms ease" : "none",
+        }}
         onClick={(e) => {
           e.stopPropagation();
           if (!(e.target as HTMLElement).closest("[data-node-id]")) {
@@ -165,6 +222,24 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
           }
         }}
       >
+        {/* Template fallback badge */}
+        {isTemplateFallback && !isGenerating && (
+          <div
+            className="absolute top-0 left-0 z-10 px-1.5 py-0.5"
+            style={{
+              background: "#F59E0B",
+              fontSize: 10,
+              fontFamily: "var(--font-geist-sans), sans-serif",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "#FFFFFF",
+              borderRadius: 4,
+            }}
+          >
+            TEMPLATE
+          </div>
+        )}
+
         {/* Click-intercepting overlay for point-and-edit selection */}
         <div
           className="relative"
@@ -177,53 +252,66 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
             }
           }}
         >
-          {isGenerating ? (
+          {/* Show animation during generation or during handoff collapse */}
+          {(isGenerating || handoffState === "collapsing") ? (
             <GenerationAnimation
-              stage={getGenerationStage(agentSteps ?? [])}
+              stage={isGenerating ? getGenerationStage(agentSteps ?? []) : "building"}
               width={breakpointWidth}
               height={400}
               generationResult={generationResult}
+              onHandoffComplete={handleHandoffComplete}
               onRetry={onRetry}
-            />
-          ) : tokens && isDesignNodeTree(item.pageTree) ? (
-            <ComposeDocumentViewV6
-              tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
-              selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
-              selectedNodeIds={isActiveArtboard ? state.selection.selectedNodeIds : []}
-              onSelectNode={handleNodeSelect}
-              onToggleNodeSelection={(nodeId) => {
-                dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId: item.id, nodeId });
-              }}
-              onSetSelectedNodes={(nodeIds) => {
-                dispatch({ type: "SET_SELECTED_NODES", artboardId: item.id, nodeIds });
-              }}
-              onUpdateContent={handleNodeContentUpdate}
-              onUpdateNodeStyle={handleNodeStyleUpdate}
-              onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
-              artboardId={item.id}
-              zoom={state.viewport.zoom}
-              interactive
-            />
-          ) : tokens ? (
-            <ComposeDocumentView
-              pageTree={item.pageTree}
-              tokens={tokens}
-              breakpoint={item.breakpoint}
-              selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
-              onSelectNode={handleNodeSelect}
-              onUpdateContent={handleNodeContentUpdate}
-              onReorderSection={handleSectionReorder}
-              onOpenSectionLibrary={onOpenSectionLibrary}
-              onFocusPromptWithPrefill={onFocusPromptWithPrefill}
-              onReplaceImage={handleReplaceNodeImage}
-              interactive
             />
           ) : (
             <div
-              className="flex items-center justify-center bg-[#F5F5F0] text-[13px] text-[#A0A0A0]"
-              style={{ width: breakpointWidth, minHeight: 400 }}
+              style={{
+                opacity: contentOpacity,
+                transition: handoffState === "revealing"
+                  ? "opacity 400ms ease-out"
+                  : "none",
+              }}
             >
-              No design tokens available
+              {tokens && isDesignNodeTree(item.pageTree) ? (
+                <ComposeDocumentViewV6
+                  tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
+                  selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
+                  selectedNodeIds={isActiveArtboard ? state.selection.selectedNodeIds : []}
+                  onSelectNode={handleNodeSelect}
+                  onToggleNodeSelection={(nodeId) => {
+                    dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId: item.id, nodeId });
+                  }}
+                  onSetSelectedNodes={(nodeIds) => {
+                    dispatch({ type: "SET_SELECTED_NODES", artboardId: item.id, nodeIds });
+                  }}
+                  onUpdateContent={handleNodeContentUpdate}
+                  onUpdateNodeStyle={handleNodeStyleUpdate}
+                  onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
+                  artboardId={item.id}
+                  zoom={state.viewport.zoom}
+                  interactive
+                />
+              ) : tokens ? (
+                <ComposeDocumentView
+                  pageTree={item.pageTree}
+                  tokens={tokens}
+                  breakpoint={item.breakpoint}
+                  selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
+                  onSelectNode={handleNodeSelect}
+                  onUpdateContent={handleNodeContentUpdate}
+                  onReorderSection={handleSectionReorder}
+                  onOpenSectionLibrary={onOpenSectionLibrary}
+                  onFocusPromptWithPrefill={onFocusPromptWithPrefill}
+                  onReplaceImage={handleReplaceNodeImage}
+                  interactive
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center bg-[#F5F5F0] text-[13px] text-[#A0A0A0]"
+                  style={{ width: breakpointWidth, minHeight: 400 }}
+                >
+                  No design tokens available
+                </div>
+              )}
             </div>
           )}
         </div>

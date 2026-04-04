@@ -526,32 +526,6 @@ export function GenerationAnimation({
 
   return (
     <div style={{ width, minHeight: height, position: "relative" }}>
-      {/* Template fallback border */}
-      {generationResult === "template-fallback" && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ border: `2px solid ${AMBER}`, borderRadius: 0 }}
-        />
-      )}
-
-      {/* Template fallback badge */}
-      {generationResult === "template-fallback" && (
-        <div
-          className="absolute top-0 left-0 z-10 px-1.5 py-0.5"
-          style={{
-            background: AMBER,
-            fontSize: 10,
-            fontFamily: "var(--font-geist-sans), sans-serif",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            color: "#FFFFFF",
-            borderRadius: 4,
-          }}
-        >
-          TEMPLATE
-        </div>
-      )}
-
       {/* Canvas animation surface */}
       <canvas
         ref={canvasRef}

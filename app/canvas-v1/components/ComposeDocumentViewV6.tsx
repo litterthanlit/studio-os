@@ -27,6 +27,8 @@ function createBlankDesignSection(): DesignNode {
     type: "frame",
     name: "Section",
     style: {
+      width: "fill",
+      height: "hug",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",

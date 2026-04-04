@@ -41,6 +41,8 @@ function createHero(): DesignComponent {
       type: "frame",
       name: "Hero",
       style: {
+        width: "fill",
+        height: "hug",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -98,6 +100,8 @@ function createSplitContent(): DesignComponent {
       type: "frame",
       name: "Split Content",
       style: {
+        width: "fill",
+        height: "hug",
         display: "grid",
         gridTemplate: "1fr 1fr",
         gap: 48,
@@ -132,7 +136,7 @@ function createSplitContent(): DesignComponent {
           id: uid("frame"),
           type: "frame",
           name: "Text Side",
-          style: { display: "flex", flexDirection: "column", gap: 20 },
+          style: { width: "fill", height: "hug", display: "flex", flexDirection: "column", gap: 20 },
           children: [
             {
               id: uid("text"),
@@ -176,6 +180,8 @@ function createFeaturesGrid(): DesignComponent {
     type: "frame" as const,
     name: title,
     style: {
+      width: "fill" as const,
+      height: "hug" as const,
       display: "flex" as const,
       flexDirection: "column" as const,
       gap: 12,
@@ -214,6 +220,8 @@ function createFeaturesGrid(): DesignComponent {
       type: "frame",
       name: "Features",
       style: {
+        width: "fill",
+        height: "hug",
         display: "grid",
         gridTemplate: "repeat(3, 1fr)",
         gap: 24,
@@ -243,6 +251,8 @@ function createQuoteBlock(): DesignComponent {
       type: "frame",
       name: "Quote",
       style: {
+        width: "fill",
+        height: "hug",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -277,6 +287,8 @@ function createProofRow(): DesignComponent {
     type: "frame" as const,
     name: label,
     style: {
+      width: "hug" as const,
+      height: "hug" as const,
       display: "flex" as const,
       alignItems: "center" as const,
       justifyContent: "center" as const,
@@ -306,6 +318,8 @@ function createProofRow(): DesignComponent {
       type: "frame",
       name: "Proof",
       style: {
+        width: "fill",
+        height: "hug",
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
@@ -339,6 +353,8 @@ function createCTABanner(): DesignComponent {
       type: "frame",
       name: "CTA",
       style: {
+        width: "fill",
+        height: "hug",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -388,6 +404,8 @@ function createFooter(): DesignComponent {
       type: "frame",
       name: "Footer",
       style: {
+        width: "fill",
+        height: "hug",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

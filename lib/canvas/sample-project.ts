@@ -4,7 +4,7 @@
 
 import { createTemplateById } from "./design-component-library";
 import type { DesignNode } from "./design-node";
-import type { ArtboardItem, UnifiedCanvasState } from "./unified-canvas-state";
+import type { ArtboardItem, ReferenceItem, UnifiedCanvasState } from "./unified-canvas-state";
 import { createEmptyCanvas } from "./unified-canvas-state";
 import { saveProject, type StoredProject } from "@/lib/project-store";
 
@@ -32,6 +32,40 @@ const SECTION_TEMPLATE_IDS = [
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// ── Placeholder references ──────────────────────────────────────────────────
+
+/** Create a solid-color SVG data URL that looks like a design reference swatch. */
+function colorReferenceSvg(bg: string, label: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+    <rect width="400" height="300" fill="${bg}"/>
+    <text x="200" y="158" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#fff" opacity="0.6">${label}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+const SAMPLE_REFERENCES: { bg: string; label: string; title: string }[] = [
+  { bg: "#1A1A1A", label: "Dark editorial", title: "Dark Editorial Reference" },
+  { bg: "#2C3E50", label: "Muted blue", title: "Muted Blue Reference" },
+  { bg: "#8B4513", label: "Warm earth", title: "Warm Earth Reference" },
+];
+
+function createSampleReferences(): ReferenceItem[] {
+  return SAMPLE_REFERENCES.map((ref, i) => ({
+    id: uid("ref"),
+    kind: "reference" as const,
+    x: 100,
+    y: 100 + i * 340,
+    width: 300,
+    height: 300,
+    zIndex: 0,
+    locked: false,
+    imageUrl: colorReferenceSvg(ref.bg, ref.label),
+    title: ref.title,
+    source: "upload" as const,
+    extracted: { colors: [ref.bg], fonts: [], tags: [ref.label] },
+  }));
 }
 
 // ── Sample project assembly ──────────────────────────────────────────────────
@@ -86,9 +120,12 @@ export function createSampleProject(): {
     compiledCode: null,
   };
 
+  // Reference items (positioned left of the artboard)
+  const references = createSampleReferences();
+
   // Canvas state
   const canvasState = createEmptyCanvas();
-  canvasState.items = [artboard];
+  canvasState.items = [...references, artboard];
   canvasState.prompt.isOpen = false;
   canvasState.updatedAt = new Date().toISOString();
 

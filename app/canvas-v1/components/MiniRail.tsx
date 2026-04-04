@@ -7,6 +7,7 @@ import {
   Home,
   Settings,
   ChevronsRight,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ type MiniRailProps = {
   onToggleLayers: () => void;
   inspectorVisible: boolean;
   onToggleInspector: () => void;
+  onShowWelcome?: () => void;
 };
 
 function RailButton({
@@ -74,6 +76,7 @@ export function MiniRail({
   onToggleLayers,
   inspectorVisible,
   onToggleInspector,
+  onShowWelcome,
 }: MiniRailProps) {
   return (
     <div className="w-12 h-full bg-[#FAFAF8] border-r border-[#E5E5E0] flex flex-col items-center py-3 gap-0.5 flex-shrink-0 z-30">
@@ -127,6 +130,16 @@ export function MiniRail({
       <RailLink href="/settings" title="Settings">
         <Settings size={18} strokeWidth={1} />
       </RailLink>
+
+      {/* Show welcome overlay */}
+      {onShowWelcome && (
+        <RailButton
+          onClick={onShowWelcome}
+          title="Show welcome guide"
+        >
+          <HelpCircle size={18} strokeWidth={1} />
+        </RailButton>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />

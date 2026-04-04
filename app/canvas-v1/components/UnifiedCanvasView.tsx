@@ -33,6 +33,7 @@ import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
 import { MiniRail } from "./MiniRail";
 import { ToolPalette } from "./ToolPalette";
+import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -111,6 +112,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const { viewport, items } = state;
   const loadingArtboards = React.useMemo(() => createLoadingArtboards(items), [items]);
   const hasArtboards = items.some((item) => item.kind === "artboard");
+
+  // Welcome overlay for first-time users
+  const { visible: welcomeVisible, dismiss: dismissWelcome, show: showWelcome } = useWelcomeOverlay();
 
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(true);
@@ -643,6 +647,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         onToggleLayers={() => setShowLayers((v) => !v)}
         inspectorVisible={showInspector}
         onToggleInspector={() => setShowInspector((v) => !v)}
+        onShowWelcome={showWelcome}
       />
 
       {/* Canvas surface */}
@@ -807,6 +812,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         onZoomToFit={zoomToFit}
       />
       </div>
+
+      {/* Welcome overlay for first-time users */}
+      <WelcomeOverlay visible={welcomeVisible} onDismiss={dismissWelcome} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
+import { OnboardingHint, markHintSeen } from "./OnboardingHint";
 
 interface ReferenceRailProps {
   references: ReferenceItem[];
@@ -10,6 +11,13 @@ interface ReferenceRailProps {
 const MAX_THUMBNAILS = 8;
 
 export function ReferenceRail({ references }: ReferenceRailProps) {
+  // Dismiss hint when references are added
+  React.useEffect(() => {
+    if (references.length > 0) {
+      markHintSeen("references-seen");
+    }
+  }, [references.length]);
+
   // Empty state
   if (references.length === 0) {
     return (
@@ -17,6 +25,11 @@ export function ReferenceRail({ references }: ReferenceRailProps) {
         <p className="text-[11px] text-[#A0A0A0]">
           Drop reference images onto the canvas to inform generation
         </p>
+        <OnboardingHint
+          hintKey="references-seen"
+          text="Drop images here to set your taste"
+          className="mt-2"
+        />
       </div>
     );
   }

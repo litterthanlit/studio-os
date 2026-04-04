@@ -7,6 +7,7 @@ import { isDesignNodeTree } from "@/lib/canvas/compose";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
+import { OnboardingHint } from "../OnboardingHint";
 
 type ExportTabProps = {
   artboard: ArtboardItem | null;
@@ -59,6 +60,12 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
 
   return (
     <div className="p-4 flex flex-col gap-3 h-full min-h-0">
+      {/* Onboarding hint — shows once on first visit */}
+      <OnboardingHint
+        hintKey="export-seen"
+        text="Copy the HTML to use in your project"
+      />
+
       {/* Scope toggle */}
       <div>
         <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono mb-1 block">Scope</span>

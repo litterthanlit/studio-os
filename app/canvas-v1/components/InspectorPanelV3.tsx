@@ -67,6 +67,7 @@ import type {
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { TasteProfile } from "@/types/taste-profile";
+import { isHintSeen, markHintSeen } from "./OnboardingHint";
 
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
@@ -1684,13 +1685,10 @@ function PromptComposer({
             disabled={isGenerating}
             className="w-full border border-[#E5E5E0] rounded-[4px] bg-white px-3 py-2 pr-9 text-[13px] resize-none outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 disabled:cursor-wait disabled:opacity-60"
           />
-          <button
+          <GenerateButtonWithHint
             onClick={handleGenerate}
             disabled={isGenerating || !prompt.value.trim()}
-            className="absolute right-2 bottom-2 text-[#1E5DF2] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
-          >
-            <ArrowRight size={14} strokeWidth={1.5} />
-          </button>
+          />
         </div>
         {isGenerating && (
           <div className="py-2">
@@ -1700,6 +1698,56 @@ function PromptComposer({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Generate Button with Onboarding Hint ─────────────────────────────────────
+
+function GenerateButtonWithHint({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  const [showHint, setShowHint] = React.useState(false);
+  const hintKey = "generate-seen";
+
+  const handleMouseEnter = () => {
+    if (!isHintSeen(hintKey)) {
+      setShowHint(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (showHint) {
+      markHintSeen(hintKey);
+      setShowHint(false);
+    }
+  };
+
+  return (
+    <div
+      className="absolute right-2 bottom-2"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="text-[#1E5DF2] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
+      >
+        <ArrowRight size={14} strokeWidth={1.5} />
+      </button>
+      {showHint && (
+        <div
+          className="absolute bottom-full right-0 mb-1 whitespace-nowrap text-[12px] text-[#6B6B6B] bg-[#FFFFFF] border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 shadow-sm pointer-events-none"
+          style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
+        >
+          AI generates a site based on your references and prompt
+        </div>
+      )}
     </div>
   );
 }

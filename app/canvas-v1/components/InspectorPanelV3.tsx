@@ -12,7 +12,6 @@
 import * as React from "react";
 import {
   ArrowRight,
-  Loader2,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -56,7 +55,7 @@ import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { SiteType } from "@/lib/canvas/templates";
-import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
+import { getArtboardStartX, getGenerationStage, getGenerationStageLabel } from "@/lib/canvas/unified-canvas-state";
 import type {
   CanvasItem,
   ReferenceItem,
@@ -1670,25 +1669,11 @@ function PromptComposer({
             <ArrowRight size={14} strokeWidth={1.5} />
           </button>
         </div>
-        {(isGenerating || agentSteps.length > 0) && (
-          <div className="space-y-1.5 py-2">
-            {agentSteps.map((step, i) => (
-              <div
-                key={`${step}-${i}`}
-                className="text-[10px] font-mono text-[#A0A0A0]"
-                style={{ animation: "agent-step-fade 300ms ease-out forwards" }}
-              >
-                {step}
-              </div>
-            ))}
-            {isGenerating && (
-              <div className="flex items-center gap-2 pt-1">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1E5DF2]" />
-                <span className="text-[11px] text-[#A0A0A0] animate-pulse">
-                  Generating...
-                </span>
-              </div>
-            )}
+        {isGenerating && (
+          <div className="py-2">
+            <span style={{ fontSize: 11, color: "#A0A0A0" }}>
+              {getGenerationStageLabel(getGenerationStage(agentSteps))}
+            </span>
           </div>
         )}
       </div>

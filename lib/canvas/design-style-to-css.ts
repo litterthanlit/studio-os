@@ -19,12 +19,12 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
 
   if (style.width != null) {
     if (style.width === "fill") css.width = "100%";
-    else if (style.width === "auto") css.width = "auto";
+    else if (style.width === "hug") css.width = "auto";
     else css.width = style.width;
   }
   if (style.height != null) {
     if (style.height === "fill") css.height = "100%";
-    else if (style.height === "auto") css.height = "auto";
+    else if (style.height === "hug") css.height = "auto";
     else css.height = style.height;
   }
 

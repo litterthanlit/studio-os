@@ -125,6 +125,42 @@ export type ExportArtifact = {
   updatedAt: string;
 };
 
+// ─── Generation Stage Derivation ────────────────────────────────────────────
+
+/**
+ * Animation stage for the generation visualization.
+ * Derived from `agentSteps` — no new state needed.
+ */
+export type GenerationStage = "analyzing" | "composing" | "creating" | "building" | "idle";
+
+/**
+ * Maps the current `agentSteps` array to a single animation stage.
+ * The last step in the array determines the stage.
+ */
+export function getGenerationStage(agentSteps: string[]): GenerationStage {
+  if (agentSteps.length === 0) return "idle";
+  const last = agentSteps[agentSteps.length - 1];
+  if (last === "Building artboards...") return "building";
+  if (last === "Creating variations...") return "creating";
+  if (last === "Composing layout...") return "composing";
+  // "Preparing generation...", "Analyzing references...", "Extracting design tokens...",
+  // "Extracting taste profile...", "Using local design defaults..."
+  return "analyzing";
+}
+
+/**
+ * Human-readable label for each generation stage.
+ */
+export function getGenerationStageLabel(stage: GenerationStage): string {
+  switch (stage) {
+    case "analyzing": return "Analyzing references\u2026";
+    case "composing": return "Composing layout\u2026";
+    case "creating": return "Creating variations\u2026";
+    case "building": return "Building artboards\u2026";
+    case "idle": return "";
+  }
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function uid(prefix: string): string {

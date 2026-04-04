@@ -1391,11 +1391,23 @@ function PromptComposer({
         }
       }
 
-      // Step 3: Generate component/site
+      // Step 3: Compose layout + generate component/site
+      const analysisPrefix = imageUrls.length > 0 ? ["Analyzing references..."] : [];
+
       dispatch({
         type: "SET_PROMPT_STATUS",
-        agentSteps: [...(imageUrls.length > 0 ? ["Analyzing references..."] : []), "Generating layout..."],
+        agentSteps: [...analysisPrefix, "Composing layout..."],
       });
+
+      // Timed split: transition from "composing" to "creating" after ~10s
+      // since the long API call has no real midpoint event.
+      const creatingTimer = setTimeout(() => {
+        dispatch({
+          type: "SET_PROMPT_STATUS",
+          agentSteps: [...analysisPrefix, "Creating variations..."],
+        });
+      }, 10_000);
+
       const generateRes = await fetch("/api/canvas/generate-component", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1412,6 +1424,8 @@ function PromptComposer({
         }),
       });
 
+      clearTimeout(creatingTimer);
+
       const generateData = await generateRes.json();
       if (!generateRes.ok) {
         throw new Error(generateData.error || "Generation failed");
@@ -1419,7 +1433,7 @@ function PromptComposer({
 
       dispatch({
         type: "SET_PROMPT_STATUS",
-        agentSteps: [...(imageUrls.length > 0 ? ["Analyzing references..."] : []), "Generating layout...", "Building artboards..."],
+        agentSteps: [...analysisPrefix, "Creating variations...", "Building artboards..."],
       });
 
       // Single-variant normalization

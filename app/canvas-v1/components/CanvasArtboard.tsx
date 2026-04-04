@@ -7,21 +7,24 @@ import { ComposeDocumentView, exitAnyActiveTextEditing } from "./ComposeDocument
 import { ComposeDocumentViewV6, exitAnyActiveTextEditingV6 } from "./ComposeDocumentViewV6";
 import { BREAKPOINT_WIDTHS, findNodeById, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
+import { getGenerationStage } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
+import { GenerationAnimation, type GenerationResult } from "./GenerationAnimation";
 
 type CanvasArtboardProps = {
   item: ArtboardItem;
   tokens: DesignSystemTokens | null;
   isDragging?: boolean;
   isGenerating?: boolean;
+  agentSteps?: string[];
+  generationResult?: GenerationResult;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
   onOpenSectionLibrary?: (insertAtIndex: number) => void;
   onFocusPromptWithPrefill?: (prefill: string) => void;
+  onRetry?: () => void;
 };
 
-const SKELETON_WIDTHS = ["60%", "80%", "40%", "90%", "50%"];
-
-export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPointerDown, onOpenSectionLibrary, onFocusPromptWithPrefill }: CanvasArtboardProps) {
+export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeArtboardId === item.id;
@@ -175,31 +178,13 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, onPoint
           }}
         >
           {isGenerating ? (
-            <div style={{ width: breakpointWidth, minHeight: 400, position: "relative" }}>
-              {/* Progress bar */}
-              <div
-                className="h-[2px]"
-                style={{
-                  background: "linear-gradient(90deg, #071D5C, #1E5DF2, #4B83F7)",
-                  animation: "generation-progress 8s ease-out forwards",
-                }}
-              />
-              {/* Skeleton bars */}
-              <div className="p-8 space-y-3">
-                {SKELETON_WIDTHS.map((w, i) => (
-                  <div
-                    key={i}
-                    className="h-[8px] rounded-[2px] bg-[#F5F5F0]"
-                    style={{ width: w }}
-                  />
-                ))}
-              </div>
-              <div className="px-8">
-                <span className="text-[11px] font-mono text-[#A0A0A0] animate-pulse">
-                  GENERATING...
-                </span>
-              </div>
-            </div>
+            <GenerationAnimation
+              stage={getGenerationStage(agentSteps ?? [])}
+              width={breakpointWidth}
+              height={400}
+              generationResult={generationResult}
+              onRetry={onRetry}
+            />
           ) : tokens && isDesignNodeTree(item.pageTree) ? (
             <ComposeDocumentViewV6
               tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}

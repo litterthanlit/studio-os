@@ -250,7 +250,7 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 ### V3 Core Architecture (current)
 
 - `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds
-- `app/canvas-v1/components/InspectorPanelV3.tsx` — 4 exclusive tabs: Design | CSS | Export | Prompt. Each tab gets full height. No split panel
+- `app/canvas-v1/components/InspectorPanelV3.tsx` — 3 exclusive tabs: Design | CSS | Export. Each tab gets full height. Prompt promoted to floating panel
 - `app/canvas-v1/components/LayersPanelV3.tsx` — grouped tree (Site/References/Notes)
 - `app/canvas-v1/components/BottomBarV3.tsx` — zoom, undo/redo, panel toggles
 - `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence. Also has GenerationStage, GenerationResult types and getGenerationStage() function
@@ -312,9 +312,10 @@ Single infinite canvas per project. References, generation, and composition on o
 
 **Panels:**
 - LayersPanelV3: 240px left, grouped tree (Site/References/Notes), recursive expand/collapse
-- InspectorPanelV3: 280px right, 4 exclusive tabs (Design/CSS/Export/Prompt), adapts by selection type (reference/artboard/node/empty)
-- Prompt Composer: Prompt tab in InspectorPanelV3, generation + history + suggestion chips + agent log + taste card + reference rail + fidelity selector
-- BottomBarV3: floating centered strip — zoom, undo/redo, panel toggles (L/I/P)
+- InspectorPanelV3: 288px right, 3 exclusive tabs (Design/CSS/Export), adapts by selection type (reference/artboard/node/empty)
+- FloatingPromptPanel: 300px floating panel, activated by Prompt tool (K shortcut). Only element with shadow. Contains PromptComposerV2.
+- ToolPalette: 4 tools — Cursor (V), Hand (H), Marquee (M), Prompt (K)
+- BottomBarV3: floating centered strip — zoom, undo/redo, panel toggles (L/I)
 
 **Interactions:** `useDrag` (pointer cycle, shift-axis lock), `useCanvasGestures` (wheel zoom, space+drag pan, middle-mouse pan), file drop, clipboard paste, `useCanvasKeyboard` (full shortcut set).
 
@@ -392,6 +393,9 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/ComponentGalleryPanel.tsx` | Full component gallery — filter tabs, search, card grid |
 | `lib/canvas/design-component-library.ts` | 7 DesignNode section templates + saved component persistence |
 | `lib/canvas/design-node-to-html.ts` | DesignNode → HTML conversion with inline styles |
+| `app/canvas-v1/components/FloatingPromptPanel.tsx` | Floating prompt panel — 300px, shadow, mono header, wraps PromptComposerV2 |
+| `app/canvas-v1/components/PromptComposerV2.tsx` | Extracted standalone prompt composer — generation pipeline, chat UI, suggestion chips |
+| `app/canvas-v1/components/inspector/SectionRule.tsx` | Static section header — `── LABEL ──` embedded-label rule pattern, replaces collapsible chevrons |
 
 ### Pre-existing TypeScript Errors (not regressions)
 - `canvas-client.tsx:525` — token merge type mismatch (`Record<string, unknown>` vs `Record<string, string>`)

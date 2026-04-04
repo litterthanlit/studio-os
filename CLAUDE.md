@@ -215,11 +215,13 @@ Theme is stored in `localStorage` as `'light'` or `'dark'` and set on `<html dat
 Light mode only. No dark theme for V1.
 
 ### Colors (hex values used directly — no CSS variable indirection in V2 components)
-- Accent: `#1E5DF2` (primary blue)
+- Accent: `#4B57DB` (primary violet-blue)
+- Accent hover: `#3D49C7`
 - Accent light: `#D1E4FC` (highlights, badges, active backgrounds, focus rings)
-- Accent hover: `#1A4FD6`
+- Accent subtle: `#EDF1FE` (hover tints, very light highlights)
 - Backgrounds: `#FAFAF8` (primary), `#F5F5F0` (secondary/panels), `#FFFFFF` (surfaces/inputs)
-- Borders: `#E5E5E0` (default), `#D1E4FC` (active/focus)
+- Chrome borders: `#EFEFEC` (panel edges, 0.5px), `#E5E5E0` (inputs/controls, 1px)
+- Accent borders: `#4B57DB` (active tab underline, selected layer indicator, 1.5px)
 - Text: `#1A1A1A` (primary), `#6B6B6B` (secondary), `#A0A0A0` (muted)
 
 ### Radius
@@ -236,12 +238,12 @@ No `rounded-xl` (12px+), no pill shapes except avatars/status dots.
 Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={1.5}` (14px in compact contexts like BottomBar).
 
 ### Key Patterns
-- **`.mono-kicker`** — IBM Plex Mono 10px uppercase tracking-widest `#A0A0A0`. Used for all section headers, panel labels, overline text.
-- **Panel chrome** — `bg-white/95 backdrop-blur-sm border-[#E5E5E0]`. No dither, no decorative elements inside panels.
+- **`.mono-kicker`** — IBM Plex Mono 10px uppercase tracking-[1px] `#A0A0A0`. Used for all section headers, panel labels, overline text.
+- **Panel chrome** — `bg-white border-[0.5px] border-[#EFEFEC]`. Solid backgrounds, no blur, no dither.
 - **Form inputs** — `border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40`.
-- **Ghost buttons** — `border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]`.
-- **Primary buttons** — `bg-[#1E5DF2] text-white rounded-[4px] hover:bg-[#1A4FD6]`.
-- **Filter pills** — Active: `bg-[#1E5DF2] text-white`. Inactive: `bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0]`.
+- **Ghost buttons** — `border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]`.
+- **Primary buttons** — `bg-[#4B57DB] text-white rounded-[4px] hover:bg-[#3D49C7]`.
+- **Filter pills** — Active: `bg-[#4B57DB] text-white`. Inactive: `bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0]`.
 - **List items** — compact rows (not big cards), 40px thumbnail, hover borders only.
 - **Destructive actions** — `text-red-500 hover:text-red-600` link-style text, no red buttons.
 
@@ -284,16 +286,16 @@ Three visual systems at different scales — **bars become dots become pixels**:
 - **Pixels** (micro): Scattered squares that dissolve — AsciiLoader generative states
 
 ### Logo Mark
-Folder silhouette filled with vertical tapered diamond slats. Navy `#071D5C` at edges → bright blue `#1E5DF2` at center. SVG uses `clipPath` for the folder shape with polygon slats. Implemented in `components/navigation/sidebar.tsx` as `LogoMark` component (not exported — inline to sidebar).
+Folder silhouette filled with vertical tapered diamond slats. Navy `#071D5C` at edges → violet-blue `#4B57DB` at center. SVG uses `clipPath` for the folder shape with polygon slats. Implemented in `components/navigation/sidebar.tsx` as `LogoMark` component (not exported — inline to sidebar).
 
 ### V2 Design Rules
 1. **Bespoke Serif for display text only** — page greetings, marketing headlines, section titles
-2. **Blue (#1E5DF2) is the ONLY accent color** — everything else is grayscale
+2. **Violet-blue (#4B57DB) is the ONLY accent color** — everything else is grayscale
 3. **Halftone dot texture is background only** — never on interactive components, only canvas bg + empty/loading states
 4. **No decorative elements** — no gradients on buttons, no heavy shadows, no emojis
-5. **Panel headers use `.mono-kicker`** — Geist Mono 10px uppercase wide letter-spacing `#A0A0A0`
+5. **Panel headers use `.mono-kicker`** — IBM Plex Mono 10px uppercase 1px letter-spacing `#A0A0A0`
 6. **List items are compact rows, not big cards** — thin rows with 40px thumbnail, hover borders only
-7. **Panels use `bg-white/95 backdrop-blur-sm`** so halftone texture bleeds through
+7. **Panels use solid `bg-white`** — no blur, no transparency
 8. **All inputs have focus rings** — `focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40`
 9. **No old CSS variable tokens in V2 components** — use hex values directly (`#1A1A1A`, `#E5E5E0`, etc.)
 10. **Overall mood: serious, architectural, tool-like, editorial** — Framer meets Swiss poster
@@ -306,7 +308,7 @@ Single infinite canvas per project. References, generation, and composition on o
 
 **State engine:** `useReducer`-style reducer (`canvas-reducer.ts`) with 30+ action types. Snapshot-based undo/redo history (`history.ts`) — max 50 entries, in-memory only. Coalescing: drag commits on pointer-up, text edits on 400ms debounce, AI actions once per response.
 
-**Layout:** References cluster on the left (3-column grid at x=100). Artboards positioned on the right (desktop at x=1200, tablet at x=2720, mobile at x=3568). Desktop artboard: `border-t-2 border-t-[#1E5DF2]`. Others: `border-t border-t-[#E5E5E0]`. Headers: `font-mono text-[10px] uppercase tracking-widest`.
+**Layout:** References cluster on the left (3-column grid at x=100). Artboards positioned on the right (desktop at x=1200, tablet at x=2720, mobile at x=3568). Desktop artboard: `border-t-2 border-t-[#4B57DB]`. Others: `border-t border-t-[#E5E5E0]`. Headers: `font-mono text-[10px] uppercase tracking-[1px]`.
 
 **Panels:**
 - LayersPanelV3: 240px left, grouped tree (Site/References/Notes), recursive expand/collapse

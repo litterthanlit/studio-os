@@ -125,8 +125,8 @@ function LogoMarkMuted({ size = 48 }: { size?: number }) {
         <polygon points="33,0 39,0 42,40 39,81 33,81 30,40" fill="#1248C4" />
         <polygon points="44,0 51,0 54,40 51,81 44,81 41,40" fill="#1652D6" />
         <polygon points="56,0 64,0 67,40 64,81 56,81 53,40" fill="#1A58E0" />
-        <polygon points="69,0 77,0 80,40 77,81 69,81 66,40" fill="#1E5DF2" />
-        <polygon points="82,0 90,0 92,40 90,81 82,81 80,40" fill="#1E5DF2" />
+        <polygon points="69,0 77,0 80,40 77,81 69,81 66,40" fill="#4B57DB" />
+        <polygon points="82,0 90,0 92,40 90,81 82,81 80,40" fill="#4B57DB" />
         <polygon points="95,0 101,0 103,40 101,81 95,81 93,40" fill="#1A58E0" />
         <polygon points="106,0 111,0 112,40 111,81 106,81 105,40" fill="#1652D6" />
         <polygon points="114,0 118,0 119,40 118,81 114,81 113,40" fill="#1248C4" />
@@ -158,7 +158,7 @@ function FilterPill({
       className={cn(
         "flex items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
         active
-          ? "bg-[#1E5DF2] text-white"
+          ? "bg-[#4B57DB] text-white"
           : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
       )}
     >
@@ -226,7 +226,7 @@ function ProjectRow({
         <ArrowRight
           size={14}
           strokeWidth={1.5}
-          className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#1E5DF2]"
+          className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#4B57DB]"
         />
       </Link>
 
@@ -342,7 +342,7 @@ export function ProjectsPage() {
           <button
             type="button"
             onClick={openModal}
-            className="flex shrink-0 items-center gap-1.5 rounded-[4px] bg-[#1E5DF2] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#1A4FD6]"
+            className="flex shrink-0 items-center gap-1.5 rounded-[4px] bg-[#4B57DB] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#3D49C7]"
           >
             <Plus size={14} strokeWidth={2} />
             New Project
@@ -398,7 +398,7 @@ export function ProjectsPage() {
             <button
               type="button"
               onClick={openModal}
-              className="mt-5 flex items-center gap-1.5 rounded-[4px] bg-[#1E5DF2] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#1A4FD6]"
+              className="mt-5 flex items-center gap-1.5 rounded-[4px] bg-[#4B57DB] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#3D49C7]"
             >
               <Plus size={14} strokeWidth={2} />
               Create Project
@@ -426,7 +426,7 @@ export function ProjectsPage() {
                     >
                       {/* Demo thumbnail */}
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-[#D1E4FC] bg-[#D1E4FC]/20">
-                        <span className="font-mono text-[9px] font-medium uppercase tracking-wider text-[#1E5DF2]">
+                        <span className="font-mono text-[9px] font-medium uppercase tracking-wider text-[#4B57DB]">
                           Demo
                         </span>
                       </div>
@@ -439,7 +439,7 @@ export function ProjectsPage() {
                         </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1E5DF2]" />
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#4B57DB]" />
                         <span className="font-mono text-[11px] text-[#6B6B6B]">
                           Demo
                         </span>
@@ -447,7 +447,7 @@ export function ProjectsPage() {
                       <ArrowRight
                         size={14}
                         strokeWidth={1.5}
-                        className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#1E5DF2]"
+                        className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#4B57DB]"
                       />
                     </Link>
                     <button
@@ -489,7 +489,7 @@ export function ProjectsPage() {
                     setFilter("All");
                     setSearchQuery("");
                   }}
-                  className="mt-2 text-[13px] text-[#1E5DF2] transition-opacity hover:opacity-70"
+                  className="mt-2 text-[13px] text-[#4B57DB] transition-opacity hover:opacity-70"
                 >
                   Clear filters
                 </button>

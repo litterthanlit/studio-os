@@ -47,7 +47,7 @@ export function SectionActionRail({
 
   return (
     <div
-      className="absolute left-3 top-3 z-30 flex items-center gap-0.5 rounded-[6px] border border-[#E5E5E0] bg-white/96 p-1 shadow-sm backdrop-blur-sm"
+      className="absolute left-3 top-3 z-30 flex items-center gap-0.5 rounded-[6px] border border-[#E5E5E0] bg-white p-1 shadow-sm"
       onMouseDown={stop}
       onClick={stop}
     >

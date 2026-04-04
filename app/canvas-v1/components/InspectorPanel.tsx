@@ -381,7 +381,7 @@ function LayoutTab({
     <div>
       {/* Breakpoint label */}
       <div className="mb-4 rounded-[4px] border border-[#D1E4FC] bg-[#D1E4FC]/20 px-3 py-2">
-        <span className="font-mono text-[10px] uppercase tracking-wide text-[#1E5DF2]">
+        <span className="font-mono text-[10px] uppercase tracking-wide text-[#4B57DB]">
           Editing {breakpoint} overrides
         </span>
       </div>
@@ -535,7 +535,7 @@ function AiTab({
             type="button"
             disabled={aiLoading}
             onClick={() => onApplyAiAction(item.action)}
-            className="flex w-full items-center justify-start rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2] disabled:opacity-40"
+            className="flex w-full items-center justify-start rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors hover:border-[#D1E4FC] hover:text-[#4B57DB] disabled:opacity-40"
           >
             {item.label}
           </button>
@@ -616,7 +616,7 @@ export function InspectorPanel({
   }
 
   return (
-    <div className="flex h-full w-[280px] flex-col overflow-hidden border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm">
+    <div className="flex h-full w-[280px] flex-col overflow-hidden border-l border-[#E5E5E0] bg-white">
       {/* ── Tab bar ── */}
       <div className="shrink-0 flex border-b border-[#E5E5E0] px-3">
         {tabs.map((tab) => (
@@ -627,7 +627,7 @@ export function InspectorPanel({
             className={cn(
               "px-3 py-2 text-[11px] font-medium transition-colors",
               activeTab === tab.value
-                ? "text-[#1E5DF2] border-b-2 border-[#1E5DF2]"
+                ? "text-[#4B57DB] border-b-2 border-[#4B57DB]"
                 : "text-[#A0A0A0] hover:text-[#6B6B6B]"
             )}
           >
@@ -690,14 +690,14 @@ export function InspectorPanel({
           type="button"
           onClick={onViewCode}
           disabled={!exportCode}
-          className="flex h-8 flex-1 items-center justify-center rounded-[4px] border border-[#E5E5E0] text-[12px] text-[#6B6B6B] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2] disabled:opacity-40"
+          className="flex h-8 flex-1 items-center justify-center rounded-[4px] border border-[#E5E5E0] text-[12px] text-[#6B6B6B] transition-colors hover:border-[#D1E4FC] hover:text-[#4B57DB] disabled:opacity-40"
         >
           View Code
         </button>
         <button
           type="button"
           onClick={exportCode ? onExport : onPreview}
-          className="flex h-8 flex-1 items-center justify-center rounded-[4px] bg-[#1E5DF2] text-[12px] font-medium text-white transition-colors hover:bg-[#1A4FD6]"
+          className="flex h-8 flex-1 items-center justify-center rounded-[4px] bg-[#4B57DB] text-[12px] font-medium text-white transition-colors hover:bg-[#3D49C7]"
         >
           Export
         </button>

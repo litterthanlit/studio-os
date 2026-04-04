@@ -62,7 +62,7 @@ function SectionGroup({
   return (
     <div>
       <span className="mono-kicker mb-3 block">{label}</span>
-      <div className="rounded-[6px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-6 space-y-5">
+      <div className="rounded-[6px] border border-[#E5E5E0] bg-white p-6 space-y-5">
         {children}
       </div>
     </div>
@@ -95,7 +95,7 @@ function IntegrationRow({
         <button
           type="button"
           onClick={onConnect}
-          className="rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+          className="rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
         >
           Connect
         </button>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={saveName}
-                  className="rounded-[4px] bg-[#1E5DF2] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#1A4FD6]"
+                  className="rounded-[4px] bg-[#4B57DB] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#3D49C7]"
                 >
                   Save
                 </button>
@@ -221,7 +221,7 @@ export default function SettingsPage() {
                     i === 1 && "rounded-none border-x-0",
                     i === 2 && "rounded-r-[4px] rounded-l-none",
                     activeTheme === t
-                      ? "border-[#1E5DF2] bg-[#1E5DF2] text-white"
+                      ? "border-[#4B57DB] bg-[#4B57DB] text-white"
                       : "border-[#E5E5E0] bg-white text-[#6B6B6B] hover:border-[#D1E4FC]"
                   )}
                 >
@@ -253,7 +253,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={saveLummiKey}
-                className="rounded-[4px] bg-[#1E5DF2] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#1A4FD6]"
+                className="rounded-[4px] bg-[#4B57DB] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#3D49C7]"
               >
                 Save
               </button>
@@ -283,7 +283,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={exportAllProjects}
-              className="shrink-0 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+              className="shrink-0 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
             >
               Export JSON
             </button>

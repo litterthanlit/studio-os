@@ -33,7 +33,10 @@ import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
 import { MiniRail } from "./MiniRail";
 import { ToolPalette } from "./ToolPalette";
+import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
+import { isDesignNodeTree, findNodeById } from "@/lib/canvas/compose";
+import { findDesignNodeById } from "@/lib/canvas/design-node";
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -141,10 +144,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const promptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const inspectorPanelRef = React.useRef<InspectorPanelV3Handle>(null);
 
-  // Focus prompt: ensure inspector is visible, switch to prompt tab, focus textarea
+  // Focus prompt: ensure inspector is visible, focus textarea
   const handleFocusPrompt = React.useCallback(() => {
     setShowInspector(true);
-    inspectorPanelRef.current?.switchToPromptTab();
     // Focus after state updates render
     setTimeout(() => promptTextareaRef.current?.focus(), 0);
   }, []);
@@ -155,7 +157,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   const focusPromptWithPrefill = React.useCallback((prefill: string) => {
     setShowInspector(true);
-    inspectorPanelRef.current?.switchToPromptTab();
     dispatch({ type: "SET_PROMPT", value: prefill });
     setTimeout(() => {
       const textarea = promptTextareaRef.current;
@@ -655,12 +656,13 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         ref={containerRef}
         className={cn(
           "relative h-full flex-1 overflow-hidden bg-[#FAFAF8]",
-          isDragOver && "ring-2 ring-inset ring-[#1E5DF2] ring-dashed"
+          isDragOver && "ring-2 ring-inset ring-[#4B57DB] ring-dashed"
         )}
       style={{
+        backgroundColor: "var(--canvas-color, #FAFAF8)",
         backgroundImage:
-          "radial-gradient(circle, rgba(0,0,0,0.04) 0.6px, transparent 0.6px)",
-        backgroundSize: "20px 20px",
+          "url(\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='21' height='21'><rect width='20' height='20' rx='1' fill='%23000' opacity='.02'/></svg>\")",
+        backgroundSize: "21px 21px",
       }}
       onClick={handleCanvasClick}
       onMouseDown={handleDragSelectDown}
@@ -768,7 +770,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         {/* Drag selection rectangle */}
         {dragSelection && (
           <div
-            className="absolute border border-[#1E5DF2] bg-[#1E5DF2]/5 pointer-events-none"
+            className="absolute border border-[#4B57DB] bg-[#4B57DB]/5 pointer-events-none"
             style={{
               left: Math.min(dragSelection.startX, dragSelection.currentX),
               top: Math.min(dragSelection.startY, dragSelection.currentY),
@@ -784,6 +786,26 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       {/* Tool palette */}
       <ToolPalette activeTool={activeTool} onToolChange={setActiveTool} />
+
+      {/* Floating prompt panel — shown when Prompt tool (K) is active */}
+      {activeTool === "prompt" && showInspector && (() => {
+        const activeArtboard = state.selection.activeArtboardId
+          ? items.find((i) => i.kind === "artboard" && i.id === state.selection.activeArtboardId) ?? null
+          : null;
+        const isV6 = activeArtboard ? isDesignNodeTree(activeArtboard.pageTree) : false;
+        const selectedNode = activeArtboard && state.selection.selectedNodeId
+          ? isV6
+            ? findDesignNodeById(activeArtboard.pageTree as any, state.selection.selectedNodeId)
+            : findNodeById(activeArtboard.pageTree, state.selection.selectedNodeId)
+          : null;
+        return (
+          <FloatingPromptPanel
+            projectId={projectId}
+            selectedNode={selectedNode}
+            onClose={() => setActiveTool("select")}
+          />
+        );
+      })()}
 
       {/* Inspector panel — single-mode tabs (Design/CSS/Export/Prompt) */}
       {showInspector && (

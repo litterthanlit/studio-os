@@ -425,7 +425,7 @@ export function DesignNodeResizeHandles({
             width: HANDLE_SIZE,
             height: HANDLE_SIZE,
             borderRadius: 1,
-            border: "1px solid #1E5DF2",
+            border: "1px solid #4B57DB",
             backgroundColor: "white",
             cursor,
             zIndex: 10,
@@ -435,7 +435,7 @@ export function DesignNodeResizeHandles({
           onPointerDown={(e) => handlePointerDown(e, position)}
           onMouseEnter={(e) => {
             const el = e.currentTarget as HTMLElement;
-            el.style.backgroundColor = "#1E5DF2";
+            el.style.backgroundColor = "#4B57DB";
             el.style.transform = "scale(1.25)";
           }}
           onMouseLeave={(e) => {

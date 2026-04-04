@@ -139,7 +139,7 @@ export function WelcomeOverlay({ visible, onDismiss }: WelcomeOverlayProps) {
           <button
             type="button"
             onClick={handleOpenSample}
-            className="flex-1 h-10 rounded-[4px] bg-[#1E5DF2] text-white text-[14px] font-medium cursor-pointer border-none transition-colors duration-150 hover:bg-[#1A4FD6]"
+            className="flex-1 h-10 rounded-[4px] bg-[#4B57DB] text-white text-[14px] font-medium cursor-pointer border-none transition-colors duration-150 hover:bg-[#3D49C7]"
             style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
           >
             Open sample project
@@ -147,7 +147,7 @@ export function WelcomeOverlay({ visible, onDismiss }: WelcomeOverlayProps) {
           <button
             type="button"
             onClick={handleStartScratch}
-            className="flex-1 h-10 rounded-[4px] border border-[#E5E5E0] bg-transparent text-[#6B6B6B] text-[14px] font-medium cursor-pointer transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+            className="flex-1 h-10 rounded-[4px] border border-[#E5E5E0] bg-transparent text-[#6B6B6B] text-[14px] font-medium cursor-pointer transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
             style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
           >
             Start from scratch

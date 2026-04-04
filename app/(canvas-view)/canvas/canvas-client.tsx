@@ -388,7 +388,7 @@ function Minimap({
 
   return (
     <div
-      className="absolute bottom-16 right-4 rounded-lg overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/90 backdrop-blur-sm shadow-lg"
+      className="absolute bottom-16 right-4 rounded-lg overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-secondary)] shadow-lg"
       style={{ width: MINIMAP_W, height: MINIMAP_H }}
       aria-label="Canvas minimap"
     >
@@ -645,7 +645,7 @@ function CanvasToolbar({
   ];
 
   return (
-    <div className="flex items-center gap-0 h-12 px-4 border-b border-[var(--border-primary)] bg-[var(--bg-secondary)]/60 backdrop-blur-sm shrink-0">
+    <div className="flex items-center gap-0 h-12 px-4 border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] shrink-0">
       {/* Left: Tabs */}
       <div className="flex items-center gap-1 mr-auto">
         {tabs.map((t) => (

@@ -176,7 +176,7 @@ export default function TestV6Page() {
                   style={{
                     flex: 1, padding: "6px 0", fontSize: 12, border: "1px solid #E5E5E0",
                     borderRight: "none", borderRadius: "4px 0 0 4px", cursor: "pointer",
-                    background: !isBreakout ? "#1E5DF2" : "white",
+                    background: !isBreakout ? "#4B57DB" : "white",
                     color: !isBreakout ? "white" : "#6B6B6B",
                     fontWeight: !isBreakout ? 600 : 400,
                   }}
@@ -188,7 +188,7 @@ export default function TestV6Page() {
                   style={{
                     flex: 1, padding: "6px 0", fontSize: 12, border: "1px solid #E5E5E0",
                     borderRadius: "0 4px 4px 0", cursor: "pointer",
-                    background: isBreakout ? "#1E5DF2" : "white",
+                    background: isBreakout ? "#4B57DB" : "white",
                     color: isBreakout ? "white" : "#6B6B6B",
                     fontWeight: isBreakout ? 600 : 400,
                   }}

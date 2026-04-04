@@ -118,7 +118,7 @@ function SyncErrorBanner({
   return (
     <div
       role="alert"
-      className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 border border-amber-500/40 bg-amber-950/90 px-4 py-2.5 text-sm text-amber-200 shadow-lg backdrop-blur-sm"
+      className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 border border-amber-500/40 bg-amber-950/90 px-4 py-2.5 text-sm text-amber-200 shadow-lg"
     >
       <span>{message}</span>
       <button
@@ -243,7 +243,7 @@ function NewProjectModalInner({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/60"
         onClick={onClose}
       />
 

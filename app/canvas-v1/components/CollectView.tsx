@@ -62,7 +62,7 @@ type CollectViewProps = {
 
 function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3 rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-4">
+    <section className="space-y-3 rounded-[4px] border border-[#E5E5E0] bg-white p-4">
       <span className="mono-kicker">{title}</span>
       {children}
     </section>
@@ -202,21 +202,21 @@ function TasteProfileDisplay({
       transition={springs.smooth}
       className="space-y-4"
     >
-      <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-4">
+      <div className="rounded-[4px] border border-[#E5E5E0] bg-white p-4">
         <div className="flex items-start justify-between gap-3">
           <span className="mono-kicker">Taste summary</span>
-          <div className="rounded-[2px] border border-[#D1E4FC] bg-[#D1E4FC]/30 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#1E5DF2]">
+          <div className="rounded-[2px] border border-[#D1E4FC] bg-[#D1E4FC]/30 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[#4B57DB]">
             {Math.round(tasteProfile.confidence * 100)}%
           </div>
         </div>
-        <blockquote className="mt-4 border-l-2 border-[#1E5DF2]/40 pl-4 text-sm leading-relaxed text-[#1A1A1A]">
+        <blockquote className="mt-4 border-l-2 border-[#4B57DB]/40 pl-4 text-sm leading-relaxed text-[#1A1A1A]">
           {tasteProfile.summary}
         </blockquote>
         <div className="mt-4 flex flex-wrap gap-2">
           {tasteProfile.adjectives.map((adjective) => (
             <span
               key={adjective}
-              className="rounded-[2px] border border-[#D1E4FC] bg-[#D1E4FC]/30 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[#1E5DF2]"
+              className="rounded-[2px] border border-[#D1E4FC] bg-[#D1E4FC]/30 px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[#4B57DB]"
             >
               {adjective}
             </span>
@@ -224,7 +224,7 @@ function TasteProfileDisplay({
         </div>
       </div>
 
-      <div className="rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-4">
+      <div className="rounded-[4px] border border-[#E5E5E0] bg-white p-4">
         <span className="mono-kicker">Layout preferences</span>
         <p className="mt-1 text-xs text-[#A0A0A0]">The AI uses these tendencies to steer structure and pacing.</p>
         <div className="mt-4 grid gap-3">
@@ -560,8 +560,8 @@ function CollectVariantCard({
       className={cn(
         "group/variant overflow-hidden rounded-[4px] border bg-white/70 cursor-pointer transition-all duration-150",
         active
-          ? "border-[#1E5DF2] shadow-sm"
-          : "border-[#E5E5E0] hover:border-[#1E5DF2] hover:shadow-sm"
+          ? "border-[#4B57DB] shadow-sm"
+          : "border-[#E5E5E0] hover:border-[#4B57DB] hover:shadow-sm"
       )}
     >
       {/* 16:10 Preview */}
@@ -578,7 +578,7 @@ function CollectVariantCard({
             {!previewReady && (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#FAFAF8]">
                 <div className="flex items-center gap-2 rounded-sm border border-[#E5E5E0] bg-white px-4 py-2.5 shadow-sm">
-                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#E5E5E0] border-t-[#1E5DF2]" />
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#E5E5E0] border-t-[#4B57DB]" />
                   <span className="text-[11px] text-[#A0A0A0]">Rendering…</span>
                 </div>
               </div>
@@ -606,7 +606,7 @@ function CollectVariantCard({
         {/* Selected indicator — blue dot */}
         {active && (
           <div className="absolute right-2 top-2 z-20">
-            <span className="block h-2 w-2 rounded-full bg-[#1E5DF2] shadow-sm" />
+            <span className="block h-2 w-2 rounded-full bg-[#4B57DB] shadow-sm" />
           </div>
         )}
       </div>
@@ -625,7 +625,7 @@ function CollectVariantCard({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onOpenCompose(); }}
-            className="shrink-0 rounded-[4px] border border-[#E5E5E0] px-3 py-1.5 text-[12px] text-[#6B6B6B] opacity-0 transition-all duration-150 group-hover/variant:opacity-100 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+            className="shrink-0 rounded-[4px] border border-[#E5E5E0] px-3 py-1.5 text-[12px] text-[#6B6B6B] opacity-0 transition-all duration-150 group-hover/variant:opacity-100 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
           >
             Edit
           </button>
@@ -773,8 +773,8 @@ function GenerationSection({
                     className={cn(
                       "rounded-[4px] px-3 py-2 text-[12px] font-medium transition-colors",
                       siteType === type
-                        ? "bg-[#1E5DF2] text-white"
-                        : "border border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                        ? "bg-[#4B57DB] text-white"
+                        : "border border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
                     )}
                   >
                     {SITE_TYPE_LABELS[type] ?? type}
@@ -795,7 +795,7 @@ function GenerationSection({
                   type="button"
                   disabled={!canGenerate}
                   onClick={onGenerate}
-                  className="shrink-0 self-stretch whitespace-nowrap rounded-[4px] bg-[#1E5DF2] px-5 text-[13px] font-medium text-white transition-colors hover:bg-[#1A4FD6] disabled:cursor-not-allowed disabled:bg-[#D1D1CC]"
+                  className="shrink-0 self-stretch whitespace-nowrap rounded-[4px] bg-[#4B57DB] px-5 text-[13px] font-medium text-white transition-colors hover:bg-[#3D49C7] disabled:cursor-not-allowed disabled:bg-[#D1D1CC]"
                 >
                   Generate
                 </button>
@@ -862,7 +862,7 @@ function GenerationSection({
                 <button
                   type="button"
                   onClick={() => onOpenCompose(selectedVariantId)}
-                  className="w-full rounded-[4px] bg-[#1E5DF2] px-6 py-3.5 text-[14px] font-medium text-white transition-colors duration-150 hover:bg-[#1A4FD6] focus:outline-none focus:ring-2 focus:ring-[#D1E4FC] focus:ring-offset-2"
+                  className="w-full rounded-[4px] bg-[#4B57DB] px-6 py-3.5 text-[14px] font-medium text-white transition-colors duration-150 hover:bg-[#3D49C7] focus:outline-none focus:ring-2 focus:ring-[#D1E4FC] focus:ring-offset-2"
                 >
                   Open in Compose
                 </button>
@@ -1020,7 +1020,7 @@ export function CollectView({
                           {/* Pin indicator — 6px blue dot in top-right */}
                           {pinned && (
                             <div className="absolute right-2.5 top-2.5 z-10">
-                              <span className="block h-1.5 w-1.5 rounded-full bg-[#1E5DF2] shadow-sm" />
+                              <span className="block h-1.5 w-1.5 rounded-full bg-[#4B57DB] shadow-sm" />
                             </div>
                           )}
 
@@ -1029,21 +1029,21 @@ export function CollectView({
                             <button
                               type="button"
                               onClick={() => onToggleSelect(image.id)}
-                              className="rounded-sm border border-white/20 bg-black/55 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+                              className="rounded-sm border border-white/20 bg-black/55 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] text-white transition-colors hover:bg-black/75"
                             >
                               {pinned ? "Unpin" : "Pin"}
                             </button>
                             <button
                               type="button"
                               onClick={() => setLightboxImage(image)}
-                              className="rounded-sm border border-white/20 bg-black/55 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+                              className="rounded-sm border border-white/20 bg-black/55 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] text-white transition-colors hover:bg-black/75"
                             >
                               Zoom
                             </button>
                             <button
                               type="button"
                               onClick={() => onRemove(image.id)}
-                              className="rounded-sm border border-white/20 bg-black/55 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+                              className="rounded-sm border border-white/20 bg-black/55 px-2.5 py-1.5 text-[10px] uppercase tracking-[0.1em] text-white transition-colors hover:bg-black/75"
                             >
                               Remove
                             </button>
@@ -1063,7 +1063,7 @@ export function CollectView({
                 </div>
               ) : (
                 <div className="rounded-[4px] border-2 border-dashed border-[#E5E5E0] bg-white/70 p-10 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[4px] border border-[#D1E4FC] bg-[#F4F8FF] text-[#1E5DF2]">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[4px] border border-[#D1E4FC] bg-[#F4F8FF] text-[#4B57DB]">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10 13V4M10 4L7 7M10 4L13 7" />
                       <path d="M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1" />
@@ -1082,7 +1082,7 @@ export function CollectView({
             <motion.aside
               animate={{ width: panelCollapsed ? 64 : 320 }}
               transition={springs.smooth}
-              className="sticky top-0 hidden h-fit shrink-0 overflow-hidden rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm shadow-[0_18px_48px_rgba(0,0,0,0.08)] xl:block"
+              className="sticky top-0 hidden h-fit shrink-0 overflow-hidden rounded-[4px] border border-[#E5E5E0] bg-white shadow-[0_18px_48px_rgba(0,0,0,0.08)] xl:block"
             >
               <div className="flex items-center justify-between border-b border-[#E5E5E0] px-4 py-4 bg-[#FAFAF8]">
                 <div className={cn("min-w-0", panelCollapsed && "sr-only")}>
@@ -1090,7 +1090,7 @@ export function CollectView({
                   <div className="mt-1 flex items-center gap-2 text-xs text-[#A0A0A0]">
                     {tasteProfileLoading ? (
                       <>
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#1E5DF2] animate-pulse" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#4B57DB] animate-pulse" />
                         <span>Extracting the latest taste direction…</span>
                       </>
                     ) : (
@@ -1176,7 +1176,7 @@ export function CollectView({
         {lightboxImage ? (
           <motion.div
             {...fadeIn}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-8 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-8"
             onClick={() => setLightboxImage(null)}
           >
             <motion.div

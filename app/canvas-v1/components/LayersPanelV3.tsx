@@ -71,8 +71,8 @@ function formatDesignNodeLabel(node: DesignNode): string {
 function DropIndicatorLine({ depth }: { depth: number }) {
   return (
     <div
-      className="pointer-events-none h-[2px] bg-[#1E5DF2]"
-      style={{ marginLeft: depth * 12 + 16 }}
+      className="pointer-events-none h-[2px] bg-[#4B57DB]"
+      style={{ marginLeft: depth * 14 + 16 }}
     />
   );
 }
@@ -128,14 +128,14 @@ function DesignTreeNode({
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isPrimary
-            ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
+            ? "bg-[#D1E4FC]/50 text-[#4B57DB] border-l-[1.5px] border-[#4B57DB]"
             : isSecondary
-              ? "bg-[#D1E4FC]/25 text-[rgba(30,93,242,0.7)] border-l-2 border-[rgba(30,93,242,0.45)]"
-              : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+              ? "bg-[#D1E4FC]/25 text-[#4B57DB]/70 border-l-[1.5px] border-[#4B57DB]/45"
+              : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent"
         )}
         style={{
-          height: 26,
-          paddingLeft: depth * 12 + (hasChildren ? 4 : 16),
+          height: 28,
+          paddingLeft: depth * 14 + (hasChildren ? 4 : 16),
           opacity: isDragged ? 0.4 : 1,
         }}
       >
@@ -148,12 +148,12 @@ function DesignTreeNode({
           </span>
         )}
         <DesignNodeIcon type={node.type} />
-        <span className="min-w-0 flex-1 truncate text-[11px]">{formatDesignNodeLabel(node)}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px]">{formatDesignNodeLabel(node)}</span>
         {node.isGroup && (
           <span className="text-[10px] text-[#A0A0A0] ml-auto mr-1">Group</span>
         )}
         {isPrimary && selectedNodeIds.length > 1 && (
-          <span className="ml-auto mr-2 text-[9px] text-[#1E5DF2] bg-[#D1E4FC]/50 px-1 rounded-[2px]">primary</span>
+          <span className="ml-auto mr-2 text-[9px] text-[#4B57DB] bg-[#D1E4FC]/50 px-1 rounded-[2px]">primary</span>
         )}
       </button>
       {expanded && hasChildren && node.children!.map((child, childIdx) => (
@@ -201,10 +201,10 @@ function TreeNode({
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isSelected
-            ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
-            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
+            ? "bg-[#D1E4FC]/50 text-[#4B57DB] border-l-[1.5px] border-[#4B57DB]"
+            : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent"
         )}
-        style={{ height: 26, paddingLeft: depth * 12 + (hasChildren ? 4 : 16) }}
+        style={{ height: 28, paddingLeft: depth * 14 + (hasChildren ? 4 : 16) }}
       >
         {hasChildren && (
           <span
@@ -215,7 +215,7 @@ function TreeNode({
           </span>
         )}
         <NodeIcon type={node.type} />
-        <span className="min-w-0 flex-1 truncate text-[11px]">{formatLabel(node)}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px]">{formatLabel(node)}</span>
       </button>
       {expanded && hasChildren && node.children!.map((child) => (
         <TreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} />
@@ -234,7 +234,7 @@ function Group({ label, count, defaultOpen, children }: {
     <div className="mb-1">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0] hover:text-[#6B6B6B]"
+        className="flex w-full items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0] hover:text-[#6B6B6B]"
       >
         <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", open && "rotate-90")} />
         {label}
@@ -307,7 +307,7 @@ export function LayersPanelV3() {
 
   return (
     <div
-      className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
+      className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r-[0.5px] border-[#EFEFEC] bg-white"
       style={{ contain: "strict" }}
     >
       {/* Scrollable content — isolated from the positioning shell above so
@@ -329,13 +329,13 @@ export function LayersPanelV3() {
                     className={cn(
                       "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors",
                       selection.selectedItemIds.includes(artboard.id)
-                        ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
+                        ? "bg-[#D1E4FC]/50 text-[#4B57DB]"
                         : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
                     )}
                     style={{ height: 28, paddingLeft: 24 }}
                   >
                     <BreakpointIcon bp={artboard.breakpoint} />
-                    <span className="truncate text-[11px]">
+                    <span className="truncate text-[12px]">
                       {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
                     </span>
                   </button>
@@ -385,14 +385,14 @@ export function LayersPanelV3() {
                   className={cn(
                     "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
                     selection.selectedItemIds.includes(ref.id)
-                      ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
+                      ? "bg-[#D1E4FC]/50 text-[#4B57DB]"
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
                   )}
                   style={{ height: 28, paddingLeft: 24 }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={ref.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover" />
-                  <span className="min-w-0 flex-1 truncate text-[11px]">
+                  <span className="min-w-0 flex-1 truncate text-[12px]">
                     {ref.title || "Reference"}
                   </span>
                 </button>
@@ -410,13 +410,13 @@ export function LayersPanelV3() {
                   className={cn(
                     "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
                     selection.selectedItemIds.includes(note.id)
-                      ? "bg-[#D1E4FC]/50 text-[#1E5DF2]"
+                      ? "bg-[#D1E4FC]/50 text-[#4B57DB]"
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
                   )}
                   style={{ height: 28, paddingLeft: 24 }}
                 >
                   <StickyNote size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0]" />
-                  <span className="min-w-0 flex-1 truncate text-[11px]">
+                  <span className="min-w-0 flex-1 truncate text-[12px]">
                     &ldquo;{note.text.length > 24 ? note.text.slice(0, 24) + "…" : note.text}&rdquo;
                   </span>
                 </button>

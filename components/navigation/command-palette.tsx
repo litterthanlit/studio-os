@@ -564,7 +564,7 @@ export function CommandPalette({ showTrigger = true }: { showTrigger?: boolean }
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={springs.snappy}
-                  className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                  className="fixed inset-0 z-40 bg-black/60"
                   onClick={() => setOpen(false)}
                 />
                 <motion.div

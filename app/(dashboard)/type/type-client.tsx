@@ -100,8 +100,8 @@ function SpecimenPanel({
       type="button"
       onClick={onClick}
       className={cn(
-        "group flex flex-col items-start rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm p-6 text-left transition-all duration-150",
-        "hover:border-[#D1E4FC] hover:bg-white/95",
+        "group flex flex-col items-start rounded-[4px] border border-[#E5E5E0] bg-white p-6 text-left transition-all duration-150",
+        "hover:border-[#D1E4FC] hover:bg-white",
         "focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 focus:outline-none"
       )}
     >
@@ -133,7 +133,7 @@ function SpecimenPanel({
         <ChevronRight
           size={14}
           strokeWidth={1.5}
-          className="text-[#A0A0A0] transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-[#1E5DF2]"
+          className="text-[#A0A0A0] transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-[#4B57DB]"
         />
       </div>
       <span className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-[#A0A0A0]">
@@ -209,7 +209,7 @@ function FontCard({
         <ChevronRight
           size={14}
           strokeWidth={1.5}
-          className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/card:text-[#1E5DF2]"
+          className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/card:text-[#4B57DB]"
         />
       </div>
     </div>
@@ -249,7 +249,7 @@ function FontDetailPanel({
       />
 
       <motion.aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-[#E5E5E0] bg-white"
         initial={{ x: "100%" }}
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
@@ -388,7 +388,7 @@ function FontDetailPanel({
                   className={cn(
                     "rounded-[2px] border px-2 py-1 font-mono text-[10px] transition-colors",
                     previewSize === size
-                      ? "border-[#1E5DF2] bg-[#D1E4FC]/30 text-[#1E5DF2]"
+                      ? "border-[#4B57DB] bg-[#D1E4FC]/30 text-[#4B57DB]"
                       : "border-[#E5E5E0] bg-white text-[#A0A0A0] hover:text-[#6B6B6B]"
                   )}
                 >
@@ -402,7 +402,7 @@ function FontDetailPanel({
           <div className="border-t border-[#E5E5E0] pt-4">
             <button
               type="button"
-              className="w-full rounded-[4px] bg-[#1E5DF2] px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[#1A4FD6]"
+              className="w-full rounded-[4px] bg-[#4B57DB] px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-[#3D49C7]"
             >
               Add to Project
             </button>
@@ -431,7 +431,7 @@ function FilterPill({
       className={cn(
         "rounded-[4px] px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
         active
-          ? "bg-[#1E5DF2] text-white"
+          ? "bg-[#4B57DB] text-white"
           : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
       )}
     >
@@ -647,7 +647,7 @@ export function TypeLibraryPage() {
                 setActiveCategory("all");
                 setActiveSource("all");
               }}
-              className="mt-2 text-[13px] text-[#1E5DF2] transition-opacity hover:opacity-70"
+              className="mt-2 text-[13px] text-[#4B57DB] transition-opacity hover:opacity-70"
             >
               Clear filters
             </button>

@@ -32,7 +32,7 @@ export function BreadcrumbBar({
 
   return (
     <div className="absolute bottom-12 left-1/2 z-30 -translate-x-1/2">
-      <div className="flex items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white/90 backdrop-blur-sm px-2 py-1 shadow-sm text-[11px]">
+      <div className="flex items-center gap-1 rounded-[4px] border-[0.5px] border-[#EFEFEC] bg-white px-2 py-1 shadow-sm text-[11px]">
         {/* Breakpoint label as the root segment */}
         <span className="text-[#A0A0A0] select-none">{breakpointLabel}</span>
 

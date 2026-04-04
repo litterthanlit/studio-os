@@ -48,7 +48,7 @@ export function AnalysisPanel({ analysis, loading }: AnalysisPanelProps) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-          className="w-5 h-5 border-2 border-[#1E5DF2] border-t-transparent rounded-full"
+          className="w-5 h-5 border-2 border-[#4B57DB] border-t-transparent rounded-full"
         />
         <span className="text-[11px] uppercase tracking-[0.12em] text-[#A0A0A0]">
           Analyzing references...

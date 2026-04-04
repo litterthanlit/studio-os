@@ -36,7 +36,7 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
         "relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-4 py-8 cursor-pointer",
         "transition-colors duration-200",
         isDragActive
-          ? "border-[#1E5DF2] bg-accent-subtle"
+          ? "border-[#4B57DB] bg-accent-subtle"
           : "border-[#E5E5E0] bg-[#F5F5F0] hover:border-[#D1E4FC]",
         disabled && "cursor-not-allowed opacity-50",
         className

@@ -73,7 +73,7 @@ export function TasteCard({
       {/* Header: TASTE label + archetype + refresh */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[#8A8A8A] shrink-0">
+          <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#8A8A8A] shrink-0">
             Taste
           </span>
 
@@ -103,7 +103,7 @@ export function TasteCard({
                 ? "text-[#A0A0A0] cursor-wait"
                 : refreshError
                   ? "text-red-500"
-                  : "text-[#A0A0A0] hover:text-[#1E5DF2] cursor-pointer"
+                  : "text-[#A0A0A0] hover:text-[#4B57DB] cursor-pointer"
           }`}
           title="Refresh taste profile"
         >
@@ -120,7 +120,7 @@ export function TasteCard({
           {adjectives.slice(0, 5).map((adj) => (
             <span
               key={adj}
-              className="bg-[#D1E4FC]/30 text-[#1E5DF2] text-[10px] rounded-[2px] px-1.5 py-0.5"
+              className="bg-[#D1E4FC]/30 text-[#4B57DB] text-[10px] rounded-[2px] px-1.5 py-0.5"
             >
               {adj}
             </span>

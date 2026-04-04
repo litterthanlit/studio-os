@@ -2,44 +2,35 @@
 
 import { cn } from "@/lib/utils";
 
-export type InspectorTabId = "design" | "css" | "export" | "prompt";
+export type InspectorTabId = "design" | "css" | "export";
 
 type InspectorTabsProps = {
   activeTab: InspectorTabId;
   onTabChange: (tab: InspectorTabId) => void;
-  isGenerating?: boolean;
 };
 
 const tabs: Array<{ id: InspectorTabId; label: string }> = [
   { id: "design", label: "Design" },
   { id: "css", label: "CSS" },
   { id: "export", label: "Export" },
-  { id: "prompt", label: "Prompt" },
 ];
 
-export function InspectorTabs({ activeTab, onTabChange, isGenerating }: InspectorTabsProps) {
+export function InspectorTabs({ activeTab, onTabChange }: InspectorTabsProps) {
   return (
-    <div className="flex border-b border-[#E5E5E0] px-4 sticky top-0 bg-white/95 backdrop-blur-sm z-10">
+    <div className="flex border-b-[0.5px] border-[#EFEFEC] px-4 sticky top-0 bg-white z-10">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onTabChange(tab.id)}
           className={cn(
-            "py-2.5 px-3 text-[12px] font-medium transition-colors cursor-pointer border-b-2 flex items-center gap-1.5",
+            "py-2.5 px-3 text-[10px] font-mono uppercase tracking-[1px] transition-colors cursor-pointer flex items-center gap-1.5",
             activeTab === tab.id
-              ? "text-[#1A1A1A] border-[#1E5DF2]"
-              : "text-[#A0A0A0] hover:text-[#6B6B6B] border-transparent"
+              ? "text-[#0A0A0A] font-semibold border-b-[1.5px] border-[#4B57DB]"
+              : "text-[#A0A0A0] hover:text-[#6B6B6B] border-b-[1.5px] border-transparent"
           )}
         >
           {tab.label}
-          {/* Generating pulse dot on Prompt tab */}
-          {tab.id === "prompt" && isGenerating && (
-            <span className="relative flex h-[6px] w-[6px]">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1E5DF2] opacity-75" />
-              <span className="relative inline-flex rounded-full h-[6px] w-[6px] bg-[#1E5DF2]" />
-            </span>
-          )}
         </button>
       ))}
     </div>

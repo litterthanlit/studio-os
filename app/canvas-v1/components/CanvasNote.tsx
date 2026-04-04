@@ -21,8 +21,8 @@ export function CanvasNote({ item, isDragging, onPointerDown }: CanvasNoteProps)
       className={cn(
         "absolute cursor-pointer rounded-[4px] border p-3 text-[13px] leading-relaxed transition-[border-color,box-shadow,shadow] duration-150",
         isSelected
-          ? "outline outline-1 outline-[#1E5DF2] border-[#1E5DF2]"
-          : "border-[#E5E5E0] hover:outline hover:outline-1 hover:outline-[#1E5DF2]/40",
+          ? "outline outline-1 outline-[#4B57DB] border-[#4B57DB]"
+          : "border-[#E5E5E0] hover:outline hover:outline-1 hover:outline-[#4B57DB]/40",
         isDragging ? "shadow-md" : "shadow-sm"
       )}
       style={{

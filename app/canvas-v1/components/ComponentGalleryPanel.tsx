@@ -123,7 +123,7 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-        <span className="text-[10px] uppercase tracking-widest text-[#A0A0A0]" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+        <span className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0]" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
           Component Library
         </span>
         <button onClick={onClose} className="text-[#A0A0A0] hover:text-[#1A1A1A] transition-colors">
@@ -140,7 +140,7 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
             className={cn(
               "px-2.5 py-1 rounded-[4px] text-[11px] font-medium transition-colors capitalize",
               filter === tab
-                ? "bg-[#1E5DF2] text-white"
+                ? "bg-[#4B57DB] text-white"
                 : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0]"
             )}
           >

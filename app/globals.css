@@ -39,7 +39,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(30,93,242,0.04) 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(75,87,219,0.04) 50%, transparent 100%);
   background-size: 100% 200%;
   animation: scan-sweep 600ms ease-out forwards;
   pointer-events: none;
@@ -96,7 +96,7 @@
   width: 12px;
   height: 12px;
   border-radius: 9999px;
-  background: #1E5DF2;
+  background: #4B57DB;
   cursor: pointer;
   border: none;
   transition: background 150ms, box-shadow 150ms;
@@ -106,7 +106,7 @@
   width: 12px;
   height: 12px;
   border-radius: 9999px;
-  background: #1E5DF2;
+  background: #4B57DB;
   cursor: pointer;
   border: none;
   transition: background 150ms, box-shadow 150ms;
@@ -114,14 +114,14 @@
 
 .inspector-range-slider:hover::-webkit-slider-thumb,
 .inspector-range-slider:focus::-webkit-slider-thumb {
-  background: #1A4FD6;
-  box-shadow: 0 0 0 3px rgba(30, 93, 242, 0.15);
+  background: #3D49C7;
+  box-shadow: 0 0 0 3px rgba(75, 87, 219, 0.15);
 }
 
 .inspector-range-slider:hover::-moz-range-thumb,
 .inspector-range-slider:focus::-moz-range-thumb {
-  background: #1A4FD6;
-  box-shadow: 0 0 0 3px rgba(30, 93, 242, 0.15);
+  background: #3D49C7;
+  box-shadow: 0 0 0 3px rgba(75, 87, 219, 0.15);
 }
 
 /* ─── Theme Tokens ──────────────────────────────────────────────────────────── */
@@ -162,11 +162,11 @@
   --border-hover: #D1E4FC;
   --border-active: #D1E4FC;
 
-  --accent: #1E5DF2;
-  --accent-hover: #1A4FD6;
+  --accent: #4B57DB;
+  --accent-hover: #3D49C7;
   --accent-light: #D1E4FC;
-  --accent-subtle: rgba(30, 93, 242, 0.08);
-  --accent-rgb: 30, 93, 242;
+  --accent-subtle: #EDF1FE;
+  --accent-rgb: 75, 87, 219;
   --accent-pill: #D1E4FC;
 
   --sidebar-bg: #FAFAF8;
@@ -180,20 +180,20 @@
   --section-label: #A0A0A0;
   --section-dot: #A0A0A0;
 
-  --ascii-color: rgba(30, 93, 242, 0.03);
+  --ascii-color: rgba(75, 87, 219, 0.03);
 
-  --button-primary-bg: #1E5DF2;
+  --button-primary-bg: #4B57DB;
   --button-primary-text: #FFFFFF;
   --button-secondary-bg: transparent;
-  --button-secondary-text: #1E5DF2;
-  --button-secondary-border: #1E5DF2;
+  --button-secondary-text: #4B57DB;
+  --button-secondary-border: #4B57DB;
 
   --quote-color: #6B6B6B;
   --dot-separator: #E5E5E0;
 
   --dot-grid-color: rgba(0, 0, 0, 0.025);
-  --halftone-blue: rgba(30, 93, 242, 0.06);
-  --halftone-blue-strong: rgba(30, 93, 242, 0.10);
+  --halftone-blue: rgba(75, 87, 219, 0.06);
+  --halftone-blue-strong: rgba(75, 87, 219, 0.10);
   --halftone-ink: rgba(26, 26, 26, 0.04);
   --halftone-warm: rgba(245, 245, 240, 0.92);
   --shell-gradient: linear-gradient(180deg, #fafaf8 0%, #f7f3ea 100%);
@@ -204,7 +204,7 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(30, 93, 242, 0.15);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(75, 87, 219, 0.15);
 
   --success: #22C55E;
   --destructive: #EF4444;
@@ -232,11 +232,11 @@ html[data-theme="light"] {
   --border-hover: #D1E4FC;
   --border-active: #D1E4FC;
 
-  --accent: #1E5DF2;
-  --accent-hover: #1A4FD6;
+  --accent: #4B57DB;
+  --accent-hover: #3D49C7;
   --accent-light: #D1E4FC;
-  --accent-subtle: rgba(30, 93, 242, 0.08);
-  --accent-rgb: 30, 93, 242;
+  --accent-subtle: #EDF1FE;
+  --accent-rgb: 75, 87, 219;
   --accent-pill: #D1E4FC;
 
   --sidebar-bg: #FAFAF8;
@@ -250,20 +250,20 @@ html[data-theme="light"] {
   --section-label: #A0A0A0;
   --section-dot: #A0A0A0;
 
-  --ascii-color: rgba(30, 93, 242, 0.03);
+  --ascii-color: rgba(75, 87, 219, 0.03);
 
-  --button-primary-bg: #1E5DF2;
+  --button-primary-bg: #4B57DB;
   --button-primary-text: #FFFFFF;
   --button-secondary-bg: transparent;
-  --button-secondary-text: #1E5DF2;
-  --button-secondary-border: #1E5DF2;
+  --button-secondary-text: #4B57DB;
+  --button-secondary-border: #4B57DB;
 
   --quote-color: #6B6B6B;
   --dot-separator: #E5E5E0;
 
   --dot-grid-color: rgba(0, 0, 0, 0.025);
-  --halftone-blue: rgba(30, 93, 242, 0.06);
-  --halftone-blue-strong: rgba(30, 93, 242, 0.10);
+  --halftone-blue: rgba(75, 87, 219, 0.06);
+  --halftone-blue-strong: rgba(75, 87, 219, 0.10);
   --halftone-ink: rgba(26, 26, 26, 0.04);
   --halftone-warm: rgba(245, 245, 240, 0.92);
   --shell-gradient: linear-gradient(180deg, #fafaf8 0%, #f7f3ea 100%);
@@ -274,7 +274,7 @@ html[data-theme="light"] {
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(30, 93, 242, 0.15);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(75, 87, 219, 0.15);
 
   --success: #22C55E;
   --destructive: #EF4444;
@@ -384,7 +384,7 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image: radial-gradient(circle, rgba(30, 93, 242, 0.03) 1.6px, transparent 1.6px);
+  background-image: radial-gradient(circle, rgba(75, 87, 219, 0.03) 1.6px, transparent 1.6px);
   background-size: 32px 32px;
 }
 
@@ -496,12 +496,12 @@ body::after {
   }
 
   .dither-meter > span.is-active {
-    background: linear-gradient(180deg, rgba(30, 93, 242, 1), rgba(30, 93, 242, 0.46));
-    box-shadow: 0 0 0 1px rgba(30, 93, 242, 0.08);
+    background: linear-gradient(180deg, rgba(75, 87, 219, 1), rgba(75, 87, 219, 0.46));
+    box-shadow: 0 0 0 1px rgba(75, 87, 219, 0.08);
   }
 
   .thumb-halftone-placeholder {
-    background-image: radial-gradient(circle, rgba(30, 93, 242, 0.05) 0.4px, transparent 0.4px);
+    background-image: radial-gradient(circle, rgba(75, 87, 219, 0.05) 0.4px, transparent 0.4px);
     background-size: 6px 6px;
   }
 
@@ -518,8 +518,8 @@ body::after {
     position: absolute;
     inset: 0;
     background-image:
-      radial-gradient(circle, rgba(30, 93, 242, 0.12) 0.5px, transparent 0.5px),
-      linear-gradient(145deg, rgba(30, 93, 242, 0.04), transparent 56%);
+      radial-gradient(circle, rgba(75, 87, 219, 0.12) 0.5px, transparent 0.5px),
+      linear-gradient(145deg, rgba(75, 87, 219, 0.04), transparent 56%);
     background-size: 8px 8px, auto;
     opacity: 0.6;
     mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.2) 52%, transparent 84%);

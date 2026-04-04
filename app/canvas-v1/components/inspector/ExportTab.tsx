@@ -98,9 +98,9 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors w-full shrink-0"
+            className="border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB] transition-colors w-full shrink-0"
           >
-            {copied ? <span className="text-[#1E5DF2]">Copied!</span> : "Copy HTML"}
+            {copied ? <span className="text-[#4B57DB]">Copied!</span> : "Copy HTML"}
           </button>
         </>
       ) : null}

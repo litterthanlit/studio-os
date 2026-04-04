@@ -48,7 +48,7 @@ export function InsertionBar({
             ref={buttonRef}
             type="button"
             aria-label="Insert section"
-            className="pointer-events-auto flex h-6 w-6 items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2] hover:shadow-sm"
+            className="pointer-events-auto flex h-6 w-6 items-center justify-center rounded-full border border-[#E5E5E0] bg-white text-[#A0A0A0] transition-colors hover:border-[#D1E4FC] hover:text-[#4B57DB] hover:shadow-sm"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();

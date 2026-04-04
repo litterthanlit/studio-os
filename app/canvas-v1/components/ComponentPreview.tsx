@@ -216,7 +216,7 @@ function LoadingSkeleton() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-              className="w-8 h-8 mx-auto border-2 border-[#1E5DF2] border-t-transparent rounded-full"
+              className="w-8 h-8 mx-auto border-2 border-[#4B57DB] border-t-transparent rounded-full"
             />
             <div className="space-y-1">
               <p className="text-sm font-medium text-[#6B6B6B]">Generating page...</p>

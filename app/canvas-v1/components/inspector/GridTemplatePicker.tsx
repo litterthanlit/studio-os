@@ -37,7 +37,7 @@ function PresetButton({
       className={cn(
         "flex items-end gap-[2px] h-[36px] rounded-[2px] border px-1.5 py-1 transition-colors",
         isActive
-          ? "border-[#1E5DF2] bg-[#D1E4FC]/30"
+          ? "border-[#4B57DB] bg-[#D1E4FC]/30"
           : "border-[#E5E5E0] bg-[#FAFAF8] hover:border-[#D1D1CC]"
       )}
     >
@@ -46,7 +46,7 @@ function PresetButton({
           key={i}
           className={cn(
             "rounded-[1px] min-w-[4px]",
-            isActive ? "bg-[#1E5DF2]/60" : "bg-[#A0A0A0]/30"
+            isActive ? "bg-[#4B57DB]/60" : "bg-[#A0A0A0]/30"
           )}
           style={{
             flex: fr / total,
@@ -92,7 +92,7 @@ export function GridTemplatePicker({
       <InspectorTextInput
         value={value || ""}
         placeholder="Custom: 1fr 2fr 1fr"
-        className={cn(isCustom && "border-[#1E5DF2]")}
+        className={cn(isCustom && "border-[#4B57DB]")}
         onChange={(e) => {
           const v = (e.target as HTMLInputElement).value;
           onChange(v || undefined);

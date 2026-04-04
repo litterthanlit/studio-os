@@ -82,7 +82,7 @@ export function SystemEditor({
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-          className="w-5 h-5 border-2 border-[#1E5DF2] border-t-transparent rounded-full"
+          className="w-5 h-5 border-2 border-[#4B57DB] border-t-transparent rounded-full"
         />
         <span className="text-[11px] uppercase tracking-[0.12em] text-[#A0A0A0]">
           Generating design system...
@@ -201,7 +201,7 @@ export function SystemEditor({
                   return (
                     <div key={name} className="flex flex-col items-center gap-0.5">
                       <div
-                        className="bg-accent/30 border border-[#1E5DF2]/50"
+                        className="bg-accent/30 border border-[#4B57DB]/50"
                         style={{ width: 12, height: Math.min(px, 60) }}
                       />
                       <span className="text-[8px] font-mono text-[#A0A0A0]">{name}</span>

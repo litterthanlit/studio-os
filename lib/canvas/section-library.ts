@@ -250,7 +250,7 @@ function createPricingSection(): PageNode {
             id: uid("pt"),
             type: "pricing-tier",
             name: "Pro",
-            style: { borderRadius: 18, borderColor: "#1E5DF2", paddingX: 24, paddingY: 32 },
+            style: { borderRadius: 18, borderColor: "#4B57DB", paddingX: 24, paddingY: 32 },
             content: { price: "$29/mo" },
             children: [
               { id: uid("h"), type: "heading", name: "Tier Name", content: { text: "Pro" }, style: { fontSize: 18, fontWeight: 600 } },

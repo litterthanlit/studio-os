@@ -50,7 +50,7 @@ function ActionButton({
         "flex items-center justify-center w-[26px] h-[26px] border rounded-[2px] transition-colors",
         disabled
           ? "text-[#D1D1D1] cursor-not-allowed bg-[#FAFAF8] border-[#E5E5E0]"
-          : "bg-white border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+          : "bg-white border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
       )}
     >
       <Icon size={14} strokeWidth={1.5} />
@@ -136,7 +136,7 @@ export function MultiSelectActionBar() {
     <div className="border-b border-[#E5E5E0] bg-[#F5F5F0]">
       {/* Header */}
       <div className="px-3 pt-2.5 pb-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+        <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0]">
           {selectedNodeIds.length} nodes selected
         </span>
       </div>

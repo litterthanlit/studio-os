@@ -19,7 +19,7 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   const dotColor =
-    variant === "blue" ? "rgba(30,93,242,0.08)" : "rgba(0,0,0,0.04)";
+    variant === "blue" ? "rgba(75,87,219,0.08)" : "rgba(0,0,0,0.04)";
   const dotSize = variant === "blue" ? "1.2px" : "1px";
 
   return (
@@ -51,7 +51,7 @@ export function EmptyState({
           <button
             type="button"
             onClick={action.onClick}
-            className="mono-kicker mt-1 text-[#1E5DF2] transition-opacity hover:opacity-70"
+            className="mono-kicker mt-1 text-[#4B57DB] transition-opacity hover:opacity-70"
           >
             {action.label}
           </button>

@@ -144,7 +144,7 @@ export function CSSTab({ resolvedStyle }: CSSTabProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="px-3 py-1.5 rounded-[4px] bg-[#1E5DF2] text-white text-[12px] font-medium hover:bg-[#1A4FD6] w-full transition-colors"
+            className="px-3 py-1.5 rounded-[4px] bg-[#4B57DB] text-white text-[12px] font-medium hover:bg-[#3D49C7] w-full transition-colors"
           >
             {copied ? "Copied!" : "Copy CSS"}
           </button>

@@ -29,7 +29,7 @@ import {
   InspectorTextInput,
 } from "./InspectorField";
 import { GridTemplatePicker } from "./GridTemplatePicker";
-import { InspectorCollapsible } from "./InspectorCollapsible";
+import { SectionRule } from "./SectionRule";
 import { InspectorSegmented } from "./InspectorSegmented";
 import { BreakpointBadge } from "./BreakpointBadge";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
@@ -108,7 +108,7 @@ function InlineAddableRow({
         <button
           type="button"
           onClick={onAdd}
-          className="text-[#A0A0A0] hover:text-[#1E5DF2] transition-colors"
+          className="text-[#A0A0A0] hover:text-[#4B57DB] transition-colors"
         >
           <Plus size={12} />
         </button>
@@ -328,80 +328,80 @@ export function DesignNodeInspector({
   }
 
   return (
-    <div data-inspector-first-section>
+    <div data-inspector-first-section className="space-y-4">
       {isNonDesktop && (
         <div className="mb-2">
           <BreakpointBadge breakpoint={breakpoint} width={artboard.width} />
         </div>
       )}
       {/* ── POSITION ─────────────────────────────────────────────────── */}
-      <InspectorCollapsible label="Position">
-        <div className="space-y-1.5">
-          <div className="space-y-0.5">
-            <InspectorLabel hasOverride={hasOverride("position")} onResetOverride={() => resetOverride("position")}>Mode</InspectorLabel>
-            <InspectorSegmented
-              value={isBreakout ? "absolute" : "relative"}
-              options={[
-                { value: "relative", label: "Flow" },
-                { value: "absolute", label: "Breakout" },
-              ]}
-              onChange={togglePositionMode}
-            />
-          </div>
+      <SectionRule label="POSITION" />
+      <div className="space-y-1.5 px-4 py-2">
+        <div className="space-y-0.5">
+          <InspectorLabel hasOverride={hasOverride("position")} onResetOverride={() => resetOverride("position")}>Mode</InspectorLabel>
+          <InspectorSegmented
+            value={isBreakout ? "absolute" : "relative"}
+            options={[
+              { value: "relative", label: "Flow" },
+              { value: "absolute", label: "Breakout" },
+            ]}
+            onChange={togglePositionMode}
+          />
+        </div>
 
-          {isBreakout && (
-            <>
-              <div className="grid grid-cols-2 gap-1.5">
-                <div className="space-y-0.5">
-                  <InspectorLabel hasOverride={hasOverride("x")} onResetOverride={() => resetOverride("x")}>X</InspectorLabel>
-                  <InspectorNumberInput
-                    value={style.x ?? 0}
-                    placeholder="0"
-                    className="w-full"
-                    onChange={(e) => {
-                      const val = (e.target as HTMLInputElement).value;
-                      updateStyle({ x: val ? Number(val) : 0 });
-                    }}
-                    onBlur={() => history.flush()}
-                  />
-                </div>
-                <div className="space-y-0.5">
-                  <InspectorLabel hasOverride={hasOverride("y")} onResetOverride={() => resetOverride("y")}>Y</InspectorLabel>
-                  <InspectorNumberInput
-                    value={style.y ?? 0}
-                    placeholder="0"
-                    className="w-full"
-                    onChange={(e) => {
-                      const val = (e.target as HTMLInputElement).value;
-                      updateStyle({ y: val ? Number(val) : 0 });
-                    }}
-                    onBlur={() => history.flush()}
-                  />
-                </div>
-              </div>
+        {isBreakout && (
+          <>
+            <div className="grid grid-cols-2 gap-1.5">
               <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("zIndex")} onResetOverride={() => resetOverride("zIndex")}>Z-Index</InspectorLabel>
+                <InspectorLabel hasOverride={hasOverride("x")} onResetOverride={() => resetOverride("x")}>X</InspectorLabel>
                 <InspectorNumberInput
-                  value={style.zIndex ?? 1}
-                  placeholder="1"
-                  min={0}
+                  value={style.x ?? 0}
+                  placeholder="0"
                   className="w-full"
                   onChange={(e) => {
                     const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ zIndex: val ? Number(val) : undefined });
+                    updateStyle({ x: val ? Number(val) : 0 });
                   }}
                   onBlur={() => history.flush()}
                 />
               </div>
-            </>
-          )}
-        </div>
-      </InspectorCollapsible>
+              <div className="space-y-0.5">
+                <InspectorLabel hasOverride={hasOverride("y")} onResetOverride={() => resetOverride("y")}>Y</InspectorLabel>
+                <InspectorNumberInput
+                  value={style.y ?? 0}
+                  placeholder="0"
+                  className="w-full"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle({ y: val ? Number(val) : 0 });
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <InspectorLabel hasOverride={hasOverride("zIndex")} onResetOverride={() => resetOverride("zIndex")}>Z-Index</InspectorLabel>
+              <InspectorNumberInput
+                value={style.zIndex ?? 1}
+                placeholder="1"
+                min={0}
+                className="w-full"
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateStyle({ zIndex: val ? Number(val) : undefined });
+                }}
+                onBlur={() => history.flush()}
+              />
+            </div>
+          </>
+        )}
+      </div>
 
       {/* ── SIZE ──────────────────────────────────────────────────────── */}
       {sections.showSize && (
-        <InspectorCollapsible label="Size">
-          <div className="space-y-1.5">
+        <>
+          <SectionRule label="SIZE" />
+          <div className="space-y-1.5 px-4 py-2">
             {/* Width */}
             <div className="flex items-center gap-1.5">
               <InspectorLabel hasOverride={hasOverride("width")} onResetOverride={() => resetOverride("width")}>W</InspectorLabel>
@@ -484,13 +484,14 @@ export function DesignNodeInspector({
               )}
             </div>
           </div>
-        </InspectorCollapsible>
+        </>
       )}
 
       {/* ── LAYOUT (frame only) ──────────────────────────────────────── */}
       {sections.showLayout && (
-        <InspectorCollapsible label="Layout">
-          <div className="space-y-1.5">
+        <>
+          <SectionRule label="LAYOUT" />
+          <div className="space-y-1.5 px-4 py-2">
             {/* Display */}
             <div className="space-y-0.5">
               <InspectorLabel hasOverride={hasOverride("display")} onResetOverride={() => resetOverride("display")}>Display</InspectorLabel>
@@ -577,13 +578,14 @@ export function DesignNodeInspector({
               />
             </div>
           </div>
-        </InspectorCollapsible>
+        </>
       )}
 
       {/* ── SPACING (frame + text) ───────────────────────────────────── */}
       {sections.showSpacing && (
-        <InspectorCollapsible label="Spacing">
-          <div className="space-y-1.5">
+        <>
+          <SectionRule label="SPACING" />
+          <div className="space-y-1.5 px-4 py-2">
             <InspectorLabel hasOverride={hasOverride("padding")} onResetOverride={() => resetOverride("padding")}>Padding</InspectorLabel>
             <div className="grid grid-cols-4 gap-1.5">
               {(["top", "right", "bottom", "left"] as const).map((side) => (
@@ -606,17 +608,18 @@ export function DesignNodeInspector({
               ))}
             </div>
           </div>
-        </InspectorCollapsible>
+        </>
       )}
 
       {/* ── TYPOGRAPHY (text + button) ───────────────────────────────── */}
       {sections.showTypography && (
-        <InspectorCollapsible label="Typography">
-          <div className="space-y-1.5">
+        <>
+          <SectionRule label="TYPOGRAPHY" />
+          <div className="space-y-1.5 px-4 py-2">
             {/* Font Family */}
             <div className="space-y-0.5">
               <InspectorLabel hasOverride={hasOverride("fontFamily")} onResetOverride={() => resetOverride("fontFamily")}>
-                Font{resolved?.isInherited.fontFamily ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
+                Font{resolved?.isInherited.fontFamily ? <span className="text-[#4B57DB] ml-1">*</span> : null}
               </InspectorLabel>
               <InspectorSelect
                 value={style.fontFamily || resolved?.fontFamily || ""}
@@ -645,7 +648,7 @@ export function DesignNodeInspector({
             <div className="grid grid-cols-[1fr_60px] gap-1.5">
               <div className="space-y-0.5">
                 <InspectorLabel hasOverride={hasOverride("fontWeight")} onResetOverride={() => resetOverride("fontWeight")}>
-                  Weight{resolved?.isInherited.fontWeight ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
+                  Weight{resolved?.isInherited.fontWeight ? <span className="text-[#4B57DB] ml-1">*</span> : null}
                 </InspectorLabel>
                 <InspectorNumberInput
                   value={style.fontWeight ?? resolved?.fontWeight ?? ""}
@@ -663,7 +666,7 @@ export function DesignNodeInspector({
               </div>
               <div className="space-y-0.5">
                 <InspectorLabel hasOverride={hasOverride("fontSize")} onResetOverride={() => resetOverride("fontSize")}>
-                  Size{resolved?.isInherited.fontSize ? <span className="text-[#1E5DF2] ml-1">*</span> : null}
+                  Size{resolved?.isInherited.fontSize ? <span className="text-[#4B57DB] ml-1">*</span> : null}
                 </InspectorLabel>
                 <InspectorNumberInput
                   value={style.fontSize ?? resolved?.fontSize ?? ""}
@@ -728,7 +731,7 @@ export function DesignNodeInspector({
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
                       style.textAlign === opt.value
-                        ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+                        ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
                         : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
                     )}
                   >
@@ -764,13 +767,14 @@ export function DesignNodeInspector({
               </div>
             </div>
           </div>
-        </InspectorCollapsible>
+        </>
       )}
 
       {/* ── FILL ─────────────────────────────────────────────────────── */}
       {sections.showFill && (
-        <InspectorCollapsible label="Fill">
-          <div className="space-y-2">
+        <>
+          <SectionRule label="FILL" />
+          <div className="space-y-2 px-4 py-2">
             {/* Background */}
             <div>
               <InspectorLabel hasOverride={hasOverride("background")} onResetOverride={() => resetOverride("background")}>Background</InspectorLabel>
@@ -870,12 +874,14 @@ export function DesignNodeInspector({
               </InlineAddableRow>
             )}
           </div>
-        </InspectorCollapsible>
+        </>
       )}
 
       {/* ── APPEARANCE (all types) ───────────────────────────────────── */}
       {sections.showAppearance && (
-        <InspectorCollapsible label="Appearance">
+        <>
+          <SectionRule label="APPEARANCE" />
+          <div className="space-y-1.5 px-4 py-2">
           {node.type !== "divider" && (
             <div>
               <InspectorLabel hasOverride={hasOverride("borderRadius")} onResetOverride={() => resetOverride("borderRadius")}>Radius</InspectorLabel>
@@ -974,7 +980,8 @@ export function DesignNodeInspector({
             />
             <span className="text-[10px] text-[#A0A0A0] font-mono mt-0.5 block">%</span>
           </div>
-        </InspectorCollapsible>
+          </div>
+        </>
       )}
     </div>
   );

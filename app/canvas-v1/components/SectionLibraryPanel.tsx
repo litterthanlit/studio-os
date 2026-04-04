@@ -67,7 +67,7 @@ export function SectionLibraryPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <span
-          className="text-[10px] uppercase tracking-widest text-[#A0A0A0]"
+          className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0]"
           style={{ fontFamily: "'IBM Plex Mono', monospace" }}
         >
           Add Section

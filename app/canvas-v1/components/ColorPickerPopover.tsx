@@ -17,7 +17,7 @@ const DEFAULT_COLORS = [
   "#F97316",
   "#EAB308",
   "#22C55E",
-  "#1E5DF2",
+  "#4B57DB",
   "#8B5CF6",
 ];
 

@@ -610,7 +610,7 @@ function Selectable({
     historyPushedRef.current = false;
     cancelRequestedRef.current = false;
     textEl.contentEditable = "true";
-    textEl.style.caretColor = "#1E5DF2";
+    textEl.style.caretColor = "#4B57DB";
     textEl.style.outline = "none";
     textEl.focus({ preventScroll: true });
 
@@ -783,11 +783,11 @@ function Selectable({
     ? selected
       ? editing
         ? { outline: "1px solid #D1E4FC", outlineOffset: -1, cursor: "text" as const, background: "rgba(255,255,255,0.6)", borderRadius: "4px" }
-        : { outline: "1px solid #1E5DF2", outlineOffset: -1, cursor: "default" as const }
+        : { outline: "1px solid #4B57DB", outlineOffset: -1, cursor: "default" as const }
       : flashOutlineActive
       ? { outline: "1px solid #D1E4FC", outlineOffset: -1, cursor: "default" as const }
       : hovered
-      ? { outline: "1px solid rgba(30, 93, 242, 0.3)", outlineOffset: -1, cursor: "default" as const }
+      ? { outline: "1px solid rgba(75, 87, 219, 0.3)", outlineOffset: -1, cursor: "default" as const }
       : { cursor: "default" as const }
     : undefined;
 
@@ -970,7 +970,7 @@ function renderNode(
                   left: 0,
                   right: 0,
                   height: 2,
-                  background: "#1E5DF2",
+                  background: "#4B57DB",
                   pointerEvents: "none",
                   transform: "translateY(-1px)",
                 }}

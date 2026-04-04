@@ -14,7 +14,7 @@ export function BreakpointBadge({ breakpoint, width }: BreakpointBadgeProps) {
         fontSize: "10px",
         textTransform: "uppercase",
         letterSpacing: "0.1em",
-        color: "#1E5DF2",
+        color: "#4B57DB",
         background: "rgba(209,228,252,0.1)",
       }}
     >

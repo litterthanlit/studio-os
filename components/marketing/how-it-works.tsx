@@ -63,7 +63,7 @@ function BuildVisual() {
     <div className="flex flex-col gap-3 p-1">
       {/* Palette row */}
       <div>
-        <div className="mb-1.5 font-mono text-[8px] uppercase tracking-widest text-neutral-400">Color</div>
+        <div className="mb-1.5 font-mono text-[8px] uppercase tracking-[1px] text-neutral-400">Color</div>
         <div className="flex gap-1">
           {colors.map((c, i) => (
             <div key={i} className="relative flex-1">
@@ -74,7 +74,7 @@ function BuildVisual() {
       </div>
       {/* Type preview */}
       <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-        <div className="mb-1 font-mono text-[8px] uppercase tracking-widest text-neutral-400">Typography</div>
+        <div className="mb-1 font-mono text-[8px] uppercase tracking-[1px] text-neutral-400">Typography</div>
         <div className="text-[22px] font-semibold leading-none text-neutral-900" style={{ letterSpacing: "-0.02em" }}>Aa</div>
         <div className="mt-0.5 font-mono text-[9px] text-neutral-400">Inter Variable · 590</div>
       </div>

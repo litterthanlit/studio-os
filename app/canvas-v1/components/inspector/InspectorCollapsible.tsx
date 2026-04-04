@@ -24,7 +24,7 @@ export function InspectorCollapsible({
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F5F5F0] transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-[#6B6B6B]">
+        <span className="text-[10px] font-mono font-medium uppercase tracking-[1px] text-[#6B6B6B]">
           {label}
         </span>
         <ChevronDown

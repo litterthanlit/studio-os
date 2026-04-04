@@ -22,7 +22,7 @@ export function InspectorSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-5">
+    <div className="mt-4">
       <span className="mono-kicker mb-2 block">{label}</span>
       {children}
     </div>
@@ -53,7 +53,7 @@ export function InspectorLabel({
         <button
           type="button"
           title="Overridden — click to reset to desktop"
-          className="w-1.5 h-1.5 rounded-full bg-[#1E5DF2] shrink-0 hover:ring-2 hover:ring-[#D1E4FC] transition-shadow"
+          className="w-1.5 h-1.5 rounded-full bg-[#4B57DB] shrink-0 hover:ring-2 hover:ring-[#D1E4FC] transition-shadow"
           onClick={(e) => {
             e.stopPropagation();
             onResetOverride?.();
@@ -76,7 +76,7 @@ export function InspectorTextInput({
       type="text"
       {...props}
       className={cn(
-        "w-full border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-2 py-1.5 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D1D1CC] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40",
+        "w-full border border-transparent rounded-[2px] bg-[#F8F8F6] px-2 py-1.5 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors hover:border-[#EFEFEC] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20",
         className
       )}
     />
@@ -111,7 +111,7 @@ export function InspectorTextarea({
         props.onInput?.(e);
       }}
       className={cn(
-        "w-full border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-2 py-1.5 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors resize-none min-h-[60px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D1D1CC] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40",
+        "w-full border border-transparent rounded-[2px] bg-[#F8F8F6] px-2 py-1.5 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors resize-none min-h-[60px] hover:border-[#EFEFEC] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20",
         className
       )}
     />
@@ -277,7 +277,7 @@ export function InspectorNumberInput({
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className={cn(
-        "w-[60px] text-center border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-2 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D1D1CC] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
+        "w-[60px] text-center border border-transparent rounded-[2px] bg-[#F8F8F6] px-2 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors hover:border-[#EFEFEC] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
         focused ? "cursor-text" : "cursor-ew-resize",
         className
       )}
@@ -297,7 +297,7 @@ export function InspectorSelect({
       <select
         {...props}
         className={cn(
-          "w-full appearance-none border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-2 py-1.5 pr-7 text-[13px] text-[#1A1A1A] outline-none transition-colors cursor-pointer shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D1D1CC] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40",
+          "w-full appearance-none border border-transparent rounded-[2px] bg-[#F8F8F6] px-2 py-1.5 pr-7 text-[13px] text-[#1A1A1A] outline-none transition-colors cursor-pointer hover:border-[#EFEFEC] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20",
           className
         )}
       >
@@ -418,7 +418,7 @@ export function InspectorColorField({
             e.currentTarget.blur();
           }
         }}
-        className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-2 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D1D1CC] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
+        className="flex-1 border border-transparent rounded-[2px] bg-[#F8F8F6] px-2 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors hover:border-[#EFEFEC] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20"
       />
     </div>
   );
@@ -443,7 +443,7 @@ export function InspectorRow({
 // ─── InspectorDivider ────────────────────────────────────────────────────────
 
 export function InspectorDivider() {
-  return <div className="h-px bg-[#E5E5E0] my-4" />;
+  return <div className="h-px bg-[#EFEFEC] my-4" />;
 }
 
 // ─── InspectorSliderField ────────────────────────────────────────────────────
@@ -633,7 +633,7 @@ export function InspectorSliderField({
           onBlur={handleNumberBlur}
           onKeyDown={handleNumberKeyDown}
           className={cn(
-            "w-[52px] text-center border border-[#E5E5E0] rounded-[2px] bg-[#FAFAF8] px-1.5 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D1D1CC] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none shrink-0",
+            "w-[52px] text-center border border-transparent rounded-[2px] bg-[#F8F8F6] px-1.5 py-1.5 text-[12px] text-[#1A1A1A] font-mono outline-none transition-colors hover:border-[#EFEFEC] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none shrink-0",
             isFocused ? "cursor-text" : "cursor-ew-resize"
           )}
         />

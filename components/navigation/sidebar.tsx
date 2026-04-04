@@ -67,7 +67,7 @@ function LogoMark({ size = 28 }: { size?: number }) {
 function UserAvatar({ size = 24 }: { size?: number }) {
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-full bg-[#D1E4FC] font-medium text-[#1E5DF2] select-none"
+      className="flex shrink-0 items-center justify-center rounded-full bg-[#D1E4FC] font-medium text-[#4B57DB] select-none"
       style={{
         width: size,
         height: size,
@@ -105,7 +105,7 @@ function NavItem({
     "group relative flex h-8 w-full items-center rounded-[4px] transition-colors duration-150",
     expanded ? "px-2 gap-2.5" : "justify-center px-0",
     active
-      ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
       : disabled
       ? "opacity-40 cursor-not-allowed"
       : "hover:bg-[#F5F5F0]"
@@ -113,7 +113,7 @@ function NavItem({
 
   // 2px left accent bar for active state
   const accentBar = active ? (
-    <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#1E5DF2]" />
+    <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#4B57DB]" />
   ) : null;
 
   const iconEl = (
@@ -122,7 +122,7 @@ function NavItem({
       strokeWidth={1}
       className={cn(
         "shrink-0 transition-colors duration-150",
-        active ? "text-[#1E5DF2]" : "text-[#A0A0A0] group-hover:text-[#6B6B6B]"
+        active ? "text-[#4B57DB]" : "text-[#A0A0A0] group-hover:text-[#6B6B6B]"
       )}
     />
   );
@@ -138,7 +138,7 @@ function NavItem({
           transition={{ duration: 0.15 }}
           className={cn(
             "overflow-hidden whitespace-nowrap text-[13px]",
-            active ? "font-medium text-[#1E5DF2]" : "text-[#6B6B6B]"
+            active ? "font-medium text-[#4B57DB]" : "text-[#6B6B6B]"
           )}
         >
           {label}
@@ -190,7 +190,7 @@ interface SidebarProject {
 
 const SIDEBAR_PROJECTS: SidebarProject[] = [
   { id: "acme-rebrand", name: "Acme Rebrand", color: "#F97316" },
-  { id: "fintech-dashboard", name: "FinTech Dashboard", color: "#1E5DF2" },
+  { id: "fintech-dashboard", name: "FinTech Dashboard", color: "#4B57DB" },
   { id: "editorial-magazine", name: "Editorial Magazine", color: "#8B5CF6" },
   { id: "personal-portfolio", name: "Personal Portfolio", color: "#1A1A1A" },
 ];
@@ -322,7 +322,7 @@ function DashboardSidebarContent({
               )}
             >
               {active ? (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#1E5DF2]" />
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#4B57DB]" />
               ) : null}
               <span
                 className="h-[6px] w-[6px] shrink-0 rounded-full"
@@ -339,7 +339,7 @@ function DashboardSidebarContent({
                     className={cn(
                       "overflow-hidden whitespace-nowrap text-[13px] truncate",
                       active
-                        ? "font-medium text-[#1E5DF2]"
+                        ? "font-medium text-[#4B57DB]"
                         : "text-[#6B6B6B]"
                     )}
                   >
@@ -608,7 +608,7 @@ export function Sidebar() {
       <motion.aside
         className={cn(
           "relative z-20 hidden md:flex shrink-0 flex-col h-screen sticky top-0 overflow-hidden",
-          "bg-[#FAFAF8]/95 backdrop-blur-sm border-r border-[#E5E5E0]"
+          "bg-[#FAFAF8] border-r border-[#E5E5E0]"
         )}
         animate={{ width: desktopExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
         transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
@@ -632,7 +632,7 @@ export function Sidebar() {
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open sidebar"
-        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8]/95 backdrop-blur-sm text-[#A0A0A0] shadow-sm transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#A0A0A0] shadow-sm transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
       >
         <svg
           viewBox="0 0 20 20"
@@ -668,7 +668,7 @@ export function Sidebar() {
       <aside
         className={cn(
           "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col",
-          "bg-[#FAFAF8]/95 backdrop-blur-sm border-r border-[#E5E5E0]",
+          "bg-[#FAFAF8] border-r border-[#E5E5E0]",
           "transform transition-transform duration-200 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}

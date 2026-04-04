@@ -55,7 +55,7 @@ function getGreeting() {
 }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === "Generating" ? "bg-[#1E5DF2]" :
+  const color = status === "Generating" ? "bg-[#4B57DB]" :
                 status === "Review" ? "bg-amber-400" :
                 status === "Completed" ? "bg-emerald-400" :
                 "bg-[#A0A0A0]";
@@ -83,7 +83,7 @@ export function HomeClient() {
       </div>
 
       {/* ── Search / Command Bar ── */}
-      <div className="group relative rounded-[4px] border border-[#E5E5E0] bg-white/80 backdrop-blur-sm transition-all duration-200 focus-within:border-[#D1E4FC] focus-within:ring-2 focus-within:ring-[#D1E4FC]/40">
+      <div className="group relative rounded-[4px] border border-[#E5E5E0] bg-white transition-all duration-200 focus-within:border-[#D1E4FC] focus-within:ring-2 focus-within:ring-[#D1E4FC]/40">
         <div className="flex items-center gap-3 px-4 py-3">
           <Search size={15} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0]" />
           <input
@@ -130,7 +130,7 @@ export function HomeClient() {
           <h2 className="mono-kicker">Recent Projects</h2>
           <button
             onClick={() => router.push('/projects')}
-            className="flex items-center gap-1 text-[11px] text-[#A0A0A0] transition-colors duration-150 hover:text-[#1E5DF2]"
+            className="flex items-center gap-1 text-[11px] text-[#A0A0A0] transition-colors duration-150 hover:text-[#4B57DB]"
           >
             View all
             <ArrowRight size={11} strokeWidth={1.5} />
@@ -178,7 +178,7 @@ export function HomeClient() {
               <ArrowRight
                 size={14}
                 strokeWidth={1.5}
-                className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:text-[#1E5DF2] group-hover/row:translate-x-0.5"
+                className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:text-[#4B57DB] group-hover/row:translate-x-0.5"
               />
             </div>
           ))}
@@ -194,7 +194,7 @@ export function HomeClient() {
             className="group/action flex flex-col items-start gap-3 rounded-[4px] border border-[#E5E5E0] bg-white/60 p-4 text-left transition-all duration-150 hover:border-[#D1E4FC] hover:bg-white/90"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-[4px] bg-[#F5F5F0] transition-colors duration-150 group-hover/action:bg-[#D1E4FC]/40">
-              <Folder size={16} strokeWidth={1.5} className="text-[#6B6B6B] group-hover/action:text-[#1E5DF2]" />
+              <Folder size={16} strokeWidth={1.5} className="text-[#6B6B6B] group-hover/action:text-[#4B57DB]" />
             </div>
             <div>
               <div className="text-[13px] font-medium text-[#1A1A1A]">New Project</div>
@@ -206,7 +206,7 @@ export function HomeClient() {
             className="group/action flex flex-col items-start gap-3 rounded-[4px] border border-[#E5E5E0] bg-white/60 p-4 text-left transition-all duration-150 hover:border-[#D1E4FC] hover:bg-white/90"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-[4px] bg-[#F5F5F0] transition-colors duration-150 group-hover/action:bg-[#D1E4FC]/40">
-              <span className="font-serif text-[16px] text-[#6B6B6B] group-hover/action:text-[#1E5DF2]">Aa</span>
+              <span className="font-serif text-[16px] text-[#6B6B6B] group-hover/action:text-[#4B57DB]">Aa</span>
             </div>
             <div>
               <div className="text-[13px] font-medium text-[#1A1A1A]">Type Explorer</div>
@@ -218,7 +218,7 @@ export function HomeClient() {
             className="group/action flex flex-col items-start gap-3 rounded-[4px] border border-[#E5E5E0] bg-white/60 p-4 text-left transition-all duration-150 hover:border-[#D1E4FC] hover:bg-white/90"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-[4px] bg-[#F5F5F0] transition-colors duration-150 group-hover/action:bg-[#D1E4FC]/40">
-              <Compass size={16} strokeWidth={1.5} className="text-[#6B6B6B] group-hover/action:text-[#1E5DF2]" />
+              <Compass size={16} strokeWidth={1.5} className="text-[#6B6B6B] group-hover/action:text-[#4B57DB]" />
             </div>
             <div>
               <div className="text-[13px] font-medium text-[#1A1A1A]">Explore</div>

@@ -141,10 +141,10 @@ function BoardOverview({ projectId }: { projectId: string }) {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-4 py-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                <span className="rounded-sm border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                <span className="rounded-sm border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white ">
                   {reference.source}
                 </span>
-                <span className="rounded-sm border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                <span className="rounded-sm border border-white/15 bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white ">
                   View in Canvas
                 </span>
               </div>

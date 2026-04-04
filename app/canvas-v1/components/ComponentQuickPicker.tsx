@@ -143,7 +143,7 @@ export function ComponentQuickPicker({
       <button
         type="button"
         onClick={() => { onBrowseAll(); onDismiss(); }}
-        className="flex w-full items-center justify-center px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:text-[#1E5DF2] transition-colors"
+        className="flex w-full items-center justify-center px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:text-[#4B57DB] transition-colors"
       >
         Browse All...
       </button>

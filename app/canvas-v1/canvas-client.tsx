@@ -2458,7 +2458,7 @@ function ComposeStage({
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(209,228,252,0.42),transparent_24%),linear-gradient(180deg,#FAFAF8_0%,#F6F2E8_100%)] text-[#1A1A1A]">
       
       {/* ── Canvas Toolbar ── */}
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#E5E5E0] bg-white/95 backdrop-blur-sm px-3 select-none">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#E5E5E0] bg-white px-3 select-none">
         <Link
           href={projectHref}
           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] transition-colors"
@@ -2475,7 +2475,7 @@ function ComposeStage({
         {/* Preview + Export */}
         <button
           type="button"
-          className="h-7 rounded-[4px] bg-[#1E5DF2] px-3 text-[11px] font-medium text-white hover:bg-[#1A4FD6] transition-colors disabled:opacity-40"
+          className="h-7 rounded-[4px] bg-[#4B57DB] px-3 text-[11px] font-medium text-white hover:bg-[#3D49C7] transition-colors disabled:opacity-40"
           onClick={handlePreview}
           disabled={!exportCode}
         >
@@ -2578,7 +2578,7 @@ function ComposeStage({
                       <div className="mb-3 flex gap-2">
                         <button
                           type="button"
-                          className="flex-1 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                          className="flex-1 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
                           onClick={() =>
                             addOverlay({
                               id: `note-${Date.now()}`,
@@ -2596,7 +2596,7 @@ function ComposeStage({
                         </button>
                         <button
                           type="button"
-                          className="flex-1 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                          className="flex-1 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
                           onClick={() =>
                             addOverlay({
                               id: `arrow-${Date.now()}`,
@@ -2766,7 +2766,7 @@ function ComposeStage({
                         className="absolute flex items-center gap-2 select-none"
                         style={{ left: artboard.x, top: artboard.y - 28 }}
                       >
-                        <span className={cn("font-mono text-[10px] uppercase tracking-widest", isSelected ? "text-[#1E5DF2]" : "text-[#A0A0A0]")}>
+                        <span className={cn("font-mono text-[10px] uppercase tracking-[1px]", isSelected ? "text-[#4B57DB]" : "text-[#A0A0A0]")}>
                           {artboardBp.toUpperCase()} · {BREAKPOINT_WIDTHS[artboardBp]}PX
                         </span>
                       </div>
@@ -2777,8 +2777,8 @@ function ComposeStage({
                         className={cn(
                           "absolute overflow-hidden rounded-[4px] border bg-[#FAFAF8]",
                           "shadow-[0_4px_16px_rgba(0,0,0,0.04)]",
-                          isSelected ? "border-[#1E5DF2]" : "border-[#E5E5E0]",
-                          artboardBp === "desktop" ? "border-t-2 border-t-[#1E5DF2]" : "border-t border-t-[#E5E5E0]"
+                          isSelected ? "border-[#4B57DB]" : "border-[#E5E5E0]",
+                          artboardBp === "desktop" ? "border-t-2 border-t-[#4B57DB]" : "border-t border-t-[#E5E5E0]"
                         )}
                         style={{
                           left: artboard.x,
@@ -2875,14 +2875,14 @@ function ComposeStage({
                               <div
                                 className="pointer-events-none absolute inset-0 z-10"
                                 style={{
-                                  backgroundImage: "radial-gradient(circle, rgba(30,93,242,0.06) 0.5px, transparent 0.5px)",
+                                  backgroundImage: "radial-gradient(circle, rgba(75,87,219,0.06) 0.5px, transparent 0.5px)",
                                   backgroundSize: "3.5px 3.5px",
                                 }}
                               >
                                 <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2">
-                                  <div className="flex items-center gap-2 rounded-[4px] border border-[#D1E4FC] bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
-                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1E5DF2]" />
-                                    <span className="font-mono text-[10px] text-[#1E5DF2]">Generating...</span>
+                                  <div className="flex items-center gap-2 rounded-[4px] border border-[#D1E4FC] bg-white px-3 py-1.5 shadow-sm">
+                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#4B57DB]" />
+                                    <span className="font-mono text-[10px] text-[#4B57DB]">Generating...</span>
                                   </div>
                                 </div>
                               </div>
@@ -2993,7 +2993,7 @@ function ComposeStage({
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: 16, opacity: 0 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="pointer-events-none absolute bottom-16 right-5 z-10 w-[244px] rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm p-3 shadow-sm"
+                  className="pointer-events-none absolute bottom-16 right-5 z-10 w-[244px] rounded-[4px] border border-[#E5E5E0] bg-white p-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <p className="mono-kicker">
@@ -3017,7 +3017,7 @@ function ComposeStage({
                           "absolute rounded-[2px] border",
                           item.type === "artboard"
                             ? item.id === document.selectedArtboardId
-                              ? "border-[#1E5DF2] bg-[#D1E4FC]/50"
+                              ? "border-[#4B57DB] bg-[#D1E4FC]/50"
                               : "border-[#A0A0A0] bg-[#E5E5E0]"
                             : "border-amber-300/60 bg-amber-200/40"
                         )}
@@ -3030,7 +3030,7 @@ function ComposeStage({
                       />
                     ))}
                     <div
-                      className="absolute rounded-[2px] border border-[#1E5DF2] bg-[#D1E4FC]/20"
+                      className="absolute rounded-[2px] border border-[#4B57DB] bg-[#D1E4FC]/20"
                       style={{
                         left: minimap.viewport.left,
                         top: minimap.viewport.top,
@@ -3051,7 +3051,7 @@ function ComposeStage({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-6 backdrop-blur-sm"
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-6"
                   onClick={() => setShowShortcuts(false)}
                 >
                   <motion.div
@@ -3059,7 +3059,7 @@ function ComposeStage({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.97, y: 8 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="w-full max-w-sm rounded-[4px] border border-[#E5E5E0] bg-white/95 backdrop-blur-sm p-5 shadow-lg"
+                    className="w-full max-w-sm rounded-[4px] border border-[#E5E5E0] bg-white p-5 shadow-lg"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="flex items-center justify-between">

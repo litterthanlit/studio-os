@@ -134,7 +134,7 @@ export function createSampleProject(): {
     id: SAMPLE_PROJECT_ID,
     name: SAMPLE_PROJECT_NAME,
     brief: "A sample project to explore the Studio OS editor.",
-    color: "#1E5DF2",
+    color: "#4B57DB",
     createdAt: new Date().toISOString(),
   };
 

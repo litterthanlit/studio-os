@@ -129,7 +129,7 @@ function BuildVisual() {
       </div>
       {/* Palette */}
       <div className="mb-4">
-        <div className="mb-2 font-mono text-[9px] uppercase tracking-widest text-neutral-400">Color tokens</div>
+        <div className="mb-2 font-mono text-[9px] uppercase tracking-[1px] text-neutral-400">Color tokens</div>
         <div className="flex gap-1.5">
           {palette.map((color) => (
             <div key={color.name} className="group flex flex-1 flex-col gap-1">
@@ -146,7 +146,7 @@ function BuildVisual() {
       </div>
       {/* Type scale */}
       <div className="mb-4 rounded-lg border border-neutral-200 bg-white">
-        <div className="border-b border-neutral-200 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-neutral-400">
+        <div className="border-b border-neutral-200 px-3 py-2 font-mono text-[9px] uppercase tracking-[1px] text-neutral-400">
           Type scale
         </div>
         {typeScale.map((t, i) => (
@@ -212,7 +212,7 @@ function BriefVisual() {
           { label: "TYPE", value: "Inter Variable · Berkeley Mono" },
         ].map((row, i) => (
           <div key={i} className={`pb-3 ${i < 5 ? "border-b border-white/[0.04]" : ""}`}>
-            <div className="mb-0.5 font-mono text-[8px] uppercase tracking-widest text-neutral-400">{row.label}</div>
+            <div className="mb-0.5 font-mono text-[8px] uppercase tracking-[1px] text-neutral-400">{row.label}</div>
             <div className="text-[11px] leading-relaxed text-neutral-400">{row.value}</div>
           </div>
         ))}

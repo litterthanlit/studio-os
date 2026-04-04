@@ -12,7 +12,7 @@ export const Card = React.forwardRef<
     className={cn(
       "surface-panel rounded-[4px] bg-card-bg text-text-primary transition-all duration-150 ease-out",
       active
-        ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent),0_16px_40px_rgba(30,93,242,0.08)]"
+        ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent),0_16px_40px_rgba(75,87,219,0.08)]"
         : "border border-card-border",
       interactive && !active && "hover:bg-[#F5F5F0] hover:-translate-y-[1px] hover:shadow-[0_12px_24px_rgba(17,17,17,0.05)] hover:border-border-hover cursor-pointer active:opacity-95",
       className

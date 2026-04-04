@@ -246,12 +246,12 @@ export function PromptPanel() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="absolute bottom-14 right-4 z-30 w-[340px] max-h-[480px] overflow-y-auto rounded-[6px] border border-[#E5E5E0] bg-white/90 backdrop-blur-sm shadow-md"
+          className="absolute bottom-14 right-4 z-30 w-[340px] max-h-[480px] overflow-y-auto rounded-[6px] border border-[#E5E5E0] bg-white shadow-md"
         >
           <div className="p-4 space-y-4">
             {/* Generate section */}
             <div className="space-y-3">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+              <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0]">
                 Generate
               </span>
 
@@ -296,7 +296,7 @@ export function PromptPanel() {
               <button
                 onClick={handleGenerate}
                 disabled={loading || !prompt.value.trim()}
-                className="flex w-full items-center justify-center gap-2 rounded-[4px] bg-[#1E5DF2] px-3 py-2.5 text-[13px] font-medium text-white hover:bg-[#1A4FD6] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 rounded-[4px] bg-[#4B57DB] px-3 py-2.5 text-[13px] font-medium text-white hover:bg-[#3D49C7] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
@@ -312,7 +312,7 @@ export function PromptPanel() {
             {/* History section */}
             {prompt.history.length > 0 && (
               <div className="space-y-2 border-t border-[#E5E5E0] pt-3">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+                <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0]">
                   History
                 </span>
 
@@ -327,7 +327,7 @@ export function PromptPanel() {
                       </span>
                       <button
                         onClick={() => handleRestore(run)}
-                        className="shrink-0 rounded-[2px] border border-[#E5E5E0] px-2 py-0.5 text-[10px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                        className="shrink-0 rounded-[2px] border border-[#E5E5E0] px-2 py-0.5 text-[10px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
                       >
                         Restore
                       </button>

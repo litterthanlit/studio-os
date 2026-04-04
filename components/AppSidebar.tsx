@@ -94,7 +94,7 @@ export function AppSidebar({ stage, onStageChange, availability }: AppSidebarPro
                 strokeWidth={1}
                 className={cn(
                   "shrink-0 transition-colors duration-150",
-                  isActive ? "text-[#1E5DF2]" : "text-[#A0A0A0]"
+                  isActive ? "text-[#4B57DB]" : "text-[#A0A0A0]"
                 )}
               />
               <motion.span
@@ -102,7 +102,7 @@ export function AppSidebar({ stage, onStageChange, availability }: AppSidebarPro
                 transition={{ duration: 0.15 }}
                 className={cn(
                   "ml-2.5 whitespace-nowrap text-[13px]",
-                  isActive ? "font-medium text-[#1E5DF2]" : "text-[#6B6B6B]"
+                  isActive ? "font-medium text-[#4B57DB]" : "text-[#6B6B6B]"
                 )}
               >
                 {item.label}

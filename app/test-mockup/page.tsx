@@ -137,7 +137,7 @@ export default function TestMockupPage() {
       <main className="flex-1 flex flex-col h-full bg-[#FAFBFE] overflow-y-auto">
         
         {/* Top Header */}
-        <header className="px-10 pt-10 pb-6 shrink-0 z-10 sticky top-0 bg-[#FAFBFE] border-b border-[#E2E8F0]/30 backdrop-blur-sm">
+        <header className="px-10 pt-10 pb-6 shrink-0 z-10 sticky top-0 bg-[#FAFBFE] border-b border-[#E2E8F0]/30 ">
           <div className="max-w-[1200px] mx-auto flex items-center justify-between">
             <h1 className="text-[24px] leading-[32px] tracking-[-0.015em] font-semibold text-[#0F172A]">
               Canvas

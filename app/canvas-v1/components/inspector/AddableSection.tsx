@@ -25,13 +25,13 @@ export function AddableSection({
     return (
       <div className="border-b border-[#E5E5E0] mb-0.5">
         <div className="w-full flex items-center justify-between px-4 py-2.5">
-          <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-[#6B6B6B]">
+          <span className="text-[10px] font-mono font-medium uppercase tracking-[1px] text-[#6B6B6B]">
             {title}
           </span>
           <button
             type="button"
             onClick={onAdd}
-            className="text-[#A0A0A0] hover:text-[#1E5DF2] transition-colors"
+            className="text-[#A0A0A0] hover:text-[#4B57DB] transition-colors"
           >
             <Plus size={12} />
           </button>
@@ -47,7 +47,7 @@ export function AddableSection({
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F5F5F0]/50 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-[#6B6B6B]">
+        <span className="text-[10px] font-mono font-medium uppercase tracking-[1px] text-[#6B6B6B]">
           {title}
         </span>
         <div className="flex items-center gap-1.5">

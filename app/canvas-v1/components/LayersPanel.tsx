@@ -118,7 +118,7 @@ function TreeNode({
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isSelected
-            ? "bg-[#D1E4FC]/50 text-[#1E5DF2] border-l-2 border-[#1E5DF2]"
+            ? "bg-[#D1E4FC]/50 text-[#4B57DB] border-l-2 border-[#4B57DB]"
             : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-2 border-transparent"
         )}
         style={{
@@ -195,7 +195,7 @@ export function LayersPanel({
   const activeArtboard = artboards.find((a) => a.id === selectedArtboardId) ?? artboards[0];
 
   return (
-    <div className="flex h-full w-[240px] flex-col overflow-hidden bg-white/95 backdrop-blur-sm border-r border-[#E5E5E0]">
+    <div className="flex h-full w-[240px] flex-col overflow-hidden bg-white border-r border-[#E5E5E0]">
       {/* ── Header ── */}
       <div className="shrink-0 px-4 pt-3 pb-2">
         <span className="mono-kicker">Layers</span>
@@ -216,7 +216,7 @@ export function LayersPanel({
                 className={cn(
                   "flex items-center gap-1.5 rounded-[4px] px-3 py-1 text-[11px] transition-colors duration-100",
                   active
-                    ? "bg-[#D1E4FC]/50 font-medium text-[#1E5DF2]"
+                    ? "bg-[#D1E4FC]/50 font-medium text-[#4B57DB]"
                     : "text-[#6B6B6B] hover:bg-[#F5F5F0]"
                 )}
               >

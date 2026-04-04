@@ -20,7 +20,7 @@ export function CanvasArrow({ item, isDragging, onPointerDown }: CanvasArrowProp
       data-canvas-item-id={item.id}
       className={cn(
         "absolute cursor-pointer",
-        isSelected && "outline outline-1 outline-[#1E5DF2]",
+        isSelected && "outline outline-1 outline-[#4B57DB]",
         isDragging && "drop-shadow-md"
       )}
       style={{

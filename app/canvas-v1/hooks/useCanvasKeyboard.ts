@@ -560,13 +560,13 @@ export function useCanvasKeyboard({
           }
         }
 
-        // V/H/R/T — Tool palette shortcuts
+        // V/H/M/K — Tool palette shortcuts
         if (onSetActiveTool) {
           const toolMap: Record<string, string> = {
             v: "select", V: "select",
             h: "hand", H: "hand",
-            r: "rectangle", R: "rectangle",
-            t: "text", T: "text",
+            m: "marquee", M: "marquee",
+            k: "prompt", K: "prompt",
           };
           const tool = toolMap[e.key];
           if (tool) {

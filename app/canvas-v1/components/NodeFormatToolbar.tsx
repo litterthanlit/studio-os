@@ -86,7 +86,7 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
       exit={{ opacity: 0, y: 4 }}
       transition={{ duration: 0.15 }}
       style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 50 }}
-      className="bg-white/90 backdrop-blur-sm border border-[#E5E5E0] rounded-[4px] shadow-sm flex items-center h-8"
+      className="bg-white border border-[#E5E5E0] rounded-[4px] shadow-sm flex items-center h-8"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* B / I / U toggles */}
@@ -95,7 +95,7 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
           className={cn(
             "w-7 h-7 flex items-center justify-center rounded-[2px] text-[13px] font-semibold transition-colors",
             isBold
-              ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
               : "text-[#6B6B6B] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
           )}
           style={{ fontWeight: 700 }}
@@ -107,7 +107,7 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
           className={cn(
             "w-7 h-7 flex items-center justify-center rounded-[2px] text-[13px] font-semibold transition-colors",
             isItalic
-              ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
               : "text-[#6B6B6B] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
           )}
           style={{ fontStyle: "italic" }}
@@ -119,7 +119,7 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
           className={cn(
             "w-7 h-7 flex items-center justify-center rounded-[2px] text-[13px] font-semibold transition-colors",
             isUnderline
-              ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
               : "text-[#6B6B6B] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
           )}
           style={{ textDecoration: "underline" }}
@@ -172,7 +172,7 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
       {/* AI button */}
       <div className="px-1">
         <button
-          className="w-7 h-7 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1E5DF2] hover:bg-[#F5F5F0] transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#4B57DB] hover:bg-[#F5F5F0] transition-colors"
           onClick={onAIClick}
         >
           <Sparkles size={14} strokeWidth={1.5} />

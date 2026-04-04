@@ -68,7 +68,7 @@ function V6InsertionBar({
         ref={buttonRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-        className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white transition-all duration-100 ${hovered ? "border border-[#1E5DF2] text-[#1E5DF2]" : "border border-[#E5E5E0] text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"}`}
+        className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white transition-all duration-100 ${hovered ? "border border-[#4B57DB] text-[#4B57DB]" : "border border-[#E5E5E0] text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#4B57DB]"}`}
         style={{ opacity: hovered || pickerOpen ? 1 : 0, transform: hovered || pickerOpen ? "scale(1)" : "scale(0.8)" }}
       >
         <Plus size={12} />
@@ -191,13 +191,13 @@ type SelectionLevel = "primary" | "secondary" | "none";
 
 function selectionOutlineStyle(level: SelectionLevel, isLiveHit?: boolean): React.CSSProperties {
   if (level === "primary") {
-    return { outline: "1.5px solid #1E5DF2", outlineOffset: -1.5 };
+    return { outline: "1.5px solid #4B57DB", outlineOffset: -1.5 };
   }
   if (level === "secondary") {
-    return { outline: "1.5px solid rgba(30, 93, 242, 0.45)", outlineOffset: -1.5 };
+    return { outline: "1.5px solid rgba(75, 87, 219, 0.45)", outlineOffset: -1.5 };
   }
   if (isLiveHit) {
-    return { outline: "1.5px solid rgba(30, 93, 242, 0.3)", outlineOffset: -1.5 };
+    return { outline: "1.5px solid rgba(75, 87, 219, 0.3)", outlineOffset: -1.5 };
   }
   return {};
 }
@@ -233,7 +233,7 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
     originalTextRef.current = el.textContent || "";
     el.contentEditable = "true";
     el.setAttribute("data-v6-text-editing", "true");
-    el.style.caretColor = "#1E5DF2";
+    el.style.caretColor = "#4B57DB";
     el.style.outline = "none";
     el.focus();
 
@@ -1011,7 +1011,7 @@ export function ComposeDocumentViewV6({
       }
       // Swap outline
       clearHoverOutline();
-      target.style.outline = "1px solid rgba(30, 93, 242, 0.4)";
+      target.style.outline = "1px solid rgba(75, 87, 219, 0.4)";
       target.style.outlineOffset = "-1px";
       // ── Cursor: pointer for unselected hovered nodes ──────────────
       target.style.cursor = "pointer";
@@ -1340,11 +1340,11 @@ export function ComposeDocumentViewV6({
     );
     if (!el) return;
     // Drop selection outline to 60% opacity during drag
-    el.style.outline = "1.5px solid rgba(30, 93, 242, 0.6)";
+    el.style.outline = "1.5px solid rgba(75, 87, 219, 0.6)";
     el.style.outlineOffset = "-1.5px";
     return () => {
       // Restore full selection outline on drag end
-      el.style.outline = "1.5px solid #1E5DF2";
+      el.style.outline = "1.5px solid #4B57DB";
       el.style.outlineOffset = "-1.5px";
     };
   }, [isDragging, selectedNodeId]);
@@ -1511,7 +1511,7 @@ export function ComposeDocumentViewV6({
               top: rubberBand.marqueeRect.y,
               width: rubberBand.marqueeRect.width,
               height: rubberBand.marqueeRect.height,
-              border: "1px solid rgba(30, 93, 242, 0.3)",
+              border: "1px solid rgba(75, 87, 219, 0.3)",
               background: "rgba(209, 228, 252, 0.05)",
               pointerEvents: "none",
               zIndex: 9999,
@@ -1543,7 +1543,7 @@ export function ComposeDocumentViewV6({
           <span style={{
             fontSize: 9, fontFamily: "'IBM Plex Mono', monospace",
             textTransform: "uppercase", letterSpacing: "0.05em",
-            color: "white", background: "#1E5DF2",
+            color: "white", background: "#4B57DB",
             padding: "1px 6px", borderRadius: 2, whiteSpace: "nowrap",
           }}>
             {selectedNodeInfo.text}

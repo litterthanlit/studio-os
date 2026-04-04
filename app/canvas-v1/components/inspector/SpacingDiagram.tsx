@@ -163,7 +163,7 @@ export function SpacingDiagram({
           </div>
           <button
             type="button"
-            className="mb-[2px] flex h-7 w-7 items-center justify-center rounded-[2px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#8A8A8A] transition-colors hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+            className="mb-[2px] flex h-7 w-7 items-center justify-center rounded-[2px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#8A8A8A] transition-colors hover:border-[#D1E4FC] hover:text-[#4B57DB]"
             onClick={() => setExpanded(true)}
             aria-label="Expand padding diagram"
             title="Expand padding diagram"

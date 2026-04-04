@@ -37,7 +37,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-40 bg-black/50"
               onClick={() => onOpenChange(false)}
             />
             <motion.div

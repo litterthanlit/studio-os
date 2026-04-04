@@ -668,7 +668,7 @@ function ScheduleBlockForm({
         placeholder="Title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="w-full rounded-[2px] border border-border-primary bg-white/80 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-[#1E5DF2]"
+        className="w-full rounded-[2px] border border-border-primary bg-white/80 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-[#4B57DB]"
       />
       <div className="flex gap-3 flex-wrap">
         <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
@@ -677,7 +677,7 @@ function ScheduleBlockForm({
             type="time"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#1E5DF2]"
+            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#4B57DB]"
           />
         </label>
         <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
@@ -686,7 +686,7 @@ function ScheduleBlockForm({
             type="time"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#1E5DF2]"
+            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#4B57DB]"
           />
         </label>
         <label className="flex items-center gap-2 text-[11px] text-text-tertiary font-mono">
@@ -694,7 +694,7 @@ function ScheduleBlockForm({
           <select
             value={tag}
             onChange={(e) => setTag((e.target.value || "") as ScheduleTag | "")}
-            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#1E5DF2]"
+            className="rounded-[2px] border border-border-primary bg-white/80 px-2 py-1 text-text-primary outline-none transition-colors focus:border-[#4B57DB]"
           >
             <option value="">—</option>
             <option value="Focus">Focus</option>

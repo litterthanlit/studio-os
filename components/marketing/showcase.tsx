@@ -38,7 +38,7 @@ function ImageCard({ image }: { image: (typeof showcaseImages)[0] }) {
       />
 
       {/* Score badge */}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded border border-neutral-200 bg-white/90 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded border border-neutral-200 bg-white px-1.5 py-0.5">
         <div className="h-1 w-1 rounded-full bg-[#2430AD]" />
         <span className="font-mono text-[9px] text-neutral-500">{image.score}</span>
       </div>
@@ -46,7 +46,7 @@ function ImageCard({ image }: { image: (typeof showcaseImages)[0] }) {
       {/* Hover overlay */}
       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-wrap gap-1 p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <span className="rounded border border-white/20 bg-black/60 px-1.5 py-0.5 font-mono text-[8px] text-white/80 backdrop-blur-sm">
+        <span className="rounded border border-white/20 bg-black/60 px-1.5 py-0.5 font-mono text-[8px] text-white/80">
           {image.alt}
         </span>
       </div>

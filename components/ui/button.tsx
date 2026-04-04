@@ -25,16 +25,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants: Record<ButtonVariant, string> = {
       primary:
-        "h-9 rounded-[2px] border border-transparent bg-[#1E5DF2] px-[18px] text-[13px] text-white " +
-        "shadow-[0_1px_2px_rgba(30,93,242,0.18)] hover:-translate-y-[0.5px] hover:bg-[#1A4FD6] hover:shadow-[0_6px_18px_rgba(30,93,242,0.16)]",
+        "h-9 rounded-[2px] border border-transparent bg-[#4B57DB] px-[18px] text-[13px] text-white " +
+        "shadow-[0_1px_2px_rgba(75,87,219,0.18)] hover:-translate-y-[0.5px] hover:bg-[#3D49C7] hover:shadow-[0_6px_18px_rgba(75,87,219,0.16)]",
       secondary:
         "h-9 rounded-[2px] border border-[#E5E5E0] bg-white px-[18px] text-[13px] text-[#1A1A1A] " +
-        "hover:border-[#D1E4FC] hover:bg-[#F5F5F0] hover:text-[#1E5DF2]",
+        "hover:border-[#D1E4FC] hover:bg-[#F5F5F0] hover:text-[#4B57DB]",
       ghost:
         "h-9 rounded-[2px] border border-transparent bg-transparent px-[18px] text-[13px] text-[#6B6B6B] " +
         "hover:bg-[#F5F5F0] hover:text-[#1A1A1A]",
       accent:
-        "h-9 rounded-[2px] border border-[#C6D9F7] bg-[#D1E4FC] px-[18px] text-[13px] text-[#1E5DF2] " +
+        "h-9 rounded-[2px] border border-[#C6D9F7] bg-[#D1E4FC] px-[18px] text-[13px] text-[#4B57DB] " +
         "hover:border-[#AFC9F6] hover:bg-[#C4DAFC]",
       danger:
         "h-9 rounded-[2px] border border-[#EF4444]/30 bg-transparent px-[18px] text-[13px] text-[#EF4444] " +

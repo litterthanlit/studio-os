@@ -72,7 +72,7 @@ import { isHintSeen, markHintSeen } from "./OnboardingHint";
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
 const ghostBtnCls =
-  "border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2] transition-colors";
+  "border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB] transition-colors";
 
 // ─── Debounce hook ───────────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ function IconToggleGroup({
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
             value === opt.value
-              ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
               : "text-[#A0A0A0] hover:bg-[#F5F5F0]"
           )}
         >
@@ -382,7 +382,7 @@ function ReferenceInspector({ item }: { item: ReferenceItem }) {
           <button
             type="button"
             onClick={() => setLocked((v) => !v)}
-            className="mb-1 flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1E5DF2] hover:bg-[#F5F5F0] transition-colors"
+            className="mb-1 flex h-6 w-6 items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#4B57DB] hover:bg-[#F5F5F0] transition-colors"
             title={locked ? "Unlock aspect ratio" : "Lock aspect ratio"}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
@@ -423,7 +423,7 @@ function ReferenceInspector({ item }: { item: ReferenceItem }) {
       <InspectorDivider />
       <div className="space-y-2">
         <button
-          className={ghostBtnCls + " w-full" + (item.isStyleRef ? " border-[#1E5DF2] text-[#1E5DF2]" : "")}
+          className={ghostBtnCls + " w-full" + (item.isStyleRef ? " border-[#4B57DB] text-[#4B57DB]" : "")}
           onClick={() => {
             dispatch({
               type: "UPDATE_ITEM",
@@ -587,7 +587,7 @@ function NodeInspector({
       {/* ── BREAKPOINT LABEL ─────────────────────────────────────────── */}
       {isNonDesktop && (
         <div className="px-4 pt-3 pb-1">
-          <span className="text-[10px] uppercase tracking-widest text-[#A0A0A0] font-mono">
+          <span className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0] font-mono">
             Mobile ({BREAKPOINT_WIDTHS[bp]}px)
           </span>
         </div>
@@ -708,8 +708,8 @@ function NodeInspector({
                 className={cn(
                   "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   style.fontStyle === "italic"
-                    ? "bg-[#D1E4FC]/40 text-[#1E5DF2] border-[#D1E4FC]"
-                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                    ? "bg-[#D1E4FC]/40 text-[#4B57DB] border-[#D1E4FC]"
+                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
                 )}
                 style={{ fontStyle: "italic" }}
                 onClick={() => {
@@ -726,8 +726,8 @@ function NodeInspector({
                 className={cn(
                   "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   style.textDecoration === "underline"
-                    ? "bg-[#D1E4FC]/40 text-[#1E5DF2] border-[#D1E4FC]"
-                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#1E5DF2]"
+                    ? "bg-[#D1E4FC]/40 text-[#4B57DB] border-[#D1E4FC]"
+                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
                 )}
                 style={{ textDecoration: "underline" }}
                 onClick={() => {
@@ -951,7 +951,7 @@ function NodeInspector({
               onChange={() =>
                 dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: artboard.id, nodeId: node.id, breakpoint: "mobile" })
               }
-              className="accent-[#1E5DF2] w-3.5 h-3.5 cursor-pointer"
+              className="accent-[#4B57DB] w-3.5 h-3.5 cursor-pointer"
             />
           </label>
         </InspectorCollapsible>
@@ -1043,7 +1043,7 @@ function buildFallbackTokens(existingTokens: DesignSystemTokens | null): DesignS
 
   return {
     colors: {
-      primary: "#1E5DF2",
+      primary: "#4B57DB",
       secondary: "#0F172A",
       accent: "#4B83F7",
       background: "#FAFAF8",
@@ -1576,7 +1576,7 @@ function PromptComposer({
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="shrink-0 px-3 pt-3 pb-1">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-[#A0A0A0]">
+        <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0]">
           Prompt
         </span>
       </div>
@@ -1618,7 +1618,7 @@ function PromptComposer({
                   </span>
                   <button
                     onClick={() => handleRestore(run)}
-                    className="text-[11px] text-[#1E5DF2] hover:underline"
+                    className="text-[11px] text-[#4B57DB] hover:underline"
                   >
                     Restore
                   </button>
@@ -1736,7 +1736,7 @@ function GenerateButtonWithHint({
       <button
         onClick={onClick}
         disabled={disabled}
-        className="text-[#1E5DF2] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
+        className="text-[#4B57DB] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
       >
         <ArrowRight size={14} strokeWidth={1.5} />
       </button>
@@ -1764,7 +1764,6 @@ function formatNodeType(type: string): string {
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
 export type InspectorPanelV3Handle = {
-  switchToPromptTab: () => void;
   retryGeneration: () => void;
 };
 
@@ -1789,9 +1788,8 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   // Ref for PromptComposer's generate function — set by PromptComposer, read by imperative handle
   const retryRef = React.useRef<(() => void) | null>(null);
 
-  // Expose imperative handle so parent can switch to prompt tab or retry generation
+  // Expose imperative handle so parent can retry generation
   React.useImperativeHandle(externalPanelRef, () => ({
-    switchToPromptTab: () => setActiveTab("prompt"),
     retryGeneration: () => retryRef.current?.(),
   }));
 
@@ -1921,7 +1919,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l border-[#E5E5E0] bg-white/95 backdrop-blur-sm"
+      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l-[0.5px] border-[#EFEFEC] bg-white"
     >
       {/* Header area — shrink-0 so it never grows/shrinks */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] shrink-0">
@@ -1952,7 +1950,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
       </div>
 
       {/* Tabs — shrink-0, never participates in flex distribution */}
-      <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} isGenerating={prompt.isGenerating ?? false} />
+      <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Breakpoint badge (below tabs, non-desktop only) — shrink-0 */}
       {showBreakpointBadge && activeArtboard && (
@@ -1965,46 +1963,34 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
       )}
 
       {/* ── Single content area — flex-1 min-h-0, one mode at a time ── */}
-      {activeTab === "prompt" ? (
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <PromptComposer
-            textareaRef={textareaRef}
-            selectedNode={selectedNode}
-            projectId={projectId}
-            varySignal={varySignal}
-            retryRef={retryRef}
-          />
-        </div>
-      ) : (
-        <div
-          ref={inspectorScrollRef}
-          className="flex-1 min-h-0 overflow-y-auto"
-        >
-          {activeTab === "design" ? (
-            <>
-              {/* AI Preview bar */}
-              <AnimatePresence>
-                {state.aiPreview?.active && !prompt.isGenerating && (
-                  <AIPreviewBar
-                    onAccept={handleAcceptPreview}
-                    onReject={handleRejectPreview}
-                    onVary={handleVaryPreview}
-                  />
-                )}
-              </AnimatePresence>
+      <div
+        ref={inspectorScrollRef}
+        className="flex-1 min-h-0 overflow-y-auto"
+      >
+        {activeTab === "design" ? (
+          <>
+            {/* AI Preview bar */}
+            <AnimatePresence>
+              {state.aiPreview?.active && !prompt.isGenerating && (
+                <AIPreviewBar
+                  onAccept={handleAcceptPreview}
+                  onReject={handleRejectPreview}
+                  onVary={handleVaryPreview}
+                />
+              )}
+            </AnimatePresence>
 
-              <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
-            </>
-          ) : activeTab === "export" ? (
-            <ExportTab
-              artboard={activeArtboard}
-              selectedNodeId={selection.selectedNodeId}
-            />
-          ) : (
-            <CSSTab resolvedStyle={resolvedStyle} />
-          )}
-        </div>
-      )}
+            <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
+          </>
+        ) : activeTab === "export" ? (
+          <ExportTab
+            artboard={activeArtboard}
+            selectedNodeId={selection.selectedNodeId}
+          />
+        ) : (
+          <CSSTab resolvedStyle={resolvedStyle} />
+        )}
+      </div>
     </div>
   );
 }

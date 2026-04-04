@@ -11,7 +11,7 @@ function fallbackAnalysis(images: string[]): ImageAnalysis {
 
   return {
     colors: {
-      dominant: ["#1E5DF2", "#0F172A", "#FAFAF8"],
+      dominant: ["#4B57DB", "#0F172A", "#FAFAF8"],
       accents: ["#4B83F7"],
       neutrals: ["#FAFAF8", "#FFFFFF", "#E5E5E0"],
       confidence: {

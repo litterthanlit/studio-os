@@ -28,9 +28,9 @@ export function InspectorSegmented({
             key={opt.value}
             type="button"
             className={cn(
-              "flex-1 px-2 py-1.5 text-[11px] text-center transition-colors",
+              "flex-1 px-2 py-1 text-[10px] font-mono text-center transition-colors",
               value === opt.value
-                ? "bg-[#1E5DF2] text-white"
+                ? "bg-[#4B57DB] text-white"
                 : "text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
             )}
             onClick={() => onChange(opt.value)}

@@ -33,7 +33,7 @@ interface GenerationAnimationProps {
 const WARM_BG = "#F5F5F4";
 const DOT_COLOR = "#1A1A1A";
 const BAR_COLOR = "#1A1A1A";
-const ACCENT_BLUE = "#1E5DF2";
+const ACCENT_BLUE = "#4B57DB";
 const MUTED_TEXT = "#A0A0A0";
 const AMBER = "#F59E0B";
 
@@ -514,7 +514,7 @@ export function GenerationAnimation({
           {onRetry && (
             <button
               onClick={onRetry}
-              className="text-[12px] text-[#1E5DF2] hover:underline"
+              className="text-[12px] text-[#4B57DB] hover:underline"
             >
               Retry
             </button>

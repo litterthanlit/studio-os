@@ -38,7 +38,7 @@ function BarButton({
       className={cn(
         "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors duration-75",
         active
-          ? "bg-[#D1E4FC]/30 text-[#1E5DF2]"
+          ? "bg-[#D1E4FC]/30 text-[#4B57DB]"
           : "text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
       )}
     >
@@ -76,7 +76,7 @@ export function BottomBar({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-      <div className="pointer-events-auto flex h-9 max-w-[480px] items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
+      <div className="pointer-events-auto flex h-9 max-w-[480px] items-center gap-1 rounded-[4px] border border-[#E5E5E0] bg-white px-2 shadow-sm">
         {/* ── Zoom controls ── */}
         <BarButton onClick={onZoomOut} title="Zoom out (⌘−)">
           <Minus size={14} strokeWidth={1.5} />

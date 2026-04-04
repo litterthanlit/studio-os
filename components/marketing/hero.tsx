@@ -467,7 +467,7 @@ export function Hero() {
                     </div>
                   ))}
                   {/* Projects list */}
-                  <div className="mt-3 px-2 pb-1 text-[9px] font-medium uppercase tracking-widest text-neutral-400">Projects</div>
+                  <div className="mt-3 px-2 pb-1 text-[9px] font-medium uppercase tracking-[1px] text-neutral-400">Projects</div>
                   {[
                     { name: "Acme Rebrand", color: "#FF5533" },
                     { name: "Lumina App", color: "#7C3AED" },
@@ -524,7 +524,7 @@ export function Hero() {
                   {/* Recent projects */}
                   <div className="mb-5">
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[9px] font-medium uppercase tracking-widest text-neutral-400">Recent Projects</span>
+                      <span className="text-[9px] font-medium uppercase tracking-[1px] text-neutral-400">Recent Projects</span>
                       <span className="text-[9px] text-neutral-400">View all →</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -567,7 +567,7 @@ export function Hero() {
                   {/* Inspiration */}
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-[9px] font-medium uppercase tracking-widest text-neutral-400">Daily Inspiration</span>
+                      <span className="text-[9px] font-medium uppercase tracking-[1px] text-neutral-400">Daily Inspiration</span>
                       <span className="text-[9px] text-neutral-400">Abstract</span>
                     </div>
                     <div className="grid grid-cols-6 gap-1.5">

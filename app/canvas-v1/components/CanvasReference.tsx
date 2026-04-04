@@ -51,8 +51,8 @@ export function CanvasReference({
         className={cn(
           "canvas-reference relative cursor-pointer rounded-[4px] border overflow-hidden bg-white transition-[border-color,box-shadow,shadow] duration-150",
           isSelected
-            ? "outline outline-1 outline-[#1E5DF2] border-[#1E5DF2]"
-            : "border-[#E5E5E0] hover:outline hover:outline-1 hover:outline-[#1E5DF2]/40",
+            ? "outline outline-1 outline-[#4B57DB] border-[#4B57DB]"
+            : "border-[#E5E5E0] hover:outline hover:outline-1 hover:outline-[#4B57DB]/40",
           (isDragging || isResizing) ? "shadow-md" : "shadow-sm"
         )}
         style={{
@@ -79,17 +79,17 @@ export function CanvasReference({
 
         {/* Annotation pin */}
         {item.annotation && (
-          <div className="absolute bottom-2 right-2 h-2.5 w-2.5 rounded-full bg-[#1E5DF2] shadow-sm" />
+          <div className="absolute bottom-2 right-2 h-2.5 w-2.5 rounded-full bg-[#4B57DB] shadow-sm" />
         )}
 
         {/* Analyzing indicator — pulsing dot */}
         {isAnalyzing && (
-          <div className="absolute top-2 left-2 h-2 w-2 rounded-full bg-[#1E5DF2] opacity-60 animate-pulse" />
+          <div className="absolute top-2 left-2 h-2 w-2 rounded-full bg-[#4B57DB] opacity-60 animate-pulse" />
         )}
 
         {/* Style ref badge */}
         {item.isStyleRef && (
-          <div className="absolute top-2 right-2 rounded-[2px] bg-[#1E5DF2] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-white">
+          <div className="absolute top-2 right-2 rounded-[2px] bg-[#4B57DB] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-white">
             Style
           </div>
         )}

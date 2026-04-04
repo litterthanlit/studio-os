@@ -75,14 +75,14 @@ export function ResizeHandles({ width, height, onHandlePointerDown }: ResizeHand
             width: HANDLE_SIZE,
             height: HANDLE_SIZE,
             borderRadius: 1,
-            border: "1px solid #1E5DF2",
+            border: "1px solid #4B57DB",
             backgroundColor: "white",
             cursor,
             zIndex: 10,
             ...getStyle(width, height),
           }}
           onPointerDown={(e) => onHandlePointerDown(e, position)}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#1E5DF2"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#4B57DB"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "white"; }}
         />
       ))}

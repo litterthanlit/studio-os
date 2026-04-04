@@ -112,7 +112,7 @@ function IconToggleGroup({
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
             value === opt.value
-              ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
               : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
           )}
         >
@@ -147,7 +147,7 @@ function InlineAddableRow({
         <button
           type="button"
           onClick={onAdd}
-          className="text-[#A0A0A0] hover:text-[#1E5DF2] transition-colors"
+          className="text-[#A0A0A0] hover:text-[#4B57DB] transition-colors"
         >
           <Plus size={12} />
         </button>
@@ -289,7 +289,7 @@ export function InspectorSkeleton({
       {/* ── BREAKPOINT LABEL ─────────────────────────────────────────── */}
       {isNonDesktop && (
         <div className="px-4 pt-3 pb-1">
-          <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-mono">
+          <span className="text-[10px] uppercase tracking-[1px] text-[#8A8A8A] font-mono">
             Mobile ({BREAKPOINT_WIDTHS[bp]}px)
           </span>
         </div>
@@ -530,7 +530,7 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-bold transition-colors",
                     (style.fontWeight ?? 400) >= 700
-                      ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+                      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
                       : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
                   )}
                   onClick={() => {
@@ -548,7 +548,7 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-medium transition-colors",
                     style.fontStyle === "italic"
-                      ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+                      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
                       : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
                   )}
                   style={{ fontStyle: "italic" }}
@@ -567,7 +567,7 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-medium transition-colors",
                     style.textDecoration === "underline"
-                      ? "bg-[#D1E4FC]/40 text-[#1E5DF2]"
+                      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
                       : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
                   )}
                   style={{ textDecoration: "underline" }}
@@ -755,7 +755,7 @@ export function InspectorSkeleton({
                   breakpoint: "mobile",
                 })
               }
-              className="accent-[#1E5DF2] w-3.5 h-3.5 cursor-pointer"
+              className="accent-[#4B57DB] w-3.5 h-3.5 cursor-pointer"
             />
           </label>
         </InspectorCollapsible>

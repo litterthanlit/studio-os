@@ -212,7 +212,7 @@ export function DesignNodeContextMenu({
                     onSaveToLibrary(saveName.trim());
                   }
                 }}
-                className="text-[12px] text-[#1E5DF2] font-medium shrink-0 px-1"
+                className="text-[12px] text-[#4B57DB] font-medium shrink-0 px-1"
               >
                 Save
               </button>

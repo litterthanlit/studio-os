@@ -38,8 +38,8 @@ function RailButton({
       className={cn(
         "w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent",
         active
-          ? "text-[#1E5DF2] bg-[#F5F5F0]"
-          : "text-[#A0A0A0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
+          ? "text-[#4B57DB] bg-[#F5F5F0]"
+          : "text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
       )}
     >
       {children}
@@ -60,15 +60,11 @@ function RailLink({
     <Link
       href={href}
       title={title}
-      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#A0A0A0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
+      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
     >
       {children}
     </Link>
   );
-}
-
-function Separator() {
-  return <div className="w-6 h-px bg-[#E5E5E0] my-1.5" />;
 }
 
 export function MiniRail({
@@ -79,12 +75,12 @@ export function MiniRail({
   onShowWelcome,
 }: MiniRailProps) {
   return (
-    <div className="w-12 h-full bg-[#FAFAF8] border-r border-[#E5E5E0] flex flex-col items-center py-3 gap-0.5 flex-shrink-0 z-30">
+    <div className="w-12 h-full bg-[#FAFAF8] border-r-[0.5px] border-[#EFEFEC] flex flex-col items-center py-3 flex-shrink-0 z-30">
       {/* Logo mark */}
       <Link
         href="/home"
         title="Studio OS"
-        className="w-8 h-8 flex items-center justify-center mb-0.5"
+        className="w-8 h-8 flex items-center justify-center mb-4"
       >
         <svg
           width="20"
@@ -101,45 +97,45 @@ export function MiniRail({
         </svg>
       </Link>
 
-      <Separator />
-
       {/* Panel toggles */}
-      <RailButton
-        active={layersVisible}
-        onClick={onToggleLayers}
-        title="Toggle Layers"
-      >
-        <Layers size={18} strokeWidth={1} />
-      </RailButton>
+      <div className="flex flex-col items-center gap-0.5">
+        <RailButton
+          active={layersVisible}
+          onClick={onToggleLayers}
+          title="Toggle Layers"
+        >
+          <Layers size={18} strokeWidth={1} />
+        </RailButton>
 
-      <RailButton
-        active={inspectorVisible}
-        onClick={onToggleInspector}
-        title="Toggle Inspector"
-      >
-        <SlidersHorizontal size={18} strokeWidth={1} />
-      </RailButton>
-
-      <Separator />
+        <RailButton
+          active={inspectorVisible}
+          onClick={onToggleInspector}
+          title="Toggle Inspector"
+        >
+          <SlidersHorizontal size={18} strokeWidth={1} />
+        </RailButton>
+      </div>
 
       {/* Navigation */}
-      <RailLink href="/home" title="Home">
-        <Home size={18} strokeWidth={1} />
-      </RailLink>
+      <div className="flex flex-col items-center gap-0.5 mt-4">
+        <RailLink href="/home" title="Home">
+          <Home size={18} strokeWidth={1} />
+        </RailLink>
 
-      <RailLink href="/settings" title="Settings">
-        <Settings size={18} strokeWidth={1} />
-      </RailLink>
+        <RailLink href="/settings" title="Settings">
+          <Settings size={18} strokeWidth={1} />
+        </RailLink>
 
-      {/* Show welcome overlay */}
-      {onShowWelcome && (
-        <RailButton
-          onClick={onShowWelcome}
-          title="Show welcome guide"
-        >
-          <HelpCircle size={18} strokeWidth={1} />
-        </RailButton>
-      )}
+        {/* Show welcome overlay */}
+        {onShowWelcome && (
+          <RailButton
+            onClick={onShowWelcome}
+            title="Show welcome guide"
+          >
+            <HelpCircle size={18} strokeWidth={1} />
+          </RailButton>
+        )}
+      </div>
 
       {/* Spacer */}
       <div className="flex-1" />

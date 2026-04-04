@@ -56,7 +56,7 @@ export function ReferenceGrid({
                 className={cn(
                   "relative w-full overflow-hidden border bg-[#F5F5F0] aspect-square",
                   selected
-                    ? "border-[#1E5DF2] ring-1 ring-[#1E5DF2]"
+                    ? "border-[#4B57DB] ring-1 ring-[#4B57DB]"
                     : "border-[#E5E5E0] hover:border-[#D1E4FC]"
                 )}
               >

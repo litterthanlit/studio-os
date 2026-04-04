@@ -136,7 +136,7 @@ export function AsciiLoader({
                 cx={cx}
                 cy={cy}
                 r={Math.max(0.3, r)}
-                fill={isFilled ? "#1E5DF2" : "#E5E5E0"}
+                fill={isFilled ? "#4B57DB" : "#E5E5E0"}
                 opacity={isFilled ? 0.5 + fillIntensity * 0.5 : 0.5}
                 style={
                   isFilled
@@ -178,9 +178,9 @@ export function AsciiLoader({
             ))}
           </div>
           <div className="flex gap-3 text-[10px] uppercase tracking-[0.14em] text-[#A0A0A0]">
-            <span className={cn(phase === "analyzing" && "text-[#1E5DF2]")}>Read</span>
-            <span className={cn(phase === "composing" && "text-[#1E5DF2]")}>Compose</span>
-            <span className={cn(phase === "rendering" && "text-[#1E5DF2]")}>Render</span>
+            <span className={cn(phase === "analyzing" && "text-[#4B57DB]")}>Read</span>
+            <span className={cn(phase === "composing" && "text-[#4B57DB]")}>Compose</span>
+            <span className={cn(phase === "rendering" && "text-[#4B57DB]")}>Render</span>
           </div>
         </div>
       </div>

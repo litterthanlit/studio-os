@@ -12,6 +12,7 @@ import { useDragDesignNode } from "@/app/canvas-v1/hooks/useDragDesignNode";
 import { useSnapGuides } from "@/app/canvas-v1/hooks/useSnapGuides";
 import { ENTER_TEXT_EDIT_MODE_EVENT } from "@/app/canvas-v1/hooks/useCanvasKeyboard";
 import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
+import { SizingModeToast } from "./SizingModeToast";
 import { SnapGuideLines } from "./SnapGuideLines";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
@@ -729,6 +730,7 @@ function ResizeOverlay({
   onPushHistory,
   onResizeStart,
   onResizeDone,
+  onSizingModeChanged,
 }: {
   selectedNodeId: string | null;
   editingNodeId: string | null;
@@ -739,6 +741,7 @@ function ResizeOverlay({
   onPushHistory?: (description: string) => void;
   onResizeStart?: () => void;
   onResizeDone?: () => void;
+  onSizingModeChanged?: (axes: "width" | "height" | "both") => void;
 }) {
   const [nodeRect, setNodeRect] = React.useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
@@ -813,6 +816,7 @@ function ResizeOverlay({
           }}
           onResizeStart={onResizeStart}
           onResizeDone={onResizeDone}
+          onSizingModeChanged={onSizingModeChanged}
         />
       </div>
     </div>
@@ -843,6 +847,15 @@ export function ComposeDocumentViewV6({
 
   // ── Resize state lifted from DesignNodeResizeHandles ──────────────
   const [isResizing, setIsResizing] = React.useState(false);
+
+  // ── Sizing mode toast state ────────────────────────────────────────
+  const [sizingToast, setSizingToast] = React.useState<"width" | "height" | "both" | null>(null);
+  const handleSizingModeChanged = React.useCallback((axes: "width" | "height" | "both") => {
+    setSizingToast(axes);
+  }, []);
+  const handleToastDismiss = React.useCallback(() => {
+    setSizingToast(null);
+  }, []);
 
   // ── Shared interaction suppression flag ────────────────────────────
   // True when ANY interaction is active: drag, resize, pan, text edit.
@@ -1515,8 +1528,10 @@ export function ComposeDocumentViewV6({
           onPushHistory={onPushHistory}
           onResizeStart={() => setIsResizing(true)}
           onResizeDone={() => setIsResizing(false)}
+          onSizingModeChanged={handleSizingModeChanged}
         />
       )}
+      <SizingModeToast axes={sizingToast} onDismiss={handleToastDismiss} />
       {/* ── Selection label ── */}
       {interactive && selectedNodeInfo && selLabelPos && (
         <div style={{

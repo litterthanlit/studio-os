@@ -104,6 +104,8 @@ type DesignNodeResizeHandlesProps = {
   onResizeStart?: () => void;
   /** Called when a resize drag ends (pointer up or cancel) */
   onResizeDone?: () => void;
+  /** Called when resize converts a Fill axis to Fixed */
+  onSizingModeChanged?: (axes: "width" | "height" | "both") => void;
 };
 
 // ── Component ────────────────────────────────────────────────────────
@@ -116,6 +118,7 @@ export function DesignNodeResizeHandles({
   onResizeEnd,
   onResizeStart,
   onResizeDone,
+  onSizingModeChanged,
 }: DesignNodeResizeHandlesProps) {
   const resizingRef = useRef<{
     handle: HandlePosition;
@@ -133,10 +136,17 @@ export function DesignNodeResizeHandles({
     lastUpdateKey: string | null;
   } | null>(null);
 
+  // Allow Fill/Hug nodes to be resized — converts to Fixed on drag
   const canResizeWidth =
-    node.style.position === "absolute" || typeof node.style.width === "number";
+    node.style.position === "absolute" ||
+    typeof node.style.width === "number" ||
+    node.style.width === "fill" ||
+    node.style.width === "hug";
   const canResizeHeight =
-    node.style.position === "absolute" || typeof node.style.height === "number";
+    node.style.position === "absolute" ||
+    typeof node.style.height === "number" ||
+    node.style.height === "fill" ||
+    node.style.height === "hug";
 
   const enabledHandles = HANDLES.filter(({ position }) => {
     const affectsHorizontal =
@@ -179,6 +189,10 @@ export function DesignNodeResizeHandles({
         historyCaptured: false,
         lastUpdateKey: null,
       };
+
+      // Capture original sizing modes before any mutation
+      const originalWidthMode = node.style.width;
+      const originalHeightMode = node.style.height;
 
       onResizeStart?.();
 
@@ -355,6 +369,18 @@ export function DesignNodeResizeHandles({
           if (updateKey !== r.lastUpdateKey) {
             onResize(update);
           }
+          // Detect Fill → Fixed conversion and notify
+          if (onSizingModeChanged) {
+            const widthConverted = originalWidthMode === "fill" && r.canResizeWidth;
+            const heightConverted = originalHeightMode === "fill" && r.canResizeHeight;
+            if (widthConverted && heightConverted) {
+              onSizingModeChanged("both");
+            } else if (widthConverted) {
+              onSizingModeChanged("width");
+            } else if (heightConverted) {
+              onSizingModeChanged("height");
+            }
+          }
         }
         cleanup();
       };
@@ -377,7 +403,7 @@ export function DesignNodeResizeHandles({
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
     },
-    [canResizeHeight, canResizeWidth, node.style, nodeRect, zoom, onResize, onResizeEnd, onResizeStart, onResizeDone]
+    [canResizeHeight, canResizeWidth, node.style, nodeRect, zoom, onResize, onResizeEnd, onResizeStart, onResizeDone, onSizingModeChanged]
   );
 
   const w = nodeRect.width;

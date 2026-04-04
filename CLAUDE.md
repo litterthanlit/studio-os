@@ -139,6 +139,11 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - Phase 1b (Selection + Editing): Click-to-select via `data-node-id` attributes, `DesignNodeInspector` for property editing, inline text editing (double-click enters contentEditable with blue caret, Enter commits, Escape cancels), undo/redo via existing history engine
 - Phase 1c (Direct Manipulation): Drag-to-reposition for absolute-positioned nodes (`useDragDesignNode`), 8-handle resize (`DesignNodeResizeHandles`) with shift aspect-lock and alt center-resize, breakout mode toggle (flow/absolute) in inspector Position section
 - Interaction polish: Hover outlines (dashed blue, direct DOM mutation for zero re-renders), double-click drill-down to deepest child (`elementsFromPoint`), Escape hierarchy navigation (selected node → parent → deselect), smart snap guides (magenta lines, 5px threshold, edge + center alignment) via `useSnapGuides` + `SnapGuideLines`, breakout badge on absolute-positioned nodes, move cursor on selected absolute nodes
+- Track 1B (Selection & Manipulation): Multi-select (Shift+Click, rubber-band marquee, Cmd+A), primary/secondary selection visual distinction, inspector action bar (align/distribute/group/ungroup), multi-drag with snap guides on primary, group/ungroup (Cmd+G/Cmd+Shift+G) with `isGroup` metadata, z-order controls (Cmd+]/[), layers panel drag reorder (150ms hold-to-drag), updated Escape hierarchy (multi → primary → parent → deselect). Additive field approach: `selectedNodeId` (primary) + `selectedNodeIds` (full set).
+  - `lib/canvas/multi-select-helpers.ts` — selection math (normalize, bounds, align, distribute, LCA)
+  - `app/canvas-v1/hooks/useRubberBandSelection.ts` — marquee drag + hit testing
+  - `app/canvas-v1/components/MultiSelectActionBar.tsx` — align/distribute/group toolbar
+  - `app/canvas-v1/hooks/useLayersDragReorder.ts` — layers panel drag reorder
 
 The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compileTasteToDirectives()` → `buildPageTreePrompt()` → model → `PageNode` JSON → `validateDirectiveCompliance()` → `repairViolations()` → `scoreRealtimeFidelity()` → quality gate → 1+2 variant derivation. The taste profile is persisted per-project in localStorage via `project-store.ts`.
 

@@ -18,6 +18,7 @@ import {
 } from "@/lib/project-store";
 import type { ComposeDocument, ComposeOverlay, GeneratedVariant } from "./compose";
 import { BREAKPOINT_WIDTHS } from "./compose";
+import { runAutoToHugMigration } from "./design-node-migration";
 
 // ─── Core Types ──────────────────────────────────────────────────────────────
 
@@ -622,6 +623,7 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
  * Falls back to migrateToV3() if no V3 data exists or it's malformed.
  */
 export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
+  runAutoToHugMigration();
   if (typeof window === "undefined") return createEmptyCanvas();
 
   try {

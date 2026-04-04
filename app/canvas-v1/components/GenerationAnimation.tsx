@@ -14,12 +14,10 @@
  */
 
 import * as React from "react";
-import type { GenerationStage } from "@/lib/canvas/unified-canvas-state";
+import type { GenerationStage, GenerationResult } from "@/lib/canvas/unified-canvas-state";
 import { getGenerationStageLabel } from "@/lib/canvas/unified-canvas-state";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-
-export type GenerationResult = "success" | "error" | "credit-exhaustion" | "template-fallback" | null;
 
 interface GenerationAnimationProps {
   stage: GenerationStage;

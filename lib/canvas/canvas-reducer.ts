@@ -91,7 +91,7 @@ export type CanvasAction =
   | { type: "TOGGLE_PROMPT_PANEL" }
   | { type: "SET_SPLIT_RATIO"; ratio: number }
   | { type: "ADD_PROMPT_HISTORY"; entry: PromptRun }
-  | { type: "SET_PROMPT_STATUS"; isGenerating?: boolean; agentSteps?: string[] }
+  | { type: "SET_PROMPT_STATUS"; isGenerating?: boolean; agentSteps?: string[]; generationResult?: import("./unified-canvas-state").GenerationResult }
 
   // Generation
   | { type: "REPLACE_SITE"; artboards: ArtboardItem[]; promptEntry: PromptRun }
@@ -1329,6 +1329,9 @@ export function canvasReducer(
             ? { isGenerating: action.isGenerating }
             : {}),
           ...(action.agentSteps ? { agentSteps: action.agentSteps } : {}),
+          ...(action.generationResult !== undefined
+            ? { generationResult: action.generationResult }
+            : {}),
         },
       };
     }

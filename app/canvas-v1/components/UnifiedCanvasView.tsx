@@ -712,6 +712,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   isDragging={draggingId === item.id}
                   isGenerating={state.prompt.isGenerating}
                   agentSteps={state.prompt.agentSteps}
+                  generationResult={state.prompt.generationResult}
                   onOpenSectionLibrary={handleOpenSectionLibrary}
                   onFocusPromptWithPrefill={focusPromptWithPrefill}
                   onPointerDown={dragHandlers.onPointerDown}

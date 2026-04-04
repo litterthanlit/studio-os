@@ -1289,6 +1289,7 @@ function PromptComposer({
       type: "SET_PROMPT_STATUS",
       isGenerating: true,
       agentSteps: ["Preparing generation..."],
+      generationResult: null,
     });
 
     try {
@@ -1486,8 +1487,22 @@ function PromptComposer({
       };
 
       dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
+
+      // Detect template fallback vs AI success
+      const isTemplateFallback = chosenVariant.pageTreeSource === "template";
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        generationResult: isTemplateFallback ? "template-fallback" : "success",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
+      const errMsg = err instanceof Error ? err.message : "Generation failed";
+      setError(errMsg);
+      // Detect credit exhaustion by error message pattern
+      const isCreditExhaustion = errMsg.toLowerCase().includes("credit") || errMsg.toLowerCase().includes("quota");
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        generationResult: isCreditExhaustion ? "credit-exhaustion" : "error",
+      });
     } finally {
       dispatch({
         type: "SET_PROMPT_STATUS",

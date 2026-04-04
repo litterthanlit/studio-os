@@ -51,6 +51,7 @@ export type UnifiedCanvasState = {
     splitRatio?: number;
     isGenerating: boolean;
     agentSteps: string[];
+    generationResult: GenerationResult;
   };
   aiPreview: AIPreviewSession | null;
   exportArtifact: ExportArtifact | null;
@@ -132,6 +133,7 @@ export type ExportArtifact = {
  * Derived from `agentSteps` — no new state needed.
  */
 export type GenerationStage = "analyzing" | "composing" | "creating" | "building" | "idle";
+export type GenerationResult = "success" | "error" | "credit-exhaustion" | "template-fallback" | null;
 
 /**
  * Maps the current `agentSteps` array to a single animation stage.
@@ -218,6 +220,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
       isOpen: true,
       isGenerating: false,
       agentSteps: [],
+      generationResult: null,
     },
     aiPreview: null,
     exportArtifact: null,
@@ -606,6 +609,7 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
       ...state.prompt,
       isGenerating: false,
       agentSteps: [],
+      generationResult: null,
     },
     // AI preview is transient session state — never persist
     aiPreview: null,
@@ -679,6 +683,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
             ...loadedState.prompt,
             isGenerating: false,
             agentSteps: [],
+            generationResult: null,
           },
           aiPreview: null,
         };

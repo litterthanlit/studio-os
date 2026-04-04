@@ -6,10 +6,10 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { ComposeDocumentView, exitAnyActiveTextEditing } from "./ComposeDocumentView";
 import { ComposeDocumentViewV6, exitAnyActiveTextEditingV6 } from "./ComposeDocumentViewV6";
 import { BREAKPOINT_WIDTHS, findNodeById, isDesignNodeTree } from "@/lib/canvas/compose";
-import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
+import type { ArtboardItem, GenerationResult } from "@/lib/canvas/unified-canvas-state";
 import { getGenerationStage } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import { GenerationAnimation, type GenerationResult } from "./GenerationAnimation";
+import { GenerationAnimation } from "./GenerationAnimation";
 
 type CanvasArtboardProps = {
   item: ArtboardItem;

@@ -369,16 +369,18 @@ export function DesignNodeResizeHandles({
           if (updateKey !== r.lastUpdateKey) {
             onResize(update);
           }
-          // Detect Fill → Fixed conversion and notify
+          // Detect Fill → Fixed conversion and notify.
+          // Deferred via queueMicrotask to avoid "setState during render" warning —
+          // the pointerUp handler runs during a render reconciliation pass.
           if (onSizingModeChanged) {
             const widthConverted = originalWidthMode === "fill" && r.canResizeWidth;
             const heightConverted = originalHeightMode === "fill" && r.canResizeHeight;
-            if (widthConverted && heightConverted) {
-              onSizingModeChanged("both");
-            } else if (widthConverted) {
-              onSizingModeChanged("width");
-            } else if (heightConverted) {
-              onSizingModeChanged("height");
+            const axes = widthConverted && heightConverted ? "both"
+              : widthConverted ? "width"
+              : heightConverted ? "height"
+              : null;
+            if (axes) {
+              queueMicrotask(() => onSizingModeChanged(axes));
             }
           }
         }

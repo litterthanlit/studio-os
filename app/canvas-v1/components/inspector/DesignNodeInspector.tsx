@@ -228,7 +228,8 @@ export function DesignNodeInspector({
   node,
   documentColors,
 }: DesignNodeInspectorProps) {
-  const { dispatch } = useCanvas();
+  const { dispatch, state: canvasState } = useCanvas();
+  const zoom = canvasState.viewport.zoom || 1;
   const style = node.style;
   const sections = classifyDesignNode(node);
 
@@ -418,7 +419,7 @@ export function DesignNodeInspector({
                     applyImmediate({ width: "hug" }, "Set width to Hug");
                   } else {
                     const el = document.querySelector(`[data-node-id="${node.id}"]`);
-                    const measured = el ? Math.round(el.getBoundingClientRect().width) : 200;
+                    const measured = el ? Math.round(el.getBoundingClientRect().width / zoom) : 200;
                     applyImmediate({ width: measured }, "Set width to Fixed");
                   }
                 }}
@@ -459,7 +460,7 @@ export function DesignNodeInspector({
                     applyImmediate({ height: "hug" }, "Set height to Hug");
                   } else {
                     const el = document.querySelector(`[data-node-id="${node.id}"]`);
-                    const measured = el ? Math.round(el.getBoundingClientRect().height) : 200;
+                    const measured = el ? Math.round(el.getBoundingClientRect().height / zoom) : 200;
                     applyImmediate({ height: measured }, "Set height to Fixed");
                   }
                 }}

@@ -60,9 +60,15 @@ export function CanvasProvider({
 
   // On mount: load persisted state
   useEffect(() => {
+    hydratedRef.current = false; // Reset on projectId change
     const loaded = loadUnifiedCanvas(projectId);
     dispatch({ type: "LOAD_STATE", state: loaded });
-    hydratedRef.current = true;
+    // Defer hydrated flag until after the re-render from LOAD_STATE
+    // has updated latestStateRef. Without this, StrictMode unmount
+    // can flush the empty initial state before the real data arrives.
+    requestAnimationFrame(() => {
+      hydratedRef.current = true;
+    });
   }, [projectId]);
 
   // Keep a ref to the latest state so the unmount flush can access it

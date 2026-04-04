@@ -8,7 +8,7 @@ Studio OS is not just an editor — it's a **design harness** that improves AI m
 
 **Proven:** First benchmark (2026-03-23) — BS-01 Editorial set. Raw model scored 5/10, harnessed output scored 9/10. **Delta: +4 overall.** Typography was the biggest win (+6). Target of +3 exceeded.
 
-**V6 Renderer Proof (2026-03-23):** PageNode renderer hit a quality ceiling — editorial output looked like 'well-styled blocks' regardless of harness quality. V6 renderer architecture (5 universal node types: frame/text/image/button/divider, expanded CSS style model, hybrid auto-layout + breakout positioning) passed the visual proof gate. Hand-authored DesignNode editorial homepage renders at magazine quality. Next: teach AI generation to target the new model.
+**V6 Renderer Proof (2026-03-23):** PageNode renderer hit a quality ceiling — editorial output looked like 'well-styled blocks' regardless of harness quality. V6 renderer architecture (5 universal node types: frame/text/image/button/divider, expanded CSS style model, hybrid auto-layout + breakout positioning) passed the visual proof gate. Hand-authored DesignNode editorial homepage renders at magazine quality. AI generation now targets the DesignNode model — all phases complete through Track 2 + generation animation.
 
 Designers think in images and references, not text prompts. Studio OS bridges that gap:
 1. **Import** moodboards, screenshots, references onto the canvas
@@ -17,7 +17,7 @@ Designers think in images and references, not text prompts. Studio OS bridges th
 4. **Generate** — AI produces sites matching the designer's visual intent, not generic templates
 5. **Refine** — designer edits become implicit taste feedback for the next generation
 
-The harness lives in: `TasteProfile` extraction → `tasteToDesignDirectives()` → `referenceFidelityRules()` → `buildPageTreePrompt()` → structured `PageNode` JSON output. Every generation is taste-informed and immediately editable on the canvas.
+The harness lives in: `TasteProfile` extraction → `tasteToDesignDirectives()` → `referenceFidelityRules()` → prompt builder → structured JSON output. V6 pipeline uses `buildDesignTreePrompt()` targeting DesignNode (primary). PageNode pipeline via `buildPageTreePrompt()` remains as fallback. Every generation is taste-informed and immediately editable on the canvas.
 
 ## Commands
 
@@ -120,18 +120,18 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - `benchmark-sets.json` — 4 curated benchmark sets (Editorial, Clean SaaS, Creative Agency, Brutalist)
 - `benchmark-refs/BS-01/` — 10 pre-resolved reference images for editorial benchmark
 
-**V6 Renderer (Phase 1a, 1b, 1c, 2a, 2b complete):**
+**V6 Renderer (all phases complete through Track 2 + generation animation):**
 
-- `lib/canvas/design-node.ts` — V6 node model: 5 universal types (frame, text, image, button, divider) with expanded CSS style properties (positioning, grid, coverImage, z-index)
+- `lib/canvas/design-node.ts` — V6 node model: 5 universal types (frame, text, image, button, divider) with expanded CSS style properties (positioning, grid, coverImage, z-index). Width/height type: `number | "hug" | "fill"` (Track 2 clean break from `"auto"`)
 - `lib/canvas/design-style-to-css.ts` — single translation layer from DesignNodeStyle to React CSSProperties
-- `lib/canvas/design-node-migration.ts` — PageNode → DesignNode bridge (converts all 16 old types, resolves tokens, decomposes card content)
+- `lib/canvas/design-node-migration.ts` — PageNode → DesignNode bridge (converts all 16 old types, resolves tokens, decomposes card content). Also handles auto→hug migration for stored trees across 5 localStorage sources (Track 2)
 - `app/canvas-v1/components/ComposeDocumentViewV6.tsx` — V6 renderer: renders DesignNode trees as live HTML/CSS with coverImage backgrounds, gradient scrim, CSS Grid, click-to-select, hover outlines, double-click drill-down, Escape hierarchy nav, drag-to-reposition, resize handles, snap guides
 - `lib/canvas/test-editorial-tree.ts` — hand-authored editorial proof tree
 - `app/(dashboard)/test-v6/page.tsx` — visual proof gate test page (http://localhost:3000/test-v6)
-- `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` — V6 inspector with Position (flow/breakout toggle, x/y/z-index), Layout (flex/grid, direction, align, justify, gap), Spacing (4-side padding), Typography (font family with inheritance, weight, size, line-height, tracking, align, style, decoration), Fill (background, foreground, cover image), Appearance (radius, border +/-, shadow, opacity) sections
+- `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` — V6 inspector with 7 sections: Position (flow/breakout toggle, x/y/z-index), Size (inline mode toggle Fixed/Fill/Hug + value field per axis, between Position and Layout), Layout (flex/grid, direction, align, justify, gap), Spacing (4-side padding), Typography (font family with inheritance, weight, size, line-height, tracking, align, style, decoration), Fill (background, foreground, cover image), Appearance (radius, border +/-, shadow, opacity)
 - `app/canvas-v1/hooks/useDragDesignNode.ts` — drag-to-reposition for absolute-positioned DesignNodes (zoom-aware, shift-axis lock, snap guide integration, history on pointerup)
 - `app/canvas-v1/hooks/useSnapGuides.ts` — smart snap guide calculation during drag (caches sibling bounds, 5px threshold, snaps to edges + centers)
-- `app/canvas-v1/components/DesignNodeResizeHandles.tsx` — 8-handle resize for DesignNodes (corners + edges, shift aspect-ratio lock, alt center-resize, min 20px, zoom-aware)
+- `app/canvas-v1/components/DesignNodeResizeHandles.tsx` — mode-aware 8-handle resize for DesignNodes (corners + edges, shift aspect-ratio lock, alt center-resize, min 20px, zoom-aware). Fill→Fixed conversion shows toast, Hug→Fixed converts silently
 - `app/canvas-v1/components/SnapGuideLines.tsx` — magenta snap alignment line overlay (full-container-width lines at snap positions during drag)
 
 **V6 Interaction Layer:**
@@ -144,6 +144,48 @@ The taste engine is what makes Studio OS a harness, not just an editor:
   - `app/canvas-v1/hooks/useRubberBandSelection.ts` — marquee drag + hit testing
   - `app/canvas-v1/components/MultiSelectActionBar.tsx` — align/distribute/group toolbar
   - `app/canvas-v1/hooks/useLayersDragReorder.ts` — layers panel drag reorder
+
+**Phase 5a — Export Pipeline (2026-04-03):**
+- `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes
+- `app/canvas-v1/components/inspector/ExportTab.tsx` — Selection/Full Page scope toggle, HTML preview, Copy HTML button
+
+**Component Gallery (2026-04-03):**
+- `lib/canvas/design-component-library.ts` — 7 pre-built DesignNode section templates (Hero, Split Content, Features Grid, Quote Block, Proof Row, CTA Banner, Footer), save-to-library, localStorage persistence
+- `app/canvas-v1/components/ComponentQuickPicker.tsx` — popover from insertion bars (templates + recent + Browse All)
+- `app/canvas-v1/components/ComponentGalleryPanel.tsx` — full slide-over with filter tabs, search, card grid
+
+**Right-Rail Refactor (2026-04-03):**
+- Split panel removed entirely. InspectorPanelV3 now uses single-mode exclusive tabs: Design | CSS | Export | Prompt
+- Each tab gets full height. No prompt cramping the inspector.
+
+**Taste Intelligence UX (2026-04-03):**
+- `app/canvas-v1/components/TasteCard.tsx` — extracted taste summary display
+- `app/canvas-v1/components/ReferenceRail.tsx` — horizontal reference image strip
+- Fidelity selector wired into Prompt tab (close/balanced/push modes)
+- `FidelityMode` persisted in project state
+
+**Canvas Feel — Track 1A (2026-04-03):**
+- Cursor states (pointer/move/grab/grabbing), solid hover outlines
+- Frame labels (hover type + blue selection label), parent boundary on drill-in
+- Spacing measurement guides (magenta lines with pixel distance pills between siblings)
+- Zoom steps (25%-400%), Cmd+0 zoom-to-fit, Cmd+1 zoom-to-selection
+- Insertion bar hover tint, empty frame indicator
+- Micro-interactions (resize handle scale, snap flash, breakout badge)
+
+**Track 2 — Layout Semantics (2026-04-04):**
+- Width/height type changed from `number | "auto" | "fill"` to `number | "hug" | "fill"` — clean break
+- `lib/canvas/design-node-migration.ts` extended with auto→hug migration across 5 localStorage sources
+- Inspector Size section added (between Position and Layout): inline mode toggle (Fixed/Fill/Hug) + value field per axis
+- Non-destructive resize: Fill/Hug nodes get handles, Fill→Fixed shows toast via `SizingModeToast.tsx`
+- `lib/canvas/design-tree-prompt.ts` updated to teach AI the Fill/Hug/Fixed vocabulary
+- `lib/canvas/canvas-context.tsx` — persistence hardening (unmount flush guard, deferred hydration)
+
+**Generation Animation (2026-04-04):**
+- `app/canvas-v1/components/GenerationAnimation.tsx` — Canvas 2D three-stage visualization (dot field → vertical bars → sine waves), replaces skeleton loading. 800ms handoff sequence (collapse → clear → reveal → normalize)
+- `GenerationStage` and `GenerationResult` types in unified-canvas-state.ts
+- `getGenerationStage()` derives animation phase from agentSteps
+- Failure states: credit exhaustion (freeze + pill), hard failure (dissolve + retry), template fallback (amber `#F59E0B` border + "TEMPLATE" badge)
+- Prompt-side quieted to single dim label during generation
 
 The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compileTasteToDirectives()` → `buildPageTreePrompt()` → model → `PageNode` JSON → `validateDirectiveCompliance()` → `repairViolations()` → `scoreRealtimeFidelity()` → quality gate → 1+2 variant derivation. The taste profile is persisted per-project in localStorage via `project-store.ts`.
 
@@ -203,75 +245,19 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - **List items** — compact rows (not big cards), 40px thumbnail, hover borders only.
 - **Destructive actions** — `text-red-500 hover:text-red-600` link-style text, no red buttons.
 
-### V3 Redesign Status
+### V3 Core Architecture (current)
 
-**V3 Unified Canvas** (complete):
 - `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds
-- `app/canvas-v1/components/InspectorPanelV3.tsx` — split panel: inspector (top) + embedded prompt composer (bottom), replaces floating PromptPanel
+- `app/canvas-v1/components/InspectorPanelV3.tsx` — 4 exclusive tabs: Design | CSS | Export | Prompt. Each tab gets full height. No split panel
 - `app/canvas-v1/components/LayersPanelV3.tsx` — grouped tree (Site/References/Notes)
 - `app/canvas-v1/components/BottomBarV3.tsx` — zoom, undo/redo, panel toggles
-- `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence
+- `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence. Also has GenerationStage, GenerationResult types and getGenerationStage() function
 - `lib/canvas/canvas-reducer.ts` + `canvas-context.tsx` + `history.ts` — state engine
 
-**V3.1 Polish** (complete, verified 2026-03-19):
-- Middle-mouse pan fix — capture phase on canvas root, `onAuxClick` suppression
-- Embedded prompt — floating PromptPanel removed, prompt/history/chips/generation embedded in inspector right rail split panel with draggable divider
-- Live editing feel — instant visual updates from inspector, debounced history (400ms/blur), blue caret in contentEditable, lighter edit-mode outline
-- Reference resize — 8 handles (corners + edges), aspect-ratio lock, inspector W/H with lock toggle
-- Visual polish — V2 dot grid, scan-line sweep on references, halftone on artboards, generation skeleton + agent log steps
-- Prompt resilience — generation now falls back to local/default design tokens when remote image analysis is unavailable, so prompt runs still create artboards/history in demo or offline-ish environments
-- Prompt history restore — each run stores an artboard snapshot so Restore can reinstate prior generations even after newer site replacements
-- IBM Plex Mono — replaces Geist Mono globally via Google Fonts runtime stylesheet + CSS variable/fallback cascade
-- `app/canvas-v1/hooks/useResize.ts` — resize hook (zoom-aware, aspect-ratio, min size)
-- `app/canvas-v1/components/ResizeHandles.tsx` — 8-handle resize UI
+**V3–V4.1 Editor History (2026-03-19 to 2026-03-22, complete):**
+V3 unified canvas (single infinite surface, all item kinds). V3.1 polish (embedded prompt, live editing feel, IBM Plex Mono). V3.2 inspector overhaul (shared primitives, spacing box model, color picker, section drag-reorder). V3.3 builder power (element action menu, section library, sibling reorder, AI contextual actions). V4 editor polish (context menu, escape hierarchy, Cmd+Click deep select, Tab navigation, breadcrumb bar, keyboard shortcuts, insertion bars with slash palette, AI preview/accept/reject, per-breakpoint responsive overrides). V4.1 inspector & canvas polish (stable 8-section skeleton, Design/CSS tabs, mini rail, breakpoint badge, addable Border/Shadow sections).
 
-**V3.2 Inspector + Reorder** (complete, verified 2026-03-19):
-- Inspector overhaul — shared V2-style primitives (`app/canvas-v1/components/inspector/InspectorField.tsx`), all 6 selection states rebuilt (text/media/container/reference/artboard/empty)
-- Spacing box model — `app/canvas-v1/components/inspector/SpacingDiagram.tsx`, two-axis paddingX/paddingY sync, collapsed single-padding mode, independent gap
-- Color picker refinement — portal rendering (`createPortal`), viewport clamping, anchor positioning, document colors deduplication (references + design tokens), hex 3→6 expansion, preview strip, defaults grid
-- Top-level section drag-reorder — `REORDER_NODE` reducer action, `SectionDragHandle.tsx` (GripVertical), midpoint-based insertion, CSS-transform visual drag (no optimistic state), cross-artboard siteId sync, Escape cancel, layers panel read-only
-- Scoping: no `PageNodeStyle` expansion, no new node types, no `UnifiedCanvasState` change
-
-**V3.3 Builder Power** (complete, verified 2026-03-20):
-- Element action menu — double-click popover with type-specific actions (Edit Text, Edit With AI, Replace Image, Add Section, Move, Duplicate, Delete)
-- PageNodeStyle extension — `fontStyle` (normal/italic), `textDecoration` (none/underline)
-- Whole-node floating toolbar — B/I/U/Font/Color/AI above selected text nodes, hides during inline editing
-- Curated section library — slide-over panel with 7 templates (Hero, Proof, Features, Testimonials, Pricing, CTA, Footer), `INSERT_SECTION` reducer action with cross-artboard sync
-- Section duplicate + delete — `DUPLICATE_SECTION` (deep copy with fresh IDs), `DELETE_SECTION` (undo via existing history), `Cmd+D` and `Delete` keyboard shortcuts
-- Sibling reorder — `REORDER_NODE` extended with `parentNodeId` for nested reorder (cards within grids, items within lists)
-- AI contextual actions — prompt pre-fill based on selected node type, contextual suggestion chips per node type
-- New files: `ElementActionMenu.tsx`, `NodeFormatToolbar.tsx`, `SectionLibraryPanel.tsx`, `lib/canvas/section-library.ts`
-- New reducer actions: `INSERT_SECTION`, `DUPLICATE_SECTION`, `DELETE_SECTION`
-- Interaction model: single-click selects (unchanged), double-click opens action popover, Edit Text enters contentEditable
-
-**V4 Editor Polish** (complete, verified 2026-03-20):
-- Right-click context menu — type-specific actions on every node (Edit Text, AI, Duplicate, Move Up/Down, Copy/Paste Style, Delete), portal-rendered with viewport clamping
-- Full escape hierarchy — text editing → node → parent → grandparent → deselected
-- Cmd+Click deep select — bypass hierarchy to select deepest node at click point via `elementsFromPoint` + `data-node-id`
-- Tab/Shift+Tab sibling navigation — cycle through siblings at same tree level, wraps at boundaries
-- Enter to start text editing — fires `ENTER_TEXT_EDIT_MODE_EVENT` on selected text node
-- Breadcrumb hierarchy bar — clickable path from root to selected node, breakpoint label as root segment
-- Keyboard shortcuts: Cmd+D duplicate, Delete remove, Cmd+[/] reorder, Cmd+Alt+C/V copy/paste style (excludes layout properties)
-- Between-section "+" insertion bars with "/" slash command palette (7 templates + Browse All + search + keyboard nav)
-- AI preview/accept/reject — AI edits stored as proposals via `AIPreviewSession`, accept commits, reject/vary restores prior state
-- Per-breakpoint responsive overrides — `UPDATE_NODE_STYLE` writes to `responsiveOverrides[breakpoint]` on non-desktop artboards, inspector shows blue dot indicators with click-to-reset, breakpoint label header, Hide on Tablet/Mobile visibility toggles
-- Inspector reads resolved style via `getNodeStyle(node, breakpoint)` — shows effective values including overrides
-- New files: `ContextMenu.tsx`, `BreadcrumbBar.tsx`, `SlashCommandPalette.tsx`, `AIPreviewBar.tsx`
-- New reducer actions: `START_AI_PREVIEW`, `ACCEPT_AI_PREVIEW`, `RESTORE_AI_PREVIEW`, `RESET_NODE_STYLE_OVERRIDE`, `TOGGLE_NODE_HIDDEN`
-- Modified: `useCanvasKeyboard.ts` (full shortcut set), `ComposeDocumentView.tsx` (deep select, hidden node filtering, insertion bars), `canvas-reducer.ts` (breakpoint-aware `UPDATE_NODE_STYLE`, `getActiveBreakpoint` helper), `InspectorPanelV3.tsx` (preview bar, override dots, visibility toggles, resolved style), `InspectorField.tsx` (`InspectorLabel` hasOverride/onResetOverride), `InsertionBar.tsx` (slash palette integration)
-
-**V4.1 Inspector & Canvas Polish** (complete, verified 2026-03-22):
-- Stable inspector skeleton — `InspectorSkeleton.tsx` renders 8 sections in fixed order (Layout, Spacing, Typography, Fill, Radius, Border, Shadow, Opacity) for ALL node types. Non-applicable sections show collapsed headers ("Controlled by parent container" / "Select a text element"). Follows Paper.design "same shell, different controls" pattern
-- Design/CSS tab switcher — `InspectorTabs.tsx` sticky tabs at top of inspector, switches between design controls (`InspectorSkeleton`) and CSS output (`CSSTab`)
-- CSS tab with Copy CSS — `CSSTab.tsx` converts `PageNodeStyle` to CSS string, displays in monospace `<pre>`, "Copy CSS" button via clipboard API
-- Breakpoint badge — `BreakpointBadge.tsx` shows active breakpoint label (e.g. "TABLET · 768PX") in blue accent below inspector tabs on non-desktop artboards
-- "+" add Border/Shadow — `AddableSection.tsx` pattern: sections 6 (Border) and 7 (Shadow) start hidden with a "+" add button, clicking adds default values; "×" removes. Keeps inspector clean when properties aren't set
-- Mini rail — `MiniRail.tsx` slim 48px left navigation rail in canvas view with logo mark, Layers/Inspector panel toggles, Home/Settings links, and back-to-dashboard button. Replaces full sidebar in canvas context
-- Layers visible by default — `UnifiedCanvasView.tsx` initializes `showLayers` to `true` so layers panel is open on canvas load
-- Text deselect on click-outside — clicking empty area within artboard (no `[data-node-id]` ancestor) calls `onSelectNode(null)`. `exitAnyActiveTextEditing()` blurs active contentEditable before new selection
-- Cmd+Z during AI preview rejects — `UNDO` reducer case checks `state.aiPreview` first; if active, restores `beforeItems`/`beforeSelection` and clears preview (same as Reject)
-- New files: `InspectorSkeleton.tsx`, `InspectorTabs.tsx`, `CSSTab.tsx`, `BreakpointBadge.tsx`, `AddableSection.tsx`, `InspectorCollapsible.tsx`, `InspectorSegmented.tsx`, `MiniRail.tsx`
-- Modified: `InspectorPanelV3.tsx` (tab state, skeleton integration, CSS tab, breakpoint badge), `UnifiedCanvasView.tsx` (MiniRail mount, layers default true), `ComposeDocumentView.tsx` (click-outside deselect)
+Key V3-V4.1 files: `ElementActionMenu.tsx`, `NodeFormatToolbar.tsx`, `SectionLibraryPanel.tsx`, `ContextMenu.tsx`, `BreadcrumbBar.tsx`, `SlashCommandPalette.tsx`, `AIPreviewBar.tsx`, `InsertionBar.tsx`, `MiniRail.tsx`, `InspectorSkeleton.tsx`, `InspectorTabs.tsx`, `CSSTab.tsx`, `BreakpointBadge.tsx`, `AddableSection.tsx`.
 
 **Dashboard screens** (V2 design, unchanged in V3):
 - `app/(dashboard)/home/home-client.tsx` — greeting, search, project list → routes to canvas
@@ -318,14 +304,14 @@ Single infinite canvas per project. References, generation, and composition on o
 
 **Data model:** `UnifiedCanvasState` with flat `items: CanvasItem[]` array. Four item kinds: `reference`, `artboard`, `note`, `arrow`. Single-variant: one active site per project (desktop/tablet/mobile artboards). State persisted to `studio-os:canvas-v3:${projectId}`.
 
-**State engine:** `useReducer`-style reducer (`canvas-reducer.ts`) with 29 action types. Snapshot-based undo/redo history (`history.ts`) — max 50 entries, in-memory only. Coalescing: drag commits on pointer-up, text edits on 400ms debounce, AI actions once per response.
+**State engine:** `useReducer`-style reducer (`canvas-reducer.ts`) with 30+ action types. Snapshot-based undo/redo history (`history.ts`) — max 50 entries, in-memory only. Coalescing: drag commits on pointer-up, text edits on 400ms debounce, AI actions once per response.
 
 **Layout:** References cluster on the left (3-column grid at x=100). Artboards positioned on the right (desktop at x=1200, tablet at x=2720, mobile at x=3568). Desktop artboard: `border-t-2 border-t-[#1E5DF2]`. Others: `border-t border-t-[#E5E5E0]`. Headers: `font-mono text-[10px] uppercase tracking-widest`.
 
 **Panels:**
 - LayersPanelV3: 240px left, grouped tree (Site/References/Notes), recursive expand/collapse
-- InspectorPanelV3: 280px right, single scroll, adapts by selection type (reference/artboard/node/empty)
-- Prompt Composer: embedded in InspectorPanelV3 bottom split, generation + history + suggestion chips + agent log
+- InspectorPanelV3: 280px right, 4 exclusive tabs (Design/CSS/Export/Prompt), adapts by selection type (reference/artboard/node/empty)
+- Prompt Composer: Prompt tab in InspectorPanelV3, generation + history + suggestion chips + agent log + taste card + reference rail + fidelity selector
 - BottomBarV3: floating centered strip — zoom, undo/redo, panel toggles (L/I/P)
 
 **Interactions:** `useDrag` (pointer cycle, shift-axis lock), `useCanvasGestures` (wheel zoom, space+drag pan, middle-mouse pan), file drop, clipboard paste, `useCanvasKeyboard` (full shortcut set).
@@ -349,11 +335,11 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/canvas-client.tsx` | Legacy CanvasPage + V3 UnifiedCanvasPage export |
 | `app/canvas-v1/components/UnifiedCanvasView.tsx` | V3 canvas renderer — items, drag, gestures, drop, paste |
 | `app/canvas-v1/components/CanvasReference.tsx` | Reference card — image, annotation pin, color dots, style badge |
-| `app/canvas-v1/components/CanvasArtboard.tsx` | Artboard wrapper — header, ComposeDocumentView, click overlay |
+| `app/canvas-v1/components/CanvasArtboard.tsx` | Artboard wrapper — header, ComposeDocumentView, click overlay, GenerationAnimation, handoff sequence, template fallback amber state |
 | `app/canvas-v1/components/PromptPanel.tsx` | Legacy floating prompt (preserved for rollback, not rendered in V3.1) |
 | `app/canvas-v1/hooks/useResize.ts` | Resize hook — pointer cycle, zoom-aware, aspect-ratio lock |
 | `app/canvas-v1/components/ResizeHandles.tsx` | 8-handle resize UI for reference items |
-| `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px split panel — inspector (top) + embedded prompt composer (bottom), selection-adaptive |
+| `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px right rail — 4 exclusive tabs (Design/CSS/Export/Prompt), full-height per tab, selection-adaptive |
 | `app/canvas-v1/components/LayersPanelV3.tsx` | 240px tree navigator — Site/References/Notes groups |
 | `app/canvas-v1/components/BottomBarV3.tsx` | Transport strip — zoom, undo/redo, panel toggles |
 | `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — portal, viewport clamping, document colors, hex input, defaults grid |
@@ -387,14 +373,23 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/hooks/useCanvasGestures.ts` | Pan/zoom — wheel, pinch, space+drag, middle-mouse |
 | `app/canvas-v1/hooks/useCanvasKeyboard.ts` | Full keyboard shortcut set |
 | `app/canvas-v1/hooks/useReferenceExtractor.ts` | Auto-extraction via /api/ai/tag |
-| `lib/canvas/unified-canvas-state.ts` | V3 types, migration, persistence (load/save) |
-| `lib/canvas/canvas-reducer.ts` | Reducer — 29 actions, history integration |
+| `lib/canvas/unified-canvas-state.ts` | V3 types, migration, persistence (load/save), GenerationStage/GenerationResult types, getGenerationStage() |
+| `lib/canvas/canvas-reducer.ts` | Reducer — 30+ actions, history integration |
 | `lib/canvas/section-library.ts` | 7 section templates (Hero, Proof, Features, Testimonials, Pricing, CTA, Footer) — PageNode factories |
 | `lib/canvas/canvas-context.tsx` | React provider — load, debounced save, useCanvas hook |
 | `lib/canvas/history.ts` | Snapshot-based undo/redo engine (pure functions) |
 | `lib/canvas/compose.ts` | ComposeDocument types, `createInitialArtboards()`, `fitArtboardsToView()` |
 | `lib/project-store.ts` | localStorage API for all project/reference/state data |
 | `lib/ai/model-router.ts` | Multi-model AI router via OpenRouter |
+| `app/canvas-v1/components/GenerationAnimation.tsx` | Canvas 2D generation animation — three-stage visualization (dots → bars → waves), failure/fallback states, 800ms handoff |
+| `app/canvas-v1/components/SizingModeToast.tsx` | "Converted to Fixed" toast on Fill→Fixed resize conversion |
+| `app/canvas-v1/components/inspector/ExportTab.tsx` | Export tab — selection/full-page scope, HTML preview, Copy HTML |
+| `app/canvas-v1/components/TasteCard.tsx` | Extracted taste summary display in Prompt tab |
+| `app/canvas-v1/components/ReferenceRail.tsx` | Horizontal reference image strip in Prompt tab |
+| `app/canvas-v1/components/ComponentQuickPicker.tsx` | Quick insert popover — templates + recent + Browse All |
+| `app/canvas-v1/components/ComponentGalleryPanel.tsx` | Full component gallery — filter tabs, search, card grid |
+| `lib/canvas/design-component-library.ts` | 7 DesignNode section templates + saved component persistence |
+| `lib/canvas/design-node-to-html.ts` | DesignNode → HTML conversion with inline styles |
 
 ### Pre-existing TypeScript Errors (not regressions)
 - `canvas-client.tsx:525` — token merge type mismatch (`Record<string, unknown>` vs `Record<string, string>`)

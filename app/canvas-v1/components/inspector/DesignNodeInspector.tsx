@@ -190,18 +190,29 @@ function resolveInheritedTypography(
 function classifyDesignNode(node: DesignNode) {
   switch (node.type) {
     case "frame":
-      return { showLayout: true, showSpacing: true, showTypography: false, showFill: true, showAppearance: true };
+      return { showSize: true, showLayout: true, showSpacing: true, showTypography: false, showFill: true, showAppearance: true };
     case "text":
-      return { showLayout: false, showSpacing: true, showTypography: true, showFill: true, showAppearance: true };
+      return { showSize: true, showLayout: false, showSpacing: true, showTypography: true, showFill: true, showAppearance: true };
     case "image":
-      return { showLayout: false, showSpacing: false, showTypography: false, showFill: true, showAppearance: true };
+      return { showSize: true, showLayout: false, showSpacing: false, showTypography: false, showFill: true, showAppearance: true };
     case "button":
-      return { showLayout: false, showSpacing: false, showTypography: true, showFill: true, showAppearance: true };
+      return { showSize: true, showLayout: false, showSpacing: false, showTypography: true, showFill: true, showAppearance: true };
     case "divider":
-      return { showLayout: false, showSpacing: false, showTypography: false, showFill: false, showAppearance: true };
+      return { showSize: false, showLayout: false, showSpacing: false, showTypography: false, showFill: false, showAppearance: true };
     default:
-      return { showLayout: false, showSpacing: false, showTypography: false, showFill: false, showAppearance: true };
+      return { showSize: false, showLayout: false, showSpacing: false, showTypography: false, showFill: false, showAppearance: true };
   }
+}
+
+// ── Sizing mode helper ───────────────────────────────────────────────────────
+
+type SizingMode = "fixed" | "fill" | "hug";
+
+function getSizingMode(value: number | "hug" | "fill" | undefined): SizingMode {
+  if (value === "fill") return "fill";
+  if (value === "hug") return "hug";
+  if (typeof value === "number") return "fixed";
+  return "hug";
 }
 
 // ── DesignNodeInspector ─────────────────────────────────────────────────────
@@ -385,6 +396,95 @@ export function DesignNodeInspector({
           )}
         </div>
       </InspectorCollapsible>
+
+      {/* ── SIZE ──────────────────────────────────────────────────────── */}
+      {sections.showSize && (
+        <InspectorCollapsible label="Size">
+          <div className="space-y-1.5">
+            {/* Width */}
+            <div className="flex items-center gap-1.5">
+              <InspectorLabel hasOverride={hasOverride("width")} onResetOverride={() => resetOverride("width")}>W</InspectorLabel>
+              <InspectorSegmented
+                value={getSizingMode(style.width)}
+                options={[
+                  { value: "fixed", label: "Fixed" },
+                  { value: "fill", label: "Fill" },
+                  { value: "hug", label: "Hug" },
+                ]}
+                onChange={(mode) => {
+                  if (mode === "fill") {
+                    applyImmediate({ width: "fill" }, "Set width to Fill");
+                  } else if (mode === "hug") {
+                    applyImmediate({ width: "hug" }, "Set width to Hug");
+                  } else {
+                    const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                    const measured = el ? Math.round(el.getBoundingClientRect().width) : 200;
+                    applyImmediate({ width: measured }, "Set width to Fixed");
+                  }
+                }}
+              />
+              {getSizingMode(style.width) === "fixed" ? (
+                <InspectorNumberInput
+                  value={typeof style.width === "number" ? style.width : ""}
+                  placeholder="0"
+                  min={0}
+                  className="w-[60px]"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle({ width: val ? Number(val) : 0 });
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              ) : (
+                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] bg-[#F5F5F0] border border-[#E5E5E0] rounded-[2px] text-right">
+                  {getSizingMode(style.width) === "fill" ? "Fill" : "Hug"}
+                </div>
+              )}
+            </div>
+
+            {/* Height */}
+            <div className="flex items-center gap-1.5">
+              <InspectorLabel hasOverride={hasOverride("height")} onResetOverride={() => resetOverride("height")}>H</InspectorLabel>
+              <InspectorSegmented
+                value={getSizingMode(style.height)}
+                options={[
+                  { value: "fixed", label: "Fixed" },
+                  { value: "fill", label: "Fill" },
+                  { value: "hug", label: "Hug" },
+                ]}
+                onChange={(mode) => {
+                  if (mode === "fill") {
+                    applyImmediate({ height: "fill" }, "Set height to Fill");
+                  } else if (mode === "hug") {
+                    applyImmediate({ height: "hug" }, "Set height to Hug");
+                  } else {
+                    const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                    const measured = el ? Math.round(el.getBoundingClientRect().height) : 200;
+                    applyImmediate({ height: measured }, "Set height to Fixed");
+                  }
+                }}
+              />
+              {getSizingMode(style.height) === "fixed" ? (
+                <InspectorNumberInput
+                  value={typeof style.height === "number" ? style.height : ""}
+                  placeholder="0"
+                  min={0}
+                  className="w-[60px]"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    updateStyle({ height: val ? Number(val) : 0 });
+                  }}
+                  onBlur={() => history.flush()}
+                />
+              ) : (
+                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] bg-[#F5F5F0] border border-[#E5E5E0] rounded-[2px] text-right">
+                  {getSizingMode(style.height) === "fill" ? "Fill" : "Hug"}
+                </div>
+              )}
+            </div>
+          </div>
+        </InspectorCollapsible>
+      )}
 
       {/* ── LAYOUT (frame only) ──────────────────────────────────────── */}
       {sections.showLayout && (

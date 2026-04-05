@@ -201,7 +201,11 @@ The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compil
 
 ### Theme System
 
-Theme is stored in `localStorage` as `'light'` or `'dark'` and set on `<html data-theme="...">`. The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `data-theme="dark"` rather than `prefers-color-scheme`, so media queries don't override explicit user choice. All color tokens are CSS variables defined in `globals.css` under `:root` (light) and `[data-theme="dark"]`.
+Editor uses "Warm Dark" — `data-theme="dark"` is set on the editor container div in `UnifiedCanvasView.tsx`, NOT on `<html>`. This scopes all `dark:` Tailwind variants to fire only inside the editor. Dashboard and marketing pages stay light.
+
+The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `[data-theme="dark"]` and its descendants. Dark tokens are defined in `globals.css` under `[data-theme="dark"]`. Light tokens are in `:root` and `html[data-theme="light"]`.
+
+**Canvas stays light** (`#FAFAF8`) in dark mode — the "studio metaphor." Dark chrome frames the light work surface. No theme toggle for debut.
 
 ### Key Caveats
 
@@ -212,7 +216,7 @@ Theme is stored in `localStorage` as `'light'` or `'dark'` and set on `<html dat
 
 ## Design System
 
-Light mode only. No dark theme for V1.
+Editor: Warm Dark (dark chrome, light canvas). Dashboard/marketing: Light only.
 
 ### Colors (hex values used directly — no CSS variable indirection in V2 components)
 - Accent: `#4B57DB` (primary violet-blue)

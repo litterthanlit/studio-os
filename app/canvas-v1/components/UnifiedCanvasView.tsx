@@ -119,6 +119,16 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // Welcome overlay for first-time users
   const { visible: welcomeVisible, dismiss: dismissWelcome, show: showWelcome } = useWelcomeOverlay();
 
+  // System theme: respect OS preference (dark/light)
+  const [systemTheme, setSystemTheme] = React.useState<"dark" | "light">("dark");
+  React.useEffect(() => {
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemTheme(mql.matches ? "dark" : "light");
+    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? "dark" : "light");
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(true);
   const [showInspector, setShowInspector] = React.useState(true);
@@ -641,7 +651,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full w-full" data-theme="dark">
+    <div className="flex h-full w-full" data-theme={systemTheme}>
       {/* Mini rail sidebar */}
       <MiniRail
         layersVisible={showLayers}

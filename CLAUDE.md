@@ -201,11 +201,13 @@ The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compil
 
 ### Theme System
 
-Editor uses "Warm Dark" — `data-theme="dark"` is set on the editor container div in `UnifiedCanvasView.tsx`, NOT on `<html>`. This scopes all `dark:` Tailwind variants to fire only inside the editor. Dashboard and marketing pages stay light.
+Editor theme follows the user's OS preference via `prefers-color-scheme`. `data-theme` is set dynamically on the editor container div in `UnifiedCanvasView.tsx` (NOT on `<html>`). This scopes all `dark:` Tailwind variants to fire only inside the editor. Dashboard and marketing pages stay light regardless of OS preference.
+
+When OS is dark mode: editor gets `data-theme="dark"` (warm-dark chrome). When OS is light mode: editor gets `data-theme="light"` (light cleanup build). The preference is read reactively via `matchMedia` — changes mid-session are reflected immediately. No localStorage override, no manual toggle.
 
 The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `[data-theme="dark"]` and its descendants. Dark tokens are defined in `globals.css` under `[data-theme="dark"]`. Light tokens are in `:root` and `html[data-theme="light"]`.
 
-**Canvas stays light** (`#FAFAF8`) in dark mode — the "studio metaphor." Dark chrome frames the light work surface. No theme toggle for debut.
+**Canvas stays light** (`#FAFAF8`) in both modes — the "studio metaphor." Chrome frames the light work surface.
 
 ### Key Caveats
 

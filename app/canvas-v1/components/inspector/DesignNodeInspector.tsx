@@ -102,7 +102,7 @@ function InlineAddableRow({
   if (!hasValue) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono">
+        <span className="text-[10px] uppercase tracking-wide text-[#B0B0B0] dark:text-[#666666] font-mono">
           {label}
         </span>
         <button
@@ -119,7 +119,7 @@ function InlineAddableRow({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono">
+        <span className="text-[10px] uppercase tracking-wide text-[#B0B0B0] dark:text-[#666666] font-mono">
           {label}
         </span>
         <button

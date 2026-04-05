@@ -1919,7 +1919,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l-[0.5px] border-[#EFEFEC] bg-white dark:bg-[#1A1A1A] dark:border-[#333333]"
+      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l-[0.5px] border-[#E0E0DC] bg-white dark:bg-[#1A1A1A] dark:border-[#333333]"
     >
       {/* Header area — shrink-0 so it never grows/shrinks */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] dark:border-[#333333] shrink-0">

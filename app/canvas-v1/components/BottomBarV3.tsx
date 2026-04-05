@@ -20,6 +20,7 @@ export function BottomBarV3({ zoom, onZoomChange, onZoomToFit }: BottomBarV3Prop
 
   return (
     <div
+      className="dark:!bg-[#1A1A1A] dark:!border-[#333333] dark:!text-[#D0D0D0]"
       style={{
         position: "fixed",
         bottom: 16,
@@ -55,6 +56,7 @@ export function BottomBarV3({ zoom, onZoomChange, onZoomToFit }: BottomBarV3Prop
             if (e.key === "Escape") setEditing(false);
           }}
           onBlur={() => setEditing(false)}
+          className="dark:!text-[#FFFFFF]"
           style={{
             width: 40,
             border: "none",

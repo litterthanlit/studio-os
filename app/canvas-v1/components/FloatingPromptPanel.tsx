@@ -24,23 +24,23 @@ export function FloatingPromptPanel({ projectId, selectedNode, onClose }: Floati
   const retryRef = React.useRef<(() => void) | null>(null);
 
   return (
-    <div className="absolute right-[288px] top-4 bottom-4 w-[300px] z-20 flex flex-col bg-white rounded-[4px] border-[0.5px] border-[#EFEFEC] shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="absolute right-[288px] top-4 bottom-4 w-[300px] z-20 flex flex-col bg-white rounded-[4px] border-[0.5px] border-[#EFEFEC] shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden dark:bg-[#1A1A1A] dark:border-[#333333]">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 shrink-0">
-        <span className="font-mono text-[10px] font-medium uppercase tracking-[1px] text-[#A0A0A0]">
+        <span className="font-mono text-[10px] font-medium uppercase tracking-[1px] text-[#A0A0A0] dark:text-[#666666]">
           Prompt
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="w-5 h-5 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors"
+          className="w-5 h-5 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors dark:text-[#666666] dark:hover:text-[#FFFFFF] dark:hover:bg-[#2A2A2A]"
         >
           <X size={12} strokeWidth={1.5} />
         </button>
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-[#EFEFEC]" />
+      <div className="h-px bg-[#EFEFEC] dark:bg-[#333333]" />
 
       {/* Prompt content */}
       <div className="flex-1 min-h-0 overflow-hidden">

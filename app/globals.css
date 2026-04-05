@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Light mode only — dark theme removed */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* Search bar ring pulse — 2 iterations then stops */
 @keyframes search-ring-pulse {
@@ -275,6 +275,77 @@ html[data-theme="light"] {
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
   --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(75, 87, 219, 0.15);
+
+  --success: #22C55E;
+  --destructive: #EF4444;
+}
+
+[data-theme="dark"] {
+  /* ── Warm Dark (Direction C) ── */
+  --bg-primary: #1A1A1A;
+  --bg-secondary: #222222;
+  --bg-tertiary: #1A1A1A;
+  --bg-input: #2A2A2A;
+
+  --surface: #1A1A1A;
+  --surface-hover: #2A2A2A;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #D0D0D0;
+  --text-tertiary: #D0D0D0;
+  --text-muted: #666666;
+  --text-placeholder: #555555;
+
+  --border: #333333;
+  --border-primary: #333333;
+  --border-secondary: #444444;
+  --border-subtle: #333333;
+  --border-hover: #4B57DB;
+  --border-active: #4B57DB;
+
+  --accent: #4B57DB;
+  --accent-hover: #5B67EB;
+  --accent-light: #222244;
+  --accent-subtle: rgba(75, 87, 219, 0.15);
+  --accent-rgb: 75, 87, 219;
+  --accent-pill: #222244;
+
+  --sidebar-bg: #1A1A1A;
+  --sidebar-border: #333333;
+  --sidebar-hover: #2A2A2A;
+  --sidebar-active: #222244;
+
+  --card-bg: #222222;
+  --card-border: #333333;
+
+  --section-label: #666666;
+  --section-dot: #666666;
+
+  --ascii-color: rgba(75, 87, 219, 0.05);
+
+  --button-primary-bg: #4B57DB;
+  --button-primary-text: #FFFFFF;
+  --button-secondary-bg: transparent;
+  --button-secondary-text: #7B87EB;
+  --button-secondary-border: #4B57DB;
+
+  --quote-color: #888888;
+  --dot-separator: #333333;
+
+  --dot-grid-color: rgba(255, 255, 255, 0.025);
+  --halftone-blue: rgba(75, 87, 219, 0.08);
+  --halftone-blue-strong: rgba(75, 87, 219, 0.12);
+  --halftone-ink: rgba(255, 255, 255, 0.03);
+  --halftone-warm: rgba(26, 26, 26, 0.92);
+  --shell-gradient: linear-gradient(180deg, #1A1A1A 0%, #111111 100%);
+  --shell-glow: radial-gradient(circle at top left, rgba(75, 87, 219, 0.15), transparent 34%);
+  --shell-grid: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0.8px, transparent 0.9px);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(75, 87, 219, 0.25);
 
   --success: #22C55E;
   --destructive: #EF4444;

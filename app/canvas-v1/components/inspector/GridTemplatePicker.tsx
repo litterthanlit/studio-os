@@ -37,8 +37,8 @@ function PresetButton({
       className={cn(
         "flex items-end gap-[2px] h-[36px] rounded-[2px] border px-1.5 py-1 transition-colors",
         isActive
-          ? "border-[#4B57DB] bg-[#D1E4FC]/30"
-          : "border-[#E5E5E0] bg-[#FAFAF8] hover:border-[#D1D1CC]"
+          ? "border-[#4B57DB] bg-[#D1E4FC]/30 dark:bg-[#222244]/50"
+          : "border-[#E5E5E0] dark:border-[#333333] bg-[#FAFAF8] dark:bg-[#222222] hover:border-[#D1D1CC] dark:hover:border-[#444444]"
       )}
     >
       {fractions.map((fr, i) => (
@@ -46,7 +46,7 @@ function PresetButton({
           key={i}
           className={cn(
             "rounded-[1px] min-w-[4px]",
-            isActive ? "bg-[#4B57DB]/60" : "bg-[#A0A0A0]/30"
+            isActive ? "bg-[#4B57DB]/60" : "bg-[#A0A0A0]/30 dark:bg-[#666666]/30"
           )}
           style={{
             flex: fr / total,

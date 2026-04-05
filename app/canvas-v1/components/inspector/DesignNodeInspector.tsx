@@ -102,13 +102,13 @@ function InlineAddableRow({
   if (!hasValue) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">
+        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono">
           {label}
         </span>
         <button
           type="button"
           onClick={onAdd}
-          className="text-[#A0A0A0] hover:text-[#4B57DB] transition-colors"
+          className="text-[#A0A0A0] dark:text-[#555555] hover:text-[#4B57DB] transition-colors"
         >
           <Plus size={12} />
         </button>
@@ -119,13 +119,13 @@ function InlineAddableRow({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">
+        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono">
           {label}
         </span>
         <button
           type="button"
           onClick={onRemove}
-          className="text-[#A0A0A0] hover:text-red-500 transition-colors"
+          className="text-[#A0A0A0] dark:text-[#555555] hover:text-red-500 transition-colors"
         >
           <Minus size={12} />
         </button>
@@ -437,7 +437,7 @@ export function DesignNodeInspector({
                   onBlur={() => history.flush()}
                 />
               ) : (
-                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] bg-[#F5F5F0] border border-[#E5E5E0] rounded-[2px] text-right">
+                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] dark:text-[#666666] bg-[#F5F5F0] dark:bg-[#222222] border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] text-right">
                   {getSizingMode(style.width) === "fill" ? "Fill" : "Hug"}
                 </div>
               )}
@@ -478,7 +478,7 @@ export function DesignNodeInspector({
                   onBlur={() => history.flush()}
                 />
               ) : (
-                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] bg-[#F5F5F0] border border-[#E5E5E0] rounded-[2px] text-right">
+                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] dark:text-[#666666] bg-[#F5F5F0] dark:bg-[#222222] border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] text-right">
                   {getSizingMode(style.height) === "fill" ? "Fill" : "Hug"}
                 </div>
               )}
@@ -590,7 +590,7 @@ export function DesignNodeInspector({
             <div className="grid grid-cols-4 gap-1.5">
               {(["top", "right", "bottom", "left"] as const).map((side) => (
                 <div key={side} className="space-y-0.5">
-                  <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider text-center block">
+                  <span className="text-[9px] text-[#A0A0A0] dark:text-[#666666] font-mono uppercase tracking-wider text-center block">
                     {side[0]!.toUpperCase()}
                   </span>
                   <InspectorNumberInput
@@ -656,7 +656,7 @@ export function DesignNodeInspector({
                   min={100}
                   max={900}
                   step={100}
-                  className={cn("w-full", resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0]")}
+                  className={cn("w-full", resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0] dark:text-[#666666]")}
                   onChange={(e) => {
                     const val = (e.target as HTMLInputElement).value;
                     updateStyle({ fontWeight: val ? Number(val) : undefined });
@@ -672,7 +672,7 @@ export function DesignNodeInspector({
                   value={style.fontSize ?? resolved?.fontSize ?? ""}
                   placeholder="16"
                   min={1}
-                  className={cn("w-full", resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0]")}
+                  className={cn("w-full", resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0] dark:text-[#666666]")}
                   onChange={(e) => {
                     const val = (e.target as HTMLInputElement).value;
                     updateStyle({ fontSize: val ? Number(val) : undefined });
@@ -731,8 +731,8 @@ export function DesignNodeInspector({
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
                       style.textAlign === opt.value
-                        ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
-                        : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
+                        ? "bg-[#D1E4FC]/40 dark:bg-[#222244]/40 text-[#4B57DB]"
+                        : "bg-[#FAFAF8] dark:bg-[#222222] text-[#6B6B6B] dark:text-[#D0D0D0] border border-[#E5E5E0] dark:border-[#333333] hover:bg-[#F5F5F0] dark:hover:bg-[#2A2A2A] hover:text-[#1A1A1A] dark:hover:text-[#FFFFFF]"
                     )}
                   >
                     {opt.icon}
@@ -818,7 +818,7 @@ export function DesignNodeInspector({
                   {/* Preview thumbnail */}
                   {style.coverImage && style.coverImage !== "https://" && (
                     <div
-                      className="w-full h-[80px] rounded-[2px] border border-[#E5E5E0] overflow-hidden bg-[#F5F5F0]"
+                      className="w-full h-[80px] rounded-[2px] border border-[#E5E5E0] dark:border-[#333333] overflow-hidden bg-[#F5F5F0] dark:bg-[#222222]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -978,7 +978,7 @@ export function DesignNodeInspector({
               }}
               onBlur={() => history.flush()}
             />
-            <span className="text-[10px] text-[#A0A0A0] font-mono mt-0.5 block">%</span>
+            <span className="text-[10px] text-[#A0A0A0] dark:text-[#666666] font-mono mt-0.5 block">%</span>
           </div>
           </div>
         </>

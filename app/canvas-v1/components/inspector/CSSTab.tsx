@@ -127,15 +127,15 @@ export function CSSTab({ resolvedStyle }: CSSTabProps) {
 
   return (
     <div className="p-4 flex flex-col gap-3">
-      <h3 className="text-[12px] font-medium text-[#1A1A1A]">Computed CSS</h3>
-      <p className="text-[11px] text-[#A0A0A0]">
+      <h3 className="text-[12px] font-medium text-[#1A1A1A] dark:text-[#FFFFFF]">Computed CSS</h3>
+      <p className="text-[11px] text-[#A0A0A0] dark:text-[#666666]">
         Full CSS inspector coming soon
       </p>
 
       {resolvedStyle && cssString && (
         <>
           <pre
-            className="text-[11px] text-[#6B6B6B] bg-[#F5F5F0] rounded-[4px] p-3 overflow-x-auto whitespace-pre-wrap break-all"
+            className="text-[11px] text-[#6B6B6B] dark:text-[#D0D0D0] bg-[#F5F5F0] dark:bg-[#222222] rounded-[4px] p-3 overflow-x-auto whitespace-pre-wrap break-all"
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
             {cssString}
@@ -144,7 +144,7 @@ export function CSSTab({ resolvedStyle }: CSSTabProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="px-3 py-1.5 rounded-[4px] bg-[#4B57DB] text-white text-[12px] font-medium hover:bg-[#3D49C7] w-full transition-colors"
+            className="px-3 py-1.5 rounded-[4px] bg-[#4B57DB] text-white text-[12px] font-medium hover:bg-[#3D49C7] dark:hover:bg-[#3D49C7] w-full transition-colors"
           >
             {copied ? "Copied!" : "Copy CSS"}
           </button>
@@ -152,7 +152,7 @@ export function CSSTab({ resolvedStyle }: CSSTabProps) {
       )}
 
       {!resolvedStyle && (
-        <p className="text-[11px] text-[#A0A0A0]">
+        <p className="text-[11px] text-[#A0A0A0] dark:text-[#666666]">
           Select a node to see its CSS properties
         </p>
       )}

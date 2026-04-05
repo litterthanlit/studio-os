@@ -51,7 +51,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
   if (!tree) {
     return (
       <div className="p-4">
-        <p className="text-[11px] text-[#A0A0A0]">
+        <p className="text-[11px] text-[#A0A0A0] dark:text-[#666666]">
           Export is available for V6 layouts. Generate a new site to use this feature.
         </p>
       </div>
@@ -68,7 +68,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
 
       {/* Scope toggle */}
       <div>
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono mb-1 block">Scope</span>
+        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono mb-1 block">Scope</span>
         <InspectorSegmented
           value={scope}
           options={[
@@ -81,14 +81,14 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
 
       {/* Empty state: selection mode but nothing selected */}
       {scope === "selection" && !selectedNode ? (
-        <p className="text-[11px] text-[#A0A0A0]">
+        <p className="text-[11px] text-[#A0A0A0] dark:text-[#666666]">
           Select a node to export
         </p>
       ) : htmlString ? (
         <>
           {/* HTML preview */}
           <pre
-            className="text-[11px] text-[#6B6B6B] bg-[#F5F5F0] rounded-[4px] p-3 overflow-x-auto whitespace-pre-wrap break-all overflow-y-auto flex-1 min-h-0"
+            className="text-[11px] text-[#6B6B6B] dark:text-[#D0D0D0] bg-[#F5F5F0] dark:bg-[#222222] rounded-[4px] p-3 overflow-x-auto whitespace-pre-wrap break-all overflow-y-auto flex-1 min-h-0"
             style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
             {htmlString}
@@ -98,7 +98,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
           <button
             type="button"
             onClick={handleCopy}
-            className="border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB] transition-colors w-full shrink-0"
+            className="border border-[#E5E5E0] dark:border-[#333333] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] dark:text-[#D0D0D0] hover:border-[#D1E4FC] dark:hover:border-[#4B57DB] hover:text-[#4B57DB] transition-colors w-full shrink-0"
           >
             {copied ? <span className="text-[#4B57DB]">Copied!</span> : "Copy HTML"}
           </button>

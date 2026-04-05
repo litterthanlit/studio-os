@@ -97,7 +97,7 @@ export function SpacingDiagram({
   return (
     <div>
       {shouldShowDiagram ? (
-        <div className="rounded-[6px] border border-[#E5E5E0] bg-[#FAFAF8] p-3">
+        <div className="rounded-[6px] border border-[#E5E5E0] dark:border-[#333333] bg-[#FAFAF8] dark:bg-[#222222] p-3">
           <div className="flex justify-center">
             <InspectorNumberInput
               value={paddingY ?? ""}
@@ -109,7 +109,7 @@ export function SpacingDiagram({
             />
           </div>
 
-          <div className="relative mt-2 h-[120px] rounded-[4px] border border-[#E5E5E0] bg-white/70">
+          <div className="relative mt-2 h-[120px] rounded-[4px] border border-[#E5E5E0] dark:border-[#333333] bg-white/70 dark:bg-[#1A1A1A]/70">
             <div className="absolute left-3 top-1/2 -translate-y-1/2">
               <InspectorNumberInput
                 value={paddingX ?? ""}
@@ -121,8 +121,8 @@ export function SpacingDiagram({
               />
             </div>
 
-            <div className="absolute inset-x-[70px] inset-y-[22px] flex items-center justify-center rounded-[4px] border border-[#E5E5E0]">
-              <div className="mx-auto h-8 w-12 border border-dashed border-[#E5E5E0]" />
+            <div className="absolute inset-x-[70px] inset-y-[22px] flex items-center justify-center rounded-[4px] border border-[#E5E5E0] dark:border-[#333333]">
+              <div className="mx-auto h-8 w-12 border border-dashed border-[#E5E5E0] dark:border-[#333333]" />
             </div>
 
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -163,7 +163,7 @@ export function SpacingDiagram({
           </div>
           <button
             type="button"
-            className="mb-[2px] flex h-7 w-7 items-center justify-center rounded-[2px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#8A8A8A] transition-colors hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+            className="mb-[2px] flex h-7 w-7 items-center justify-center rounded-[2px] border border-[#E5E5E0] dark:border-[#333333] bg-[#FAFAF8] dark:bg-[#222222] text-[#8A8A8A] dark:text-[#555555] transition-colors hover:border-[#D1E4FC] dark:hover:border-[#4B57DB] hover:text-[#4B57DB]"
             onClick={() => setExpanded(true)}
             aria-label="Expand padding diagram"
             title="Expand padding diagram"

@@ -32,21 +32,21 @@ export function BreadcrumbBar({
 
   return (
     <div className="absolute bottom-12 left-1/2 z-30 -translate-x-1/2">
-      <div className="flex items-center gap-1 rounded-[4px] border-[0.5px] border-[#EFEFEC] bg-white px-2 py-1 shadow-sm text-[11px]">
+      <div className="flex items-center gap-1 rounded-[4px] border-[0.5px] border-[#EFEFEC] bg-white px-2 py-1 shadow-sm text-[11px] dark:bg-[#1A1A1A] dark:border-[#333333]">
         {/* Breakpoint label as the root segment */}
-        <span className="text-[#A0A0A0] select-none">{breakpointLabel}</span>
+        <span className="text-[#A0A0A0] select-none dark:text-[#666666]">{breakpointLabel}</span>
 
         {path.map((node, index) => {
           const isLast = index === path.length - 1;
           return (
             <React.Fragment key={node.id}>
-              <ChevronRight size={10} className="text-[#E5E5E0] shrink-0" strokeWidth={1.5} />
+              <ChevronRight size={10} className="text-[#E5E5E0] shrink-0 dark:text-[#555555]" strokeWidth={1.5} />
               <button
                 type="button"
                 className={
                   isLast
-                    ? "text-[#1A1A1A] whitespace-nowrap select-none"
-                    : "text-[#A0A0A0] hover:text-[#6B6B6B] cursor-pointer whitespace-nowrap transition-colors select-none"
+                    ? "text-[#1A1A1A] whitespace-nowrap select-none dark:text-[#FFFFFF]"
+                    : "text-[#A0A0A0] hover:text-[#6B6B6B] cursor-pointer whitespace-nowrap transition-colors select-none dark:text-[#666666] dark:hover:text-[#D0D0D0]"
                 }
                 onClick={() => onSelectNode(node.id)}
               >

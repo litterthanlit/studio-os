@@ -55,29 +55,38 @@ export function CanvasProvider({
     (initial) => createInitialReducerState(initial)
   );
 
-  const hydratedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track the loaded state directly — not via RAF which races with
+  // StrictMode cleanup. loadedItemCountRef stores the item count from
+  // the most recent load so the unmount flush can verify that the
+  // reducer has actually processed the loaded data before saving.
+  const loadedItemCountRef = useRef(-1);
+  const loadedForProjectRef = useRef<string | null>(null);
 
   // On mount: load persisted state
   useEffect(() => {
-    hydratedRef.current = false; // Reset on projectId change
+    loadedItemCountRef.current = -1;
+    loadedForProjectRef.current = projectId;
     const loaded = loadUnifiedCanvas(projectId);
+    loadedItemCountRef.current = loaded.items.length;
     dispatch({ type: "LOAD_STATE", state: loaded });
-    // Defer hydrated flag until after the re-render from LOAD_STATE
-    // has updated latestStateRef. Without this, StrictMode unmount
-    // can flush the empty initial state before the real data arrives.
-    requestAnimationFrame(() => {
-      hydratedRef.current = true;
-    });
   }, [projectId]);
 
   // Keep a ref to the latest state so the unmount flush can access it
   const latestStateRef = useRef(reducerState);
   latestStateRef.current = reducerState;
 
+  // Hydration gate: true once the reducer has processed LOAD_STATE.
+  // Checked synchronously during render — no RAF timing issues.
+  const isHydrated =
+    loadedForProjectRef.current === projectId &&
+    loadedItemCountRef.current >= 0 &&
+    (loadedItemCountRef.current === 0 || reducerState.items.length > 0);
+
   // On state change (debounced 500ms): persist
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!isHydrated) return;
 
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -92,7 +101,7 @@ export function CanvasProvider({
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [projectId, reducerState]);
+  }, [projectId, reducerState, isHydrated]);
 
   // Flush pending save on unmount (HMR, navigation) so state is never lost
   useEffect(() => {
@@ -100,8 +109,12 @@ export function CanvasProvider({
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
-      // Only flush if hydration completed — never write empty initial state
-      if (hydratedRef.current) {
+      // Only flush if the reducer state has the loaded data.
+      // If loadedItemCountRef > 0 but latestStateRef has 0 items,
+      // the LOAD_STATE re-render hasn't happened yet — do NOT save.
+      const loaded = loadedItemCountRef.current;
+      const current = latestStateRef.current.items.length;
+      if (loaded >= 0 && (loaded === 0 || current >= loaded)) {
         saveUnifiedCanvas(projectId, extractCanvasState(latestStateRef.current));
       }
     };

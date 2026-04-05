@@ -260,13 +260,13 @@ function GenerateButtonWithHint({
       <button
         onClick={onClick}
         disabled={disabled}
-        className="text-[#4B57DB] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors"
+        className="text-[#4B57DB] hover:bg-[#D1E4FC]/30 rounded-[2px] p-1 disabled:opacity-30 transition-colors dark:hover:bg-[#222244]/30"
       >
         <ArrowRight size={14} strokeWidth={1.5} />
       </button>
       {showHint && (
         <div
-          className="absolute bottom-full right-0 mb-1 whitespace-nowrap text-[12px] text-[#6B6B6B] bg-[#FFFFFF] border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 shadow-sm pointer-events-none"
+          className="absolute bottom-full right-0 mb-1 whitespace-nowrap text-[12px] text-[#6B6B6B] bg-[#FFFFFF] border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 shadow-sm pointer-events-none dark:bg-[#1A1A1A] dark:border-[#333333] dark:text-[#D0D0D0]"
           style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
         >
           AI generates a site based on your references and prompt
@@ -709,7 +709,7 @@ export function PromptComposerV2({
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="shrink-0 px-3 pt-3 pb-1">
-        <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0]">
+        <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0] dark:text-[#666666]">
           Prompt
         </span>
       </div>
@@ -718,7 +718,7 @@ export function PromptComposerV2({
       <div className="flex-1 overflow-y-auto px-3 min-h-0">
         {/* Taste Intelligence surfaces — scroll with content */}
         <div className="-mx-3">
-          <div className="border-b border-[#E5E5E0]">
+          <div className="border-b border-[#E5E5E0] dark:border-[#333333]">
             <TasteCard
               tasteProfile={tasteProfile}
               fidelityMode={fidelityMode}
@@ -729,7 +729,7 @@ export function PromptComposerV2({
               hasReferences={usableRefCount > 0}
             />
           </div>
-          <div className="border-b border-[#E5E5E0]">
+          <div className="border-b border-[#E5E5E0] dark:border-[#333333]">
             <ReferenceRail references={referenceItems} />
           </div>
         </div>
@@ -740,13 +740,13 @@ export function PromptComposerV2({
             {prompt.history.map((run) => (
               <div
                 key={run.id}
-                className="rounded-[2px] px-2 py-1.5 hover:bg-[#F5F5F0] transition-colors"
+                className="rounded-[2px] px-2 py-1.5 hover:bg-[#F5F5F0] transition-colors dark:hover:bg-[#2A2A2A]"
               >
-                <div className="text-[12px] text-[#1A1A1A] truncate">
+                <div className="text-[12px] text-[#1A1A1A] truncate dark:text-[#D0D0D0]">
                   &ldquo;{run.label}&rdquo;
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
-                  <span className="text-[10px] text-[#A0A0A0] font-mono">
+                  <span className="text-[10px] text-[#A0A0A0] font-mono dark:text-[#666666]">
                     {run.referenceItemIds.length} ref{run.referenceItemIds.length !== 1 ? "s" : ""} · {relativeTime(run.createdAt)}
                   </span>
                   <button
@@ -768,7 +768,7 @@ export function PromptComposerV2({
             <button
               key={chip}
               onClick={() => dispatch({ type: "SET_PROMPT", value: chip })}
-              className="bg-[#F5F5F0] text-[#6B6B6B] rounded-[4px] px-2.5 py-1 text-[11px] hover:bg-[#E5E5E0] hover:text-[#1A1A1A] cursor-pointer transition-colors"
+              className="bg-[#F5F5F0] text-[#6B6B6B] rounded-[4px] px-2.5 py-1 text-[11px] hover:bg-[#E5E5E0] hover:text-[#1A1A1A] cursor-pointer transition-colors dark:bg-[#222222] dark:text-[#D0D0D0] dark:hover:bg-[#333333] dark:hover:text-[#FFFFFF]"
             >
               {chip}
             </button>
@@ -777,11 +777,11 @@ export function PromptComposerV2({
 
         {/* Context row: refs + site type */}
         <div className="flex items-center gap-2 py-1">
-          <span className="text-[10px] text-[#A0A0A0]">{refSummary}</span>
+          <span className="text-[10px] text-[#A0A0A0] dark:text-[#666666]">{refSummary}</span>
           <select
             value={prompt.siteType}
             onChange={(e) => dispatch({ type: "SET_SITE_TYPE", siteType: e.target.value as SiteType })}
-            className="ml-auto rounded-[2px] border border-[#E5E5E0] bg-white px-1.5 py-0.5 text-[10px] text-[#6B6B6B] outline-none focus:border-[#D1E4FC]"
+            className="ml-auto rounded-[2px] border border-[#E5E5E0] bg-white px-1.5 py-0.5 text-[10px] text-[#6B6B6B] outline-none focus:border-[#D1E4FC] dark:bg-[#2A2A2A] dark:border-[#333333] dark:text-[#D0D0D0]"
           >
             {SITE_TYPE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -816,7 +816,7 @@ export function PromptComposerV2({
             placeholder="What would you like to change?"
             rows={1}
             disabled={isGenerating}
-            className="w-full border border-[#E5E5E0] rounded-[4px] bg-white px-3 py-2 pr-9 text-[13px] resize-none outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 disabled:cursor-wait disabled:opacity-60"
+            className="w-full border border-[#E5E5E0] rounded-[4px] bg-white px-3 py-2 pr-9 text-[13px] resize-none outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 disabled:cursor-wait disabled:opacity-60 dark:bg-[#2A2A2A] dark:border-[#333333] dark:text-[#FFFFFF]"
           />
           <GenerateButtonWithHint
             onClick={handleGenerate}

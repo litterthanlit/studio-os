@@ -36,7 +36,7 @@ import {
   InspectorSelect,
   InspectorColorField,
 } from "./InspectorField";
-import { InspectorCollapsible } from "./InspectorCollapsible";
+import { SectionRule } from "./SectionRule";
 import { InspectorSegmented } from "./InspectorSegmented";
 import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
@@ -112,8 +112,8 @@ function IconToggleGroup({
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
             value === opt.value
-              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
-              : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
+              ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+              : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
           )}
         >
           {opt.icon}
@@ -141,13 +141,13 @@ function InlineAddableRow({
   if (!hasValue) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">
+        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono dark:text-[#666666]">
           {label}
         </span>
         <button
           type="button"
           onClick={onAdd}
-          className="text-[#A0A0A0] hover:text-[#4B57DB] transition-colors"
+          className="text-[#A0A0A0] hover:text-[#4B57DB] transition-colors dark:text-[#555555]"
         >
           <Plus size={12} />
         </button>
@@ -158,13 +158,13 @@ function InlineAddableRow({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">
+        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono dark:text-[#666666]">
           {label}
         </span>
         <button
           type="button"
           onClick={onRemove}
-          className="text-[#A0A0A0] hover:text-red-500 transition-colors"
+          className="text-[#A0A0A0] hover:text-red-500 transition-colors dark:text-[#555555]"
         >
           <Minus size={12} />
         </button>
@@ -285,11 +285,11 @@ export function InspectorSkeleton({
   }
 
   return (
-    <div data-inspector-first-section>
+    <div data-inspector-first-section className="space-y-4">
       {/* ── BREAKPOINT LABEL ─────────────────────────────────────────── */}
       {isNonDesktop && (
         <div className="px-4 pt-3 pb-1">
-          <span className="text-[10px] uppercase tracking-[1px] text-[#8A8A8A] font-mono">
+          <span className="text-[10px] uppercase tracking-[1px] text-[#8A8A8A] font-mono dark:text-[#666666]">
             Mobile ({BREAKPOINT_WIDTHS[bp]}px)
           </span>
         </div>
@@ -297,7 +297,9 @@ export function InspectorSkeleton({
 
       {/* ── LAYOUT (containers only) ─────────────────────────────────── */}
       {isContainer && (
-        <InspectorCollapsible label="Layout">
+        <div>
+        <SectionRule label="LAYOUT" />
+        <div className="space-y-1.5 px-4 py-2">
           <InspectorLabel
             hasOverride={hasOverride("direction")}
             onResetOverride={() => resetOverride("direction")}
@@ -392,12 +394,15 @@ export function InspectorSkeleton({
               onBlur={() => history.flush()}
             />
           </div>
-        </InspectorCollapsible>
+        </div>
+        </div>
       )}
 
       {/* ── SPACING (containers only) ────────────────────────────────── */}
       {isContainer && (
-        <InspectorCollapsible label="Spacing">
+        <div>
+        <SectionRule label="SPACING" />
+        <div className="space-y-1.5 px-4 py-2">
           <SpacingDiagram
             artboardId={artboard.id}
             nodeId={node.id}
@@ -406,17 +411,20 @@ export function InspectorSkeleton({
             onHistorySchedule={history.schedule}
             onHistoryFlush={history.flush}
           />
-        </InspectorCollapsible>
+        </div>
+        </div>
       )}
 
       {/* ── TYPOGRAPHY (text nodes only) — labeled, compact, scannable ── */}
       {isText && (
-        <InspectorCollapsible label="Typography">
+        <div>
+        <SectionRule label="TYPOGRAPHY" />
+        <div className="space-y-1.5 px-4 py-2">
           {/* Single wrapper with tight 6px gaps between rows */}
           <div className="space-y-1.5">
           {/* Row 1: Font family — full width with label */}
           <div className="space-y-0.5">
-            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Font</span>
+            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Font</span>
             <InspectorSelect
               value={style.fontFamily || ""}
               onChange={(e) => {
@@ -439,7 +447,7 @@ export function InspectorSkeleton({
           {/* Row 2: Weight + Size — labeled */}
           <div className="grid grid-cols-[1fr_60px] gap-1.5">
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Weight</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Weight</span>
               <InspectorSelect
                 value={String(style.fontWeight ?? "")}
                 onChange={(e) => {
@@ -456,7 +464,7 @@ export function InspectorSkeleton({
               </InspectorSelect>
             </div>
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Size</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Size</span>
               <InspectorNumberInput
                 value={style.fontSize ?? ""}
                 placeholder="auto"
@@ -473,7 +481,7 @@ export function InspectorSkeleton({
           {/* Row 3: Line Height + Tracking — labeled, no icon symbols */}
           <div className="grid grid-cols-2 gap-1.5">
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Height</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Height</span>
               <InspectorNumberInput
                 value={style.lineHeight ?? ""}
                 placeholder="Auto"
@@ -487,7 +495,7 @@ export function InspectorSkeleton({
               />
             </div>
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Tracking</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Tracking</span>
               <InspectorNumberInput
                 value={style.letterSpacing ?? ""}
                 placeholder="0"
@@ -505,7 +513,7 @@ export function InspectorSkeleton({
           {/* Row 4: Align + Style — labeled */}
           <div className="grid grid-cols-2 gap-1.5">
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Align</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Align</span>
               <IconToggleGroup
                 value={style.align || "left"}
                 onChange={(v) => {
@@ -522,7 +530,7 @@ export function InspectorSkeleton({
               />
             </div>
             <div className="space-y-0.5">
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider">Style</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase tracking-wider dark:text-[#666666]">Style</span>
               <div className="flex gap-0.5">
                 <button
                   type="button"
@@ -530,8 +538,8 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-bold transition-colors",
                     (style.fontWeight ?? 400) >= 700
-                      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
-                      : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
+                      ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+                      : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
                   )}
                   onClick={() => {
                     applyImmediateStyleChange(
@@ -548,8 +556,8 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-medium transition-colors",
                     style.fontStyle === "italic"
-                      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
-                      : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
+                      ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+                      : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
                   )}
                   style={{ fontStyle: "italic" }}
                   onClick={() => {
@@ -567,8 +575,8 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-medium transition-colors",
                     style.textDecoration === "underline"
-                      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
-                      : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A]"
+                      ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+                      : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
                   )}
                   style={{ textDecoration: "underline" }}
                   onClick={() => {
@@ -584,13 +592,16 @@ export function InspectorSkeleton({
             </div>
           </div>
           </div>{/* end space-y-1.5 wrapper */}
-        </InspectorCollapsible>
+        </div>
+        </div>
       )}
 
       {/* ── FILL ─────────────────────────────────────────────────────── */}
       {/* Text nodes: text color under "Fill" */}
       {isText && (
-        <InspectorCollapsible label="Fill">
+        <div>
+        <SectionRule label="FILL" />
+        <div className="space-y-1.5 px-4 py-2">
           <InspectorLabel
             hasOverride={hasOverride("foreground")}
             onResetOverride={() => resetOverride("foreground")}
@@ -603,12 +614,15 @@ export function InspectorSkeleton({
             onCommit={() => history.flush()}
             onChange={(c) => updateStyle("foreground", c)}
           />
-        </InspectorCollapsible>
+        </div>
+        </div>
       )}
 
       {/* Container/media nodes: background color under "Fill" */}
       {(isContainer || isMedia) && (
-        <InspectorCollapsible label="Fill">
+        <div>
+        <SectionRule label="FILL" />
+        <div className="space-y-1.5 px-4 py-2">
           <InspectorLabel
             hasOverride={hasOverride("background")}
             onResetOverride={() => resetOverride("background")}
@@ -621,12 +635,15 @@ export function InspectorSkeleton({
             onCommit={() => history.flush()}
             onChange={(c) => updateStyle("background", c)}
           />
-        </InspectorCollapsible>
+        </div>
+        </div>
       )}
 
       {/* ── APPEARANCE ───────────────────────────────────────────────── */}
       {/* Merges: Background (text only), Opacity, Radius, Border(+), Shadow(+) */}
-      <InspectorCollapsible label="Appearance">
+      <div>
+      <SectionRule label="APPEARANCE" />
+      <div className="space-y-1.5 px-4 py-2">
         {/* Background — only for text nodes (containers have it in Fill above) */}
         {isText && (
           <div>
@@ -737,13 +754,16 @@ export function InspectorSkeleton({
             }}
           />
         </InlineAddableRow>
-      </InspectorCollapsible>
+      </div>
+      </div>
 
       {/* ── VISIBILITY (non-desktop only) ────────────────────────────── */}
       {isNonDesktop && (
-        <InspectorCollapsible label="Visibility">
+        <div>
+        <SectionRule label="VISIBILITY" />
+        <div className="space-y-1.5 px-4 py-2">
           <label className="flex items-center justify-between py-1 cursor-pointer">
-            <span className="text-[12px] text-[#1A1A1A]">Hide on Mobile</span>
+            <span className="text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0]">Hide on Mobile</span>
             <input
               type="checkbox"
               checked={node.hidden?.mobile ?? false}
@@ -758,7 +778,8 @@ export function InspectorSkeleton({
               className="accent-[#4B57DB] w-3.5 h-3.5 cursor-pointer"
             />
           </label>
-        </InspectorCollapsible>
+        </div>
+        </div>
       )}
     </div>
   );

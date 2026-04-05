@@ -38,8 +38,8 @@ function RailButton({
       className={cn(
         "w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent",
         active
-          ? "text-[#4B57DB] bg-[#F5F5F0]"
-          : "text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
+          ? "text-[#4B57DB] bg-[#F5F5F0] dark:bg-[#2A2A2A]"
+          : "text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0] dark:text-[#555555] dark:hover:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
       )}
     >
       {children}
@@ -60,7 +60,7 @@ function RailLink({
     <Link
       href={href}
       title={title}
-      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]"
+      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0] dark:text-[#555555] dark:hover:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
     >
       {children}
     </Link>
@@ -75,7 +75,7 @@ export function MiniRail({
   onShowWelcome,
 }: MiniRailProps) {
   return (
-    <div className="w-12 h-full bg-[#FAFAF8] border-r-[0.5px] border-[#EFEFEC] flex flex-col items-center py-3 flex-shrink-0 z-30">
+    <div className="w-12 h-full bg-[#FAFAF8] border-r-[0.5px] border-[#EFEFEC] flex flex-col items-center py-3 flex-shrink-0 z-30 dark:bg-[#1A1A1A] dark:border-[#333333]">
       {/* Logo mark */}
       <Link
         href="/home"

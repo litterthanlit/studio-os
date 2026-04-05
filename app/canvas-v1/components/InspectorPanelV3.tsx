@@ -72,7 +72,7 @@ import { isHintSeen, markHintSeen } from "./OnboardingHint";
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
 const ghostBtnCls =
-  "border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB] transition-colors";
+  "border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB] dark:border-[#333333] dark:text-[#D0D0D0] dark:hover:border-[#4B57DB] dark:hover:text-[#7B87EB] transition-colors";
 
 // ─── Debounce hook ───────────────────────────────────────────────────────────
 
@@ -1919,29 +1919,29 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l-[0.5px] border-[#EFEFEC] bg-white"
+      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l-[0.5px] border-[#EFEFEC] bg-white dark:bg-[#1A1A1A] dark:border-[#333333]"
     >
       {/* Header area — shrink-0 so it never grows/shrinks */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] shrink-0">
-        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNode) ? "text-[#1A1A1A]" : "text-[#A0A0A0]")}>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] dark:border-[#333333] shrink-0">
+        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNode) ? "text-[#1A1A1A] dark:text-[#FFFFFF]" : "text-[#A0A0A0] dark:text-[#666666]")}>
           {selectedDesignNode ? `${selectedDesignNode.type} — ${selectedDesignNode.name}` : selectedNode ? formatNodeType(selectedNode.type) : "No Selection"}
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <span
-            className="text-[11px] font-mono text-[#6B6B6B] cursor-pointer hover:text-[#1A1A1A] transition-colors"
+            className="text-[11px] font-mono text-[#6B6B6B] dark:text-[#D0D0D0] cursor-pointer hover:text-[#1A1A1A] transition-colors"
             onClick={handleZoomReset}
             title="Reset zoom to 100%"
           >
             {zoomPercent}%
           </span>
           <button
-            className="text-[11px] text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors"
+            className="text-[11px] text-[#6B6B6B] dark:text-[#D0D0D0] hover:text-[#1A1A1A] dark:hover:text-[#FFFFFF] transition-colors"
             onClick={() => alert("Share coming soon")}
           >
             Share
           </button>
           <button
-            className="text-[11px] bg-[#1A1A1A] text-white rounded-[4px] px-2.5 py-1 hover:bg-[#333] transition-colors"
+            className="text-[11px] bg-[#1A1A1A] text-white rounded-[4px] px-2.5 py-1 hover:bg-[#333] dark:bg-[#4B57DB] dark:hover:bg-[#5B67EB] transition-colors"
             onClick={() => alert("Export coming soon")}
           >
             Export

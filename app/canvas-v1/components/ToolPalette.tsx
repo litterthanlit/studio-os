@@ -30,7 +30,7 @@ type ToolPaletteProps = {
 
 export function ToolPalette({ activeTool, onToolChange }: ToolPaletteProps) {
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex flex-row gap-0.5 bg-white border-[0.5px] border-[#EFEFEC] rounded-[4px] p-1">
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex flex-row gap-0.5 bg-white border-[0.5px] border-[#EFEFEC] rounded-[4px] p-1 dark:bg-[#1A1A1A] dark:border-[#333333]">
       {TOOLS.map((tool) => (
         <ToolButton
           key={tool.id}
@@ -63,8 +63,8 @@ function ToolButton({
       className={
         "w-8 h-8 flex items-center justify-center rounded-[2px] transition-colors " +
         (isActive
-          ? "bg-[#D1E4FC]/30 text-[#4B57DB]"
-          : "text-[#A0A0A0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0]")
+          ? "bg-[#D1E4FC]/30 text-[#4B57DB] dark:bg-[#222244]/30"
+          : "text-[#A0A0A0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0] dark:text-[#666666] dark:hover:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]")
       }
       title={title}
       onClick={onClick}

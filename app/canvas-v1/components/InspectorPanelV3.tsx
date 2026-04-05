@@ -195,8 +195,8 @@ function IconToggleGroup({
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
             value === opt.value
-              ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
-              : "text-[#A0A0A0] hover:bg-[#F5F5F0]"
+              ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
+              : "text-[#A0A0A0] hover:bg-[#F5F5F0] hover:text-[#6B6B6B] dark:text-[#666666] dark:hover:text-[#D0D0D0]"
           )}
         >
           {opt.icon}
@@ -708,8 +708,8 @@ function NodeInspector({
                 className={cn(
                   "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   style.fontStyle === "italic"
-                    ? "bg-[#D1E4FC]/40 text-[#4B57DB] border-[#D1E4FC]"
-                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+                    ? "bg-white text-[#1A1A1A] border-[#E5E5E0] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF] dark:border-[#444444]"
+                    : "border-[#E5E5E0] text-[#A0A0A0] hover:text-[#6B6B6B] dark:text-[#666666] dark:hover:text-[#D0D0D0] dark:border-[#333333]"
                 )}
                 style={{ fontStyle: "italic" }}
                 onClick={() => {
@@ -726,8 +726,8 @@ function NodeInspector({
                 className={cn(
                   "border rounded-[2px] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   style.textDecoration === "underline"
-                    ? "bg-[#D1E4FC]/40 text-[#4B57DB] border-[#D1E4FC]"
-                    : "border-[#E5E5E0] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+                    ? "bg-white text-[#1A1A1A] border-[#E5E5E0] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF] dark:border-[#444444]"
+                    : "border-[#E5E5E0] text-[#A0A0A0] hover:text-[#6B6B6B] dark:text-[#666666] dark:hover:text-[#D0D0D0] dark:border-[#333333]"
                 )}
                 style={{ textDecoration: "underline" }}
                 onClick={() => {

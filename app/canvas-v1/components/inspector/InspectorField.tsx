@@ -76,7 +76,7 @@ export function InspectorTextInput({
       type="text"
       {...props}
       className={cn(
-        "w-full border border-transparent rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 py-1.5 text-[13px] text-[#1A1A1A] dark:text-[#FFFFFF] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors hover:border-[#EFEFEC] dark:hover:border-[#333333] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20",
+        "w-full h-7 border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30",
         className
       )}
     />
@@ -111,7 +111,7 @@ export function InspectorTextarea({
         props.onInput?.(e);
       }}
       className={cn(
-        "w-full border border-transparent rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 py-1.5 text-[13px] text-[#1A1A1A] dark:text-[#FFFFFF] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors resize-none min-h-[60px] hover:border-[#EFEFEC] dark:hover:border-[#333333] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20",
+        "w-full border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 py-1 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors resize-none min-h-[60px] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30",
         className
       )}
     />
@@ -277,7 +277,7 @@ export function InspectorNumberInput({
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className={cn(
-        "w-[60px] text-center border border-transparent rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 py-1.5 text-[12px] text-[#1A1A1A] dark:text-[#FFFFFF] font-mono outline-none transition-colors hover:border-[#EFEFEC] dark:hover:border-[#333333] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
+        "w-[60px] h-7 text-center border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
         focused ? "cursor-text" : "cursor-ew-resize",
         className
       )}
@@ -297,7 +297,7 @@ export function InspectorSelect({
       <select
         {...props}
         className={cn(
-          "w-full appearance-none border border-transparent rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 py-1.5 pr-7 text-[13px] text-[#1A1A1A] dark:text-[#FFFFFF] outline-none transition-colors cursor-pointer hover:border-[#EFEFEC] dark:hover:border-[#333333] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20",
+          "w-full h-7 appearance-none border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 pr-7 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors cursor-pointer focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30",
           className
         )}
       >
@@ -418,7 +418,7 @@ export function InspectorColorField({
             e.currentTarget.blur();
           }
         }}
-        className="flex-1 border border-transparent rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 py-1.5 text-[12px] text-[#1A1A1A] dark:text-[#FFFFFF] font-mono outline-none transition-colors hover:border-[#EFEFEC] dark:hover:border-[#333333] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20"
+        className="flex-1 h-7 border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30"
       />
     </div>
   );
@@ -633,7 +633,7 @@ export function InspectorSliderField({
           onBlur={handleNumberBlur}
           onKeyDown={handleNumberKeyDown}
           className={cn(
-            "w-[52px] text-center border border-transparent rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-1.5 py-1.5 text-[12px] text-[#1A1A1A] dark:text-[#FFFFFF] font-mono outline-none transition-colors hover:border-[#EFEFEC] dark:hover:border-[#333333] focus:border-[#4B57DB] focus:ring-2 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none shrink-0",
+            "w-[52px] h-7 text-center border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-1.5 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none shrink-0",
             isFocused ? "cursor-text" : "cursor-ew-resize"
           )}
         />

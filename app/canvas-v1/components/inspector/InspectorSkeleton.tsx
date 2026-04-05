@@ -112,7 +112,7 @@ function IconToggleGroup({
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
             value === opt.value
-              ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+              ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
               : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
           )}
         >
@@ -538,7 +538,7 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-bold transition-colors",
                     (style.fontWeight ?? 400) >= 700
-                      ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
                       : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
                   )}
                   onClick={() => {
@@ -556,7 +556,7 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-medium transition-colors",
                     style.fontStyle === "italic"
-                      ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
                       : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
                   )}
                   style={{ fontStyle: "italic" }}
@@ -575,7 +575,7 @@ export function InspectorSkeleton({
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] font-medium transition-colors",
                     style.textDecoration === "underline"
-                      ? "bg-[#D1E4FC]/40 text-[#4B57DB] dark:bg-[#222244]/40"
+                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
                       : "bg-[#FAFAF8] text-[#6B6B6B] border border-[#E5E5E0] hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:bg-[#222222] dark:text-[#D0D0D0] dark:border-[#333333] dark:hover:bg-[#2A2A2A] dark:hover:text-[#FFFFFF]"
                   )}
                   style={{ textDecoration: "underline" }}

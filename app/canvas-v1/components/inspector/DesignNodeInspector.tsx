@@ -731,7 +731,7 @@ export function DesignNodeInspector({
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
                       style.textAlign === opt.value
-                        ? "bg-[#D1E4FC]/40 dark:bg-[#222244]/40 text-[#4B57DB]"
+                        ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
                         : "bg-[#FAFAF8] dark:bg-[#222222] text-[#6B6B6B] dark:text-[#D0D0D0] border border-[#E5E5E0] dark:border-[#333333] hover:bg-[#F5F5F0] dark:hover:bg-[#2A2A2A] hover:text-[#1A1A1A] dark:hover:text-[#FFFFFF]"
                     )}
                   >

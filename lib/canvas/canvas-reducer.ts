@@ -10,6 +10,13 @@ import type { DesignNode } from "./design-node";
 import {
   findDesignNodeById,
   findDesignNodeParent,
+  walkDesignTree,
+} from "./design-node";
+import {
+  findMaster, bakeInstance, filterAllowedOverrides,
+} from "./component-resolver";
+import type {
+  ComponentMaster, ComponentInstanceRef, NodeOverride,
 } from "./design-node";
 import type {
   UnifiedCanvasState,
@@ -101,6 +108,16 @@ export type CanvasAction =
   | { type: "START_AI_PREVIEW"; prompt: string; nodeId: string }
   | { type: "ACCEPT_AI_PREVIEW" }
   | { type: "RESTORE_AI_PREVIEW" }
+
+  // Component system (Track 3)
+  | { type: "CREATE_MASTER"; artboardId: string; nodeId: string; name: string; category: string }
+  | { type: "INSERT_INSTANCE"; artboardId: string; masterId: string; index?: number }
+  | { type: "DETACH_INSTANCE"; artboardId: string; nodeId: string }
+  | { type: "UPDATE_INSTANCE_OVERRIDE"; artboardId: string; instanceId: string; masterNodeId: string; override: NodeOverride }
+  | { type: "RESET_INSTANCE_OVERRIDE_FIELD"; artboardId: string; instanceId: string; masterNodeId: string; category: "style" | "content" | "hidden" | "all"; field: string }
+  | { type: "RESET_ALL_OVERRIDES"; artboardId: string; nodeId: string }
+  | { type: "DELETE_MASTER"; masterId: string }
+  | { type: "RENAME_MASTER"; masterId: string; name: string }
 
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
@@ -272,6 +289,28 @@ function getActiveBreakpoint(state: UnifiedCanvasState): Breakpoint {
       item.kind === "artboard" && item.id === state.selection.activeArtboardId
   );
   return artboard?.breakpoint ?? "desktop";
+}
+
+/**
+ * Replace a node in a DesignNode tree by ID, returning the replacement in its place.
+ */
+function replaceNodeInTree(tree: DesignNode, targetId: string, replacement: DesignNode): DesignNode {
+  if (tree.id === targetId) return replacement;
+  if (!tree.children) return tree;
+  const newChildren = tree.children.map((child) => replaceNodeInTree(child, targetId, replacement));
+  if (newChildren.every((c, i) => c === tree.children![i])) return tree;
+  return { ...tree, children: newChildren };
+}
+
+/**
+ * Temporary helper — wraps pushHistory with current signature (no components param).
+ * Task 9 will update history.ts to accept components; this helper will be updated then.
+ */
+function pushHistoryHelper(state: CanvasReducerState, description: string): CanvasReducerState {
+  return {
+    ...state,
+    history: pushHistory(state.history, description, state.items, state.selection),
+  };
 }
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -1388,6 +1427,318 @@ export function canvasReducer(
           selectedNodeIds: [],
         },
         history: historyAfterPush,
+        updatedAt: now(),
+      };
+    }
+
+    // ── Component System (Track 3) ─────────────────────────────────────
+
+    case "CREATE_MASTER": {
+      const { artboardId, nodeId, name, category } = action;
+      const stateH = pushHistoryHelper(state, "Create component");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+      const tree = artboard.pageTree as DesignNode;
+      const sourceNode = findDesignNodeById(tree, nodeId);
+      if (!sourceNode) return stateH;
+
+      const master: ComponentMaster = {
+        id: `comp-${Math.random().toString(36).slice(2, 10)}`,
+        name,
+        category,
+        source: "user",
+        tree: JSON.parse(JSON.stringify(sourceNode)),
+        version: 1,
+        createdAt: now(),
+        updatedAt: now(),
+      };
+
+      const instanceRef: ComponentInstanceRef = {
+        masterId: master.id,
+        masterVersion: 1,
+        overrides: {},
+      };
+
+      const newTree = updateNodeInTree(tree, nodeId, (n) => ({
+        ...n,
+        componentRef: instanceRef,
+        children: undefined,
+      }));
+
+      return {
+        ...stateH,
+        items: stateH.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          if (item.id === artboardId) return { ...item, pageTree: newTree };
+          return {
+            ...item,
+            pageTree: updateNodeInTree(item.pageTree as DesignNode, nodeId, (n) => ({
+              ...n,
+              componentRef: instanceRef,
+              children: undefined,
+            })),
+          };
+        }),
+        components: [...stateH.components, master],
+        updatedAt: now(),
+      };
+    }
+
+    case "INSERT_INSTANCE": {
+      const { artboardId, masterId, index } = action;
+      const stateH = pushHistoryHelper(state, "Insert component");
+
+      const master = findMaster(stateH.components, masterId);
+      if (!master) return stateH;
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+
+      const instanceNode: DesignNode = {
+        id: uid("frame"),
+        type: "frame",
+        name: master.name,
+        style: { width: "fill" as const },
+        componentRef: {
+          masterId,
+          masterVersion: master.version,
+          overrides: {},
+        },
+      };
+
+      const insertIndex = index ?? ((artboard.pageTree as DesignNode).children?.length ?? 0);
+
+      return {
+        ...stateH,
+        items: stateH.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          const tree = item.pageTree as DesignNode;
+          const children = [...(tree.children ?? [])];
+          const inst: DesignNode = item.id === artboardId
+            ? instanceNode
+            : { ...instanceNode, id: uid("frame") };
+          children.splice(insertIndex, 0, inst);
+          return { ...item, pageTree: { ...tree, children } };
+        }),
+        updatedAt: now(),
+      };
+    }
+
+    case "DETACH_INSTANCE": {
+      const { artboardId, nodeId } = action;
+      const stateH = pushHistoryHelper(state, "Detach component");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, nodeId);
+      if (!instanceNode?.componentRef) return stateH;
+
+      const master = findMaster(stateH.components, instanceNode.componentRef.masterId);
+      if (!master) return stateH;
+
+      const baked = bakeInstance(instanceNode, master);
+      const newTree = replaceNodeInTree(tree, nodeId, baked);
+
+      return {
+        ...stateH,
+        items: stateH.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          if (item.id === artboardId) return { ...item, pageTree: newTree };
+          // For other artboards in same site, detach same-master instances
+          const otherTree = item.pageTree as DesignNode;
+          let otherInstance: DesignNode | null = null;
+          walkDesignTree(otherTree, (n) => {
+            if (n.componentRef?.masterId === instanceNode.componentRef!.masterId) otherInstance = n;
+          });
+          if (otherInstance) {
+            const otherBaked = bakeInstance(otherInstance, master);
+            return { ...item, pageTree: replaceNodeInTree(otherTree, (otherInstance as DesignNode).id, otherBaked) };
+          }
+          return item;
+        }),
+        updatedAt: now(),
+      };
+    }
+
+    case "UPDATE_INSTANCE_OVERRIDE": {
+      const { artboardId, instanceId, masterNodeId, override } = action;
+      const filtered = filterAllowedOverrides(override);
+      if (!filtered.style && !filtered.content && !filtered.hidden) return state;
+
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return state;
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, instanceId);
+      if (!instanceNode?.componentRef) return state;
+
+      const existing = instanceNode.componentRef.overrides[masterNodeId] ?? {};
+      const merged: NodeOverride = {
+        style: filtered.style ? { ...existing.style, ...filtered.style } : existing.style,
+        content: filtered.content ? { ...existing.content, ...filtered.content } : existing.content,
+        hidden: filtered.hidden ? { ...existing.hidden, ...filtered.hidden } : existing.hidden,
+      };
+
+      if (merged.style && Object.keys(merged.style).length === 0) delete merged.style;
+      if (merged.content && Object.keys(merged.content).length === 0) delete merged.content;
+      if (merged.hidden && Object.keys(merged.hidden).length === 0) delete merged.hidden;
+
+      const newOverrides = { ...instanceNode.componentRef.overrides };
+      if (!merged.style && !merged.content && !merged.hidden) {
+        delete newOverrides[masterNodeId];
+      } else {
+        newOverrides[masterNodeId] = merged;
+      }
+
+      const newTree = updateNodeInTree(tree, instanceId, (n) => ({
+        ...n,
+        componentRef: { ...n.componentRef!, overrides: newOverrides },
+      }));
+
+      const nextItems = updateArtboardsForSite(state.items, artboardId, (pageTree) => {
+        if (pageTree === artboard.pageTree) return newTree;
+        return pageTree;
+      });
+
+      return {
+        ...state,
+        items: nextItems ?? state.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "RESET_INSTANCE_OVERRIDE_FIELD": {
+      const { artboardId, instanceId, masterNodeId, category, field } = action;
+      const stateH = pushHistoryHelper(state, "Reset override");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, instanceId);
+      if (!instanceNode?.componentRef) return stateH;
+
+      const newOverrides = { ...instanceNode.componentRef.overrides };
+
+      if (category === "all") {
+        delete newOverrides[masterNodeId];
+      } else {
+        const entry = newOverrides[masterNodeId];
+        if (!entry) return stateH;
+        const newEntry = { ...entry };
+
+        if (category === "style" && newEntry.style) {
+          const s = { ...newEntry.style } as Record<string, unknown>;
+          delete s[field];
+          newEntry.style = Object.keys(s).length > 0 ? s as NodeOverride["style"] : undefined;
+        } else if (category === "content" && newEntry.content) {
+          const c = { ...newEntry.content } as Record<string, unknown>;
+          delete c[field];
+          newEntry.content = Object.keys(c).length > 0 ? c as NodeOverride["content"] : undefined;
+        } else if (category === "hidden" && newEntry.hidden) {
+          const h = { ...newEntry.hidden } as Record<string, unknown>;
+          delete h[field];
+          newEntry.hidden = Object.keys(h).length > 0 ? h as NodeOverride["hidden"] : undefined;
+        }
+
+        if (!newEntry.style && !newEntry.content && !newEntry.hidden) {
+          delete newOverrides[masterNodeId];
+        } else {
+          newOverrides[masterNodeId] = newEntry;
+        }
+      }
+
+      const newTree = updateNodeInTree(tree, instanceId, (n) => ({
+        ...n,
+        componentRef: { ...n.componentRef!, overrides: newOverrides },
+      }));
+
+      const nextItems = updateArtboardsForSite(stateH.items, artboardId, (pageTree) => {
+        if (pageTree === artboard.pageTree) return newTree;
+        return pageTree;
+      });
+
+      return {
+        ...stateH,
+        items: nextItems ?? stateH.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "RESET_ALL_OVERRIDES": {
+      const { artboardId, nodeId } = action;
+      const stateH = pushHistoryHelper(state, "Reset all overrides");
+
+      const nextItems = updateArtboardsForSite(stateH.items, artboardId, (pageTree) =>
+        updateNodeInTree(pageTree as DesignNode, nodeId, (n) => ({
+          ...n,
+          componentRef: n.componentRef ? { ...n.componentRef, overrides: {} } : n.componentRef,
+        }))
+      );
+
+      return {
+        ...stateH,
+        items: nextItems ?? stateH.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "DELETE_MASTER": {
+      const { masterId } = action;
+      const master = findMaster(state.components, masterId);
+      if (!master || master.source === "builtin") return state;
+
+      const stateH = pushHistoryHelper(state, "Delete component");
+
+      const updatedItems = stateH.items.map((item) => {
+        if (item.kind !== "artboard") return item;
+        const tree = item.pageTree as DesignNode;
+        let modified = false;
+        let newTree = tree;
+
+        walkDesignTree(tree, (node) => {
+          if (node.componentRef?.masterId === masterId) {
+            const baked = bakeInstance(node, master);
+            newTree = replaceNodeInTree(newTree, node.id, baked);
+            modified = true;
+          }
+        });
+
+        if (modified) return { ...item, pageTree: newTree };
+        return item;
+      });
+
+      return {
+        ...stateH,
+        items: updatedItems,
+        components: stateH.components.filter((c) => c.id !== masterId),
+        updatedAt: now(),
+      };
+    }
+
+    case "RENAME_MASTER": {
+      const { masterId, name } = action;
+      const stateH = pushHistoryHelper(state, "Rename component");
+      return {
+        ...stateH,
+        components: stateH.components.map((c) =>
+          c.id === masterId ? { ...c, name, updatedAt: now() } : c
+        ),
         updatedAt: now(),
       };
     }

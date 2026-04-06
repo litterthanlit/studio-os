@@ -7,7 +7,7 @@
  */
 
 import type { PageNode } from "./compose";
-import type { DesignNode } from "./design-node";
+import type { DesignNode, ComponentMaster } from "./design-node";
 import type { SiteType } from "./templates";
 import {
   listProjectReferences,
@@ -33,10 +33,18 @@ export type AIPreviewSession = {
   timestamp: number;
 };
 
+export type MasterEditSession = {
+  masterId: string;
+  snapshotTree: DesignNode;
+  historyBoundaryIndex: number;
+  dirty: boolean;
+};
+
 export type UnifiedCanvasState = {
   schemaVersion: 3;
   viewport: { pan: { x: number; y: number }; zoom: number };
   items: CanvasItem[];
+  components: ComponentMaster[];  // NEW — Track 3
   selection: {
     selectedItemIds: string[];
     activeArtboardId: string | null;
@@ -212,6 +220,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     schemaVersion: 3,
     viewport: { pan: { x: 0, y: 0 }, zoom: 0.5 },
     items: [],
+    components: [],
     selection: { selectedItemIds: [], activeArtboardId: null, selectedNodeId: null, selectedNodeIds: [] },
     prompt: {
       value: "",
@@ -672,6 +681,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.schemaVersion === 3 && Array.isArray(parsed.items)) {
         const loadedState = parsed as UnifiedCanvasState;
+        loadedState.components ??= [];
         return {
           ...loadedState,
           selection: {

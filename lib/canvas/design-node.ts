@@ -16,6 +16,54 @@ export type DesignNode = {
   children?: DesignNode[];
   responsiveOverrides?: Partial<Record<Breakpoint, Partial<DesignNodeStyle>>>;
   hidden?: Partial<Record<Breakpoint, boolean>>;
+  componentRef?: ComponentInstanceRef;  // NEW — Track 3
+};
+
+// === Component System Types (Track 3) ===
+
+export type AllowedStyleOverride = Pick<DesignNodeStyle,
+  | "background" | "foreground" | "muted" | "accent"
+  | "borderColor" | "borderWidth" | "borderRadius"
+  | "opacity" | "shadow" | "blur"
+  | "fontFamily" | "fontSize" | "fontWeight" | "lineHeight"
+  | "letterSpacing" | "fontStyle" | "textDecoration" | "textAlign"
+  | "padding"
+  | "coverImage" | "coverSize" | "coverPosition"
+>;
+
+export const ALLOWED_STYLE_FIELDS = new Set<string>([
+  "background", "foreground", "muted", "accent",
+  "borderColor", "borderWidth", "borderRadius",
+  "opacity", "shadow", "blur",
+  "fontFamily", "fontSize", "fontWeight", "lineHeight",
+  "letterSpacing", "fontStyle", "textDecoration", "textAlign",
+  "padding",
+  "coverImage", "coverSize", "coverPosition",
+]);
+
+export type NodeOverride = {
+  style?: Partial<AllowedStyleOverride>;
+  content?: Partial<DesignNodeContent>;
+  hidden?: Partial<Record<Breakpoint, boolean>>;
+};
+
+export type ComponentOverrides = Record<string, NodeOverride>;
+
+export type ComponentInstanceRef = {
+  masterId: string;
+  masterVersion: number;
+  overrides: ComponentOverrides;
+};
+
+export type ComponentMaster = {
+  id: string;
+  name: string;
+  category: string;
+  source: "builtin" | "user";
+  tree: DesignNode;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DesignNodeContent = {

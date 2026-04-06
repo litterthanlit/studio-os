@@ -15,6 +15,8 @@ import {
 import {
   findMaster, bakeInstance, filterAllowedOverrides, isInstanceChild,
 } from "./component-resolver";
+import { cloneDesignNodeWithIdMap } from "./design-node";
+import { isBuiltinMasterId } from "./component-builtins";
 import type {
   ComponentMaster, ComponentInstanceRef, NodeOverride,
 } from "./design-node";
@@ -120,6 +122,9 @@ export type CanvasAction =
   | { type: "DELETE_MASTER"; masterId: string }
   | { type: "RENAME_MASTER"; masterId: string; name: string }
 
+  // Built-in promotion (Track 3)
+  | { type: "PROMOTE_BUILTIN_TO_USER"; artboardId: string; instanceNodeId: string }
+
   // Master edit mode (Track 3)
   | { type: "ENTER_MASTER_EDIT"; masterId: string }
   | { type: "UPDATE_MASTER_NODE"; masterId: string; nodeId: string; changes: Partial<DesignNode> }
@@ -134,7 +139,6 @@ export type CanvasAction =
 
 export type CanvasReducerState = UnifiedCanvasState & {
   history: HistoryStack;
-  masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing
 };
 
 export function createInitialReducerState(canvas: UnifiedCanvasState): CanvasReducerState {
@@ -1815,6 +1819,88 @@ export function canvasReducer(
           c.id === masterId ? { ...c, name, updatedAt: now() } : c
         ),
         updatedAt: now(),
+      };
+    }
+
+    // ── Built-in Promotion (Track 3) ────────────────────────────────────
+
+    case "PROMOTE_BUILTIN_TO_USER": {
+      const { artboardId, instanceNodeId } = action;
+      const stateWithHistory = pushHistoryHelper(state, "Create editable copy");
+
+      // Find the artboard and instance node
+      const artboard = stateWithHistory.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateWithHistory;
+
+      const instanceNode = findDesignNodeById(
+        artboard.pageTree as DesignNode,
+        instanceNodeId
+      );
+      if (!instanceNode?.componentRef) return stateWithHistory;
+
+      const builtinMaster = findMaster(stateWithHistory.components, instanceNode.componentRef.masterId);
+      if (!builtinMaster) return stateWithHistory;
+
+      // Clone the built-in master tree with new IDs
+      const { tree: userTree, idMap } = cloneDesignNodeWithIdMap(
+        builtinMaster.tree,
+        (originalId) => uid(originalId.split("-")[0] || "node")
+      );
+
+      const userMasterId = uid("comp");
+      const timestamp = now();
+      const userMaster: ComponentMaster = {
+        id: userMasterId,
+        name: `${builtinMaster.name} (Custom)`,
+        category: builtinMaster.category,
+        source: "user",
+        tree: userTree,
+        version: 1,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+
+      // Re-key overrides using idMap
+      const remappedOverrides: Record<string, import("./design-node").NodeOverride> = {};
+      for (const [oldId, override] of Object.entries(instanceNode.componentRef.overrides)) {
+        const newId = idMap[oldId];
+        if (newId) remappedOverrides[newId] = override;
+      }
+
+      // Update instance node's componentRef to point to new user master
+      const updatedItems = stateWithHistory.items.map((item) => {
+        if (item.kind !== "artboard" || item.id !== artboardId) return item;
+        return {
+          ...item,
+          pageTree: updateNodeInTree(item.pageTree as DesignNode, instanceNodeId, (n) => ({
+            ...n,
+            componentRef: {
+              ...n.componentRef!,
+              masterId: userMasterId,
+              masterVersion: 1,
+              overrides: remappedOverrides,
+            },
+          })),
+        };
+      }) as CanvasItem[];
+
+      // Add user master to components and enter master edit mode
+      const updatedComponents = [...stateWithHistory.components, userMaster];
+
+      return {
+        ...stateWithHistory,
+        items: updatedItems,
+        components: updatedComponents,
+        masterEditSession: {
+          masterId: userMasterId,
+          snapshotTree: JSON.parse(JSON.stringify(userTree)),
+          historyBoundaryIndex: stateWithHistory.history.cursor,
+          dirty: false,
+        },
+        updatedAt: timestamp,
       };
     }
 

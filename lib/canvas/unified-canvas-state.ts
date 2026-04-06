@@ -62,6 +62,7 @@ export type UnifiedCanvasState = {
     generationResult: GenerationResult;
   };
   aiPreview: AIPreviewSession | null;
+  masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing
   exportArtifact: ExportArtifact | null;
   updatedAt: string;
 };
@@ -232,6 +233,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
       generationResult: null,
     },
     aiPreview: null,
+    masterEditSession: null,
     exportArtifact: null,
     updatedAt: new Date().toISOString(),
   };
@@ -622,6 +624,8 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
     },
     // AI preview is transient session state — never persist
     aiPreview: null,
+    // Master edit session is transient — never persist
+    masterEditSession: null,
   };
 
   try {
@@ -696,6 +700,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
             generationResult: null,
           },
           aiPreview: null,
+          masterEditSession: null,
         };
       }
     }

@@ -37,6 +37,7 @@ import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
 import { isDesignNodeTree, findNodeById } from "@/lib/canvas/compose";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
+import { MasterEditOverlay } from "./MasterEditOverlay";
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -844,6 +845,15 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         onZoomToFit={zoomToFit}
       />
       </div>
+
+      {/* Master edit mode overlay (Track 3) */}
+      {state.masterEditSession && (
+        <MasterEditOverlay
+          masterEditSession={state.masterEditSession}
+          components={state.components}
+          dispatch={dispatch}
+        />
+      )}
 
       {/* Welcome overlay for first-time users */}
       <WelcomeOverlay visible={welcomeVisible} onDismiss={dismissWelcome} />

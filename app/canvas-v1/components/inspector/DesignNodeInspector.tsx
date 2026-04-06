@@ -37,6 +37,7 @@ import type { DesignNode, DesignNodeStyle, Breakpoint } from "@/lib/canvas/desig
 import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
 import type { NodeOverride } from "@/lib/canvas/design-node";
 import { findMaster, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
+import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -404,7 +405,17 @@ export function DesignNodeInspector({
   // ── Instance handlers ──
   function handleEditMaster() {
     if (!instanceRootContext?.master) return;
-    dispatch({ type: "ENTER_MASTER_EDIT", masterId: instanceRootContext.master.id });
+    const masterId = instanceRootContext.master.id;
+    if (isBuiltinMasterId(masterId)) {
+      // Promote built-in to user master, then enter edit mode
+      dispatch({
+        type: "PROMOTE_BUILTIN_TO_USER",
+        artboardId: artboard.id,
+        instanceNodeId: instanceRootContext.instanceNode.id,
+      });
+    } else {
+      dispatch({ type: "ENTER_MASTER_EDIT", masterId });
+    }
   }
 
   function handleDetach() {

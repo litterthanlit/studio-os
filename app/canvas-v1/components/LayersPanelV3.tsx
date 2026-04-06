@@ -16,8 +16,7 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
-import { findDesignNodeParent, cloneDesignNode, findDesignNodeById } from "@/lib/canvas/design-node";
-import { saveComponent, type DesignComponent } from "@/lib/canvas/design-component-library";
+import { findDesignNodeParent, findDesignNodeById } from "@/lib/canvas/design-node";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/useLayersDragReorder";
@@ -688,22 +687,13 @@ export function LayersPanelV3() {
             }}
             onToggleVisibility={() => { dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, breakpoint: bp }); setDnContextMenu(null); }}
             onSaveToLibrary={isNonRootFrame ? (name: string) => {
-              const clonedNode = cloneDesignNode(dnContextMenu.node);
-              const projectId = artboard?.siteId ?? "unknown";
-              const now = new Date().toISOString();
-              const entry: DesignComponent = {
-                id: `saved-${Math.random().toString(36).slice(2, 10)}`,
-                name,
-                category: "Saved",
-                source: "saved",
-                version: 1,
-                projectId,
-                projectName: projectId,
-                createdAt: now,
-                updatedAt: now,
-                node: clonedNode,
-              };
-              saveComponent(entry);
+              dispatch({
+                type: "CREATE_MASTER",
+                artboardId: dnContextMenu.artboardId,
+                nodeId: dnContextMenu.node.id,
+                name: name || dnContextMenu.node.name || "Component",
+                category: "Custom",
+              });
               setDnContextMenu(null);
             } : undefined}
             onGroup={() => { dispatch({ type: "GROUP_NODES", artboardId: dnContextMenu.artboardId }); setDnContextMenu(null); }}

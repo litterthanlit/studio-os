@@ -494,6 +494,10 @@ export function loadSavedComponents(): DesignComponent[] {
   }
 }
 
+/**
+ * @deprecated Use the `CREATE_MASTER` canvas action instead of writing to localStorage.
+ * This function is kept for backward compatibility only and will be removed in a future release.
+ */
 export function saveComponent(entry: DesignComponent): void {
   const existing = loadSavedComponents();
   existing.push(entry);

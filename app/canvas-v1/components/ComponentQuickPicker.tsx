@@ -6,40 +6,54 @@ import {
   Layout, Columns2, Grid3x3, Quote, Award, Megaphone, PanelBottom,
 } from "lucide-react";
 import {
-  getTemplateList,
-  createTemplateById,
   loadSavedComponents,
   type DesignComponent,
 } from "@/lib/canvas/design-component-library";
-import type { DesignNode } from "@/lib/canvas/design-node";
 import { cloneDesignNode } from "@/lib/canvas/design-node";
+import { getBuiltinMasters } from "@/lib/canvas/component-builtins";
+import type { ComponentMaster } from "@/lib/canvas/design-node";
+import { useCanvas } from "@/lib/canvas/canvas-context";
 
-const TEMPLATE_ICONS: Record<string, React.ElementType> = {
-  "template-hero": Layout,
-  "template-split": Columns2,
-  "template-features": Grid3x3,
-  "template-quote": Quote,
-  "template-proof": Award,
-  "template-cta": Megaphone,
-  "template-footer": PanelBottom,
+const BUILTIN_ICONS: Record<string, React.ElementType> = {
+  "builtin-hero": Layout,
+  "builtin-split": Columns2,
+  "builtin-features": Grid3x3,
+  "builtin-quote": Quote,
+  "builtin-proof": Award,
+  "builtin-cta": Megaphone,
+  "builtin-footer": PanelBottom,
 };
 
 type ComponentQuickPickerProps = {
   anchorRect: DOMRect;
-  onInsert: (node: DesignNode) => void;
   onBrowseAll: () => void;
   onDismiss: () => void;
+  /** @deprecated Pass artboardId instead; kept for backward compat. If provided, legacy INSERT_SECTION path is used. */
+  onInsert?: (node: import("@/lib/canvas/design-node").DesignNode) => void;
 };
 
 export function ComponentQuickPicker({
   anchorRect,
-  onInsert,
   onBrowseAll,
   onDismiss,
+  onInsert,
 }: ComponentQuickPickerProps) {
+  const { state, dispatch } = useCanvas();
   const menuRef = React.useRef<HTMLDivElement>(null);
-  const templates = getTemplateList();
-  const saved = React.useMemo(() => loadSavedComponents().slice(-3).reverse(), []);
+
+  const builtinMasters: ComponentMaster[] = getBuiltinMasters();
+  // Recent user masters (last 3, newest first)
+  const recentUserMasters: ComponentMaster[] = state.components
+    .filter((c) => c.source === "user")
+    .slice(-3)
+    .reverse();
+  // Legacy saved components (last 3, newest first)
+  const legacySaved: DesignComponent[] = React.useMemo(
+    () => loadSavedComponents().slice(-3).reverse(),
+    []
+  );
+
+  const artboardId = state.selection.activeArtboardId;
 
   // Position below anchor, centered
   const left = Math.max(8, anchorRect.left + anchorRect.width / 2 - 110);
@@ -77,15 +91,31 @@ export function ComponentQuickPicker({
     };
   }, [onDismiss]);
 
-  function handleTemplateClick(templateId: string) {
-    const component = createTemplateById(templateId);
-    if (component) {
-      onInsert(component.node);
+  function handleMasterClick(masterId: string) {
+    if (artboardId) {
+      dispatch({ type: "INSERT_INSTANCE", artboardId, masterId });
+      onDismiss();
     }
   }
 
-  function handleSavedClick(component: DesignComponent) {
-    onInsert(cloneDesignNode(component.node));
+  function handleLegacyClick(component: DesignComponent) {
+    if (artboardId) {
+      const cloned = cloneDesignNode(component.node);
+      // Legacy path: insert node + promote to master
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dispatch({ type: "INSERT_SECTION", artboardId, section: cloned as any });
+      dispatch({
+        type: "CREATE_MASTER",
+        artboardId,
+        nodeId: cloned.id,
+        name: component.name,
+        category: component.category,
+      });
+    } else if (onInsert) {
+      // Fallback if no artboardId
+      onInsert(cloneDesignNode(component.node));
+    }
+    onDismiss();
   }
 
   return ReactDOM.createPortal(
@@ -94,38 +124,60 @@ export function ComponentQuickPicker({
       className="fixed z-[9999] w-[220px] rounded-[4px] border border-[#E5E5E0] bg-white py-1 shadow-lg"
       style={{ left, top }}
     >
-      {/* Templates */}
+      {/* Built-in Templates */}
       <div className="px-3 py-1">
         <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Templates</span>
       </div>
-      {templates.map((t) => {
-        const Icon = TEMPLATE_ICONS[t.id] ?? Layout;
+      {builtinMasters.map((m) => {
+        const Icon = BUILTIN_ICONS[m.id] ?? Layout;
         return (
           <button
-            key={t.id}
+            key={m.id}
             type="button"
-            onClick={() => handleTemplateClick(t.id)}
+            onClick={() => handleMasterClick(m.id)}
             className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
           >
             <Icon size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
-            <span className="flex-1 truncate">{t.name}</span>
-            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase">{t.category}</span>
+            <span className="flex-1 truncate">{m.name}</span>
+            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase">{m.category}</span>
           </button>
         );
       })}
 
-      {/* Recent saved */}
-      {saved.length > 0 && (
+      {/* Recent user masters */}
+      {recentUserMasters.length > 0 && (
+        <>
+          <div className="h-px bg-[#E5E5E0] my-1" />
+          <div className="px-3 py-1">
+            <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Project</span>
+          </div>
+          {recentUserMasters.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => handleMasterClick(m.id)}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
+            >
+              <Layout size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
+              <span className="flex-1 truncate">{m.name}</span>
+              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase">{m.category}</span>
+            </button>
+          ))}
+        </>
+      )}
+
+      {/* Legacy saved components */}
+      {legacySaved.length > 0 && (
         <>
           <div className="h-px bg-[#E5E5E0] my-1" />
           <div className="px-3 py-1">
             <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Saved</span>
           </div>
-          {saved.map((s) => (
+          {legacySaved.map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => handleSavedClick(s)}
+              onClick={() => handleLegacyClick(s)}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
             >
               <Layout size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />

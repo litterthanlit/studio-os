@@ -274,6 +274,7 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
               {tokens && isDesignNodeTree(item.pageTree) ? (
                 <ComposeDocumentViewV6
                   tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
+                  components={state.components}
                   selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
                   selectedNodeIds={isActiveArtboard ? state.selection.selectedNodeIds : []}
                   onSelectNode={handleNodeSelect}

@@ -312,14 +312,10 @@ function replaceNodeInTree(tree: DesignNode, targetId: string, replacement: Desi
   return { ...tree, children: newChildren };
 }
 
-/**
- * Temporary helper — wraps pushHistory with current signature (no components param).
- * Task 9 will update history.ts to accept components; this helper will be updated then.
- */
 function pushHistoryHelper(state: CanvasReducerState, description: string): CanvasReducerState {
   return {
     ...state,
-    history: pushHistory(state.history, description, state.items, state.selection),
+    history: pushHistory(state.history, description, state.items, state.selection, state.components),
   };
 }
 
@@ -595,7 +591,8 @@ export function canvasReducer(
         state.history,
         "Reordered element",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -645,7 +642,8 @@ export function canvasReducer(
         state.history,
         `Added ${action.section.name} section`,
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -723,7 +721,8 @@ export function canvasReducer(
         state.history,
         "Duplicated section",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const cloneIds = clones.map((c) => c.clone.id);
@@ -772,7 +771,8 @@ export function canvasReducer(
         state.history,
         "Removed section",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -825,7 +825,8 @@ export function canvasReducer(
         state.history,
         "Reset responsive override",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -855,7 +856,8 @@ export function canvasReducer(
         state.history,
         "Toggle element visibility",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -1050,7 +1052,8 @@ export function canvasReducer(
         state.history,
         `Aligned nodes ${action.direction}`,
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const applyPositions = (pageTree: TreeNode): TreeNode => {
@@ -1094,7 +1097,8 @@ export function canvasReducer(
         state.history,
         `Distributed nodes ${action.axis}`,
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const applyDistPositions = (pageTree: TreeNode): TreeNode => {
@@ -1223,7 +1227,8 @@ export function canvasReducer(
         state.history,
         "Grouped nodes",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -1290,7 +1295,8 @@ export function canvasReducer(
         state.history,
         "Ungrouped nodes",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -1327,7 +1333,8 @@ export function canvasReducer(
           state.history,
           action.description,
           state.items,
-          state.selection
+          state.selection,
+          state.components
         ),
       };
     }
@@ -1347,8 +1354,15 @@ export function canvasReducer(
           updatedAt: now(),
         };
       }
-      const result = undo(state.history, state.items, state.selection);
+      const result = undo(state.history, state.items, state.selection, state.components);
       if (!result) return state;
+
+      // Master edit mode boundary check — cannot undo past session start
+      if (state.masterEditSession) {
+        const boundary = state.masterEditSession.historyBoundaryIndex;
+        if (result.stack.cursor < boundary) return state;
+      }
+
       return {
         ...state,
         items: result.items,
@@ -1357,12 +1371,13 @@ export function canvasReducer(
           selectedNodeIds: result.selection.selectedNodeIds ?? [],
         },
         history: result.stack,
+        components: result.components,
         updatedAt: now(),
       };
     }
 
     case "REDO": {
-      const result = redo(state.history, state.items, state.selection);
+      const result = redo(state.history, state.items, state.selection, state.components);
       if (!result) return state;
       return {
         ...state,
@@ -1372,6 +1387,7 @@ export function canvasReducer(
           selectedNodeIds: result.selection.selectedNodeIds ?? [],
         },
         history: result.stack,
+        components: result.components,
         updatedAt: now(),
       };
     }
@@ -1440,7 +1456,8 @@ export function canvasReducer(
         state.history,
         "Generated site",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       // Remove all existing artboard items, keep everything else
@@ -1469,7 +1486,8 @@ export function canvasReducer(
         state.history,
         "Restored site",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const nonArtboards = state.items.filter((item) => item.kind !== "artboard");

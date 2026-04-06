@@ -16,6 +16,7 @@
  */
 
 import type { CanvasItem, UnifiedCanvasState } from "./unified-canvas-state";
+import type { ComponentMaster } from "./design-node";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ export interface HistoryEntry {
   description: string;
   stateBefore: CanvasItem[];
   selectionBefore: UnifiedCanvasState["selection"];
+  componentsBefore: ComponentMaster[];  // NEW — Track 3
 }
 
 export interface HistoryStack {
@@ -56,7 +58,8 @@ export function pushHistory(
   stack: HistoryStack,
   description: string,
   itemsBefore: CanvasItem[],
-  selectionBefore: UnifiedCanvasState["selection"]
+  selectionBefore: UnifiedCanvasState["selection"],
+  componentsBefore: ComponentMaster[] = []
 ): HistoryStack {
   // Truncate any future entries beyond the cursor
   const entries = stack.entries.slice(0, stack.cursor + 1);
@@ -66,6 +69,7 @@ export function pushHistory(
     description,
     stateBefore: itemsBefore,
     selectionBefore,
+    componentsBefore,
   });
 
   // Drop oldest if over the cap
@@ -92,17 +96,20 @@ export function pushHistory(
 export function undo(
   stack: HistoryStack,
   currentItems: CanvasItem[],
-  currentSelection: UnifiedCanvasState["selection"]
+  currentSelection: UnifiedCanvasState["selection"],
+  currentComponents: ComponentMaster[] = []
 ): {
   stack: HistoryStack;
   items: CanvasItem[];
   selection: UnifiedCanvasState["selection"];
+  components: ComponentMaster[];
 } | null {
   if (!canUndo(stack)) return null;
 
   const entry = stack.entries[stack.cursor];
   const restoredItems = entry.stateBefore;
   const restoredSelection = entry.selectionBefore;
+  const restoredComponents = entry.componentsBefore;
 
   // Overwrite the entry with the current state so redo can get back to it
   const updatedEntries = [...stack.entries];
@@ -110,6 +117,7 @@ export function undo(
     ...entry,
     stateBefore: currentItems,
     selectionBefore: currentSelection,
+    componentsBefore: currentComponents,
   };
 
   return {
@@ -120,6 +128,7 @@ export function undo(
     },
     items: restoredItems,
     selection: restoredSelection,
+    components: restoredComponents,
   };
 }
 
@@ -135,11 +144,13 @@ export function undo(
 export function redo(
   stack: HistoryStack,
   currentItems: CanvasItem[],
-  currentSelection: UnifiedCanvasState["selection"]
+  currentSelection: UnifiedCanvasState["selection"],
+  currentComponents: ComponentMaster[] = []
 ): {
   stack: HistoryStack;
   items: CanvasItem[];
   selection: UnifiedCanvasState["selection"];
+  components: ComponentMaster[];
 } | null {
   if (!canRedo(stack)) return null;
 
@@ -147,6 +158,7 @@ export function redo(
   const entry = stack.entries[nextCursor];
   const restoredItems = entry.stateBefore;
   const restoredSelection = entry.selectionBefore;
+  const restoredComponents = entry.componentsBefore;
 
   // Swap: store current state into the entry so undo can get back to it
   const updatedEntries = [...stack.entries];
@@ -154,6 +166,7 @@ export function redo(
     ...entry,
     stateBefore: currentItems,
     selectionBefore: currentSelection,
+    componentsBefore: currentComponents,
   };
 
   return {
@@ -164,6 +177,7 @@ export function redo(
     },
     items: restoredItems,
     selection: restoredSelection,
+    components: restoredComponents,
   };
 }
 

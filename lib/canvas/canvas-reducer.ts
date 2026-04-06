@@ -23,6 +23,7 @@ import type {
   CanvasItem,
   ArtboardItem,
   PromptRun,
+  MasterEditSession,
 } from "./unified-canvas-state";
 import {
   createHistoryStack,
@@ -119,6 +120,13 @@ export type CanvasAction =
   | { type: "DELETE_MASTER"; masterId: string }
   | { type: "RENAME_MASTER"; masterId: string; name: string }
 
+  // Master edit mode (Track 3)
+  | { type: "ENTER_MASTER_EDIT"; masterId: string }
+  | { type: "UPDATE_MASTER_NODE"; masterId: string; nodeId: string; changes: Partial<DesignNode> }
+  | { type: "UPDATE_MASTER_NODE_STYLE"; masterId: string; nodeId: string; style: Partial<import("./design-node").DesignNodeStyle> }
+  | { type: "COMMIT_MASTER_EDIT" }
+  | { type: "CANCEL_MASTER_EDIT" }
+
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
 
@@ -126,12 +134,14 @@ export type CanvasAction =
 
 export type CanvasReducerState = UnifiedCanvasState & {
   history: HistoryStack;
+  masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing
 };
 
 export function createInitialReducerState(canvas: UnifiedCanvasState): CanvasReducerState {
   return {
     ...canvas,
     history: createHistoryStack(50),
+    masterEditSession: null,
   };
 }
 
@@ -331,6 +341,21 @@ export function canvasReducer(
   // Preview-related, viewport, prompt, history, and generation actions are excluded.
   if (state.aiPreview && !AI_PREVIEW_SAFE_ACTIONS.has(action.type)) {
     state = { ...state, aiPreview: null };
+  }
+
+  // Master edit mode guard — block most actions while editing a component master.
+  // Only viewport, selection, undo/redo, and master-edit-specific actions pass through.
+  if (state.masterEditSession) {
+    const ALLOWED_DURING_MASTER_EDIT = new Set([
+      "SET_VIEWPORT", "UNDO", "REDO", "PUSH_HISTORY",
+      "SELECT_NODE", "DESELECT_ALL", "ESCAPE",
+      "UPDATE_MASTER_NODE", "UPDATE_MASTER_NODE_STYLE",
+      "COMMIT_MASTER_EDIT", "CANCEL_MASTER_EDIT",
+      "ENTER_MASTER_EDIT",
+    ]);
+    if (!ALLOWED_DURING_MASTER_EDIT.has(action.type)) {
+      return state;
+    }
   }
 
   switch (action.type) {
@@ -1743,6 +1768,110 @@ export function canvasReducer(
       };
     }
 
+    // ── Master Edit Mode (Track 3) ──────────────────────────────────────
+
+    case "ENTER_MASTER_EDIT": {
+      const { masterId } = action;
+      if (state.masterEditSession) return state; // already editing
+
+      const master = state.components.find((c) => c.id === masterId);
+      if (!master) return state;
+
+      const stateWithHistory = pushHistoryHelper(state, "Enter master edit");
+
+      return {
+        ...stateWithHistory,
+        masterEditSession: {
+          masterId,
+          snapshotTree: JSON.parse(JSON.stringify(master.tree)),
+          historyBoundaryIndex: stateWithHistory.history.cursor,
+          dirty: false,
+        },
+      };
+    }
+
+    case "UPDATE_MASTER_NODE": {
+      if (!state.masterEditSession || state.masterEditSession.masterId !== action.masterId) return state;
+
+      const updatedComponents = state.components.map((c) => {
+        if (c.id !== action.masterId) return c;
+        const updatedTree = updateNodeInTree(c.tree, action.nodeId, (n) => ({
+          ...n,
+          ...action.changes,
+        }));
+        return { ...c, tree: updatedTree };
+      });
+
+      return {
+        ...state,
+        components: updatedComponents,
+        masterEditSession: { ...state.masterEditSession, dirty: true },
+      };
+    }
+
+    case "UPDATE_MASTER_NODE_STYLE": {
+      if (!state.masterEditSession || state.masterEditSession.masterId !== action.masterId) return state;
+
+      const updatedComponents = state.components.map((c) => {
+        if (c.id !== action.masterId) return c;
+        const updatedTree = updateNodeInTree(c.tree, action.nodeId, (n) => ({
+          ...n,
+          style: { ...n.style, ...action.style },
+        }));
+        return { ...c, tree: updatedTree };
+      });
+
+      return {
+        ...state,
+        components: updatedComponents,
+        masterEditSession: { ...state.masterEditSession, dirty: true },
+      };
+    }
+
+    case "COMMIT_MASTER_EDIT": {
+      if (!state.masterEditSession) return state;
+      const stateWithHistory = pushHistoryHelper(state, "Commit master edit");
+
+      const updatedComponents = stateWithHistory.components.map((c) => {
+        if (c.id !== stateWithHistory.masterEditSession!.masterId) return c;
+        return {
+          ...c,
+          version: c.version + 1,
+          updatedAt: now(),
+        };
+      });
+
+      return {
+        ...stateWithHistory,
+        components: updatedComponents,
+        masterEditSession: null,
+      };
+    }
+
+    case "CANCEL_MASTER_EDIT": {
+      if (!state.masterEditSession) return state;
+      const { masterId, snapshotTree, historyBoundaryIndex } = state.masterEditSession;
+
+      const restoredComponents = state.components.map((c) => {
+        if (c.id !== masterId) return c;
+        return { ...c, tree: snapshotTree };
+      });
+
+      // Rewind history to boundary
+      const rewoundHistory: HistoryStack = {
+        ...state.history,
+        entries: state.history.entries.slice(0, historyBoundaryIndex + 1),
+        cursor: Math.min(state.history.cursor, historyBoundaryIndex),
+      };
+
+      return {
+        ...state,
+        components: restoredComponents,
+        history: rewoundHistory,
+        masterEditSession: null,
+      };
+    }
+
     // ── AI Preview ──────────────────────────────────────────────────────
 
     case "START_AI_PREVIEW": {
@@ -1788,6 +1917,7 @@ export function canvasReducer(
         },
         aiPreview: null, // Never restore transient AI preview state
         history: state.history, // Preserve in-memory history stack across loads
+        masterEditSession: null, // Never restore transient master edit state
       };
     }
 

@@ -39,7 +39,10 @@ export function SpacingDiagram({
             value={padding.top ?? ""}
             placeholder="0"
             min={0}
-            onChange={(e) => onPaddingChange("top", Number(e.target.value) || undefined)}
+            onChange={(e) => {
+              const val = e.target.value;
+              onPaddingChange("top", val === "" ? undefined : Number(val));
+            }}
             onBlur={onHistoryFlush}
           />
         </div>
@@ -58,7 +61,10 @@ export function SpacingDiagram({
             value={padding.left ?? ""}
             placeholder="0"
             min={0}
-            onChange={(e) => onPaddingChange("left", Number(e.target.value) || undefined)}
+            onChange={(e) => {
+              const val = e.target.value;
+              onPaddingChange("left", val === "" ? undefined : Number(val));
+            }}
             onBlur={onHistoryFlush}
           />
         </div>
@@ -76,7 +82,10 @@ export function SpacingDiagram({
             value={padding.right ?? ""}
             placeholder="0"
             min={0}
-            onChange={(e) => onPaddingChange("right", Number(e.target.value) || undefined)}
+            onChange={(e) => {
+              const val = e.target.value;
+              onPaddingChange("right", val === "" ? undefined : Number(val));
+            }}
             onBlur={onHistoryFlush}
           />
         </div>
@@ -89,7 +98,10 @@ export function SpacingDiagram({
             value={padding.bottom ?? ""}
             placeholder="0"
             min={0}
-            onChange={(e) => onPaddingChange("bottom", Number(e.target.value) || undefined)}
+            onChange={(e) => {
+              const val = e.target.value;
+              onPaddingChange("bottom", val === "" ? undefined : Number(val));
+            }}
             onBlur={onHistoryFlush}
           />
         </div>

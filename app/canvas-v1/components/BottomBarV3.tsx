@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * V3 Bottom Bar — zoom display with click-to-edit and double-click-to-fit.
+ * V3 Bottom Bar — floating pill, centered bottom, 12px above viewport.
+ * Height: 32px, padding 4px 14px.
+ * Background: #FFFFFF, border 0.5px #EFEFEC, radius 4px.
+ * NO shadows (per spec).
  */
 
 import * as React from "react";
@@ -20,24 +23,9 @@ export function BottomBarV3({ zoom, onZoomChange, onZoomToFit }: BottomBarV3Prop
 
   return (
     <div
-      className="dark:!bg-[#1A1A1A] dark:!border-[#333333] dark:!text-[#D0D0D0]"
+      className="absolute bottom-[12px] left-1/2 -translate-x-1/2 z-30 flex items-center h-[32px] px-[14px] py-1 gap-0 bg-white border-[0.5px] border-[#EFEFEC] rounded-[4px] dark:bg-[#1A1A1A] dark:border-[#333333]"
       style={{
-        position: "fixed",
-        bottom: 16,
-        left: "50%",
-        transform: "translateX(-50%)",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        background: "#FFFFFF",
-        border: "0.5px solid #EFEFEC",
-        borderRadius: 4,
-        padding: "4px 12px",
-        fontSize: 11,
         fontFamily: "'IBM Plex Mono', monospace",
-        color: "#6B6B6B",
-        zIndex: 100,
-        userSelect: "none",
       }}
     >
       {editing ? (
@@ -56,16 +44,9 @@ export function BottomBarV3({ zoom, onZoomChange, onZoomToFit }: BottomBarV3Prop
             if (e.key === "Escape") setEditing(false);
           }}
           onBlur={() => setEditing(false)}
-          className="dark:!text-[#FFFFFF]"
+          className="w-[40px] border-none outline-none bg-transparent text-[11px] text-[#1A1A1A] dark:text-[#FFFFFF] text-center"
           style={{
-            width: 40,
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            fontSize: 11,
             fontFamily: "inherit",
-            color: "#1A1A1A",
-            textAlign: "center",
           }}
         />
       ) : (
@@ -78,7 +59,7 @@ export function BottomBarV3({ zoom, onZoomChange, onZoomToFit }: BottomBarV3Prop
             e.stopPropagation();
             onZoomToFit();
           }}
-          style={{ cursor: "pointer" }}
+          className="text-[11px] text-[#6B6B6B] dark:text-[#D0D0D0] cursor-pointer"
         >
           {displayPercent}%
         </span>

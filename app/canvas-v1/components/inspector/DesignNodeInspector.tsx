@@ -1,14 +1,10 @@
 "use client";
 
 /**
- * DesignNodeInspector — V6 DesignNode property inspector.
+ * DesignNodeInspector — Framer-style property inspector.
  *
- * Displays and edits DesignNodeStyle properties for the 5 universal
- * node types: frame, text, image, button, divider.
- *
- * Mirrors InspectorSkeleton's UI patterns (collapsible sections,
- * shared field primitives, debounced history) but targets the
- * DesignNodeStyle model instead of PageNodeStyle.
+ * Two-column layout with 32px row height, embedded rule headers,
+ * and visual box model for spacing.
  */
 
 import * as React from "react";
@@ -16,13 +12,15 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignJustify,
   Plus,
   Minus,
+  Maximize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import {
-  InspectorLabel,
+  InspectorFieldRow,
   InspectorNumberInput,
   InspectorSelect,
   InspectorColorField,
@@ -30,8 +28,9 @@ import {
 } from "./InspectorField";
 import { GridTemplatePicker } from "./GridTemplatePicker";
 import { SectionRule } from "./SectionRule";
-import { InspectorSegmented } from "./InspectorSegmented";
+import { InspectorSegmented, InspectorSegmentedSmall } from "./InspectorSegmented";
 import { BreakpointBadge } from "./BreakpointBadge";
+import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignNode, DesignNodeStyle, Breakpoint } from "@/lib/canvas/design-node";
@@ -84,57 +83,6 @@ function useDebouncedHistoryBurst(
   return { begin, flush };
 }
 
-// ── Inline addable row (for Border inside Appearance) ───────────────────────
-
-function InlineAddableRow({
-  label,
-  hasValue,
-  onAdd,
-  onRemove,
-  children,
-}: {
-  label: string;
-  hasValue: boolean;
-  onAdd: () => void;
-  onRemove: () => void;
-  children: React.ReactNode;
-}) {
-  if (!hasValue) {
-    return (
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-[#B0B0B0] dark:text-[#666666] font-mono">
-          {label}
-        </span>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="text-[#A0A0A0] dark:text-[#555555] hover:text-[#4B57DB] transition-colors"
-        >
-          <Plus size={12} />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] uppercase tracking-wide text-[#B0B0B0] dark:text-[#666666] font-mono">
-          {label}
-        </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-[#A0A0A0] dark:text-[#555555] hover:text-red-500 transition-colors"
-        >
-          <Minus size={12} />
-        </button>
-      </div>
-      {children}
-    </div>
-  );
-}
-
 // ── Inherited typography resolver ────────────────────────────────────────────
 
 type ResolvedTypography = {
@@ -144,7 +92,6 @@ type ResolvedTypography = {
   isInherited: { fontFamily: boolean; fontWeight: boolean; fontSize: boolean };
 };
 
-/** Walk up the DesignNode tree to resolve inherited typography values. */
 function resolveInheritedTypography(
   node: DesignNode,
   tree: DesignNode
@@ -156,11 +103,10 @@ function resolveInheritedTypography(
     isInherited: {
       fontFamily: !node.style.fontFamily,
       fontWeight: node.style.fontWeight == null,
-      fontSize: node.style.fontSize == null,
+      fontSize: !node.style.fontSize,
     },
   };
 
-  // Walk up parents to find inherited values
   let current = node;
   while (result.fontFamily === "" || result.fontWeight === 0 || result.fontSize === 0) {
     const parent = findDesignNodeParent(tree, current.id);
@@ -178,7 +124,6 @@ function resolveInheritedTypography(
     current = parent;
   }
 
-  // Browser defaults if nothing found in the tree
   if (result.fontWeight === 0) result.fontWeight = 400;
   if (result.fontSize === 0) result.fontSize = 16;
 
@@ -312,9 +257,6 @@ export function DesignNodeInspector({
 
   function togglePositionMode(mode: string) {
     if (mode === "absolute") {
-      // Preserve the current static-position offset when possible by not
-      // inventing explicit coordinates in the inspector. The renderer can
-      // later measure and persist exact x/y if needed.
       applyImmediate(
         { position: "absolute", x: style.x, y: style.y, zIndex: style.zIndex ?? 1 },
         "Switched to breakout"
@@ -328,173 +270,211 @@ export function DesignNodeInspector({
   }
 
   return (
-    <div data-inspector-first-section className="space-y-4">
+    <div data-inspector-first-section className="space-y-6 py-4">
       {isNonDesktop && (
-        <div className="mb-2">
+        <div className="px-4">
           <BreakpointBadge breakpoint={breakpoint} width={artboard.width} />
         </div>
       )}
-      {/* ── POSITION ─────────────────────────────────────────────────── */}
-      <SectionRule label="POSITION" />
-      <div className="space-y-1.5 px-4 py-2">
-        <div className="space-y-0.5">
-          <InspectorLabel hasOverride={hasOverride("position")} onResetOverride={() => resetOverride("position")}>Mode</InspectorLabel>
-          <InspectorSegmented
-            value={isBreakout ? "absolute" : "relative"}
-            options={[
-              { value: "relative", label: "Flow" },
-              { value: "absolute", label: "Breakout" },
-            ]}
-            onChange={togglePositionMode}
-          />
-        </div>
 
-        {isBreakout && (
-          <>
-            <div className="grid grid-cols-2 gap-1.5">
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("x")} onResetOverride={() => resetOverride("x")}>X</InspectorLabel>
+      {/* ── POSITION ─────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <SectionRule label="POSITION" />
+        <div className="px-4 space-y-2">
+          <InspectorFieldRow label="Mode">
+            <InspectorSegmented
+              value={isBreakout ? "absolute" : "relative"}
+              options={[
+                { value: "relative", label: "Flow" },
+                { value: "absolute", label: "Breakout" },
+              ]}
+              onChange={togglePositionMode}
+            />
+          </InspectorFieldRow>
+
+          {isBreakout && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <InspectorFieldRow 
+                  label="X" 
+                  hasOverride={hasOverride("x")} 
+                  onResetOverride={() => resetOverride("x")}
+                >
+                  <InspectorNumberInput
+                    value={style.x ?? 0}
+                    placeholder="0"
+                    onChange={(e) => updateStyle({ x: Number(e.target.value) || 0 })}
+                    onBlur={() => history.flush()}
+                  />
+                </InspectorFieldRow>
+                <InspectorFieldRow 
+                  label="Y"
+                  hasOverride={hasOverride("y")} 
+                  onResetOverride={() => resetOverride("y")}
+                >
+                  <InspectorNumberInput
+                    value={style.y ?? 0}
+                    placeholder="0"
+                    onChange={(e) => updateStyle({ y: Number(e.target.value) || 0 })}
+                    onBlur={() => history.flush()}
+                  />
+                </InspectorFieldRow>
+              </div>
+              <InspectorFieldRow 
+                label="Z-Index"
+                hasOverride={hasOverride("zIndex")} 
+                onResetOverride={() => resetOverride("zIndex")}
+              >
                 <InspectorNumberInput
-                  value={style.x ?? 0}
-                  placeholder="0"
-                  className="w-full"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ x: val ? Number(val) : 0 });
-                  }}
+                  value={style.zIndex ?? 1}
+                  placeholder="1"
+                  min={0}
+                  onChange={(e) => updateStyle({ zIndex: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
-              </div>
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("y")} onResetOverride={() => resetOverride("y")}>Y</InspectorLabel>
-                <InspectorNumberInput
-                  value={style.y ?? 0}
-                  placeholder="0"
-                  className="w-full"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ y: val ? Number(val) : 0 });
-                  }}
-                  onBlur={() => history.flush()}
-                />
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("zIndex")} onResetOverride={() => resetOverride("zIndex")}>Z-Index</InspectorLabel>
-              <InspectorNumberInput
-                value={style.zIndex ?? 1}
-                placeholder="1"
-                min={0}
-                className="w-full"
-                onChange={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  updateStyle({ zIndex: val ? Number(val) : undefined });
-                }}
-                onBlur={() => history.flush()}
-              />
-            </div>
-          </>
-        )}
-      </div>
+              </InspectorFieldRow>
+            </>
+          )}
+        </div>
+      </section>
 
       {/* ── SIZE ──────────────────────────────────────────────────────── */}
       {sections.showSize && (
-        <>
+        <section className="space-y-3">
           <SectionRule label="SIZE" />
-          <div className="space-y-1.5 px-4 py-2">
+          <div className="px-4 space-y-2">
             {/* Width */}
-            <div className="flex items-center gap-1.5">
-              <InspectorLabel hasOverride={hasOverride("width")} onResetOverride={() => resetOverride("width")}>W</InspectorLabel>
-              <InspectorSegmented
-                value={getSizingMode(style.width)}
-                options={[
-                  { value: "fixed", label: "Fixed" },
-                  { value: "fill", label: "Fill" },
-                  { value: "hug", label: "Hug" },
-                ]}
-                onChange={(mode) => {
-                  if (mode === "fill") {
-                    applyImmediate({ width: "fill" }, "Set width to Fill");
-                  } else if (mode === "hug") {
-                    applyImmediate({ width: "hug" }, "Set width to Hug");
-                  } else {
-                    const el = document.querySelector(`[data-node-id="${node.id}"]`);
-                    const measured = el ? Math.round(el.getBoundingClientRect().width / zoom) : 200;
-                    applyImmediate({ width: measured }, "Set width to Fixed");
-                  }
-                }}
-              />
-              {getSizingMode(style.width) === "fixed" ? (
-                <InspectorNumberInput
-                  value={typeof style.width === "number" ? style.width : ""}
-                  placeholder="0"
-                  min={0}
-                  className="w-[60px]"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ width: val ? Number(val) : 0 });
+            <InspectorFieldRow 
+              label="W"
+              hasOverride={hasOverride("width")} 
+              onResetOverride={() => resetOverride("width")}
+            >
+              <div className="flex items-center gap-2">
+                <InspectorSegmented
+                  value={getSizingMode(style.width)}
+                  options={[
+                    { value: "fixed", label: "Fixed" },
+                    { value: "hug", label: "Hug" },
+                    { value: "fill", label: "Fill" },
+                  ]}
+                  onChange={(mode) => {
+                    if (mode === "fill") {
+                      applyImmediate({ width: "fill" }, "Set width to Fill");
+                    } else if (mode === "hug") {
+                      applyImmediate({ width: "hug" }, "Set width to Hug");
+                    } else {
+                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const measured = el ? Math.round(el.getBoundingClientRect().width / zoom) : 200;
+                      applyImmediate({ width: measured }, "Set width to Fixed");
+                    }
                   }}
-                  onBlur={() => history.flush()}
+                  className="flex-1"
                 />
-              ) : (
-                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] dark:text-[#666666] bg-[#F5F5F0] dark:bg-[#222222] border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] text-right">
-                  {getSizingMode(style.width) === "fill" ? "Fill" : "Hug"}
-                </div>
-              )}
-            </div>
+                {getSizingMode(style.width) === "fixed" ? (
+                  <InspectorNumberInput
+                    value={typeof style.width === "number" ? style.width : ""}
+                    placeholder="0"
+                    min={0}
+                    className="w-16"
+                    onChange={(e) => updateStyle({ width: Number(e.target.value) || 0 })}
+                    onBlur={() => history.flush()}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const measured = el ? Math.round(el.getBoundingClientRect().width / zoom) : 200;
+                      applyImmediate({ width: measured }, "Reset width to measured");
+                    }}
+                    className="h-6 px-2 text-[11px] font-mono text-[#A0A0A0] hover:text-[#1A1A1A] dark:text-[#666666] dark:hover:text-[#D0D0D0] transition-colors"
+                    title="Reset to measured value"
+                  >
+                    —
+                  </button>
+                )}
+              </div>
+            </InspectorFieldRow>
 
             {/* Height */}
-            <div className="flex items-center gap-1.5">
-              <InspectorLabel hasOverride={hasOverride("height")} onResetOverride={() => resetOverride("height")}>H</InspectorLabel>
-              <InspectorSegmented
-                value={getSizingMode(style.height)}
-                options={[
-                  { value: "fixed", label: "Fixed" },
-                  { value: "fill", label: "Fill" },
-                  { value: "hug", label: "Hug" },
-                ]}
-                onChange={(mode) => {
-                  if (mode === "fill") {
-                    applyImmediate({ height: "fill" }, "Set height to Fill");
-                  } else if (mode === "hug") {
-                    applyImmediate({ height: "hug" }, "Set height to Hug");
-                  } else {
-                    const el = document.querySelector(`[data-node-id="${node.id}"]`);
-                    const measured = el ? Math.round(el.getBoundingClientRect().height / zoom) : 200;
-                    applyImmediate({ height: measured }, "Set height to Fixed");
-                  }
-                }}
-              />
-              {getSizingMode(style.height) === "fixed" ? (
-                <InspectorNumberInput
-                  value={typeof style.height === "number" ? style.height : ""}
-                  placeholder="0"
-                  min={0}
-                  className="w-[60px]"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ height: val ? Number(val) : 0 });
+            <InspectorFieldRow 
+              label="H"
+              hasOverride={hasOverride("height")} 
+              onResetOverride={() => resetOverride("height")}
+            >
+              <div className="flex items-center gap-2">
+                <InspectorSegmented
+                  value={getSizingMode(style.height)}
+                  options={[
+                    { value: "fixed", label: "Fixed" },
+                    { value: "hug", label: "Hug" },
+                    { value: "fill", label: "Fill" },
+                  ]}
+                  onChange={(mode) => {
+                    if (mode === "fill") {
+                      applyImmediate({ height: "fill" }, "Set height to Fill");
+                    } else if (mode === "hug") {
+                      applyImmediate({ height: "hug" }, "Set height to Hug");
+                    } else {
+                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const measured = el ? Math.round(el.getBoundingClientRect().height / zoom) : 200;
+                      applyImmediate({ height: measured }, "Set height to Fixed");
+                    }
                   }}
-                  onBlur={() => history.flush()}
+                  className="flex-1"
                 />
-              ) : (
-                <div className="w-[60px] px-2 py-[3px] text-[11px] text-[#A0A0A0] dark:text-[#666666] bg-[#F5F5F0] dark:bg-[#222222] border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] text-right">
-                  {getSizingMode(style.height) === "fill" ? "Fill" : "Hug"}
-                </div>
-              )}
-            </div>
+                {getSizingMode(style.height) === "fixed" ? (
+                  <InspectorNumberInput
+                    value={typeof style.height === "number" ? style.height : ""}
+                    placeholder="0"
+                    min={0}
+                    className="w-16"
+                    onChange={(e) => updateStyle({ height: Number(e.target.value) || 0 })}
+                    onBlur={() => history.flush()}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const measured = el ? Math.round(el.getBoundingClientRect().height / zoom) : 200;
+                      applyImmediate({ height: measured }, "Reset height to measured");
+                    }}
+                    className="h-6 px-2 text-[11px] font-mono text-[#A0A0A0] hover:text-[#1A1A1A] dark:text-[#666666] dark:hover:text-[#D0D0D0] transition-colors"
+                    title="Reset to measured value"
+                  >
+                    —
+                  </button>
+                )}
+              </div>
+            </InspectorFieldRow>
           </div>
-        </>
+        </section>
+      )}
+
+      {/* ── SPACING (frame + text) ───────────────────────────────────── */}
+      {sections.showSpacing && (
+        <section className="space-y-3">
+          <SectionRule label="SPACING" />
+          <div className="px-4">
+            <SpacingDiagram
+              node={node}
+              style={style}
+              onPaddingChange={updatePadding}
+              onHistoryFlush={() => history.flush()}
+              hasOverride={hasOverride("padding")}
+              onResetOverride={() => resetOverride("padding")}
+            />
+          </div>
+        </section>
       )}
 
       {/* ── LAYOUT (frame only) ──────────────────────────────────────── */}
       {sections.showLayout && (
-        <>
+        <section className="space-y-3">
           <SectionRule label="LAYOUT" />
-          <div className="space-y-1.5 px-4 py-2">
-            {/* Display */}
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("display")} onResetOverride={() => resetOverride("display")}>Display</InspectorLabel>
+          <div className="px-4 space-y-2">
+            <InspectorFieldRow label="Display">
               <InspectorSegmented
                 value={style.display || "flex"}
                 options={[
@@ -503,12 +483,14 @@ export function DesignNodeInspector({
                 ]}
                 onChange={(v) => applyImmediate({ display: v as "flex" | "grid" }, "Changed display")}
               />
-            </div>
+            </InspectorFieldRow>
 
-            {/* Flex Direction (only when flex) */}
             {(style.display || "flex") === "flex" && (
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("flexDirection")} onResetOverride={() => resetOverride("flexDirection")}>Direction</InspectorLabel>
+              <InspectorFieldRow 
+                label="Direction"
+                hasOverride={hasOverride("flexDirection")} 
+                onResetOverride={() => resetOverride("flexDirection")}
+              >
                 <InspectorSegmented
                   value={style.flexDirection || "column"}
                   options={[
@@ -517,110 +499,86 @@ export function DesignNodeInspector({
                   ]}
                   onChange={(v) => applyImmediate({ flexDirection: v as "row" | "column" }, "Changed direction")}
                 />
-              </div>
+              </InspectorFieldRow>
             )}
 
-            {/* Grid Template (only when grid) */}
             {style.display === "grid" && (
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("gridTemplate")} onResetOverride={() => resetOverride("gridTemplate")}>Grid Template</InspectorLabel>
+              <InspectorFieldRow 
+                label="Template"
+                hasOverride={hasOverride("gridTemplate")} 
+                onResetOverride={() => resetOverride("gridTemplate")}
+              >
                 <GridTemplatePicker
                   value={style.gridTemplate || ""}
                   onChange={(v) => updateStyle({ gridTemplate: v })}
                   onCommit={() => history.flush()}
                 />
-              </div>
+              </InspectorFieldRow>
             )}
 
-            {/* Align Items */}
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("alignItems")} onResetOverride={() => resetOverride("alignItems")}>Align</InspectorLabel>
-              <InspectorSegmented
-                value={style.alignItems || "stretch"}
-                options={[
-                  { value: "flex-start", label: "Start" },
-                  { value: "center", label: "Center" },
-                  { value: "flex-end", label: "End" },
-                  { value: "stretch", label: "Stretch" },
-                ]}
-                onChange={(v) => applyImmediate({ alignItems: v as DesignNodeStyle["alignItems"] }, "Changed align")}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <InspectorFieldRow 
+                label="Align"
+                hasOverride={hasOverride("alignItems")} 
+                onResetOverride={() => resetOverride("alignItems")}
+              >
+                <InspectorSegmentedSmall
+                  value={style.alignItems || "stretch"}
+                  options={[
+                    { value: "flex-start", label: "Start" },
+                    { value: "center", label: "Center" },
+                    { value: "flex-end", label: "End" },
+                    { value: "stretch", label: "Stretch" },
+                  ]}
+                  onChange={(v) => applyImmediate({ alignItems: v as DesignNodeStyle["alignItems"] }, "Changed align")}
+                />
+              </InspectorFieldRow>
+              <InspectorFieldRow 
+                label="Justify"
+                hasOverride={hasOverride("justifyContent")} 
+                onResetOverride={() => resetOverride("justifyContent")}
+              >
+                <InspectorSegmentedSmall
+                  value={style.justifyContent || "flex-start"}
+                  options={[
+                    { value: "flex-start", label: "Start" },
+                    { value: "center", label: "Center" },
+                    { value: "flex-end", label: "End" },
+                    { value: "space-between", label: "Between" },
+                  ]}
+                  onChange={(v) => applyImmediate({ justifyContent: v as DesignNodeStyle["justifyContent"] }, "Changed justify")}
+                />
+              </InspectorFieldRow>
             </div>
 
-            {/* Justify Content */}
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("justifyContent")} onResetOverride={() => resetOverride("justifyContent")}>Justify</InspectorLabel>
-              <InspectorSegmented
-                value={style.justifyContent || "flex-start"}
-                options={[
-                  { value: "flex-start", label: "Start" },
-                  { value: "center", label: "Center" },
-                  { value: "flex-end", label: "End" },
-                  { value: "space-between", label: "Between" },
-                ]}
-                onChange={(v) => applyImmediate({ justifyContent: v as DesignNodeStyle["justifyContent"] }, "Changed justify")}
-              />
-            </div>
-
-            {/* Gap */}
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("gap")} onResetOverride={() => resetOverride("gap")}>Gap</InspectorLabel>
+            <InspectorFieldRow 
+              label="Gap"
+              hasOverride={hasOverride("gap")} 
+              onResetOverride={() => resetOverride("gap")}
+            >
               <InspectorNumberInput
                 value={style.gap ?? ""}
                 placeholder="0"
                 min={0}
-                className="w-full"
-                onChange={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  updateStyle({ gap: val ? Number(val) : undefined });
-                }}
+                onChange={(e) => updateStyle({ gap: Number(e.target.value) || undefined })}
                 onBlur={() => history.flush()}
               />
-            </div>
+            </InspectorFieldRow>
           </div>
-        </>
-      )}
-
-      {/* ── SPACING (frame + text) ───────────────────────────────────── */}
-      {sections.showSpacing && (
-        <>
-          <SectionRule label="SPACING" />
-          <div className="space-y-1.5 px-4 py-2">
-            <InspectorLabel hasOverride={hasOverride("padding")} onResetOverride={() => resetOverride("padding")}>Padding</InspectorLabel>
-            <div className="grid grid-cols-4 gap-1.5">
-              {(["top", "right", "bottom", "left"] as const).map((side) => (
-                <div key={side} className="space-y-0.5">
-                  <span className="text-[9px] text-[#A0A0A0] dark:text-[#666666] font-mono uppercase tracking-wider text-center block">
-                    {side[0]!.toUpperCase()}
-                  </span>
-                  <InspectorNumberInput
-                    value={style.padding?.[side] ?? ""}
-                    placeholder="0"
-                    min={0}
-                    className="w-full"
-                    onChange={(e) => {
-                      const val = (e.target as HTMLInputElement).value;
-                      updatePadding(side, val ? Number(val) : undefined);
-                    }}
-                    onBlur={() => history.flush()}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
+        </section>
       )}
 
       {/* ── TYPOGRAPHY (text + button) ───────────────────────────────── */}
       {sections.showTypography && (
-        <>
+        <section className="space-y-3">
           <SectionRule label="TYPOGRAPHY" />
-          <div className="space-y-1.5 px-4 py-2">
+          <div className="px-4 space-y-2">
             {/* Font Family */}
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("fontFamily")} onResetOverride={() => resetOverride("fontFamily")}>
-                Font{resolved?.isInherited.fontFamily ? <span className="text-[#4B57DB] ml-1">*</span> : null}
-              </InspectorLabel>
+            <InspectorFieldRow 
+              label="Font"
+              hasOverride={hasOverride("fontFamily")} 
+              onResetOverride={() => resetOverride("fontFamily")}
+            >
               <InspectorSelect
                 value={style.fontFamily || resolved?.fontFamily || ""}
                 onChange={(e) => {
@@ -642,86 +600,84 @@ export function DesignNodeInspector({
                   </optgroup>
                 ))}
               </InspectorSelect>
-            </div>
+            </InspectorFieldRow>
 
             {/* Weight + Size */}
-            <div className="grid grid-cols-[1fr_60px] gap-1.5">
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("fontWeight")} onResetOverride={() => resetOverride("fontWeight")}>
-                  Weight{resolved?.isInherited.fontWeight ? <span className="text-[#4B57DB] ml-1">*</span> : null}
-                </InspectorLabel>
+            <div className="grid grid-cols-2 gap-3">
+              <InspectorFieldRow 
+                label="Weight"
+                hasOverride={hasOverride("fontWeight")} 
+                onResetOverride={() => resetOverride("fontWeight")}
+              >
                 <InspectorNumberInput
                   value={style.fontWeight ?? resolved?.fontWeight ?? ""}
                   placeholder="400"
                   min={100}
                   max={900}
                   step={100}
-                  className={cn("w-full", resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0] dark:text-[#666666]")}
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ fontWeight: val ? Number(val) : undefined });
-                  }}
+                  className={cn(resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0] dark:text-[#666666]")}
+                  onChange={(e) => updateStyle({ fontWeight: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
-              </div>
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("fontSize")} onResetOverride={() => resetOverride("fontSize")}>
-                  Size{resolved?.isInherited.fontSize ? <span className="text-[#4B57DB] ml-1">*</span> : null}
-                </InspectorLabel>
+              </InspectorFieldRow>
+              <InspectorFieldRow 
+                label="Size"
+                hasOverride={hasOverride("fontSize")} 
+                onResetOverride={() => resetOverride("fontSize")}
+              >
                 <InspectorNumberInput
                   value={style.fontSize ?? resolved?.fontSize ?? ""}
                   placeholder="16"
                   min={1}
-                  className={cn("w-full", resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0] dark:text-[#666666]")}
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ fontSize: val ? Number(val) : undefined });
-                  }}
+                  className={cn(resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0] dark:text-[#666666]")}
+                  onChange={(e) => updateStyle({ fontSize: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
-              </div>
+              </InspectorFieldRow>
             </div>
 
-            {/* Line Height + Letter Spacing */}
-            <div className="grid grid-cols-2 gap-1.5">
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("lineHeight")} onResetOverride={() => resetOverride("lineHeight")}>Height</InspectorLabel>
+            {/* Line Height + Tracking */}
+            <div className="grid grid-cols-2 gap-3">
+              <InspectorFieldRow 
+                label="Height"
+                hasOverride={hasOverride("lineHeight")} 
+                onResetOverride={() => resetOverride("lineHeight")}
+              >
                 <InspectorNumberInput
                   value={style.lineHeight ?? ""}
                   placeholder="Auto"
                   step={0.1}
-                  className="w-full"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ lineHeight: val ? Number(val) : undefined });
-                  }}
+                  onChange={(e) => updateStyle({ lineHeight: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
-              </div>
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("letterSpacing")} onResetOverride={() => resetOverride("letterSpacing")}>Tracking</InspectorLabel>
+              </InspectorFieldRow>
+              <InspectorFieldRow 
+                label="Tracking"
+                hasOverride={hasOverride("letterSpacing")} 
+                onResetOverride={() => resetOverride("letterSpacing")}
+              >
                 <InspectorNumberInput
                   value={style.letterSpacing ?? ""}
                   placeholder="0"
                   step={0.1}
-                  className="w-full"
-                  onChange={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    updateStyle({ letterSpacing: val ? Number(val) : undefined });
-                  }}
+                  onChange={(e) => updateStyle({ letterSpacing: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
-              </div>
+              </InspectorFieldRow>
             </div>
 
             {/* Text Align */}
-            <div className="space-y-0.5">
-              <InspectorLabel hasOverride={hasOverride("textAlign")} onResetOverride={() => resetOverride("textAlign")}>Align</InspectorLabel>
+            <InspectorFieldRow 
+              label="Align"
+              hasOverride={hasOverride("textAlign")} 
+              onResetOverride={() => resetOverride("textAlign")}
+            >
               <div className="flex gap-0.5">
                 {[
-                  { value: "left" as const, icon: <AlignLeft size={14} />, title: "Left" },
-                  { value: "center" as const, icon: <AlignCenter size={14} />, title: "Center" },
-                  { value: "right" as const, icon: <AlignRight size={14} />, title: "Right" },
+                  { value: "left" as const, icon: AlignLeft, title: "Left" },
+                  { value: "center" as const, icon: AlignCenter, title: "Center" },
+                  { value: "right" as const, icon: AlignRight, title: "Right" },
+                  { value: "justify" as const, icon: AlignJustify, title: "Justify" },
                 ].map((opt) => (
                   <button
                     key={opt.value}
@@ -729,23 +685,26 @@ export function DesignNodeInspector({
                     title={opt.title}
                     onClick={() => applyImmediate({ textAlign: opt.value }, "Changed text align")}
                     className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
+                      "flex h-6 w-6 items-center justify-center rounded-[2px] transition-colors",
                       style.textAlign === opt.value
                         ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
-                        : "bg-[#FAFAF8] dark:bg-[#222222] text-[#6B6B6B] dark:text-[#D0D0D0] border border-[#E5E5E0] dark:border-[#333333] hover:bg-[#F5F5F0] dark:hover:bg-[#2A2A2A] hover:text-[#1A1A1A] dark:hover:text-[#FFFFFF]"
+                        : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
                     )}
                   >
-                    {opt.icon}
+                    <opt.icon size={12} />
                   </button>
                 ))}
               </div>
-            </div>
+            </InspectorFieldRow>
 
-            {/* Font Style + Text Decoration */}
-            <div className="grid grid-cols-2 gap-1.5">
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("fontStyle")} onResetOverride={() => resetOverride("fontStyle")}>Style</InspectorLabel>
-                <InspectorSegmented
+            {/* Font Style + Decoration */}
+            <div className="grid grid-cols-2 gap-3">
+              <InspectorFieldRow 
+                label="Style"
+                hasOverride={hasOverride("fontStyle")} 
+                onResetOverride={() => resetOverride("fontStyle")}
+              >
+                <InspectorSegmentedSmall
                   value={style.fontStyle || "normal"}
                   options={[
                     { value: "normal", label: "Normal" },
@@ -753,10 +712,13 @@ export function DesignNodeInspector({
                   ]}
                   onChange={(v) => applyImmediate({ fontStyle: v as "normal" | "italic" }, "Changed font style")}
                 />
-              </div>
-              <div className="space-y-0.5">
-                <InspectorLabel hasOverride={hasOverride("textDecoration")} onResetOverride={() => resetOverride("textDecoration")}>Decoration</InspectorLabel>
-                <InspectorSegmented
+              </InspectorFieldRow>
+              <InspectorFieldRow 
+                label="Deco"
+                hasOverride={hasOverride("textDecoration")} 
+                onResetOverride={() => resetOverride("textDecoration")}
+              >
+                <InspectorSegmentedSmall
                   value={style.textDecoration || "none"}
                   options={[
                     { value: "none", label: "None" },
@@ -764,224 +726,266 @@ export function DesignNodeInspector({
                   ]}
                   onChange={(v) => applyImmediate({ textDecoration: v as "none" | "underline" }, "Changed decoration")}
                 />
-              </div>
+              </InspectorFieldRow>
             </div>
           </div>
-        </>
+        </section>
       )}
 
       {/* ── FILL ─────────────────────────────────────────────────────── */}
       {sections.showFill && (
-        <>
+        <section className="space-y-3">
           <SectionRule label="FILL" />
-          <div className="space-y-2 px-4 py-2">
-            {/* Background */}
-            <div>
-              <InspectorLabel hasOverride={hasOverride("background")} onResetOverride={() => resetOverride("background")}>Background</InspectorLabel>
+          <div className="px-4 space-y-2">
+            <InspectorFieldRow 
+              label="Bg"
+              hasOverride={hasOverride("background")} 
+              onResetOverride={() => resetOverride("background")}
+            >
               <InspectorColorField
                 color={style.background || ""}
                 documentColors={documentColors}
                 onCommit={() => history.flush()}
                 onChange={(c) => updateStyle({ background: c })}
               />
-            </div>
+            </InspectorFieldRow>
 
-            {/* Foreground */}
-            <div>
-              <InspectorLabel hasOverride={hasOverride("foreground")} onResetOverride={() => resetOverride("foreground")}>Foreground</InspectorLabel>
+            <InspectorFieldRow 
+              label="Text"
+              hasOverride={hasOverride("foreground")} 
+              onResetOverride={() => resetOverride("foreground")}
+            >
               <InspectorColorField
                 color={style.foreground || ""}
                 documentColors={documentColors}
                 onCommit={() => history.flush()}
                 onChange={(c) => updateStyle({ foreground: c })}
               />
-            </div>
+            </InspectorFieldRow>
 
             {/* Cover Image (frame only) */}
             {node.type === "frame" && (
-              <InlineAddableRow
-                label="Cover Image"
-                hasValue={Boolean(style.coverImage)}
-                onAdd={() => applyImmediate({ coverImage: "https://", coverSize: "cover" }, "Added cover image")}
-                onRemove={() => applyImmediate({ coverImage: undefined, coverSize: undefined, coverPosition: undefined, scrimEnabled: undefined }, "Removed cover image")}
-              >
-                <div className="space-y-1.5">
-                  {/* URL */}
-                  <InspectorLabel hasOverride={hasOverride("coverImage")} onResetOverride={() => resetOverride("coverImage")}>URL</InspectorLabel>
-                  <InspectorTextInput
-                    value={style.coverImage || ""}
-                    placeholder="https://..."
-                    onChange={(e) => updateStyle({ coverImage: (e.target as HTMLInputElement).value || undefined })}
-                    onBlur={() => history.flush()}
-                  />
-
-                  {/* Preview thumbnail */}
-                  {style.coverImage && style.coverImage !== "https://" && (
-                    <div
-                      className="w-full h-[80px] rounded-[2px] border border-[#E5E5E0] dark:border-[#333333] overflow-hidden bg-[#F5F5F0] dark:bg-[#222222]"
+              <div className="pt-2">
+                {!style.coverImage ? (
+                  <div className="flex items-center justify-between h-8">
+                    <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Image</span>
+                    <button
+                      type="button"
+                      onClick={() => applyImmediate({ coverImage: "https://", coverSize: "cover" }, "Added cover image")}
+                      className="h-6 w-6 flex items-center justify-center rounded-[2px] bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333] transition-colors"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={style.coverImage}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Cover Size */}
-                  <div>
-                    <InspectorLabel hasOverride={hasOverride("coverSize")} onResetOverride={() => resetOverride("coverSize")}>Size</InspectorLabel>
-                    <InspectorSegmented
-                      value={style.coverSize || "cover"}
-                      options={[
-                        { value: "cover", label: "Cover" },
-                        { value: "contain", label: "Contain" },
-                      ]}
-                      onChange={(v) => applyImmediate({ coverSize: v as "cover" | "contain" }, "Changed cover size")}
-                    />
+                      <Plus size={12} />
+                    </button>
                   </div>
-
-                  {/* Cover Position */}
-                  <div>
-                    <InspectorLabel hasOverride={hasOverride("coverPosition")} onResetOverride={() => resetOverride("coverPosition")}>Position</InspectorLabel>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Image</span>
+                      <button
+                        type="button"
+                        onClick={() => applyImmediate({ coverImage: undefined, coverSize: undefined, coverPosition: undefined, scrimEnabled: undefined }, "Removed cover image")}
+                        className="h-6 w-6 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-red-500 transition-colors"
+                      >
+                        <Minus size={12} />
+                      </button>
+                    </div>
+                    
                     <InspectorTextInput
-                      value={style.coverPosition || ""}
-                      placeholder="center"
-                      onChange={(e) => updateStyle({ coverPosition: (e.target as HTMLInputElement).value || undefined })}
+                      value={style.coverImage || ""}
+                      placeholder="https://..."
+                      onChange={(e) => updateStyle({ coverImage: (e.target as HTMLInputElement).value || undefined })}
                       onBlur={() => history.flush()}
                     />
-                  </div>
 
-                  {/* Scrim */}
-                  <div>
-                    <InspectorLabel hasOverride={hasOverride("scrimEnabled")} onResetOverride={() => resetOverride("scrimEnabled")}>Scrim</InspectorLabel>
-                    <InspectorSegmented
-                      value={style.scrimEnabled === true ? "on" : style.scrimEnabled === false ? "off" : "auto"}
-                      options={[
-                        { value: "auto", label: "Auto" },
-                        { value: "on", label: "On" },
-                        { value: "off", label: "Off" },
-                      ]}
-                      onChange={(v) => {
-                        const val = v === "auto" ? undefined : v === "on";
-                        applyImmediate({ scrimEnabled: val }, "Changed scrim");
-                      }}
-                    />
+                    {style.coverImage && style.coverImage !== "https://" && (
+                      <div className="w-full h-[60px] rounded-[2px] border border-[#E5E5E0] dark:border-[#333333] overflow-hidden bg-[#F5F5F0] dark:bg-[#2A2A2A]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={style.coverImage}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <InspectorFieldRow label="Size">
+                        <InspectorSegmentedSmall
+                          value={style.coverSize || "cover"}
+                          options={[
+                            { value: "cover", label: "Cover" },
+                            { value: "contain", label: "Contain" },
+                          ]}
+                          onChange={(v) => applyImmediate({ coverSize: v as "cover" | "contain" }, "Changed cover size")}
+                        />
+                      </InspectorFieldRow>
+                      <InspectorFieldRow label="Position">
+                        <InspectorTextInput
+                          value={style.coverPosition || ""}
+                          placeholder="center"
+                          onChange={(e) => updateStyle({ coverPosition: (e.target as HTMLInputElement).value || undefined })}
+                          onBlur={() => history.flush()}
+                        />
+                      </InspectorFieldRow>
+                    </div>
                   </div>
-                </div>
-              </InlineAddableRow>
+                )}
+              </div>
             )}
           </div>
-        </>
+        </section>
       )}
 
       {/* ── APPEARANCE (all types) ───────────────────────────────────── */}
       {sections.showAppearance && (
-        <>
+        <section className="space-y-3">
           <SectionRule label="APPEARANCE" />
-          <div className="space-y-1.5 px-4 py-2">
-          {node.type !== "divider" && (
-            <div>
-              <InspectorLabel hasOverride={hasOverride("borderRadius")} onResetOverride={() => resetOverride("borderRadius")}>Radius</InspectorLabel>
-              <InspectorNumberInput
-                value={style.borderRadius ?? ""}
-                min={0}
-                max={999}
-                step={1}
-                placeholder="0"
-                className="w-full"
-                onChange={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  updateStyle({ borderRadius: val ? Number(val) : undefined });
-                }}
-                onBlur={() => history.flush()}
-              />
-            </div>
-          )}
+          <div className="px-4 space-y-2">
+            {/* Radius */}
+            {node.type !== "divider" && (
+              <InspectorFieldRow 
+                label="Radius"
+                hasOverride={hasOverride("borderRadius")} 
+                onResetOverride={() => resetOverride("borderRadius")}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-0.5">
+                    {["0", "2", "4", "8"].map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => applyImmediate({ borderRadius: Number(r) }, `Set radius to ${r}`)}
+                        className={cn(
+                          "h-6 w-6 flex items-center justify-center rounded-[2px] text-[10px] font-mono transition-colors",
+                          style.borderRadius === Number(r)
+                            ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
+                            : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
+                        )}
+                        title={`${r}px`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <InspectorNumberInput
+                    value={style.borderRadius ?? ""}
+                    placeholder="0"
+                    min={0}
+                    max={999}
+                    className="w-16"
+                    onChange={(e) => updateStyle({ borderRadius: Number(e.target.value) || undefined })}
+                    onBlur={() => history.flush()}
+                  />
+                </div>
+              </InspectorFieldRow>
+            )}
 
-          {node.type === "divider" ? (
-            <div>
-              <InspectorLabel hasOverride={hasOverride("borderColor")} onResetOverride={() => resetOverride("borderColor")}>Line Color</InspectorLabel>
-              <InspectorColorField
-                color={style.borderColor || "rgba(0,0,0,0.1)"}
-                documentColors={documentColors}
-                onCommit={() => history.flush()}
-                onChange={(c) => updateStyle({ borderColor: c })}
-              />
-            </div>
-          ) : (
-            <InlineAddableRow
-              label="Border"
-              hasValue={hasBorder}
-              onAdd={addBorder}
-              onRemove={removeBorder}
-            >
-              <div className="space-y-1.5">
+            {/* Border */}
+            {node.type === "divider" ? (
+              <InspectorFieldRow label="Color">
                 <InspectorColorField
-                  color={style.borderColor || "#E5E5E0"}
+                  color={style.borderColor || "rgba(0,0,0,0.1)"}
                   documentColors={documentColors}
                   onCommit={() => history.flush()}
                   onChange={(c) => updateStyle({ borderColor: c })}
                 />
-                <div>
-                  <InspectorLabel hasOverride={hasOverride("borderWidth")} onResetOverride={() => resetOverride("borderWidth")}>Width</InspectorLabel>
-                  <InspectorNumberInput
-                    value={style.borderWidth ?? 1}
-                    min={0}
-                    max={20}
-                    step={1}
-                    placeholder="1"
-                    className="w-full"
-                    onChange={(e) => {
-                      const val = (e.target as HTMLInputElement).value;
-                      updateStyle({ borderWidth: val ? Number(val) : undefined });
-                    }}
-                    onBlur={() => history.flush()}
-                  />
-                </div>
+              </InspectorFieldRow>
+            ) : (
+              <>
+                {!hasBorder ? (
+                  <div className="flex items-center justify-between h-8">
+                    <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Border</span>
+                    <button
+                      type="button"
+                      onClick={addBorder}
+                      className="h-6 w-6 flex items-center justify-center rounded-[2px] bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333] transition-colors"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Border</span>
+                      <button
+                        type="button"
+                        onClick={removeBorder}
+                        className="h-6 w-6 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-red-500 transition-colors"
+                      >
+                        <Minus size={12} />
+                      </button>
+                    </div>
+                    <InspectorColorField
+                      color={style.borderColor || "#E5E5E0"}
+                      documentColors={documentColors}
+                      onCommit={() => history.flush()}
+                      onChange={(c) => updateStyle({ borderColor: c })}
+                    />
+                    <InspectorFieldRow 
+                      label="Width"
+                      hasOverride={hasOverride("borderWidth")} 
+                      onResetOverride={() => resetOverride("borderWidth")}
+                    >
+                      <InspectorNumberInput
+                        value={style.borderWidth ?? 1}
+                        placeholder="1"
+                        min={0}
+                        max={20}
+                        onChange={(e) => updateStyle({ borderWidth: Number(e.target.value) || undefined })}
+                        onBlur={() => history.flush()}
+                      />
+                    </InspectorFieldRow>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Shadow */}
+            {node.type !== "divider" && (
+              <InspectorFieldRow 
+                label="Shadow"
+                hasOverride={hasOverride("shadow")} 
+                onResetOverride={() => resetOverride("shadow")}
+              >
+                <InspectorTextInput
+                  value={style.shadow || ""}
+                  placeholder="0 4px 12px rgba(0,0,0,0.08)"
+                  onChange={(e) => updateStyle({ shadow: (e.target as HTMLInputElement).value || undefined })}
+                  onBlur={() => history.flush()}
+                />
+              </InspectorFieldRow>
+            )}
+
+            {/* Opacity */}
+            <InspectorFieldRow 
+              label="Opacity"
+              hasOverride={hasOverride("opacity")} 
+              onResetOverride={() => resetOverride("opacity")}
+            >
+              <div className="relative flex-1">
+                <InspectorNumberInput
+                  value={style.opacity != null ? Math.round((style.opacity ?? 1) * 100) : 100}
+                  placeholder="100"
+                  min={0}
+                  max={100}
+                  className="pr-6"
+                  onChange={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (val === "") {
+                      updateStyle({ opacity: undefined });
+                    } else {
+                      const pct = Math.min(100, Math.max(0, Number(val)));
+                      updateStyle({ opacity: pct >= 100 ? undefined : pct / 100 });
+                    }
+                  }}
+                  onBlur={() => history.flush()}
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">%</span>
               </div>
-            </InlineAddableRow>
-          )}
-
-          {node.type !== "divider" && (
-            <div>
-              <InspectorLabel hasOverride={hasOverride("shadow")} onResetOverride={() => resetOverride("shadow")}>Shadow</InspectorLabel>
-              <InspectorTextInput
-                value={style.shadow || ""}
-                placeholder="0 4px 12px rgba(0,0,0,0.08)"
-                onChange={(e) => updateStyle({ shadow: (e.target as HTMLInputElement).value || undefined })}
-                onBlur={() => history.flush()}
-              />
-            </div>
-          )}
-
-          {/* Opacity */}
-          <div>
-            <InspectorLabel hasOverride={hasOverride("opacity")} onResetOverride={() => resetOverride("opacity")}>Opacity</InspectorLabel>
-            <InspectorNumberInput
-              value={style.opacity != null ? Math.round((style.opacity ?? 1) * 100) : 100}
-              min={0}
-              max={100}
-              step={1}
-              placeholder="100"
-              className="w-full"
-              onChange={(e) => {
-                const val = (e.target as HTMLInputElement).value;
-                if (val === "") {
-                  updateStyle({ opacity: undefined });
-                } else {
-                  const pct = Math.min(100, Math.max(0, Number(val)));
-                  updateStyle({ opacity: pct >= 100 ? undefined : pct / 100 });
-                }
-              }}
-              onBlur={() => history.flush()}
-            />
-            <span className="text-[10px] text-[#A0A0A0] dark:text-[#666666] font-mono mt-0.5 block">%</span>
+            </InspectorFieldRow>
           </div>
-          </div>
-        </>
+        </section>
       )}
     </div>
   );

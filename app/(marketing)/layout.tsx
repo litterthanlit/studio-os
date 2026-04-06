@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { Preloader } from "@/components/marketing/preloader";
+import { ScrollReveal } from "@/components/marketing/scroll-reveal";
 
 export const metadata: Metadata = {
-  title: "Studio OS — A design workspace that thinks like you do",
+  title: "Studio OS — AI that designs like you",
   description:
-    "AI-curated inspiration meets unified workspace. Organize references, export specs, and ship faster.",
+    "Feed Studio OS your references. It extracts your design sensibility and generates pages that look like yours — not like everyone else's.",
   openGraph: {
-    title: "Studio OS",
-    description: "A design workspace that thinks like you do",
+    title: "Studio OS — AI that designs like you",
+    description:
+      "AI-curated taste meets a real design editor. Import references, generate pages, export clean HTML.",
     type: "website",
   },
 };
@@ -20,6 +22,7 @@ export default function MarketingLayout({
   return (
     <>
       <Preloader />
+      <ScrollReveal />
       {children}
     </>
   );

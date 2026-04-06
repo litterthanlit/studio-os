@@ -38,8 +38,8 @@ function RailButton({
       className={cn(
         "w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent",
         active
-          ? "text-[#4B57DB] bg-[#F5F5F0] dark:bg-[#2A2A2A]"
-          : "text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0] dark:text-[#555555] dark:hover:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
+          ? "text-[#4B57DB]"
+          : "text-[#C0C0C0] hover:text-[#6B6B6B]"
       )}
     >
       {children}
@@ -60,7 +60,7 @@ function RailLink({
     <Link
       href={href}
       title={title}
-      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#C0C0C0] hover:text-[#6B6B6B] hover:bg-[#F5F5F0] dark:text-[#555555] dark:hover:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
+      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#C0C0C0] hover:text-[#6B6B6B]"
     >
       {children}
     </Link>
@@ -75,36 +75,26 @@ export function MiniRail({
   onShowWelcome,
 }: MiniRailProps) {
   return (
-    <div className="w-12 h-full bg-[#FAFAF8] border-r-[0.5px] border-[#EFEFEC] flex flex-col items-center py-3 flex-shrink-0 z-30 dark:bg-[#1A1A1A] dark:border-[#333333]">
-      {/* Logo mark */}
+    <div className="w-[44px] h-full bg-[#FAFAF8] border-r-[0.5px] border-[#EFEFEC] flex flex-col items-center pt-[14px] pb-[14px] flex-shrink-0 z-30 dark:bg-[#1A1A1A] dark:border-[#333333]">
+      {/* S Lettermark */}
       <Link
         href="/home"
         title="Studio OS"
-        className="w-8 h-8 flex items-center justify-center mb-4"
+        className="flex items-center justify-center mb-4"
       >
-        <svg
-          width="20"
-          height="13"
-          viewBox="0 0 119 79"
-          fill="none"
-          aria-hidden="true"
-        >
-          <rect y="66" width="119" height="13" rx="2" fill="rgb(75, 87, 219)" />
-          <rect y="49" width="119" height="13" rx="2" fill="rgb(75, 87, 219)" />
-          <rect y="32" width="119" height="13" rx="2" fill="rgb(75, 87, 219)" />
-          <rect y="15" width="119" height="13" rx="2" fill="rgb(75, 87, 219)" />
-          <rect y="0" width="57" height="11" rx="2" fill="rgb(75, 87, 219)" />
-        </svg>
+        <span className="text-[16px] font-semibold text-[#1A1A1A] dark:text-[#FFFFFF] leading-none tracking-[-0.01em]">
+          S
+        </span>
       </Link>
 
-      {/* Panel toggles */}
-      <div className="flex flex-col items-center gap-0.5">
+      {/* Panel toggles group */}
+      <div className="flex flex-col items-center">
         <RailButton
           active={layersVisible}
           onClick={onToggleLayers}
           title="Toggle Layers"
         >
-          <Layers size={18} strokeWidth={1} />
+          <Layers size={16} strokeWidth={1.5} />
         </RailButton>
 
         <RailButton
@@ -112,18 +102,18 @@ export function MiniRail({
           onClick={onToggleInspector}
           title="Toggle Inspector"
         >
-          <SlidersHorizontal size={18} strokeWidth={1} />
+          <SlidersHorizontal size={16} strokeWidth={1.5} />
         </RailButton>
       </div>
 
-      {/* Navigation */}
-      <div className="flex flex-col items-center gap-0.5 mt-4">
+      {/* Navigation group - 16px gap from toggles */}
+      <div className="flex flex-col items-center mt-4">
         <RailLink href="/home" title="Home">
-          <Home size={18} strokeWidth={1} />
+          <Home size={16} strokeWidth={1.5} />
         </RailLink>
 
         <RailLink href="/settings" title="Settings">
-          <Settings size={18} strokeWidth={1} />
+          <Settings size={16} strokeWidth={1.5} />
         </RailLink>
 
         {/* Show welcome overlay */}
@@ -132,7 +122,7 @@ export function MiniRail({
             onClick={onShowWelcome}
             title="Show welcome guide"
           >
-            <HelpCircle size={18} strokeWidth={1} />
+            <HelpCircle size={16} strokeWidth={1.5} />
           </RailButton>
         )}
       </div>
@@ -140,10 +130,12 @@ export function MiniRail({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Expand to dashboard */}
-      <RailLink href="/home" title="Back to dashboard">
-        <ChevronsRight size={18} strokeWidth={1} />
-      </RailLink>
+      {/* Bottom group - 16px gap implied by spacer */}
+      <div className="flex flex-col items-center">
+        <RailLink href="/home" title="Back to dashboard">
+          <ChevronsRight size={16} strokeWidth={1.5} />
+        </RailLink>
+      </div>
     </div>
   );
 }

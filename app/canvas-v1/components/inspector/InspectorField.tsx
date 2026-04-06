@@ -24,17 +24,25 @@ export function InspectorFieldRow({
   className,
   hasOverride,
   onResetOverride,
+  disabled,
 }: {
   label: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   hasOverride?: boolean;
   onResetOverride?: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center h-8 gap-3", className)}>
-      <span className="w-16 shrink-0 text-[13px] text-[#6B6B6B] dark:text-[#999999] font-normal flex items-center gap-1.5">
-        {hasOverride && (
+    <div
+      className={cn("flex items-center h-8 gap-3", className)}
+      title={disabled ? "Controlled by master component" : undefined}
+    >
+      <span className={cn(
+        "w-16 shrink-0 text-[13px] font-normal flex items-center gap-1.5",
+        disabled ? "text-[#A0A0A0]" : "text-[#6B6B6B] dark:text-[#999999]"
+      )}>
+        {hasOverride && !disabled && (
           <button
             type="button"
             title="Overridden — click to reset to desktop"
@@ -47,7 +55,7 @@ export function InspectorFieldRow({
         )}
         {label}
       </span>
-      <div className="flex-1 min-w-0">
+      <div className={cn("flex-1 min-w-0", disabled && "opacity-50 pointer-events-none")}>
         {children}
       </div>
     </div>

@@ -34,7 +34,9 @@ import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignNode, DesignNodeStyle, Breakpoint } from "@/lib/canvas/design-node";
-import { findDesignNodeParent } from "@/lib/canvas/design-node";
+import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
+import type { NodeOverride } from "@/lib/canvas/design-node";
+import { findMaster, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -160,6 +162,72 @@ function getSizingMode(value: number | "hug" | "fill" | undefined): SizingMode {
   return "hug";
 }
 
+// ── Instance Banners ────────────────────────────────────────────────────────
+
+function InstanceRootBanner({
+  context,
+  onEditMaster,
+  onDetach,
+}: {
+  context: { master: import("@/lib/canvas/design-node").ComponentMaster | null; isStale: boolean };
+  onEditMaster: () => void;
+  onDetach: () => void;
+}) {
+  const [confirming, setConfirming] = React.useState(false);
+  React.useEffect(() => {
+    if (confirming) {
+      const t = setTimeout(() => setConfirming(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [confirming]);
+  return (
+    <div className="px-4 py-3 border-b border-[#EFEFEC]">
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-medium text-[#1A1A1A]">{context.master?.name}</span>
+        <span className="text-[11px] text-[#A0A0A0]">Component Instance</span>
+      </div>
+      <div className="flex gap-2 mt-2">
+        <button onClick={onEditMaster} className="text-[12px] text-[#6B6B6B] border border-[#E5E5E0] rounded-[4px] px-2 py-1 hover:border-[#D1E4FC] hover:text-[#4B57DB]">
+          Edit Master
+        </button>
+        <button
+          onClick={() => confirming ? onDetach() : setConfirming(true)}
+          className="text-[12px] border border-[#E5E5E0] rounded-[4px] px-2 py-1"
+          style={{ color: confirming ? "#EF4444" : "#6B6B6B" }}
+        >
+          {confirming ? "Confirm detach?" : "Detach"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InstanceChildBanner({
+  context,
+  nodeName,
+  onResetOverrides,
+}: {
+  context: {
+    master: import("@/lib/canvas/design-node").ComponentMaster | null;
+    overrides?: import("@/lib/canvas/design-node").NodeOverride;
+  };
+  nodeName: string;
+  onResetOverrides: () => void;
+}) {
+  const hasOverrides = context.overrides && Object.keys(context.overrides).length > 0;
+  return (
+    <div className="px-4 py-2 border-b border-[#EFEFEC]">
+      <span className="text-[13px] text-[#1A1A1A]">{nodeName}</span>
+      <span className="text-[11px] text-[#A0A0A0] ml-1">in {context.master?.name}</span>
+      {hasOverrides && (
+        <button onClick={onResetOverrides} className="text-[11px] text-[#4B57DB] ml-2 hover:underline">
+          Reset Overrides
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── DesignNodeInspector ─────────────────────────────────────────────────────
 
 type DesignNodeInspectorProps = {
@@ -178,17 +246,69 @@ export function DesignNodeInspector({
   const style = node.style;
   const sections = classifyDesignNode(node);
 
+  // ── Instance context ──
+  const instanceContext = React.useMemo(() => {
+    if (!node.id.includes("::")) return null;
+    const [instanceId, masterNodeId] = splitCompositeId(node.id);
+    const instanceNode = findDesignNodeById(artboard.pageTree as DesignNode, instanceId);
+    if (!instanceNode?.componentRef) return null;
+    const master = findMaster(canvasState.components, instanceNode.componentRef.masterId);
+    return {
+      instanceId,
+      masterNodeId,
+      instanceNode,
+      master,
+      overrides: instanceNode.componentRef.overrides[masterNodeId],
+      isStale: instanceNode.componentRef.masterVersion < (master?.version ?? 0),
+      isRoot: false as const,
+    };
+  }, [node.id, artboard.pageTree, canvasState.components]);
+
+  const instanceRootContext = React.useMemo(() => {
+    if (node.id.includes("::")) return null;
+    const sourceNode = findDesignNodeById(artboard.pageTree as DesignNode, node.id);
+    if (!sourceNode?.componentRef) return null;
+    const master = findMaster(canvasState.components, sourceNode.componentRef.masterId);
+    return {
+      instanceNode: sourceNode,
+      master,
+      isStale: sourceNode.componentRef.masterVersion < (master?.version ?? 0),
+    };
+  }, [node.id, artboard.pageTree, canvasState.components]);
+
+  const isInstanceChild = instanceContext !== null;
+  const isInstanceRoot = instanceRootContext !== null;
+  const isInsideInstance = isInstanceChild || isInstanceRoot;
+
+  const isForbiddenField = (field: string) =>
+    isInsideInstance && !ALLOWED_STYLE_FIELDS.has(field);
+
   // ── Breakpoint override helpers ──
   const breakpoint: Breakpoint = artboard.breakpoint;
   const isNonDesktop = breakpoint !== "desktop";
   const overrides = node.responsiveOverrides?.[breakpoint];
 
   function hasOverride(property: keyof DesignNodeStyle): boolean {
+    // Component override check for instance children
+    if (isInstanceChild && instanceContext?.overrides?.style) {
+      return (instanceContext.overrides.style as Record<string, unknown>)[property] !== undefined;
+    }
     if (!isNonDesktop || !overrides) return false;
     return (overrides as Record<string, unknown>)[property] !== undefined;
   }
 
   function resetOverride(property: keyof DesignNodeStyle) {
+    if (isInstanceChild) {
+      dispatch({
+        type: "RESET_INSTANCE_OVERRIDE_FIELD",
+        artboardId: artboard.id,
+        instanceId: instanceContext!.instanceId,
+        masterNodeId: instanceContext!.masterNodeId,
+        category: "style",
+        field: property,
+      });
+      return;
+    }
     dispatch({
       type: "RESET_NODE_STYLE_OVERRIDE",
       artboardId: artboard.id,
@@ -212,6 +332,20 @@ export function DesignNodeInspector({
   );
 
   function updateStyle(patch: Partial<DesignNodeStyle>) {
+    if (isInstanceChild) {
+      const filtered = filterAllowedOverrides({ style: patch } as NodeOverride);
+      if (filtered.style && Object.keys(filtered.style).length > 0) {
+        history.begin(`Styled instance override`);
+        dispatch({
+          type: "UPDATE_INSTANCE_OVERRIDE",
+          artboardId: artboard.id,
+          instanceId: instanceContext!.instanceId,
+          masterNodeId: instanceContext!.masterNodeId,
+          override: filtered,
+        });
+      }
+      return;
+    }
     history.begin(`Styled ${node.type}`);
     dispatch({
       type: "UPDATE_NODE_STYLE",
@@ -222,6 +356,21 @@ export function DesignNodeInspector({
   }
 
   function applyImmediate(patch: Partial<DesignNodeStyle>, description: string) {
+    if (isInstanceChild) {
+      const filtered = filterAllowedOverrides({ style: patch } as NodeOverride);
+      if (filtered.style && Object.keys(filtered.style).length > 0) {
+        history.flush();
+        dispatch({ type: "PUSH_HISTORY", description });
+        dispatch({
+          type: "UPDATE_INSTANCE_OVERRIDE",
+          artboardId: artboard.id,
+          instanceId: instanceContext!.instanceId,
+          masterNodeId: instanceContext!.masterNodeId,
+          override: filtered,
+        });
+      }
+      return;
+    }
     history.flush();
     dispatch({ type: "PUSH_HISTORY", description });
     dispatch({
@@ -252,6 +401,81 @@ export function DesignNodeInspector({
     applyImmediate({ borderColor: undefined, borderWidth: undefined }, "Removed border");
   }
 
+  // ── Instance handlers ──
+  function handleEditMaster() {
+    if (!instanceRootContext?.master) return;
+    dispatch({ type: "ENTER_MASTER_EDIT", masterId: instanceRootContext.master.id });
+  }
+
+  function handleDetach() {
+    const nodeId = isInstanceRoot
+      ? instanceRootContext!.instanceNode.id
+      : isInstanceChild
+        ? instanceContext!.instanceId
+        : null;
+    if (!nodeId) return;
+    dispatch({ type: "DETACH_INSTANCE", artboardId: artboard.id, nodeId });
+  }
+
+  function handleAcceptUpdate() {
+    if (!instanceRootContext?.instanceNode.componentRef) return;
+    const ref = instanceRootContext.instanceNode.componentRef;
+    const master = instanceRootContext.master;
+    if (!master) return;
+
+    // Drop orphaned overrides and type-incompatible content
+    const cleanedOverrides = { ...ref.overrides };
+    for (const masterNodeId of Object.keys(cleanedOverrides)) {
+      const masterNode = findDesignNodeById(master.tree, masterNodeId);
+      if (!masterNode) {
+        delete cleanedOverrides[masterNodeId];
+        continue;
+      }
+      const entry = { ...cleanedOverrides[masterNodeId] };
+      if (entry.content && masterNode.type !== "text" && masterNode.type !== "button") {
+        delete entry.content;
+        if (!entry.style && !entry.hidden) {
+          delete cleanedOverrides[masterNodeId];
+          continue;
+        }
+      }
+      cleanedOverrides[masterNodeId] = entry;
+    }
+
+    // Update the instance node with bumped masterVersion and cleaned overrides
+    dispatch({
+      type: "UPDATE_NODE",
+      artboardId: artboard.id,
+      nodeId: instanceRootContext.instanceNode.id,
+      changes: {
+        componentRef: {
+          ...ref,
+          masterVersion: master.version,
+          overrides: cleanedOverrides,
+        },
+      } as Record<string, unknown>,
+    });
+  }
+
+  function handleResetAllOverrides() {
+    if (isInstanceRoot) {
+      dispatch({
+        type: "RESET_ALL_OVERRIDES",
+        artboardId: artboard.id,
+        nodeId: instanceRootContext!.instanceNode.id,
+      });
+    } else if (isInstanceChild) {
+      dispatch({
+        type: "RESET_INSTANCE_OVERRIDE_FIELD",
+        artboardId: artboard.id,
+        instanceId: instanceContext!.instanceId,
+        masterNodeId: instanceContext!.masterNodeId,
+        category: "all",
+        field: "",
+      });
+    }
+  }
+
   // ── Position mode ──
   const isBreakout = style.position === "absolute";
 
@@ -271,6 +495,36 @@ export function DesignNodeInspector({
 
   return (
     <div data-inspector-first-section className="space-y-6 py-4">
+      {/* ── Instance banners ──────────────────────────────────────────── */}
+      {isInstanceRoot && instanceRootContext && (
+        <InstanceRootBanner
+          context={instanceRootContext}
+          onEditMaster={handleEditMaster}
+          onDetach={handleDetach}
+        />
+      )}
+      {isInstanceChild && instanceContext && (
+        <InstanceChildBanner
+          context={instanceContext}
+          nodeName={node.name}
+          onResetOverrides={handleResetAllOverrides}
+        />
+      )}
+      {isInstanceRoot && instanceRootContext?.isStale && (
+        <div className="mx-4 mt-2 p-3 bg-[#FEF3C7] rounded-[4px]">
+          <div className="text-[12px] font-medium text-[#92400E]">Master updated</div>
+          <div className="text-[11px] text-[#92400E]/70 mt-0.5">Some overrides may no longer apply.</div>
+          <div className="flex gap-2 mt-2">
+            <button onClick={handleAcceptUpdate} className="text-[11px] text-[#92400E] border border-[#92400E]/30 rounded-[4px] px-2 py-1 hover:bg-[#92400E]/10">
+              Accept Update
+            </button>
+            <button onClick={handleDetach} className="text-[11px] text-[#92400E] hover:underline">
+              Detach
+            </button>
+          </div>
+        </div>
+      )}
+
       {isNonDesktop && (
         <div className="px-4">
           <BreakpointBadge breakpoint={breakpoint} width={artboard.width} />
@@ -281,7 +535,7 @@ export function DesignNodeInspector({
       <section className="space-y-3">
         <SectionRule label="POSITION" />
         <div className="px-4 space-y-2">
-          <InspectorFieldRow label="Mode">
+          <InspectorFieldRow label="Mode" disabled={isForbiddenField("position")}>
             <InspectorSegmented
               value={isBreakout ? "absolute" : "relative"}
               options={[
@@ -295,10 +549,11 @@ export function DesignNodeInspector({
           {isBreakout && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <InspectorFieldRow 
-                  label="X" 
-                  hasOverride={hasOverride("x")} 
+                <InspectorFieldRow
+                  label="X"
+                  hasOverride={hasOverride("x")}
                   onResetOverride={() => resetOverride("x")}
+                  disabled={isForbiddenField("x")}
                 >
                   <InspectorNumberInput
                     value={style.x ?? 0}
@@ -307,10 +562,11 @@ export function DesignNodeInspector({
                     onBlur={() => history.flush()}
                   />
                 </InspectorFieldRow>
-                <InspectorFieldRow 
+                <InspectorFieldRow
                   label="Y"
-                  hasOverride={hasOverride("y")} 
+                  hasOverride={hasOverride("y")}
                   onResetOverride={() => resetOverride("y")}
+                  disabled={isForbiddenField("y")}
                 >
                   <InspectorNumberInput
                     value={style.y ?? 0}
@@ -320,10 +576,11 @@ export function DesignNodeInspector({
                   />
                 </InspectorFieldRow>
               </div>
-              <InspectorFieldRow 
+              <InspectorFieldRow
                 label="Z-Index"
-                hasOverride={hasOverride("zIndex")} 
+                hasOverride={hasOverride("zIndex")}
                 onResetOverride={() => resetOverride("zIndex")}
+                disabled={isForbiddenField("zIndex")}
               >
                 <InspectorNumberInput
                   value={style.zIndex ?? 1}
@@ -344,10 +601,11 @@ export function DesignNodeInspector({
           <SectionRule label="SIZE" />
           <div className="px-4 space-y-2">
             {/* Width */}
-            <InspectorFieldRow 
+            <InspectorFieldRow
               label="W"
-              hasOverride={hasOverride("width")} 
+              hasOverride={hasOverride("width")}
               onResetOverride={() => resetOverride("width")}
+              disabled={isForbiddenField("width")}
             >
               <div className="flex items-center gap-2">
                 <InspectorSegmented
@@ -397,10 +655,11 @@ export function DesignNodeInspector({
             </InspectorFieldRow>
 
             {/* Height */}
-            <InspectorFieldRow 
+            <InspectorFieldRow
               label="H"
-              hasOverride={hasOverride("height")} 
+              hasOverride={hasOverride("height")}
               onResetOverride={() => resetOverride("height")}
+              disabled={isForbiddenField("height")}
             >
               <div className="flex items-center gap-2">
                 <InspectorSegmented
@@ -474,7 +733,7 @@ export function DesignNodeInspector({
         <section className="space-y-3">
           <SectionRule label="LAYOUT" />
           <div className="px-4 space-y-2">
-            <InspectorFieldRow label="Display">
+            <InspectorFieldRow label="Display" disabled={isForbiddenField("display")}>
               <InspectorSegmented
                 value={style.display || "flex"}
                 options={[
@@ -486,10 +745,11 @@ export function DesignNodeInspector({
             </InspectorFieldRow>
 
             {(style.display || "flex") === "flex" && (
-              <InspectorFieldRow 
+              <InspectorFieldRow
                 label="Direction"
-                hasOverride={hasOverride("flexDirection")} 
+                hasOverride={hasOverride("flexDirection")}
                 onResetOverride={() => resetOverride("flexDirection")}
+                disabled={isForbiddenField("flexDirection")}
               >
                 <InspectorSegmented
                   value={style.flexDirection || "column"}
@@ -503,10 +763,11 @@ export function DesignNodeInspector({
             )}
 
             {style.display === "grid" && (
-              <InspectorFieldRow 
+              <InspectorFieldRow
                 label="Template"
-                hasOverride={hasOverride("gridTemplate")} 
+                hasOverride={hasOverride("gridTemplate")}
                 onResetOverride={() => resetOverride("gridTemplate")}
+                disabled={isForbiddenField("gridTemplate")}
               >
                 <GridTemplatePicker
                   value={style.gridTemplate || ""}
@@ -517,10 +778,11 @@ export function DesignNodeInspector({
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <InspectorFieldRow 
+              <InspectorFieldRow
                 label="Align"
-                hasOverride={hasOverride("alignItems")} 
+                hasOverride={hasOverride("alignItems")}
                 onResetOverride={() => resetOverride("alignItems")}
+                disabled={isForbiddenField("alignItems")}
               >
                 <InspectorSegmentedSmall
                   value={style.alignItems || "stretch"}
@@ -533,10 +795,11 @@ export function DesignNodeInspector({
                   onChange={(v) => applyImmediate({ alignItems: v as DesignNodeStyle["alignItems"] }, "Changed align")}
                 />
               </InspectorFieldRow>
-              <InspectorFieldRow 
+              <InspectorFieldRow
                 label="Justify"
-                hasOverride={hasOverride("justifyContent")} 
+                hasOverride={hasOverride("justifyContent")}
                 onResetOverride={() => resetOverride("justifyContent")}
+                disabled={isForbiddenField("justifyContent")}
               >
                 <InspectorSegmentedSmall
                   value={style.justifyContent || "flex-start"}
@@ -551,10 +814,11 @@ export function DesignNodeInspector({
               </InspectorFieldRow>
             </div>
 
-            <InspectorFieldRow 
+            <InspectorFieldRow
               label="Gap"
-              hasOverride={hasOverride("gap")} 
+              hasOverride={hasOverride("gap")}
               onResetOverride={() => resetOverride("gap")}
+              disabled={isForbiddenField("gap")}
             >
               <InspectorNumberInput
                 value={style.gap ?? ""}

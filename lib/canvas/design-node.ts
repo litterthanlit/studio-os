@@ -16,6 +16,54 @@ export type DesignNode = {
   children?: DesignNode[];
   responsiveOverrides?: Partial<Record<Breakpoint, Partial<DesignNodeStyle>>>;
   hidden?: Partial<Record<Breakpoint, boolean>>;
+  componentRef?: ComponentInstanceRef;  // NEW — Track 3
+};
+
+// === Component System Types (Track 3) ===
+
+export type AllowedStyleOverride = Pick<DesignNodeStyle,
+  | "background" | "foreground" | "muted" | "accent"
+  | "borderColor" | "borderWidth" | "borderRadius"
+  | "opacity" | "shadow" | "blur"
+  | "fontFamily" | "fontSize" | "fontWeight" | "lineHeight"
+  | "letterSpacing" | "fontStyle" | "textDecoration" | "textAlign"
+  | "padding"
+  | "coverImage" | "coverSize" | "coverPosition"
+>;
+
+export const ALLOWED_STYLE_FIELDS = new Set<string>([
+  "background", "foreground", "muted", "accent",
+  "borderColor", "borderWidth", "borderRadius",
+  "opacity", "shadow", "blur",
+  "fontFamily", "fontSize", "fontWeight", "lineHeight",
+  "letterSpacing", "fontStyle", "textDecoration", "textAlign",
+  "padding",
+  "coverImage", "coverSize", "coverPosition",
+]);
+
+export type NodeOverride = {
+  style?: Partial<AllowedStyleOverride>;
+  content?: Partial<DesignNodeContent>;
+  hidden?: Partial<Record<Breakpoint, boolean>>;
+};
+
+export type ComponentOverrides = Record<string, NodeOverride>;
+
+export type ComponentInstanceRef = {
+  masterId: string;
+  masterVersion: number;
+  overrides: ComponentOverrides;
+};
+
+export type ComponentMaster = {
+  id: string;
+  name: string;
+  category: string;
+  source: "builtin" | "user";
+  tree: DesignNode;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DesignNodeContent = {
@@ -120,4 +168,36 @@ export function cloneDesignNode(node: DesignNode): DesignNode {
     id: `${node.type}-${Math.random().toString(36).slice(2, 10)}`,
     children: node.children?.map(cloneDesignNode),
   };
+}
+
+/**
+ * Deep-clone a DesignNode tree, remapping every node ID using the provided function.
+ * Returns the cloned tree and a mapping from original IDs to new IDs.
+ */
+export function cloneDesignNodeWithIdMap(
+  node: DesignNode,
+  mapId: (originalId: string) => string
+): { tree: DesignNode; idMap: Record<string, string> } {
+  const idMap: Record<string, string> = {};
+
+  function cloneNode(n: DesignNode): DesignNode {
+    const newId = mapId(n.id);
+    idMap[n.id] = newId;
+    return {
+      ...n,
+      id: newId,
+      style: { ...n.style, padding: n.style.padding ? { ...n.style.padding } : undefined },
+      content: n.content ? { ...n.content } : undefined,
+      children: n.children?.map(cloneNode),
+      responsiveOverrides: n.responsiveOverrides
+        ? Object.fromEntries(
+            Object.entries(n.responsiveOverrides).map(([bp, style]) => [bp, { ...style }])
+          ) as DesignNode["responsiveOverrides"]
+        : undefined,
+      hidden: n.hidden ? { ...n.hidden } : undefined,
+      // componentRef is intentionally NOT cloned — resolved trees don't have nested instances in Track 3
+    };
+  }
+
+  return { tree: cloneNode(node), idMap };
 }

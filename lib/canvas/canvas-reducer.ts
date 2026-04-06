@@ -10,12 +10,22 @@ import type { DesignNode } from "./design-node";
 import {
   findDesignNodeById,
   findDesignNodeParent,
+  walkDesignTree,
+} from "./design-node";
+import {
+  findMaster, bakeInstance, filterAllowedOverrides, isInstanceChild,
+} from "./component-resolver";
+import { cloneDesignNodeWithIdMap } from "./design-node";
+import { isBuiltinMasterId } from "./component-builtins";
+import type {
+  ComponentMaster, ComponentInstanceRef, NodeOverride,
 } from "./design-node";
 import type {
   UnifiedCanvasState,
   CanvasItem,
   ArtboardItem,
   PromptRun,
+  MasterEditSession,
 } from "./unified-canvas-state";
 import {
   createHistoryStack,
@@ -102,6 +112,26 @@ export type CanvasAction =
   | { type: "ACCEPT_AI_PREVIEW" }
   | { type: "RESTORE_AI_PREVIEW" }
 
+  // Component system (Track 3)
+  | { type: "CREATE_MASTER"; artboardId: string; nodeId: string; name: string; category: string }
+  | { type: "INSERT_INSTANCE"; artboardId: string; masterId: string; index?: number }
+  | { type: "DETACH_INSTANCE"; artboardId: string; nodeId: string }
+  | { type: "UPDATE_INSTANCE_OVERRIDE"; artboardId: string; instanceId: string; masterNodeId: string; override: NodeOverride }
+  | { type: "RESET_INSTANCE_OVERRIDE_FIELD"; artboardId: string; instanceId: string; masterNodeId: string; category: "style" | "content" | "hidden" | "all"; field: string }
+  | { type: "RESET_ALL_OVERRIDES"; artboardId: string; nodeId: string }
+  | { type: "DELETE_MASTER"; masterId: string }
+  | { type: "RENAME_MASTER"; masterId: string; name: string }
+
+  // Built-in promotion (Track 3)
+  | { type: "PROMOTE_BUILTIN_TO_USER"; artboardId: string; instanceNodeId: string }
+
+  // Master edit mode (Track 3)
+  | { type: "ENTER_MASTER_EDIT"; masterId: string }
+  | { type: "UPDATE_MASTER_NODE"; masterId: string; nodeId: string; changes: Partial<DesignNode> }
+  | { type: "UPDATE_MASTER_NODE_STYLE"; masterId: string; nodeId: string; style: Partial<import("./design-node").DesignNodeStyle> }
+  | { type: "COMMIT_MASTER_EDIT" }
+  | { type: "CANCEL_MASTER_EDIT" }
+
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
 
@@ -115,6 +145,7 @@ export function createInitialReducerState(canvas: UnifiedCanvasState): CanvasRed
   return {
     ...canvas,
     history: createHistoryStack(50),
+    masterEditSession: null,
   };
 }
 
@@ -274,6 +305,24 @@ function getActiveBreakpoint(state: UnifiedCanvasState): Breakpoint {
   return artboard?.breakpoint ?? "desktop";
 }
 
+/**
+ * Replace a node in a DesignNode tree by ID, returning the replacement in its place.
+ */
+function replaceNodeInTree(tree: DesignNode, targetId: string, replacement: DesignNode): DesignNode {
+  if (tree.id === targetId) return replacement;
+  if (!tree.children) return tree;
+  const newChildren = tree.children.map((child) => replaceNodeInTree(child, targetId, replacement));
+  if (newChildren.every((c, i) => c === tree.children![i])) return tree;
+  return { ...tree, children: newChildren };
+}
+
+function pushHistoryHelper(state: CanvasReducerState, description: string): CanvasReducerState {
+  return {
+    ...state,
+    history: pushHistory(state.history, description, state.items, state.selection, state.components),
+  };
+}
+
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
 // Actions that should NOT auto-accept an active AI preview
@@ -292,6 +341,37 @@ export function canvasReducer(
   // Preview-related, viewport, prompt, history, and generation actions are excluded.
   if (state.aiPreview && !AI_PREVIEW_SAFE_ACTIONS.has(action.type)) {
     state = { ...state, aiPreview: null };
+  }
+
+  // Master edit mode guard — block most actions while editing a component master.
+  // Only viewport, selection, undo/redo, and master-edit-specific actions pass through.
+  if (state.masterEditSession) {
+    const ALLOWED_DURING_MASTER_EDIT = new Set([
+      "SET_VIEWPORT", "UNDO", "REDO", "PUSH_HISTORY",
+      "SELECT_NODE", "DESELECT_ALL", "ESCAPE",
+      "UPDATE_MASTER_NODE", "UPDATE_MASTER_NODE_STYLE",
+      "COMMIT_MASTER_EDIT", "CANCEL_MASTER_EDIT",
+      "ENTER_MASTER_EDIT",
+    ]);
+    if (!ALLOWED_DURING_MASTER_EDIT.has(action.type)) {
+      return state;
+    }
+  }
+
+  // Structural action guard: reject structural mutations on instance children
+  const STRUCTURAL_ACTIONS = new Set([
+    "DELETE_SECTION", "REORDER_NODE", "INSERT_SECTION",
+    "GROUP_NODES", "UNGROUP_NODES", "DUPLICATE_SECTION",
+  ]);
+
+  if (STRUCTURAL_ACTIONS.has(action.type)) {
+    const nodeId = (action as { nodeId?: string }).nodeId;
+    if (nodeId && isInstanceChild(nodeId)) {
+      // CEO flag: Delete key on instance children must be a no-op.
+      // The keyboard handler dispatches DELETE_SECTION with selectedNodeId.
+      // If selectedNodeId is a composite ID (contains "::"), reject here.
+      return state;
+    }
   }
 
   switch (action.type) {
@@ -515,7 +595,8 @@ export function canvasReducer(
         state.history,
         "Reordered element",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -565,7 +646,8 @@ export function canvasReducer(
         state.history,
         `Added ${action.section.name} section`,
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -605,7 +687,23 @@ export function canvasReducer(
       for (const id of idsToDuplicate) {
         const sourceIndex = children.findIndex((c) => c.id === id);
         if (sourceIndex === -1) continue;
-        clones.push({ sourceId: id, clone: deepCloneWithNewIds(children[sourceIndex]) });
+        const sourceNode = children[sourceIndex] as DesignNode;
+        if (sourceNode.componentRef) {
+          // Duplicate an instance root → fresh instance with empty overrides
+          const newInstance: TreeNode = {
+            ...sourceNode,
+            id: uid(sourceNode.type),
+            componentRef: {
+              masterId: sourceNode.componentRef.masterId,
+              masterVersion: sourceNode.componentRef.masterVersion,
+              overrides: {},
+            },
+            children: undefined, // resolved tree will be rebuilt by resolveTree
+          };
+          clones.push({ sourceId: id, clone: newInstance });
+        } else {
+          clones.push({ sourceId: id, clone: deepCloneWithNewIds(children[sourceIndex]) });
+        }
       }
 
       if (clones.length === 0) return state;
@@ -627,7 +725,8 @@ export function canvasReducer(
         state.history,
         "Duplicated section",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const cloneIds = clones.map((c) => c.clone.id);
@@ -676,7 +775,8 @@ export function canvasReducer(
         state.history,
         "Removed section",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -729,7 +829,8 @@ export function canvasReducer(
         state.history,
         "Reset responsive override",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -759,7 +860,8 @@ export function canvasReducer(
         state.history,
         "Toggle element visibility",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -954,7 +1056,8 @@ export function canvasReducer(
         state.history,
         `Aligned nodes ${action.direction}`,
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const applyPositions = (pageTree: TreeNode): TreeNode => {
@@ -998,7 +1101,8 @@ export function canvasReducer(
         state.history,
         `Distributed nodes ${action.axis}`,
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const applyDistPositions = (pageTree: TreeNode): TreeNode => {
@@ -1127,7 +1231,8 @@ export function canvasReducer(
         state.history,
         "Grouped nodes",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -1194,7 +1299,8 @@ export function canvasReducer(
         state.history,
         "Ungrouped nodes",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       return {
@@ -1231,7 +1337,8 @@ export function canvasReducer(
           state.history,
           action.description,
           state.items,
-          state.selection
+          state.selection,
+          state.components
         ),
       };
     }
@@ -1251,8 +1358,15 @@ export function canvasReducer(
           updatedAt: now(),
         };
       }
-      const result = undo(state.history, state.items, state.selection);
+      const result = undo(state.history, state.items, state.selection, state.components);
       if (!result) return state;
+
+      // Master edit mode boundary check — cannot undo past session start
+      if (state.masterEditSession) {
+        const boundary = state.masterEditSession.historyBoundaryIndex;
+        if (result.stack.cursor < boundary) return state;
+      }
+
       return {
         ...state,
         items: result.items,
@@ -1261,12 +1375,13 @@ export function canvasReducer(
           selectedNodeIds: result.selection.selectedNodeIds ?? [],
         },
         history: result.stack,
+        components: result.components,
         updatedAt: now(),
       };
     }
 
     case "REDO": {
-      const result = redo(state.history, state.items, state.selection);
+      const result = redo(state.history, state.items, state.selection, state.components);
       if (!result) return state;
       return {
         ...state,
@@ -1276,6 +1391,7 @@ export function canvasReducer(
           selectedNodeIds: result.selection.selectedNodeIds ?? [],
         },
         history: result.stack,
+        components: result.components,
         updatedAt: now(),
       };
     }
@@ -1344,7 +1460,8 @@ export function canvasReducer(
         state.history,
         "Generated site",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       // Remove all existing artboard items, keep everything else
@@ -1373,7 +1490,8 @@ export function canvasReducer(
         state.history,
         "Restored site",
         state.items,
-        state.selection
+        state.selection,
+        state.components
       );
 
       const nonArtboards = state.items.filter((item) => item.kind !== "artboard");
@@ -1389,6 +1507,504 @@ export function canvasReducer(
         },
         history: historyAfterPush,
         updatedAt: now(),
+      };
+    }
+
+    // ── Component System (Track 3) ─────────────────────────────────────
+
+    case "CREATE_MASTER": {
+      const { artboardId, nodeId, name, category } = action;
+      const stateH = pushHistoryHelper(state, "Create component");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+      const tree = artboard.pageTree as DesignNode;
+      const sourceNode = findDesignNodeById(tree, nodeId);
+      if (!sourceNode) return stateH;
+
+      const master: ComponentMaster = {
+        id: `comp-${Math.random().toString(36).slice(2, 10)}`,
+        name,
+        category,
+        source: "user",
+        tree: JSON.parse(JSON.stringify(sourceNode)),
+        version: 1,
+        createdAt: now(),
+        updatedAt: now(),
+      };
+
+      const instanceRef: ComponentInstanceRef = {
+        masterId: master.id,
+        masterVersion: 1,
+        overrides: {},
+      };
+
+      const newTree = updateNodeInTree(tree, nodeId, (n) => ({
+        ...n,
+        componentRef: instanceRef,
+        children: undefined,
+      }));
+
+      return {
+        ...stateH,
+        items: stateH.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          if (item.id === artboardId) return { ...item, pageTree: newTree };
+          return {
+            ...item,
+            pageTree: updateNodeInTree(item.pageTree as DesignNode, nodeId, (n) => ({
+              ...n,
+              componentRef: instanceRef,
+              children: undefined,
+            })),
+          };
+        }),
+        components: [...stateH.components, master],
+        updatedAt: now(),
+      };
+    }
+
+    case "INSERT_INSTANCE": {
+      const { artboardId, masterId, index } = action;
+      const stateH = pushHistoryHelper(state, "Insert component");
+
+      const master = findMaster(stateH.components, masterId);
+      if (!master) return stateH;
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+
+      const instanceNode: DesignNode = {
+        id: uid("frame"),
+        type: "frame",
+        name: master.name,
+        style: { width: "fill" as const },
+        componentRef: {
+          masterId,
+          masterVersion: master.version,
+          overrides: {},
+        },
+      };
+
+      const insertIndex = index ?? ((artboard.pageTree as DesignNode).children?.length ?? 0);
+
+      return {
+        ...stateH,
+        items: stateH.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          const tree = item.pageTree as DesignNode;
+          const children = [...(tree.children ?? [])];
+          const inst: DesignNode = item.id === artboardId
+            ? instanceNode
+            : { ...instanceNode, id: uid("frame") };
+          children.splice(insertIndex, 0, inst);
+          return { ...item, pageTree: { ...tree, children } };
+        }),
+        updatedAt: now(),
+      };
+    }
+
+    case "DETACH_INSTANCE": {
+      const { artboardId, nodeId } = action;
+      const stateH = pushHistoryHelper(state, "Detach component");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, nodeId);
+      if (!instanceNode?.componentRef) return stateH;
+
+      const master = findMaster(stateH.components, instanceNode.componentRef.masterId);
+      if (!master) return stateH;
+
+      const baked = bakeInstance(instanceNode, master);
+      const newTree = replaceNodeInTree(tree, nodeId, baked);
+
+      return {
+        ...stateH,
+        items: stateH.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          if (item.id === artboardId) return { ...item, pageTree: newTree };
+          // For other artboards in same site, detach same-master instances
+          const otherTree = item.pageTree as DesignNode;
+          let otherInstance: DesignNode | null = null;
+          walkDesignTree(otherTree, (n) => {
+            if (n.componentRef?.masterId === instanceNode.componentRef!.masterId) otherInstance = n;
+          });
+          if (otherInstance) {
+            const otherBaked = bakeInstance(otherInstance, master);
+            return { ...item, pageTree: replaceNodeInTree(otherTree, (otherInstance as DesignNode).id, otherBaked) };
+          }
+          return item;
+        }),
+        updatedAt: now(),
+      };
+    }
+
+    case "UPDATE_INSTANCE_OVERRIDE": {
+      const { artboardId, instanceId, masterNodeId, override } = action;
+      const filtered = filterAllowedOverrides(override);
+      if (!filtered.style && !filtered.content && !filtered.hidden) return state;
+
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return state;
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, instanceId);
+      if (!instanceNode?.componentRef) return state;
+
+      const existing = instanceNode.componentRef.overrides[masterNodeId] ?? {};
+      const merged: NodeOverride = {
+        style: filtered.style ? { ...existing.style, ...filtered.style } : existing.style,
+        content: filtered.content ? { ...existing.content, ...filtered.content } : existing.content,
+        hidden: filtered.hidden ? { ...existing.hidden, ...filtered.hidden } : existing.hidden,
+      };
+
+      if (merged.style && Object.keys(merged.style).length === 0) delete merged.style;
+      if (merged.content && Object.keys(merged.content).length === 0) delete merged.content;
+      if (merged.hidden && Object.keys(merged.hidden).length === 0) delete merged.hidden;
+
+      const newOverrides = { ...instanceNode.componentRef.overrides };
+      if (!merged.style && !merged.content && !merged.hidden) {
+        delete newOverrides[masterNodeId];
+      } else {
+        newOverrides[masterNodeId] = merged;
+      }
+
+      const newTree = updateNodeInTree(tree, instanceId, (n) => ({
+        ...n,
+        componentRef: { ...n.componentRef!, overrides: newOverrides },
+      }));
+
+      const nextItems = updateArtboardsForSite(state.items, artboardId, (pageTree) => {
+        if (pageTree === artboard.pageTree) return newTree;
+        return pageTree;
+      });
+
+      return {
+        ...state,
+        items: nextItems ?? state.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "RESET_INSTANCE_OVERRIDE_FIELD": {
+      const { artboardId, instanceId, masterNodeId, category, field } = action;
+      const stateH = pushHistoryHelper(state, "Reset override");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, instanceId);
+      if (!instanceNode?.componentRef) return stateH;
+
+      const newOverrides = { ...instanceNode.componentRef.overrides };
+
+      if (category === "all") {
+        delete newOverrides[masterNodeId];
+      } else {
+        const entry = newOverrides[masterNodeId];
+        if (!entry) return stateH;
+        const newEntry = { ...entry };
+
+        if (category === "style" && newEntry.style) {
+          const s = { ...newEntry.style } as Record<string, unknown>;
+          delete s[field];
+          newEntry.style = Object.keys(s).length > 0 ? s as NodeOverride["style"] : undefined;
+        } else if (category === "content" && newEntry.content) {
+          const c = { ...newEntry.content } as Record<string, unknown>;
+          delete c[field];
+          newEntry.content = Object.keys(c).length > 0 ? c as NodeOverride["content"] : undefined;
+        } else if (category === "hidden" && newEntry.hidden) {
+          const h = { ...newEntry.hidden } as Record<string, unknown>;
+          delete h[field];
+          newEntry.hidden = Object.keys(h).length > 0 ? h as NodeOverride["hidden"] : undefined;
+        }
+
+        if (!newEntry.style && !newEntry.content && !newEntry.hidden) {
+          delete newOverrides[masterNodeId];
+        } else {
+          newOverrides[masterNodeId] = newEntry;
+        }
+      }
+
+      const newTree = updateNodeInTree(tree, instanceId, (n) => ({
+        ...n,
+        componentRef: { ...n.componentRef!, overrides: newOverrides },
+      }));
+
+      const nextItems = updateArtboardsForSite(stateH.items, artboardId, (pageTree) => {
+        if (pageTree === artboard.pageTree) return newTree;
+        return pageTree;
+      });
+
+      return {
+        ...stateH,
+        items: nextItems ?? stateH.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "RESET_ALL_OVERRIDES": {
+      const { artboardId, nodeId } = action;
+      const stateH = pushHistoryHelper(state, "Reset all overrides");
+
+      const nextItems = updateArtboardsForSite(stateH.items, artboardId, (pageTree) =>
+        updateNodeInTree(pageTree as DesignNode, nodeId, (n) => ({
+          ...n,
+          componentRef: n.componentRef ? { ...n.componentRef, overrides: {} } : n.componentRef,
+        }))
+      );
+
+      return {
+        ...stateH,
+        items: nextItems ?? stateH.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "DELETE_MASTER": {
+      const { masterId } = action;
+      const master = findMaster(state.components, masterId);
+      if (!master || master.source === "builtin") return state;
+
+      const stateH = pushHistoryHelper(state, "Delete component");
+
+      const updatedItems = stateH.items.map((item) => {
+        if (item.kind !== "artboard") return item;
+        const tree = item.pageTree as DesignNode;
+        let modified = false;
+        let newTree = tree;
+
+        walkDesignTree(tree, (node) => {
+          if (node.componentRef?.masterId === masterId) {
+            const baked = bakeInstance(node, master);
+            newTree = replaceNodeInTree(newTree, node.id, baked);
+            modified = true;
+          }
+        });
+
+        if (modified) return { ...item, pageTree: newTree };
+        return item;
+      });
+
+      return {
+        ...stateH,
+        items: updatedItems,
+        components: stateH.components.filter((c) => c.id !== masterId),
+        updatedAt: now(),
+      };
+    }
+
+    case "RENAME_MASTER": {
+      const { masterId, name } = action;
+      const stateH = pushHistoryHelper(state, "Rename component");
+      return {
+        ...stateH,
+        components: stateH.components.map((c) =>
+          c.id === masterId ? { ...c, name, updatedAt: now() } : c
+        ),
+        updatedAt: now(),
+      };
+    }
+
+    // ── Built-in Promotion (Track 3) ────────────────────────────────────
+
+    case "PROMOTE_BUILTIN_TO_USER": {
+      const { artboardId, instanceNodeId } = action;
+      const stateWithHistory = pushHistoryHelper(state, "Create editable copy");
+
+      // Find the artboard and instance node
+      const artboard = stateWithHistory.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateWithHistory;
+
+      const instanceNode = findDesignNodeById(
+        artboard.pageTree as DesignNode,
+        instanceNodeId
+      );
+      if (!instanceNode?.componentRef) return stateWithHistory;
+
+      const builtinMaster = findMaster(stateWithHistory.components, instanceNode.componentRef.masterId);
+      if (!builtinMaster) return stateWithHistory;
+
+      // Clone the built-in master tree with new IDs
+      const { tree: userTree, idMap } = cloneDesignNodeWithIdMap(
+        builtinMaster.tree,
+        (originalId) => uid(originalId.split("-")[0] || "node")
+      );
+
+      const userMasterId = uid("comp");
+      const timestamp = now();
+      const userMaster: ComponentMaster = {
+        id: userMasterId,
+        name: `${builtinMaster.name} (Custom)`,
+        category: builtinMaster.category,
+        source: "user",
+        tree: userTree,
+        version: 1,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+
+      // Re-key overrides using idMap
+      const remappedOverrides: Record<string, import("./design-node").NodeOverride> = {};
+      for (const [oldId, override] of Object.entries(instanceNode.componentRef.overrides)) {
+        const newId = idMap[oldId];
+        if (newId) remappedOverrides[newId] = override;
+      }
+
+      // Update instance node's componentRef to point to new user master
+      const updatedItems = stateWithHistory.items.map((item) => {
+        if (item.kind !== "artboard" || item.id !== artboardId) return item;
+        return {
+          ...item,
+          pageTree: updateNodeInTree(item.pageTree as DesignNode, instanceNodeId, (n) => ({
+            ...n,
+            componentRef: {
+              ...n.componentRef!,
+              masterId: userMasterId,
+              masterVersion: 1,
+              overrides: remappedOverrides,
+            },
+          })),
+        };
+      }) as CanvasItem[];
+
+      // Add user master to components and enter master edit mode
+      const updatedComponents = [...stateWithHistory.components, userMaster];
+
+      return {
+        ...stateWithHistory,
+        items: updatedItems,
+        components: updatedComponents,
+        masterEditSession: {
+          masterId: userMasterId,
+          snapshotTree: JSON.parse(JSON.stringify(userTree)),
+          historyBoundaryIndex: stateWithHistory.history.cursor,
+          dirty: false,
+        },
+        updatedAt: timestamp,
+      };
+    }
+
+    // ── Master Edit Mode (Track 3) ──────────────────────────────────────
+
+    case "ENTER_MASTER_EDIT": {
+      const { masterId } = action;
+      if (state.masterEditSession) return state; // already editing
+
+      const master = state.components.find((c) => c.id === masterId);
+      if (!master) return state;
+
+      const stateWithHistory = pushHistoryHelper(state, "Enter master edit");
+
+      return {
+        ...stateWithHistory,
+        masterEditSession: {
+          masterId,
+          snapshotTree: JSON.parse(JSON.stringify(master.tree)),
+          historyBoundaryIndex: stateWithHistory.history.cursor,
+          dirty: false,
+        },
+      };
+    }
+
+    case "UPDATE_MASTER_NODE": {
+      if (!state.masterEditSession || state.masterEditSession.masterId !== action.masterId) return state;
+
+      const updatedComponents = state.components.map((c) => {
+        if (c.id !== action.masterId) return c;
+        const updatedTree = updateNodeInTree(c.tree, action.nodeId, (n) => ({
+          ...n,
+          ...action.changes,
+        }));
+        return { ...c, tree: updatedTree };
+      });
+
+      return {
+        ...state,
+        components: updatedComponents,
+        masterEditSession: { ...state.masterEditSession, dirty: true },
+      };
+    }
+
+    case "UPDATE_MASTER_NODE_STYLE": {
+      if (!state.masterEditSession || state.masterEditSession.masterId !== action.masterId) return state;
+
+      const updatedComponents = state.components.map((c) => {
+        if (c.id !== action.masterId) return c;
+        const updatedTree = updateNodeInTree(c.tree, action.nodeId, (n) => ({
+          ...n,
+          style: { ...n.style, ...action.style },
+        }));
+        return { ...c, tree: updatedTree };
+      });
+
+      return {
+        ...state,
+        components: updatedComponents,
+        masterEditSession: { ...state.masterEditSession, dirty: true },
+      };
+    }
+
+    case "COMMIT_MASTER_EDIT": {
+      if (!state.masterEditSession) return state;
+      const stateWithHistory = pushHistoryHelper(state, "Commit master edit");
+
+      const updatedComponents = stateWithHistory.components.map((c) => {
+        if (c.id !== stateWithHistory.masterEditSession!.masterId) return c;
+        return {
+          ...c,
+          version: c.version + 1,
+          updatedAt: now(),
+        };
+      });
+
+      return {
+        ...stateWithHistory,
+        components: updatedComponents,
+        masterEditSession: null,
+      };
+    }
+
+    case "CANCEL_MASTER_EDIT": {
+      if (!state.masterEditSession) return state;
+      const { masterId, snapshotTree, historyBoundaryIndex } = state.masterEditSession;
+
+      const restoredComponents = state.components.map((c) => {
+        if (c.id !== masterId) return c;
+        return { ...c, tree: snapshotTree };
+      });
+
+      // Rewind history to boundary
+      const rewoundHistory: HistoryStack = {
+        ...state.history,
+        entries: state.history.entries.slice(0, historyBoundaryIndex + 1),
+        cursor: Math.min(state.history.cursor, historyBoundaryIndex),
+      };
+
+      return {
+        ...state,
+        components: restoredComponents,
+        history: rewoundHistory,
+        masterEditSession: null,
       };
     }
 
@@ -1437,6 +2053,7 @@ export function canvasReducer(
         },
         aiPreview: null, // Never restore transient AI preview state
         history: state.history, // Preserve in-memory history stack across loads
+        masterEditSession: null, // Never restore transient master edit state
       };
     }
 

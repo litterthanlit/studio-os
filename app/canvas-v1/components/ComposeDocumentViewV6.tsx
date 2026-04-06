@@ -5,8 +5,9 @@
 "use client";
 
 import React from "react";
-import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
+import type { DesignNode, DesignNodeStyle, ComponentMaster } from "@/lib/canvas/design-node";
 import { findDesignNodeById, findDesignNodeParent } from "@/lib/canvas/design-node";
+import { resolveTree } from "@/lib/canvas/component-resolver";
 import { designStyleToCSS } from "@/lib/canvas/design-style-to-css";
 import { useDragDesignNode } from "@/app/canvas-v1/hooks/useDragDesignNode";
 import { useSnapGuides } from "@/app/canvas-v1/hooks/useSnapGuides";
@@ -89,6 +90,8 @@ function V6InsertionBar({
 
 type ComposeDocumentViewV6Props = {
   tree: DesignNode;
+  /** Component masters for resolving instance nodes (Track 3). */
+  components?: ComponentMaster[];
   selectedNodeId?: string | null;
   /** All selected node IDs (multi-select). Primary = selectedNodeId, rest = secondary. */
   selectedNodeIds?: string[];
@@ -829,6 +832,7 @@ function ResizeOverlay({
 
 export function ComposeDocumentViewV6({
   tree,
+  components = [],
   selectedNodeId = null,
   selectedNodeIds = [],
   onSelectNode,
@@ -1463,6 +1467,14 @@ export function ComposeDocumentViewV6({
     [interactive, onSelectNode, selectedNodeId, selectedNodeIds, editingNodeId]
   );
 
+  // ── Resolve instance nodes (Track 3) ──────────────────────────
+  // NOTE: [tree, components] means any master edit re-resolves all artboards.
+  // This is a known Track 9 optimization target. Do not optimize now.
+  const resolvedTree = React.useMemo(
+    () => resolveTree(tree, components),
+    [tree, components]
+  );
+
   // ── Container dimensions for snap guide lines ──────────────────
   const containerWidth = typeof tree.style.width === "number" ? tree.style.width : 0;
   const containerHeight = typeof tree.style.height === "number" ? tree.style.height : 0;
@@ -1481,7 +1493,7 @@ export function ComposeDocumentViewV6({
         onPointerUp={interactive ? rubberBand.handlePointerUp : undefined}
       >
         <RenderDesignNode
-          node={tree}
+          node={resolvedTree}
           selectedNodeId={selectedNodeId}
           selectedNodeIds={selectedNodeIds}
           editingNodeId={editingNodeId}

@@ -1,39 +1,26 @@
-import { Hero } from "@/components/marketing/hero";
-import { FeaturesGrid } from "@/components/marketing/features-grid";
-import { FeatureShowcase } from "@/components/marketing/feature-showcase";
-import { Showcase } from "@/components/marketing/showcase";
-import { HowItWorks } from "@/components/marketing/how-it-works";
-import { Pricing } from "@/components/marketing/pricing";
-import { CTA } from "@/components/marketing/cta";
-import { FAQ } from "@/components/marketing/faq";
-import { MarketingNav } from "@/components/marketing/navigation";
-import { MarketingFooter } from "@/components/marketing/footer";
-import { Preloader } from "@/components/marketing/preloader";
+import { Nav } from "@/components/marketing-v2/nav";
+import { Hero } from "@/components/marketing-v2/hero";
+import { Features } from "@/components/marketing-v2/features";
+import { SplitFeature } from "@/components/marketing-v2/split-feature";
+import { AiFeature } from "@/components/marketing-v2/ai-feature";
+import { ExportCta } from "@/components/marketing-v2/export-cta";
+import { Footer } from "@/components/marketing-v2/footer";
 
 export const metadata = {
-  title: "Studio OS — A design workspace that thinks like you do",
-  description:
-    "AI-curated inspiration meets unified workspace. Organize references, export specs, and ship faster.",
+  title: "Studio OS - The Design OS, Integrated.",
+  description: "AI-native design tool. A high-end design magazine crossed with an engineering spec sheet.",
 };
 
-export default function MarketingPage() {
+export default function MarketingPageV2() {
   return (
-    <div className="relative min-h-screen bg-white">
-      <Preloader />
-      <div className="relative z-10">
-        <MarketingNav />
-        <main>
-          <Hero />
-          <FeaturesGrid />
-          <HowItWorks />
-          <FeatureShowcase />
-          <Showcase />
-          <Pricing />
-          <FAQ />
-          <CTA />
-        </main>
-        <MarketingFooter />
-      </div>
+    <div className="min-h-screen bg-white text-[#0C0C14] font-sans selection:bg-[#D1E4FC] selection:text-[#0C0C14] overflow-x-hidden flex flex-col relative w-full">
+      <Nav />
+      <Hero />
+      <Features />
+      <SplitFeature />
+      <AiFeature />
+      <ExportCta />
+      <Footer />
     </div>
   );
 }

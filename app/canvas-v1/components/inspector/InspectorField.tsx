@@ -1,10 +1,14 @@
 "use client";
 
 /**
- * Shared inspector field primitives — V2 styling.
+ * Shared inspector field primitives — Framer-style V3.
  *
- * Every inspector section (text, media, container, reference, artboard, empty)
- * uses these components for visual consistency.
+ * Design system:
+ * - Two-column layout: label left (Geist Sans 13px #6B6B6B), value right (Geist Mono 12px #1A1A1A)
+ * - 32px row height consistent across all fields
+ * - 24px section gap, 16px section padding
+ * - Input height: 24px, bg: #F8F8F6, border: 1px #E5E5E0, radius: 2px
+ * - Accent: #4B57DB
  */
 
 import * as React from "react";
@@ -12,24 +16,53 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ColorPickerPopover } from "../ColorPickerPopover";
 
-// ─── InspectorSection ────────────────────────────────────────────────────────
+// ─── InspectorFieldRow — Two-column layout primitive ─────────────────────────
 
-export function InspectorSection({
+export function InspectorFieldRow({
   label,
   children,
+  className,
+  hasOverride,
+  onResetOverride,
+  disabled,
 }: {
-  label: string;
+  label: React.ReactNode;
   children: React.ReactNode;
+  className?: string;
+  hasOverride?: boolean;
+  onResetOverride?: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="mt-4">
-      <span className="mono-kicker mb-2 block">{label}</span>
-      {children}
+    <div
+      className={cn("flex items-center h-8 gap-3", className)}
+      title={disabled ? "Controlled by master component" : undefined}
+    >
+      <span className={cn(
+        "w-16 shrink-0 text-[13px] font-normal flex items-center gap-1.5",
+        disabled ? "text-[#A0A0A0]" : "text-[#6B6B6B] dark:text-[#999999]"
+      )}>
+        {hasOverride && !disabled && (
+          <button
+            type="button"
+            title="Overridden — click to reset to desktop"
+            className="w-1.5 h-1.5 rounded-full bg-[#4B57DB] shrink-0 hover:ring-2 hover:ring-[#D1E4FC] dark:hover:ring-[#222244] transition-shadow"
+            onClick={(e) => {
+              e.stopPropagation();
+              onResetOverride?.();
+            }}
+          />
+        )}
+        {label}
+      </span>
+      <div className={cn("flex-1 min-w-0", disabled && "opacity-50 pointer-events-none")}>
+        {children}
+      </div>
     </div>
   );
 }
 
-// ─── InspectorLabel ──────────────────────────────────────────────────────────
+// ─── InspectorLabel — Legacy (kept for compatibility) ────────────────────────
 
 export function InspectorLabel({
   children,
@@ -76,7 +109,7 @@ export function InspectorTextInput({
       type="text"
       {...props}
       className={cn(
-        "w-full h-7 border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30",
+        "w-full h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
         className
       )}
     />
@@ -111,7 +144,7 @@ export function InspectorTextarea({
         props.onInput?.(e);
       }}
       className={cn(
-        "w-full border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 py-1 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors resize-none min-h-[60px] focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30",
+        "w-full border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 py-1 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors resize-none min-h-[60px] focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
         className
       )}
     />
@@ -120,38 +153,26 @@ export function InspectorTextarea({
 
 // ─── InspectorNumberInput ────────────────────────────────────────────────────
 
-/**
- * Figma-style scrubby numeric input.
- *
- * Hover shows an ew-resize cursor. Click-and-drag left/right adjusts the
- * value live. Click without dragging focuses the input for keyboard entry.
- * Shift+drag gives 0.1× fine-control sensitivity. Escape while typing
- * reverts to the value before focus.
- */
 export function InspectorNumberInput({
   className,
+  unit,
   onMouseDown: externalMouseDown,
   onFocus: externalFocus,
   onBlur: externalBlur,
   onKeyDown: externalKeyDown,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: React.InputHTMLAttributes<HTMLInputElement> & { unit?: string }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [focused, setFocused] = React.useState(false);
   const valueOnFocusRef = React.useRef<string>("");
 
   const DRAG_THRESHOLD = 3;
 
-  /**
-   * Fire the caller's onChange with a value string, using the real input
-   * element as event target so `e.target.value` works in call-sites.
-   */
   const fireSyntheticChange = React.useCallback(
     (nextValue: string) => {
       const input = inputRef.current;
       if (!input || !props.onChange) return;
 
-      // Use the native setter so React sees the update
       const nativeSetter = Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
         "value"
@@ -162,7 +183,6 @@ export function InspectorNumberInput({
       const syntheticEvent = new Event("input", { bubbles: true });
       input.dispatchEvent(syntheticEvent);
 
-      // Also call the React onChange directly as a safety net
       props.onChange({
         target: input,
         currentTarget: input,
@@ -172,13 +192,11 @@ export function InspectorNumberInput({
   );
 
   function handleMouseDown(e: React.MouseEvent<HTMLInputElement>) {
-    // Only left-click
     if (e.button !== 0) {
       externalMouseDown?.(e);
       return;
     }
 
-    // If already focused for typing, let normal input behavior work
     if (document.activeElement === inputRef.current) {
       externalMouseDown?.(e);
       return;
@@ -211,7 +229,6 @@ export function InspectorNumberInput({
       const sensitivity = moveE.shiftKey ? 0.1 : 1;
       const rawNew = safeStart + Math.round(dx * sensitivity) * step;
       const clamped = Math.max(minVal, Math.min(maxVal, rawNew));
-      // Round to avoid floating-point noise (match step precision)
       const precision = step < 1 ? String(step).split(".")[1]?.length ?? 0 : 0;
       const rounded = precision > 0
         ? Number(clamped.toFixed(precision))
@@ -227,12 +244,9 @@ export function InspectorNumberInput({
       document.body.style.userSelect = "";
 
       if (!hasDragged) {
-        // Was a click, not a drag — focus the input for typing
         inputRef.current?.focus();
         inputRef.current?.select();
       } else {
-        // Drag ended — flush by blurring logic: fire onBlur so callers
-        // that flush history on blur get the signal.
         if (externalBlur) {
           externalBlur({
             target: inputRef.current!,
@@ -259,7 +273,6 @@ export function InspectorNumberInput({
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
-      // Revert to value when focus started
       fireSyntheticChange(valueOnFocusRef.current);
       inputRef.current?.blur();
       return;
@@ -268,20 +281,27 @@ export function InspectorNumberInput({
   }
 
   return (
-    <input
-      ref={inputRef}
-      type="number"
-      {...props}
-      onMouseDown={handleMouseDown}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "w-[60px] h-7 text-center border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
-        focused ? "cursor-text" : "cursor-ew-resize",
-        className
+    <div className="relative flex items-center">
+      <input
+        ref={inputRef}
+        type="number"
+        {...props}
+        onMouseDown={handleMouseDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className={cn(
+          "w-full h-6 text-left border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-6 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
+          focused ? "cursor-text" : "cursor-ew-resize",
+          className
+        )}
+      />
+      {unit && (
+        <span className="absolute right-2 text-[11px] font-mono text-[#A0A0A0] dark:text-[#666666] pointer-events-none">
+          {unit}
+        </span>
       )}
-    />
+    </div>
   );
 }
 
@@ -297,7 +317,7 @@ export function InspectorSelect({
       <select
         {...props}
         className={cn(
-          "w-full h-7 appearance-none border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 pr-7 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors cursor-pointer focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30",
+          "w-full h-6 appearance-none border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-7 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors cursor-pointer focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
           className
         )}
       >
@@ -311,7 +331,7 @@ export function InspectorSelect({
   );
 }
 
-// ─── InspectorColorField ─────────────────────────────────────────────────────
+// ─── InspectorColorField — Swatch + Hex + Opacity ────────────────────────────
 
 function isValidHex(hex: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
@@ -333,6 +353,21 @@ function normalizeHex(hex: string): string | null {
   return `#${expanded.toUpperCase()}`;
 }
 
+function parseRgba(rgba: string): { r: number; g: number; b: number; a: number } | null {
+  const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+  if (!match) return null;
+  return {
+    r: parseInt(match[1], 10),
+    g: parseInt(match[2], 10),
+    b: parseInt(match[3], 10),
+    a: match[4] ? parseFloat(match[4]) : 1,
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
 export function InspectorColorField({
   color,
   documentColors,
@@ -345,28 +380,91 @@ export function InspectorColorField({
   onCommit?: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [draft, setDraft] = React.useState(color || "");
-  const [isDraftFocused, setIsDraftFocused] = React.useState(false);
   const [swatchEl, setSwatchEl] = React.useState<HTMLButtonElement | null>(null);
   const isEmpty = !color || color === "transparent" || color === "none";
+  
+  // Parse color for hex/opacity split
+  const parsed = React.useMemo(() => parseRgba(color), [color]);
+  const hexValue = React.useMemo(() => {
+    if (isEmpty) return "";
+    if (parsed) return rgbToHex(parsed.r, parsed.g, parsed.b);
+    if (color.startsWith("#")) return normalizeHex(color) || color;
+    return color;
+  }, [color, isEmpty, parsed]);
+  const opacityValue = React.useMemo(() => {
+    if (isEmpty) return 100;
+    if (parsed) return Math.round(parsed.a * 100);
+    return 100;
+  }, [isEmpty, parsed]);
+
+  const [hexDraft, setHexDraft] = React.useState(hexValue);
+  const [opacityDraft, setOpacityDraft] = React.useState(String(opacityValue));
+  const [hexFocused, setHexFocused] = React.useState(false);
+  const [opacityFocused, setOpacityFocused] = React.useState(false);
 
   React.useEffect(() => {
-    if (!isDraftFocused) {
-      setDraft(color || "");
+    if (!hexFocused) setHexDraft(hexValue);
+  }, [hexValue, hexFocused]);
+
+  React.useEffect(() => {
+    if (!opacityFocused) setOpacityDraft(String(opacityValue));
+  }, [opacityValue, opacityFocused]);
+
+  const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = e.target.value;
+    setHexDraft(nextValue);
+
+    if (nextValue === "" || nextValue === "transparent") {
+      onChange(nextValue);
+      return;
     }
-  }, [color, isDraftFocused]);
+
+    const normalized = normalizeHex(nextValue);
+    if (normalized) {
+      const opacity = parseInt(opacityDraft, 10) || 100;
+      if (opacity < 100) {
+        const r = parseInt(normalized.slice(1, 3), 16);
+        const g = parseInt(normalized.slice(3, 5), 16);
+        const b = parseInt(normalized.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${opacity / 100})`);
+      } else {
+        onChange(normalized);
+      }
+    }
+  };
+
+  const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setOpacityDraft(val);
+    
+    const opacity = parseInt(val, 10);
+    if (Number.isFinite(opacity)) {
+      const clamped = Math.max(0, Math.min(100, opacity));
+      const hex = hexDraft || "#FFFFFF";
+      if (hex.startsWith("#") && hex.length === 7) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        if (clamped < 100) {
+          onChange(`rgba(${r}, ${g}, ${b}, ${clamped / 100})`);
+        } else {
+          onChange(hex);
+        }
+      }
+    }
+  };
 
   return (
     <div className="flex items-center gap-2">
       {/* Swatch */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           ref={setSwatchEl}
           type="button"
           className={cn(
-            "h-4 w-4 rounded-[2px] border shrink-0",
+            "h-5 w-5 rounded-[2px] border shrink-0",
             isEmpty
-              ? "border-dashed border-[#E5E5E0] dark:border-[#333333]"
+              ? "border-dashed border-[#E5E5E0] dark:border-[#333333] bg-[#F8F8F6] dark:bg-[#2A2A2A]"
               : "border-[#E5E5E0] dark:border-[#333333]"
           )}
           style={isEmpty ? undefined : { backgroundColor: color }}
@@ -378,7 +476,6 @@ export function InspectorColorField({
           anchorEl={swatchEl}
           documentColors={documentColors}
           onSelect={(c) => {
-            setDraft(c);
             onChange(c);
           }}
           onClose={() => {
@@ -391,25 +488,12 @@ export function InspectorColorField({
       {/* Hex input */}
       <input
         type="text"
-        value={draft}
+        value={hexDraft}
         placeholder="none"
-        onFocus={() => setIsDraftFocused(true)}
-        onChange={(e) => {
-          const nextValue = e.target.value;
-          setDraft(nextValue);
-
-          if (nextValue === "" || nextValue === "transparent") {
-            onChange(nextValue);
-            return;
-          }
-
-          const normalized = normalizeHex(nextValue);
-          if (normalized) {
-            onChange(normalized);
-          }
-        }}
+        onFocus={() => setHexFocused(true)}
+        onChange={handleHexChange}
         onBlur={() => {
-          setIsDraftFocused(false);
+          setHexFocused(false);
           onCommit?.();
         }}
         onKeyDown={(e) => {
@@ -418,13 +502,31 @@ export function InspectorColorField({
             e.currentTarget.blur();
           }
         }}
-        className="flex-1 h-7 border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-2 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30"
+        className="flex-1 h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
       />
+
+      {/* Opacity input */}
+      <div className="relative w-14 shrink-0">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={opacityDraft}
+          onFocus={() => setOpacityFocused(true)}
+          onChange={handleOpacityChange}
+          onBlur={() => {
+            setOpacityFocused(false);
+            onCommit?.();
+          }}
+          className="w-full h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-4 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 text-right"
+        />
+        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">%</span>
+      </div>
     </div>
   );
 }
 
-// ─── InspectorRow ────────────────────────────────────────────────────────────
+// ─── InspectorRow — Legacy grid primitive ────────────────────────────────────
 
 export function InspectorRow({
   children,
@@ -443,24 +545,11 @@ export function InspectorRow({
 // ─── InspectorDivider ────────────────────────────────────────────────────────
 
 export function InspectorDivider() {
-  return <div className="h-px bg-[#EFEFEC] dark:bg-[#333333] my-4" />;
+  return <div className="h-px bg-[#E5E5E0] dark:bg-[#333333] my-4" />;
 }
 
-// ─── InspectorSliderField ────────────────────────────────────────────────────
+// ─── InspectorSliderField — Legacy (kept for compatibility) ──────────────────
 
-/**
- * A combined slider + number input field for numeric inspector properties.
- *
- * Layout: [Label]  [====●=====] [ 42 ]
- *
- * The slider and number input stay in sync — changing either updates the other
- * and calls onChange with the new value.
- *
- * When `showPercent` is true, the number input displays the value as a
- * percentage (value × 100) and converts back on change. The underlying
- * onChange always receives the raw numeric value passed in (no conversion —
- * callers decide their own scale via min/max).
- */
 export function InspectorSliderField({
   label,
   value,
@@ -483,15 +572,12 @@ export function InspectorSliderField({
   onResetOverride?: () => void;
 }) {
   const numberRef = React.useRef<HTMLInputElement>(null);
-
-  // Internal draft for the number input so the user can type freely
   const [draft, setDraft] = React.useState<string>(() =>
     showPercent ? String(Math.round(value * 100)) : String(value ?? "")
   );
   const [isFocused, setIsFocused] = React.useState(false);
   const valueOnFocusRef = React.useRef<string>("");
 
-  // Keep draft in sync when value changes externally (e.g. slider drag)
   React.useEffect(() => {
     if (!isFocused) {
       setDraft(showPercent ? String(Math.round(value * 100)) : String(value ?? ""));
@@ -518,11 +604,9 @@ export function InspectorSliderField({
 
   function handleNumberBlur() {
     setIsFocused(false);
-    // Snap draft to actual value on blur
     setDraft(showPercent ? String(Math.round(value * 100)) : String(value ?? ""));
   }
 
-  // ── Scrubby drag for the number input ──
   const SLIDER_DRAG_THRESHOLD = 3;
 
   function handleNumberMouseDown(e: React.MouseEvent<HTMLInputElement>) {
@@ -584,7 +668,6 @@ export function InspectorSliderField({
   function handleNumberKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Escape") {
       setDraft(valueOnFocusRef.current);
-      // Revert the value
       const parsed = Number(valueOnFocusRef.current);
       if (valueOnFocusRef.current !== "" && Number.isFinite(parsed)) {
         const clamped = Math.min(max, Math.max(min, showPercent ? parsed / 100 : parsed));
@@ -600,7 +683,7 @@ export function InspectorSliderField({
   }
 
   const displayValue = showPercent
-    ? Math.round(value * 100) / 100  // keep precision for slider
+    ? Math.round(value * 100) / 100
     : value;
 
   return (
@@ -633,7 +716,7 @@ export function InspectorSliderField({
           onBlur={handleNumberBlur}
           onKeyDown={handleNumberKeyDown}
           className={cn(
-            "w-[52px] h-7 text-center border border-[#EFEFEC] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#222222] px-1.5 font-mono text-[11px] font-medium text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/30 dark:focus:border-[#4B57DB] dark:focus:ring-2 dark:focus:ring-[#4B57DB]/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none shrink-0",
+            "w-[52px] h-7 text-center border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-1.5 font-mono text-[11px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none shrink-0",
             isFocused ? "cursor-text" : "cursor-ew-resize"
           )}
         />
@@ -641,6 +724,23 @@ export function InspectorSliderField({
           <span className="text-[11px] text-[#8A8A8A] dark:text-[#666666] font-mono shrink-0">%</span>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── InspectorSection — Legacy section primitive ─────────────────────────────
+
+export function InspectorSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-4">
+      <span className="mono-kicker mb-2 block">{label}</span>
+      {children}
     </div>
   );
 }

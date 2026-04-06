@@ -13,7 +13,7 @@ import {
   walkDesignTree,
 } from "./design-node";
 import {
-  findMaster, bakeInstance, filterAllowedOverrides,
+  findMaster, bakeInstance, filterAllowedOverrides, isInstanceChild,
 } from "./component-resolver";
 import type {
   ComponentMaster, ComponentInstanceRef, NodeOverride,
@@ -358,6 +358,22 @@ export function canvasReducer(
     }
   }
 
+  // Structural action guard: reject structural mutations on instance children
+  const STRUCTURAL_ACTIONS = new Set([
+    "DELETE_SECTION", "REORDER_NODE", "INSERT_SECTION",
+    "GROUP_NODES", "UNGROUP_NODES", "DUPLICATE_SECTION",
+  ]);
+
+  if (STRUCTURAL_ACTIONS.has(action.type)) {
+    const nodeId = (action as { nodeId?: string }).nodeId;
+    if (nodeId && isInstanceChild(nodeId)) {
+      // CEO flag: Delete key on instance children must be a no-op.
+      // The keyboard handler dispatches DELETE_SECTION with selectedNodeId.
+      // If selectedNodeId is a composite ID (contains "::"), reject here.
+      return state;
+    }
+  }
+
   switch (action.type) {
     // ── Items ──────────────────────────────────────────────────────────────
 
@@ -669,7 +685,23 @@ export function canvasReducer(
       for (const id of idsToDuplicate) {
         const sourceIndex = children.findIndex((c) => c.id === id);
         if (sourceIndex === -1) continue;
-        clones.push({ sourceId: id, clone: deepCloneWithNewIds(children[sourceIndex]) });
+        const sourceNode = children[sourceIndex] as DesignNode;
+        if (sourceNode.componentRef) {
+          // Duplicate an instance root → fresh instance with empty overrides
+          const newInstance: TreeNode = {
+            ...sourceNode,
+            id: uid(sourceNode.type),
+            componentRef: {
+              masterId: sourceNode.componentRef.masterId,
+              masterVersion: sourceNode.componentRef.masterVersion,
+              overrides: {},
+            },
+            children: undefined, // resolved tree will be rebuilt by resolveTree
+          };
+          clones.push({ sourceId: id, clone: newInstance });
+        } else {
+          clones.push({ sourceId: id, clone: deepCloneWithNewIds(children[sourceIndex]) });
+        }
       }
 
       if (clones.length === 0) return state;

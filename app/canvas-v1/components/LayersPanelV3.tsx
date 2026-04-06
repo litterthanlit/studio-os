@@ -9,18 +9,20 @@ import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
-  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus,
+  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
-import { findDesignNodeParent, cloneDesignNode } from "@/lib/canvas/design-node";
+import { findDesignNodeParent, cloneDesignNode, findDesignNodeById } from "@/lib/canvas/design-node";
 import { saveComponent, type DesignComponent } from "@/lib/canvas/design-component-library";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/useLayersDragReorder";
+import { resolveTree, isInstanceChild, findMaster } from "@/lib/canvas/component-resolver";
+import type { ComponentMaster } from "@/lib/canvas/design-node";
 
 // ─── Node type → icon ────────────────────────────────────────────────────────
 
@@ -77,12 +79,111 @@ function DropIndicatorLine({ depth }: { depth: number }) {
   );
 }
 
+// ─── Instance context menu (inline, for instance root / child nodes) ─────────
+
+function InstanceContextMenu({
+  node,
+  position,
+  isInstanceRoot,
+  onEditMaster,
+  onDetach,
+  onResetAll,
+  onDelete,
+  onResetOverride,
+  onCopy,
+  onDismiss,
+}: {
+  node: DesignNode;
+  position: { x: number; y: number };
+  isInstanceRoot: boolean;
+  onEditMaster: () => void;
+  onDetach: () => void;
+  onResetAll: () => void;
+  onDelete: () => void;
+  onResetOverride: () => void;
+  onCopy: () => void;
+  onDismiss: () => void;
+}) {
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const pad = 8;
+    let x = position.x;
+    let y = position.y;
+    if (rect.right > window.innerWidth - pad) x = window.innerWidth - rect.width - pad;
+    if (rect.bottom > window.innerHeight - pad) y = window.innerHeight - rect.height - pad;
+    if (x < pad) x = pad;
+    if (y < pad) y = pad;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }, [position]);
+
+  React.useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) { if (e.key === "Escape") onDismiss(); }
+    function handleMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onDismiss();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("mousedown", handleMouseDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousedown", handleMouseDown, true);
+    };
+  }, [onDismiss]);
+
+  function Item({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        className={cn(
+          "flex w-full items-center px-3 py-1.5 text-[12px] text-left transition-colors",
+          danger ? "text-red-500 hover:bg-red-50" : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
+        )}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      ref={menuRef}
+      className="fixed z-[9999] min-w-[180px] rounded-[4px] border border-[#E5E5E0] bg-white py-1 shadow-lg"
+      style={{ left: position.x, top: position.y }}
+    >
+      <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-[#A0A0A0]">
+        {isInstanceRoot ? "Instance" : "Instance Child"} · {node.name}
+      </div>
+      <div className="h-px bg-[#E5E5E0] my-1" />
+      {isInstanceRoot ? (
+        <>
+          <Item label="Edit Master" onClick={() => { onEditMaster(); onDismiss(); }} />
+          <Item label="Detach Instance" onClick={() => { onDetach(); onDismiss(); }} />
+          <Item label="Reset All Overrides" onClick={() => { onResetAll(); onDismiss(); }} />
+          <div className="h-px bg-[#E5E5E0] my-1" />
+          <Item label="Delete" onClick={() => { onDelete(); onDismiss(); }} danger />
+        </>
+      ) : (
+        <>
+          <Item label="Reset Override" onClick={() => { onResetOverride(); onDismiss(); }} />
+          <Item label="Copy" onClick={() => { onCopy(); onDismiss(); }} />
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
 
 function DesignTreeNode({
   node, depth, selectedNodeId, selectedNodeIds, artboardId, parentId, index,
   onSelectNode, onContextMenu, dispatch,
   draggedId, dropTarget, onDragPointerDown,
+  sourceTree, components,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
   selectedNodeIds: string[]; artboardId: string;
@@ -93,6 +194,8 @@ function DesignTreeNode({
   draggedId: string | null;
   dropTarget: DropTarget | null;
   onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
+  sourceTree: DesignNode;
+  components: ComponentMaster[];
 }) {
   const hasChildren = node.children && node.children.length > 0;
   const [expanded, setExpanded] = React.useState(depth < 2);
@@ -100,11 +203,31 @@ function DesignTreeNode({
   const isSecondary = !isPrimary && selectedNodeIds.includes(node.id);
   const isDragged = draggedId === node.id;
 
+  // ── Instance detection ──
+  // For resolved nodes, composite IDs (with "::") indicate instance children.
+  // Instance roots are detected by looking up the source tree.
+  const isInsideInstance = isInstanceChild(node.id);
+  const sourceNodeId = isInsideInstance ? node.id.split("::")[0] : node.id;
+  const sourceNode = React.useMemo(
+    () => findDesignNodeById(sourceTree, sourceNodeId),
+    [sourceTree, sourceNodeId]
+  );
+  const isInstanceRoot = !isInsideInstance && !!sourceNode?.componentRef;
+  const master = isInstanceRoot && sourceNode?.componentRef
+    ? findMaster(components, sourceNode.componentRef.masterId)
+    : null;
+  const masterName = master?.name ?? null;
+  const isStale = isInstanceRoot && sourceNode?.componentRef && master
+    ? sourceNode.componentRef.masterVersion < master.version
+    : false;
+
   // Show drop indicator above this row when drop target index matches this row's index
   const showDropAbove =
     dropTarget !== null &&
     dropTarget.parentId === parentId &&
     dropTarget.index === index;
+
+  const rowOpacity = isDragged ? 0.4 : isInsideInstance ? 0.6 : 1;
 
   return (
     <>
@@ -123,7 +246,11 @@ function DesignTreeNode({
             onSelectNode(artboardId, node.id);
           }
         }}
-        onPointerDown={(e) => onDragPointerDown(e, node.id, parentId)}
+        onPointerDown={(e) => {
+          // Suppress drag for instance children
+          if (isInsideInstance) return;
+          onDragPointerDown(e, node.id, parentId);
+        }}
         onContextMenu={(e) => onContextMenu?.(node, artboardId, e)}
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
@@ -136,7 +263,7 @@ function DesignTreeNode({
         style={{
           height: 28,
           paddingLeft: depth * 14 + (hasChildren ? 4 : 16),
-          opacity: isDragged ? 0.4 : 1,
+          opacity: rowOpacity,
         }}
       >
         {hasChildren && (
@@ -147,8 +274,22 @@ function DesignTreeNode({
             <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", expanded && "rotate-90")} />
           </span>
         )}
-        <DesignNodeIcon type={node.type} />
-        <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">{formatDesignNodeLabel(node)}</span>
+        {isInstanceRoot
+          ? <Diamond className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" size={14} strokeWidth={1.5} />
+          : <DesignNodeIcon type={node.type} />
+        }
+        <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">
+          {formatDesignNodeLabel(node)}
+          {isInstanceRoot && masterName && (
+            <span className="text-[#A0A0A0] dark:text-[#666666]"> · {masterName}</span>
+          )}
+        </span>
+        {isStale && (
+          <span
+            className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#F59E0B] mr-1"
+            title="Component is stale — master has been updated"
+          />
+        )}
         {node.isGroup && (
           <span className="text-[10px] text-[#A0A0A0] ml-auto mr-1 dark:text-[#666666]">Group</span>
         )}
@@ -163,6 +304,7 @@ function DesignTreeNode({
           artboardId={artboardId} parentId={node.id} index={childIdx}
           onSelectNode={onSelectNode} onContextMenu={onContextMenu} dispatch={dispatch}
           draggedId={draggedId} dropTarget={dropTarget} onDragPointerDown={onDragPointerDown}
+          sourceTree={sourceTree} components={components}
         />
       ))}
       {/* Drop indicator after last sibling */}
@@ -245,6 +387,63 @@ function Group({ label, count, defaultOpen, children }: {
   );
 }
 
+// ─── Artboard Design Tree (sub-component so useMemo is valid) ────────────────
+
+function ArtboardDesignTree({
+  artboard,
+  components,
+  selectedNodeId,
+  selectedNodeIds,
+  onSelectNode,
+  onContextMenu,
+  dispatch,
+  draggedId,
+  dropTarget,
+  onDragPointerDown,
+}: {
+  artboard: ArtboardItem;
+  components: ComponentMaster[];
+  selectedNodeId: string | null;
+  selectedNodeIds: string[];
+  onSelectNode: (artboardId: string, nodeId: string) => void;
+  onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
+  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
+  draggedId: string | null;
+  dropTarget: DropTarget | null;
+  onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
+}) {
+  const sourceTree = artboard.pageTree as DesignNode;
+  const resolvedTree = React.useMemo(
+    () => resolveTree(sourceTree, components),
+    [sourceTree, components]
+  );
+
+  return (
+    <>
+      {resolvedTree.children?.map((child, childIdx) => (
+        <DesignTreeNode
+          key={child.id}
+          node={child}
+          depth={2}
+          selectedNodeId={selectedNodeId}
+          selectedNodeIds={selectedNodeIds}
+          artboardId={artboard.id}
+          parentId={resolvedTree.id}
+          index={childIdx}
+          onSelectNode={onSelectNode}
+          onContextMenu={onContextMenu}
+          dispatch={dispatch}
+          draggedId={draggedId}
+          dropTarget={dropTarget}
+          onDragPointerDown={onDragPointerDown}
+          sourceTree={sourceTree}
+          components={components}
+        />
+      ))}
+    </>
+  );
+}
+
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
 export function LayersPanelV3() {
@@ -275,14 +474,42 @@ export function LayersPanelV3() {
     position: { x: number; y: number };
   } | null>(null);
 
+  // ── Instance context menu ──
+  const [instanceContextMenu, setInstanceContextMenu] = React.useState<{
+    node: DesignNode;
+    artboardId: string;
+    position: { x: number; y: number };
+    isInstanceRoot: boolean;
+  } | null>(null);
+
   const handleDesignNodeContextMenu = React.useCallback(
     (node: DesignNode, artboardId: string, event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
       dispatch({ type: "SELECT_NODE", artboardId, nodeId: node.id });
-      setDnContextMenu({ node, artboardId, position: { x: event.clientX, y: event.clientY } });
+
+      // Route to instance context menu for instance roots and children
+      const artboard = artboards.find((a) => a.id === artboardId);
+      const sourceTree = artboard && isDesignNodeTree(artboard.pageTree)
+        ? (artboard.pageTree as DesignNode)
+        : null;
+      const isInsideInst = isInstanceChild(node.id);
+      const sourceNodeId = isInsideInst ? node.id.split("::")[0] : node.id;
+      const sourceNode = sourceTree ? findDesignNodeById(sourceTree, sourceNodeId) : null;
+      const isInstanceRoot = !isInsideInst && !!sourceNode?.componentRef;
+
+      if (isInstanceRoot || isInsideInst) {
+        setInstanceContextMenu({
+          node,
+          artboardId,
+          position: { x: event.clientX, y: event.clientY },
+          isInstanceRoot,
+        });
+      } else {
+        setDnContextMenu({ node, artboardId, position: { x: event.clientX, y: event.clientY } });
+      }
     },
-    [dispatch]
+    [dispatch, artboards]
   );
 
   // ── Drag reorder hook ──
@@ -341,16 +568,12 @@ export function LayersPanelV3() {
                   </button>
                   {/* Page tree — DesignNode or PageNode */}
                   {isDesignNodeTree(artboard.pageTree)
-                    ? (artboard.pageTree as DesignNode).children?.map((child, childIdx) => (
-                        <DesignTreeNode
-                          key={child.id}
-                          node={child}
-                          depth={2}
+                    ? (
+                        <ArtboardDesignTree
+                          artboard={artboard}
+                          components={state.components}
                           selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
                           selectedNodeIds={selection.activeArtboardId === artboard.id ? selection.selectedNodeIds : []}
-                          artboardId={artboard.id}
-                          parentId={(artboard.pageTree as DesignNode).id}
-                          index={childIdx}
                           onSelectNode={handleSelectNode}
                           onContextMenu={handleDesignNodeContextMenu}
                           dispatch={dispatch}
@@ -358,7 +581,7 @@ export function LayersPanelV3() {
                           dropTarget={dropTarget}
                           onDragPointerDown={dragPointerDown}
                         />
-                      ))
+                      )
                     : artboard.pageTree.children?.map((child) => (
                         <TreeNode
                           key={child.id}
@@ -491,6 +714,48 @@ export function LayersPanelV3() {
           />
         );
       })()}
+
+      {/* Instance context menu */}
+      {instanceContextMenu && (
+        <InstanceContextMenu
+          node={instanceContextMenu.node}
+          position={instanceContextMenu.position}
+          isInstanceRoot={instanceContextMenu.isInstanceRoot}
+          onEditMaster={() => {
+            // TODO(Task 12): open master edit mode
+            console.warn("[Track3] Edit Master — not yet implemented");
+          }}
+          onDetach={() => {
+            // TODO(Task reducer): wire DETACH_INSTANCE action
+            dispatch({
+              type: "DETACH_INSTANCE",
+              artboardId: instanceContextMenu.artboardId,
+              nodeId: instanceContextMenu.node.id,
+            } as unknown as Parameters<typeof dispatch>[0]);
+          }}
+          onResetAll={() => {
+            // TODO(Task reducer): wire RESET_INSTANCE_OVERRIDES action
+            dispatch({
+              type: "RESET_INSTANCE_OVERRIDES",
+              artboardId: instanceContextMenu.artboardId,
+              nodeId: instanceContextMenu.node.id,
+            } as unknown as Parameters<typeof dispatch>[0]);
+          }}
+          onDelete={() => {
+            dispatch({ type: "DELETE_SECTION", artboardId: instanceContextMenu.artboardId, nodeId: instanceContextMenu.node.id });
+            setInstanceContextMenu(null);
+          }}
+          onResetOverride={() => {
+            // TODO(Task 8): reset single override for instance child
+            console.warn("[Track3] Reset Override — not yet implemented");
+          }}
+          onCopy={() => {
+            // Copy is not wired yet — stub
+            console.warn("[Track3] Copy instance child — not yet implemented");
+          }}
+          onDismiss={() => setInstanceContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

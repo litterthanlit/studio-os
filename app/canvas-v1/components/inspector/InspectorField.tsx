@@ -156,22 +156,35 @@ export function InspectorTextarea({
 export function InspectorNumberInput({
   className,
   unit,
+  mixed,
   onMouseDown: externalMouseDown,
   onFocus: externalFocus,
   onBlur: externalBlur,
   onKeyDown: externalKeyDown,
+  onChange,
+  value,
+  placeholder,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & { unit?: string }) {
+}: React.InputHTMLAttributes<HTMLInputElement> & { unit?: string; mixed?: boolean }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [focused, setFocused] = React.useState(false);
   const valueOnFocusRef = React.useRef<string>("");
+  const [mixedCleared, setMixedCleared] = React.useState(false);
+
+  // Handle mixed state - clear when user types
+  const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (mixed && !mixedCleared) {
+      setMixedCleared(true);
+    }
+    onChange?.(e);
+  }, [mixed, mixedCleared, onChange]);
 
   const DRAG_THRESHOLD = 3;
 
   const fireSyntheticChange = React.useCallback(
     (nextValue: string) => {
       const input = inputRef.current;
-      if (!input || !props.onChange) return;
+      if (!input || !onChange) return;
 
       const nativeSetter = Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype,
@@ -183,12 +196,12 @@ export function InspectorNumberInput({
       const syntheticEvent = new Event("input", { bubbles: true });
       input.dispatchEvent(syntheticEvent);
 
-      props.onChange({
+      onChange({
         target: input,
         currentTarget: input,
       } as React.ChangeEvent<HTMLInputElement>);
     },
-    [props.onChange]
+    [onChange]
   );
 
   function handleMouseDown(e: React.MouseEvent<HTMLInputElement>) {
@@ -280,19 +293,32 @@ export function InspectorNumberInput({
     externalKeyDown?.(e);
   }
 
+  // Reset mixedCleared when mixed prop changes
+  React.useEffect(() => {
+    setMixedCleared(false);
+  }, [mixed]);
+
+  const isMixed = mixed && !mixedCleared;
+  const displayValue = isMixed ? "" : value;
+  const displayPlaceholder = isMixed ? "—" : placeholder;
+
   return (
     <div className="relative flex items-center">
       <input
         ref={inputRef}
         type="number"
         {...props}
+        value={displayValue}
+        placeholder={displayPlaceholder}
         onMouseDown={handleMouseDown}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
+        onChange={handleChange}
         className={cn(
           "w-full h-6 text-left border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-6 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
           focused ? "cursor-text" : "cursor-ew-resize",
+          isMixed && "placeholder:text-[#8A8A8A] dark:placeholder:text-[#666666]",
           className
         )}
       />
@@ -370,11 +396,13 @@ function rgbToHex(r: number, g: number, b: number): string {
 
 export function InspectorColorField({
   color,
+  mixed,
   documentColors,
   onChange,
   onCommit,
 }: {
   color: string;
+  mixed?: boolean;
   documentColors?: string[];
   onChange: (color: string) => void;
   onCommit?: () => void;
@@ -382,20 +410,23 @@ export function InspectorColorField({
   const [open, setOpen] = React.useState(false);
   const [swatchEl, setSwatchEl] = React.useState<HTMLButtonElement | null>(null);
   const isEmpty = !color || color === "transparent" || color === "none";
+  const isMixed = mixed === true;
   
   // Parse color for hex/opacity split
   const parsed = React.useMemo(() => parseRgba(color), [color]);
   const hexValue = React.useMemo(() => {
+    if (isMixed) return "";
     if (isEmpty) return "";
     if (parsed) return rgbToHex(parsed.r, parsed.g, parsed.b);
     if (color.startsWith("#")) return normalizeHex(color) || color;
     return color;
-  }, [color, isEmpty, parsed]);
+  }, [color, isEmpty, isMixed, parsed]);
   const opacityValue = React.useMemo(() => {
+    if (isMixed) return 100;
     if (isEmpty) return 100;
     if (parsed) return Math.round(parsed.a * 100);
     return 100;
-  }, [isEmpty, parsed]);
+  }, [isEmpty, isMixed, parsed]);
 
   const [hexDraft, setHexDraft] = React.useState(hexValue);
   const [opacityDraft, setOpacityDraft] = React.useState(String(opacityValue));
@@ -454,6 +485,16 @@ export function InspectorColorField({
     }
   };
 
+  // Checkerboard pattern for mixed state
+  const checkerboardStyle: React.CSSProperties | undefined = isMixed
+    ? {
+        backgroundImage: `repeating-conic-gradient(#E5E5E5 0% 25%, #FFFFFF 0% 50%)`,
+        backgroundSize: "8px 8px",
+      }
+    : isEmpty
+    ? undefined
+    : { backgroundColor: color };
+
   return (
     <div className="flex items-center gap-2">
       {/* Swatch */}
@@ -463,11 +504,13 @@ export function InspectorColorField({
           type="button"
           className={cn(
             "h-5 w-5 rounded-[2px] border shrink-0",
-            isEmpty
+            isMixed
+              ? "border-[#E5E5E0] dark:border-[#333333]"
+              : isEmpty
               ? "border-dashed border-[#E5E5E0] dark:border-[#333333] bg-[#F8F8F6] dark:bg-[#2A2A2A]"
               : "border-[#E5E5E0] dark:border-[#333333]"
           )}
-          style={isEmpty ? undefined : { backgroundColor: color }}
+          style={checkerboardStyle}
           onClick={() => setOpen(!open)}
         />
         <ColorPickerPopover
@@ -488,8 +531,9 @@ export function InspectorColorField({
       {/* Hex input */}
       <input
         type="text"
-        value={hexDraft}
-        placeholder="none"
+        value={isMixed ? "" : hexDraft}
+        placeholder={isMixed ? "Mixed" : "none"}
+        disabled={isMixed}
         onFocus={() => setHexFocused(true)}
         onChange={handleHexChange}
         onBlur={() => {
@@ -502,7 +546,10 @@ export function InspectorColorField({
             e.currentTarget.blur();
           }
         }}
-        className="flex-1 h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
+        className={cn(
+          "flex-1 h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
+          isMixed && "bg-[#F0F0EC] dark:bg-[#252525] text-[#8A8A8A] dark:text-[#666666] cursor-not-allowed"
+        )}
       />
 
       {/* Opacity input */}

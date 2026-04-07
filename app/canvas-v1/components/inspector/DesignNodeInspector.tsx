@@ -42,6 +42,13 @@ import { findMaster, splitCompositeId, filterAllowedOverrides } from "@/lib/canv
 import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 import { useBatchUpdate } from "@/app/canvas-v1/hooks/useBatchUpdate";
+import {
+  compareProperty,
+  compareSizeProperties,
+  compareSpacingProperties,
+  compareTypographyProperties,
+  compareVisualProperties,
+} from "@/app/canvas-v1/lib/property-comparison";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -289,9 +296,54 @@ export function DesignNodeInspector({
   const batchUpdate = useBatchUpdate(artboard.id, nodeIds, dispatch);
   
   // For single-select, use the node's style directly; for multi-select, use primary node style
-  // Future enhancement: compute shared values across all selected nodes
   const style = primaryNode.style;
   const sections = isMultiSelect ? classifyMultiSelect(nodes) : classifyDesignNode(primaryNode);
+
+  // ── Property comparisons for multi-select ──
+  const comparisons = React.useMemo(() => {
+    if (!isMultiSelect) return null;
+
+    const sizeComparisons = compareSizeProperties(nodes);
+    const spacingComparisons = compareSpacingProperties(nodes);
+    const typographyComparisons = compareTypographyProperties(nodes);
+    const visualComparisons = compareVisualProperties(nodes);
+
+    return {
+      // Size
+      width: sizeComparisons.width,
+      height: sizeComparisons.height,
+      // Spacing
+      gap: spacingComparisons.gap,
+      padding: spacingComparisons.padding,
+      // Typography
+      fontFamily: typographyComparisons.fontFamily,
+      fontSize: typographyComparisons.fontSize,
+      fontWeight: typographyComparisons.fontWeight,
+      lineHeight: typographyComparisons.lineHeight,
+      letterSpacing: typographyComparisons.letterSpacing,
+      fontStyle: typographyComparisons.fontStyle,
+      textDecoration: typographyComparisons.textDecoration,
+      textAlign: typographyComparisons.textAlign,
+      // Visual/Fill
+      background: visualComparisons.background,
+      foreground: visualComparisons.foreground,
+      borderColor: visualComparisons.borderColor,
+      borderWidth: visualComparisons.borderWidth,
+      borderRadius: visualComparisons.borderRadius,
+      opacity: visualComparisons.opacity,
+      shadow: visualComparisons.shadow,
+      // Layout
+      flexDirection: compareProperty(nodes, (n) => n.style.flexDirection),
+      alignItems: compareProperty(nodes, (n) => n.style.alignItems),
+      justifyContent: compareProperty(nodes, (n) => n.style.justifyContent),
+      display: compareProperty(nodes, (n) => n.style.display),
+      gridTemplate: compareProperty(nodes, (n) => n.style.gridTemplate),
+      // Position
+      x: compareProperty(nodes, (n) => n.style.x),
+      y: compareProperty(nodes, (n) => n.style.y),
+      zIndex: compareProperty(nodes, (n) => n.style.zIndex),
+    };
+  }, [nodes, isMultiSelect]);
 
   // ── Instance context ──
   // For multi-select, instance banners are shown only if ALL selected nodes
@@ -696,7 +748,11 @@ export function DesignNodeInspector({
                 />
                 {getSizingMode(style.width) === "fixed" ? (
                   <InspectorNumberInput
-                    value={typeof style.width === "number" ? style.width : ""}
+                    value={isMultiSelect
+                      ? (comparisons?.width?.sharedValue as number | "") ?? ""
+                      : typeof style.width === "number" ? style.width : ""
+                    }
+                    mixed={isMultiSelect && comparisons?.width?.status === "mixed"}
                     placeholder="0"
                     min={0}
                     className="w-16"
@@ -750,7 +806,11 @@ export function DesignNodeInspector({
                 />
                 {getSizingMode(style.height) === "fixed" ? (
                   <InspectorNumberInput
-                    value={typeof style.height === "number" ? style.height : ""}
+                    value={isMultiSelect
+                      ? (comparisons?.height?.sharedValue as number | "") ?? ""
+                      : typeof style.height === "number" ? style.height : ""
+                    }
+                    mixed={isMultiSelect && comparisons?.height?.status === "mixed"}
                     placeholder="0"
                     min={0}
                     className="w-16"
@@ -887,7 +947,11 @@ export function DesignNodeInspector({
               disabled={isForbiddenField("gap")}
             >
               <InspectorNumberInput
-                value={style.gap ?? ""}
+                value={isMultiSelect
+                  ? (comparisons?.gap?.sharedValue as number | "") ?? ""
+                  : style.gap ?? ""
+                }
+                mixed={isMultiSelect && comparisons?.gap?.status === "mixed"}
                 placeholder="0"
                 min={0}
                 onChange={(e) => updateStyle({ gap: Number(e.target.value) || undefined })}
@@ -910,7 +974,10 @@ export function DesignNodeInspector({
               onResetOverride={() => resetOverride("fontFamily")}
             >
               <InspectorSelect
-                value={style.fontFamily || resolved?.fontFamily || ""}
+                value={isMultiSelect
+                  ? (comparisons?.fontFamily?.sharedValue as string | "") ?? ""
+                  : style.fontFamily || resolved?.fontFamily || ""
+                }
                 onChange={(e) => {
                   updateStyle({ fontFamily: (e.target as HTMLSelectElement).value || undefined });
                 }}
@@ -940,12 +1007,16 @@ export function DesignNodeInspector({
                 onResetOverride={() => resetOverride("fontWeight")}
               >
                 <InspectorNumberInput
-                  value={style.fontWeight ?? resolved?.fontWeight ?? ""}
+                  value={isMultiSelect
+                    ? (comparisons?.fontWeight?.sharedValue as number | "") ?? ""
+                    : style.fontWeight ?? resolved?.fontWeight ?? ""
+                  }
+                  mixed={isMultiSelect && comparisons?.fontWeight?.status === "mixed"}
                   placeholder="400"
                   min={100}
                   max={900}
                   step={100}
-                  className={cn(resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0] dark:text-[#666666]")}
+                  className={cn(!isMultiSelect && resolved?.isInherited.fontWeight && style.fontWeight == null && "text-[#A0A0A0] dark:text-[#666666]")}
                   onChange={(e) => updateStyle({ fontWeight: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
@@ -956,10 +1027,14 @@ export function DesignNodeInspector({
                 onResetOverride={() => resetOverride("fontSize")}
               >
                 <InspectorNumberInput
-                  value={style.fontSize ?? resolved?.fontSize ?? ""}
+                  value={isMultiSelect
+                    ? (comparisons?.fontSize?.sharedValue as number | "") ?? ""
+                    : style.fontSize ?? resolved?.fontSize ?? ""
+                  }
+                  mixed={isMultiSelect && comparisons?.fontSize?.status === "mixed"}
                   placeholder="16"
                   min={1}
-                  className={cn(resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0] dark:text-[#666666]")}
+                  className={cn(!isMultiSelect && resolved?.isInherited.fontSize && style.fontSize == null && "text-[#A0A0A0] dark:text-[#666666]")}
                   onChange={(e) => updateStyle({ fontSize: Number(e.target.value) || undefined })}
                   onBlur={() => history.flush()}
                 />
@@ -974,7 +1049,11 @@ export function DesignNodeInspector({
                 onResetOverride={() => resetOverride("lineHeight")}
               >
                 <InspectorNumberInput
-                  value={style.lineHeight ?? ""}
+                  value={isMultiSelect
+                    ? (comparisons?.lineHeight?.sharedValue as number | "") ?? ""
+                    : style.lineHeight ?? ""
+                  }
+                  mixed={isMultiSelect && comparisons?.lineHeight?.status === "mixed"}
                   placeholder="Auto"
                   step={0.1}
                   onChange={(e) => updateStyle({ lineHeight: Number(e.target.value) || undefined })}
@@ -987,7 +1066,11 @@ export function DesignNodeInspector({
                 onResetOverride={() => resetOverride("letterSpacing")}
               >
                 <InspectorNumberInput
-                  value={style.letterSpacing ?? ""}
+                  value={isMultiSelect
+                    ? (comparisons?.letterSpacing?.sharedValue as number | "") ?? ""
+                    : style.letterSpacing ?? ""
+                  }
+                  mixed={isMultiSelect && comparisons?.letterSpacing?.status === "mixed"}
                   placeholder="0"
                   step={0.1}
                   onChange={(e) => updateStyle({ letterSpacing: Number(e.target.value) || undefined })}
@@ -1067,26 +1150,34 @@ export function DesignNodeInspector({
         <section className="space-y-3">
           <SectionRule label="FILL" />
           <div className="px-4 space-y-2">
-            <InspectorFieldRow 
+            <InspectorFieldRow
               label="Bg"
-              hasOverride={hasOverride("background")} 
+              hasOverride={hasOverride("background")}
               onResetOverride={() => resetOverride("background")}
             >
               <InspectorColorField
-                color={style.background || ""}
+                color={isMultiSelect
+                  ? (comparisons?.background?.sharedValue as string | "") ?? ""
+                  : style.background || ""
+                }
+                mixed={isMultiSelect && comparisons?.background?.status === "mixed"}
                 documentColors={documentColors}
                 onCommit={() => history.flush()}
                 onChange={(c) => updateStyle({ background: c })}
               />
             </InspectorFieldRow>
 
-            <InspectorFieldRow 
+            <InspectorFieldRow
               label="Text"
-              hasOverride={hasOverride("foreground")} 
+              hasOverride={hasOverride("foreground")}
               onResetOverride={() => resetOverride("foreground")}
             >
               <InspectorColorField
-                color={style.foreground || ""}
+                color={isMultiSelect
+                  ? (comparisons?.foreground?.sharedValue as string | "") ?? ""
+                  : style.foreground || ""
+                }
+                mixed={isMultiSelect && comparisons?.foreground?.status === "mixed"}
                 documentColors={documentColors}
                 onCommit={() => history.flush()}
                 onChange={(c) => updateStyle({ foreground: c })}
@@ -1199,7 +1290,11 @@ export function DesignNodeInspector({
                     ))}
                   </div>
                   <InspectorNumberInput
-                    value={style.borderRadius ?? ""}
+                    value={isMultiSelect
+                      ? (comparisons?.borderRadius?.sharedValue as number | "") ?? ""
+                      : style.borderRadius ?? ""
+                    }
+                    mixed={isMultiSelect && comparisons?.borderRadius?.status === "mixed"}
                     placeholder="0"
                     min={0}
                     max={999}
@@ -1252,13 +1347,17 @@ export function DesignNodeInspector({
                       onCommit={() => history.flush()}
                       onChange={(c) => updateStyle({ borderColor: c })}
                     />
-                    <InspectorFieldRow 
+                    <InspectorFieldRow
                       label="Width"
-                      hasOverride={hasOverride("borderWidth")} 
+                      hasOverride={hasOverride("borderWidth")}
                       onResetOverride={() => resetOverride("borderWidth")}
                     >
                       <InspectorNumberInput
-                        value={style.borderWidth ?? 1}
+                        value={isMultiSelect
+                          ? (comparisons?.borderWidth?.sharedValue as number | "") ?? ""
+                          : style.borderWidth ?? 1
+                        }
+                        mixed={isMultiSelect && comparisons?.borderWidth?.status === "mixed"}
                         placeholder="1"
                         min={0}
                         max={20}
@@ -1295,7 +1394,13 @@ export function DesignNodeInspector({
             >
               <div className="relative flex-1">
                 <InspectorNumberInput
-                  value={style.opacity != null ? Math.round((style.opacity ?? 1) * 100) : 100}
+                  value={isMultiSelect
+                    ? comparisons?.opacity?.sharedValue != null
+                      ? Math.round((comparisons.opacity.sharedValue as number) * 100)
+                      : 100
+                    : style.opacity != null ? Math.round((style.opacity ?? 1) * 100) : 100
+                  }
+                  mixed={isMultiSelect && comparisons?.opacity?.status === "mixed"}
                   placeholder="100"
                   min={0}
                   max={100}

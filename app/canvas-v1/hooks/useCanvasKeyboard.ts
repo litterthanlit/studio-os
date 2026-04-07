@@ -660,6 +660,57 @@ export function useCanvasKeyboard({
         return;
       }
 
+      // Cmd+B / Cmd+I / Cmd+U — Toggle bold/italic/underline formatting for text nodes
+      if (isMeta && (e.key === "b" || e.key === "B" || e.key === "i" || e.key === "I" || e.key === "u" || e.key === "U")) {
+        const activeArtboard = getActiveArtboard();
+        if (state.selection.selectedNodeId && activeArtboard?.pageTree && isDesignNodeTree(activeArtboard.pageTree)) {
+          const node = findDesignNodeById(
+            activeArtboard.pageTree as DesignNode,
+            state.selection.selectedNodeId
+          );
+          if (node && node.type === "text") {
+            e.preventDefault();
+            const currentStyle = node.style || {};
+
+            if (e.key === "b" || e.key === "B") {
+              // Toggle bold: 400 ↔ 700
+              const currentWeight = currentStyle.fontWeight ?? 400;
+              const newWeight = currentWeight === 700 ? 400 : 700;
+              dispatch({ type: "PUSH_HISTORY", description: "Applied bold" });
+              dispatch({
+                type: "UPDATE_NODE_STYLE",
+                artboardId: activeArtboard.id,
+                nodeId: node.id,
+                style: { fontWeight: newWeight } as Record<string, unknown>,
+              });
+            } else if (e.key === "i" || e.key === "I") {
+              // Toggle italic: normal ↔ italic
+              const currentStyle_value = currentStyle.fontStyle ?? "normal";
+              const newStyle = currentStyle_value === "italic" ? "normal" : "italic";
+              dispatch({ type: "PUSH_HISTORY", description: "Applied italic" });
+              dispatch({
+                type: "UPDATE_NODE_STYLE",
+                artboardId: activeArtboard.id,
+                nodeId: node.id,
+                style: { fontStyle: newStyle } as Record<string, unknown>,
+              });
+            } else if (e.key === "u" || e.key === "U") {
+              // Toggle underline: none ↔ underline
+              const currentDecoration = currentStyle.textDecoration ?? "none";
+              const newDecoration = currentDecoration === "underline" ? "none" : "underline";
+              dispatch({ type: "PUSH_HISTORY", description: "Applied underline" });
+              dispatch({
+                type: "UPDATE_NODE_STYLE",
+                artboardId: activeArtboard.id,
+                nodeId: node.id,
+                style: { textDecoration: newDecoration } as Record<string, unknown>,
+              });
+            }
+          }
+        }
+        return;
+      }
+
       // Single key shortcuts (no modifier)
       if (!isMeta && !e.altKey) {
         if (e.key === "Enter") {

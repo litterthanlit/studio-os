@@ -1832,6 +1832,11 @@ export function InspectorPanelV3({
   const singleSelected: CanvasItem | null =
     selectedItems.length === 1 ? selectedItems[0] : null;
 
+  const artboardItems = React.useMemo(
+    () => items.filter((item): item is ArtboardItem => item.kind === "artboard"),
+    [items]
+  );
+
   const activeArtboard = singleSelected?.kind === "artboard" ? singleSelected : null;
   const isV6Tree = activeArtboard ? isDesignNodeTree(activeArtboard.pageTree) : false;
 
@@ -2027,6 +2032,8 @@ export function InspectorPanelV3({
         ) : activeTab === "export" ? (
           <ExportTab
             artboard={activeArtboard}
+            artboards={artboardItems}
+            components={state.components}
             selectedNodeId={selection.selectedNodeId}
           />
         ) : (

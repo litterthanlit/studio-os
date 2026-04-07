@@ -275,18 +275,37 @@ function renderNode(
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export type ExportHTMLOptions = {
-  /** "selection" exports the given node as root. "full" exports the entire tree. Default: "full". */
+export type DesignNodeToHTMLOptions = {
+  /** Caller passes the export root; scope is informational for future root-tag tweaks. */
   scope?: "selection" | "full";
+  /** Fragment: no doctype (default). Document: wrap in HTML5 shell with viewport meta. */
+  outputMode?: "fragment" | "document";
 };
+
+/** @deprecated Use DesignNodeToHTMLOptions */
+export type ExportHTMLOptions = DesignNodeToHTMLOptions;
+
+function wrapHtmlDocument(fragment: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Export</title>
+</head>
+<body>
+${fragment}
+</body>
+</html>`;
+}
 
 /**
  * Convert a DesignNode tree to clean HTML with inline styles.
- * Returns an HTML fragment string (no <!DOCTYPE> wrapper).
+ * Default returns a fragment (no `<!DOCTYPE>`); set `outputMode: "document"` for a full HTML page.
  */
 export function designNodeToHTML(
   node: DesignNode,
-  options?: ExportHTMLOptions,
+  options?: DesignNodeToHTMLOptions,
 ): string {
   // Collect responsive override rules (depth-first, tree order, one per node)
   const overrideRules: OverrideRule[] = [];
@@ -296,7 +315,7 @@ export function designNodeToHTML(
   const hasOverrides = (id: string) => overrideIds.has(id);
 
   // The passed node is always the export root
-  const html = renderNode(node, 0, true, hasOverrides);
+  let html = renderNode(node, 0, true, hasOverrides);
 
   // Prepend responsive style block if any overrides exist
   if (overrideRules.length > 0) {
@@ -308,7 +327,12 @@ export function designNodeToHTML(
       "</style>",
       "",
     ];
-    return styleLines.join("\n") + html;
+    html = styleLines.join("\n") + html;
+  }
+
+  const outputMode = options?.outputMode ?? "fragment";
+  if (outputMode === "document") {
+    return wrapHtmlDocument(html);
   }
 
   return html;

@@ -8,6 +8,7 @@ import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
 import { OnboardingHint } from "../OnboardingHint";
+import { StudioButton } from "@/components/ui/studio-button";
 
 type ExportTabProps = {
   artboard: ArtboardItem | null;
@@ -51,7 +52,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
   if (!tree) {
     return (
       <div className="p-4">
-        <p className="text-[11px] text-[#A0A0A0] dark:text-[#666666]">
+        <p className="text-[11px] text-text-muted">
           Export is available for V6 layouts. Generate a new site to use this feature.
         </p>
       </div>
@@ -81,7 +82,7 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
 
       {/* Empty state: selection mode but nothing selected */}
       {scope === "selection" && !selectedNode ? (
-        <p className="text-[11px] text-[#A0A0A0] dark:text-[#666666]">
+        <p className="text-[11px] text-text-muted">
           Select a node to export
         </p>
       ) : htmlString ? (
@@ -95,13 +96,14 @@ export function ExportTab({ artboard, selectedNodeId }: ExportTabProps) {
           </pre>
 
           {/* Copy button */}
-          <button
+          <StudioButton
             type="button"
+            variant="primary"
+            className="w-full shrink-0 text-[12px]"
             onClick={handleCopy}
-            className="border border-[#E5E5E0] dark:border-[#333333] rounded-[4px] px-3 py-1.5 text-[12px] text-[#6B6B6B] dark:text-[#D0D0D0] hover:border-[#D1E4FC] dark:hover:border-[#4B57DB] hover:text-[#4B57DB] transition-colors w-full shrink-0"
           >
-            {copied ? <span className="text-[#4B57DB]">Copied!</span> : "Copy HTML"}
-          </button>
+            {copied ? "Copied!" : "Copy HTML"}
+          </StudioButton>
         </>
       ) : null}
     </div>

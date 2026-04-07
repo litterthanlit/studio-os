@@ -1047,6 +1047,11 @@ export function DesignNodeInspector({
         </section>
       )}
 
+      {sections.showTypography &&
+        (sections.showSize || sections.showSpacing || sections.showLayout) && (
+          <div className="mx-4 border-t border-border-subtle pt-1" aria-hidden />
+        )}
+
       {/* ── TYPOGRAPHY (text + button) ───────────────────────────────── */}
       {sections.showTypography && (
         <section className="space-y-3">

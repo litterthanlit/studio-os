@@ -28,6 +28,7 @@ import {
   saveUnifiedCanvas,
   createEmptyCanvas,
 } from "./unified-canvas-state";
+import { hydrateSampleProjectCanvas } from "./sample-project";
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,8 @@ export function CanvasProvider({
   useEffect(() => {
     loadedItemCountRef.current = -1;
     loadedForProjectRef.current = projectId;
-    const loaded = loadUnifiedCanvas(projectId);
+    let loaded = loadUnifiedCanvas(projectId);
+    loaded = hydrateSampleProjectCanvas(projectId, loaded);
     loadedItemCountRef.current = loaded.items.length;
     dispatch({ type: "LOAD_STATE", state: loaded });
   }, [projectId]);

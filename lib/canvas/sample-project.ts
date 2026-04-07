@@ -10,23 +10,21 @@ import { saveProject, type StoredProject } from "@/lib/project-store";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const SAMPLE_PROJECT_ID = "sample-project";
+export const SAMPLE_PROJECT_ID = "sample-project";
 const SAMPLE_PROJECT_NAME = "Sample Project";
+
+/** Bump when sample canvas layout changes; see `hydrateSampleProjectCanvas`. */
+export const SAMPLE_CANVAS_LAYOUT_VERSION = 2;
+const SAMPLE_LAYOUT_LS_KEY = "studio-os:sample-canvas-layout-version";
 
 const ARTBOARD_X = 1200;
 const ARTBOARD_Y = 100;
 const DESKTOP_WIDTH = 1440;
 const DESKTOP_HEIGHT = 1780;
-
-// Template IDs to assemble, in order
-const SECTION_TEMPLATE_IDS = [
-  "template-hero",
-  "template-split",
-  "template-features",
-  "template-quote",
-  "template-cta",
-  "template-footer",
-];
+const MOBILE_WIDTH = 375;
+const MOBILE_HEIGHT = 1320;
+const ARTBOARD_GAP = 200;
+const ROW_GAP = 160;
 
 // ── ID generation ────────────────────────────────────────────────────────────
 
@@ -49,6 +47,7 @@ const SAMPLE_REFERENCES: { bg: string; label: string; title: string }[] = [
   { bg: "#1A1A1A", label: "Dark editorial", title: "Dark Editorial Reference" },
   { bg: "#2C3E50", label: "Muted blue", title: "Muted Blue Reference" },
   { bg: "#8B4513", label: "Warm earth", title: "Warm Earth Reference" },
+  { bg: "#4B57DB", label: "Brand accent", title: "Accent Swatch" },
 ];
 
 function createSampleReferences(): ReferenceItem[] {
@@ -56,7 +55,7 @@ function createSampleReferences(): ReferenceItem[] {
     id: uid("ref"),
     kind: "reference" as const,
     x: 100,
-    y: 100 + i * 340,
+    y: 100 + i * 320,
     width: 300,
     height: 300,
     zIndex: 0,
@@ -70,25 +69,17 @@ function createSampleReferences(): ReferenceItem[] {
 
 // ── Sample project assembly ──────────────────────────────────────────────────
 
-/**
- * Creates a sample project with a desktop artboard containing 6 template sections.
- * Returns the project metadata and canvas state, both ready to persist.
- */
-export function createSampleProject(): {
-  project: StoredProject;
-  canvasState: UnifiedCanvasState;
-} {
-  // Build section children from existing templates
-  const sectionNodes: DesignNode[] = [];
-  for (const templateId of SECTION_TEMPLATE_IDS) {
+function templatesToSectionNodes(templateIds: string[]): DesignNode[] {
+  const nodes: DesignNode[] = [];
+  for (const templateId of templateIds) {
     const component = createTemplateById(templateId);
-    if (component) {
-      sectionNodes.push(component.node);
-    }
+    if (component) nodes.push(component.node);
   }
+  return nodes;
+}
 
-  // Root frame wrapping all sections (the artboard's page tree)
-  const rootFrame: DesignNode = {
+function buildPageRoot(children: DesignNode[]): DesignNode {
+  return {
     id: uid("frame"),
     type: "frame",
     name: "Page",
@@ -100,11 +91,44 @@ export function createSampleProject(): {
       gap: 0,
       background: "#FFFFFF",
     },
-    children: sectionNodes,
+    children,
   };
+}
 
-  // Desktop artboard item
-  const artboard: ArtboardItem = {
+/**
+ * Creates a sample project: references + 3 artboards (desktop full page, mobile stack,
+ * desktop “spotlight” row) for editor UI testing.
+ */
+export function createSampleProject(): {
+  project: StoredProject;
+  canvasState: UnifiedCanvasState;
+} {
+  const fullPageSections = templatesToSectionNodes([
+    "template-hero",
+    "template-split",
+    "template-features",
+    "template-quote",
+    "template-proof",
+    "template-cta",
+    "template-footer",
+  ]);
+
+  const mobileSections = templatesToSectionNodes([
+    "template-hero",
+    "template-features",
+    "template-cta",
+  ]);
+
+  const spotlightSections = templatesToSectionNodes([
+    "template-split",
+    "template-quote",
+    "template-proof",
+    "template-cta",
+  ]);
+
+  const siteId = uid("site");
+
+  const desktopMain: ArtboardItem = {
     id: uid("artboard"),
     kind: "artboard",
     x: ARTBOARD_X,
@@ -113,19 +137,50 @@ export function createSampleProject(): {
     height: DESKTOP_HEIGHT,
     zIndex: 0,
     locked: false,
-    siteId: uid("site"),
+    siteId,
     breakpoint: "desktop",
-    name: `Desktop ${DESKTOP_WIDTH}`,
-    pageTree: rootFrame,
+    name: `Desktop · Full page · ${DESKTOP_WIDTH}px`,
+    pageTree: buildPageRoot(fullPageSections),
     compiledCode: null,
   };
 
-  // Reference items (positioned left of the artboard)
+  const mobileBoard: ArtboardItem = {
+    id: uid("artboard"),
+    kind: "artboard",
+    x: ARTBOARD_X + DESKTOP_WIDTH + ARTBOARD_GAP,
+    y: ARTBOARD_Y,
+    width: MOBILE_WIDTH,
+    height: MOBILE_HEIGHT,
+    zIndex: 1,
+    locked: false,
+    siteId,
+    breakpoint: "mobile",
+    name: `Mobile · ${MOBILE_WIDTH}px`,
+    pageTree: buildPageRoot(mobileSections),
+    compiledCode: null,
+  };
+
+  const desktopSpotlight: ArtboardItem = {
+    id: uid("artboard"),
+    kind: "artboard",
+    x: ARTBOARD_X,
+    y: ARTBOARD_Y + DESKTOP_HEIGHT + ROW_GAP,
+    width: DESKTOP_WIDTH,
+    height: DESKTOP_HEIGHT,
+    zIndex: 2,
+    locked: false,
+    siteId,
+    breakpoint: "desktop",
+    name: `Desktop · Spotlight · ${DESKTOP_WIDTH}px`,
+    pageTree: buildPageRoot(spotlightSections),
+    compiledCode: null,
+  };
+
   const references = createSampleReferences();
 
-  // Canvas state
   const canvasState = createEmptyCanvas();
-  canvasState.items = [...references, artboard];
+  canvasState.items = [...references, desktopMain, mobileBoard, desktopSpotlight];
+  canvasState.viewport = { pan: { x: 400, y: 80 }, zoom: 0.35 };
   canvasState.prompt.isOpen = false;
   canvasState.updatedAt = new Date().toISOString();
 
@@ -157,7 +212,33 @@ export function persistSampleProject(): string {
       `studio-os:canvas-v3:${project.id}`,
       JSON.stringify(canvasState)
     );
+    window.localStorage.setItem(SAMPLE_LAYOUT_LS_KEY, String(SAMPLE_CANVAS_LAYOUT_VERSION));
   }
 
   return project.id;
+}
+
+/**
+ * One-time upgrade for `sample-project`: older saves had a single desktop artboard.
+ * If the stored layout version is behind, replace canvas with the current rich sample.
+ * Users who already have 2+ artboards on this project are left unchanged and marked current.
+ */
+export function hydrateSampleProjectCanvas(
+  projectId: string,
+  state: UnifiedCanvasState
+): UnifiedCanvasState {
+  if (projectId !== SAMPLE_PROJECT_ID || typeof window === "undefined") return state;
+
+  const storedVer = parseInt(window.localStorage.getItem(SAMPLE_LAYOUT_LS_KEY) ?? "0", 10);
+  if (storedVer >= SAMPLE_CANVAS_LAYOUT_VERSION) return state;
+
+  const artboardCount = state.items.filter((i) => i.kind === "artboard").length;
+  if (artboardCount >= 2) {
+    window.localStorage.setItem(SAMPLE_LAYOUT_LS_KEY, String(SAMPLE_CANVAS_LAYOUT_VERSION));
+    return state;
+  }
+
+  const { canvasState } = createSampleProject();
+  window.localStorage.setItem(SAMPLE_LAYOUT_LS_KEY, String(SAMPLE_CANVAS_LAYOUT_VERSION));
+  return canvasState;
 }

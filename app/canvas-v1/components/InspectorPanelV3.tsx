@@ -52,6 +52,7 @@ import { BreakpointBadge } from "./inspector/BreakpointBadge";
 import { CSSTab } from "./inspector/CSSTab";
 import { ExportTab } from "./inspector/ExportTab";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
+import { StudioButton } from "@/components/ui/studio-button";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { SiteType } from "@/lib/canvas/templates";
@@ -72,7 +73,7 @@ import { isHintSeen, markHintSeen } from "./OnboardingHint";
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
 const ghostBtnCls =
-  "border border-[#E5E5E0] rounded-[4px] px-3 py-2 text-[12px] text-[#6B6B6B] hover:border-[#D1E4FC] hover:text-[#4B57DB] dark:border-[#333333] dark:text-[#D0D0D0] dark:hover:border-[#4B57DB] dark:hover:text-[#7B87EB] transition-colors";
+  "border border-[var(--border-primary)] rounded-[4px] px-3 py-2 text-[12px] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--accent)] transition-colors";
 
 // ─── Debounce hook ───────────────────────────────────────────────────────────
 
@@ -208,7 +209,13 @@ function IconToggleGroup({
 
 // ─── Inspector Sub-panels ────────────────────────────────────────────────────
 
-function EmptySelection({ projectId }: { projectId?: string }) {
+function EmptySelection({
+  projectId,
+  onOpenGenerate,
+}: {
+  projectId?: string;
+  onOpenGenerate?: () => void;
+}) {
   const { state, dispatch } = useCanvas();
   const refCount = state.items.filter((i) => i.kind === "reference").length;
   const artboardCount = state.items.filter((i) => i.kind === "artboard").length;
@@ -220,15 +227,15 @@ function EmptySelection({ projectId }: { projectId?: string }) {
     <div>
       <InspectorSection label="Canvas">
         <InspectorLabel>Project</InspectorLabel>
-        <div className="text-[13px] text-[#1A1A1A] mb-3">{projectName}</div>
+        <div className="text-[13px] text-text-primary mb-3">{projectName}</div>
 
         <InspectorLabel>Items</InspectorLabel>
-        <div className="text-[12px] text-[#6B6B6B] mb-3">
+        <div className="text-[12px] text-text-secondary mb-3">
           {refCount} reference{refCount !== 1 ? "s" : ""} · {artboardCount} artboard{artboardCount !== 1 ? "s" : ""} · {noteCount} note{noteCount !== 1 ? "s" : ""}
         </div>
 
         <InspectorLabel>Zoom</InspectorLabel>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <InspectorNumberInput
             value={zoom}
             onChange={(e) => {
@@ -256,6 +263,11 @@ function EmptySelection({ projectId }: { projectId?: string }) {
           >
             Fit to View
           </button>
+          {onOpenGenerate && (
+            <StudioButton type="button" variant="primary" className="text-[12px]" onClick={onOpenGenerate}>
+              Generate
+            </StudioButton>
+          )}
         </div>
       </InspectorSection>
     </div>
@@ -1771,9 +1783,15 @@ type InspectorPanelV3Props = {
   projectId?: string;
   promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   panelRef?: React.RefObject<InspectorPanelV3Handle | null>;
+  onOpenGenerate?: () => void;
 };
 
-export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: externalPanelRef }: InspectorPanelV3Props) {
+export function InspectorPanelV3({
+  projectId,
+  promptTextareaRef,
+  panelRef: externalPanelRef,
+  onOpenGenerate,
+}: InspectorPanelV3Props) {
   const { state, dispatch } = useCanvas();
   const { selection, items, prompt } = state;
   const projectTokens = projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null;
@@ -1886,7 +1904,7 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   } else if (singleSelected?.kind === "artboard") {
     inspectorContent = <ArtboardInspector item={singleSelected} />;
   } else {
-    inspectorContent = <EmptySelection projectId={projectId} />;
+    inspectorContent = <EmptySelection projectId={projectId} onOpenGenerate={onOpenGenerate} />;
   }
 
   // ── Scroll-to on node selection ──────────────────────────────────────
@@ -1928,11 +1946,16 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-0 bottom-0 z-20 w-[280px] flex flex-col border-l-[0.5px] border-[#E0E0DC] bg-white dark:bg-[#1A1A1A] dark:border-[#333333]"
+      className="absolute right-0 top-0 bottom-0 z-20 w-[288px] flex flex-col border-l-[0.5px] border-sidebar-border bg-card-bg"
     >
       {/* Header area — shrink-0 so it never grows/shrinks */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] dark:border-[#333333] shrink-0">
-        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNodes.length > 0) ? "text-[#1A1A1A] dark:text-[#FFFFFF]" : "text-[#A0A0A0] dark:text-[#666666]")}>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle shrink-0">
+        <span
+          className={cn(
+            "flex-1 min-w-0 truncate text-[13px] font-medium",
+            selectedNode || selectedDesignNodes.length > 0 ? "text-text-primary" : "text-text-muted"
+          )}
+        >
           {selectedDesignNodes.length > 1 
             ? `${selectedDesignNodes.length} nodes selected`
             : selectedDesignNodes.length === 1 
@@ -1943,24 +1966,28 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <span
-            className="text-[11px] font-mono text-[#6B6B6B] dark:text-[#D0D0D0] cursor-pointer hover:text-[#1A1A1A] transition-colors"
+            className="text-[11px] font-mono text-text-secondary cursor-pointer hover:text-text-primary transition-colors"
             onClick={handleZoomReset}
             title="Reset zoom to 100%"
           >
             {zoomPercent}%
           </span>
           <button
-            className="text-[11px] text-[#6B6B6B] dark:text-[#D0D0D0] hover:text-[#1A1A1A] dark:hover:text-[#FFFFFF] transition-colors"
-            onClick={() => alert("Share coming soon")}
+            type="button"
+            disabled
+            className="text-[11px] text-text-muted cursor-not-allowed"
+            title="Share coming soon"
           >
             Share
           </button>
-          <button
-            className="text-[11px] bg-[#1A1A1A] text-white rounded-[4px] px-2.5 py-1 hover:bg-[#333] dark:bg-[#4B57DB] dark:hover:bg-[#5B67EB] transition-colors"
-            onClick={() => alert("Export coming soon")}
+          <StudioButton
+            type="button"
+            variant="primary"
+            className="h-auto px-2.5 py-1 text-[11px]"
+            onClick={() => setActiveTab("export")}
           >
             Export
-          </button>
+          </StudioButton>
         </div>
       </div>
 

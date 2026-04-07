@@ -8,7 +8,11 @@ import {
   Settings,
   ChevronsRight,
   HelpCircle,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
+import type { EditorThemePreference } from "@/lib/editor-theme-preference";
 import { cn } from "@/lib/utils";
 
 type MiniRailProps = {
@@ -17,6 +21,9 @@ type MiniRailProps = {
   inspectorVisible: boolean;
   onToggleInspector: () => void;
   onShowWelcome?: () => void;
+  editorThemePreference?: EditorThemePreference;
+  onCycleEditorTheme?: () => void;
+  onOpenShortcuts?: () => void;
 };
 
 function RailButton({
@@ -38,8 +45,8 @@ function RailButton({
       className={cn(
         "w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent",
         active
-          ? "text-[#4B57DB]"
-          : "text-[#C0C0C0] hover:text-[#6B6B6B]"
+          ? "text-[var(--accent)]"
+          : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
       )}
     >
       {children}
@@ -60,7 +67,7 @@ function RailLink({
     <Link
       href={href}
       title={title}
-      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[#C0C0C0] hover:text-[#6B6B6B]"
+      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
     >
       {children}
     </Link>
@@ -73,16 +80,26 @@ export function MiniRail({
   inspectorVisible,
   onToggleInspector,
   onShowWelcome,
+  editorThemePreference = "system",
+  onCycleEditorTheme,
+  onOpenShortcuts,
 }: MiniRailProps) {
+  const ThemeIcon =
+    editorThemePreference === "light"
+      ? Sun
+      : editorThemePreference === "dark"
+        ? Moon
+        : Monitor;
+
   return (
-    <div className="w-[44px] h-full bg-[#FAFAF8] border-r-[0.5px] border-[#EFEFEC] flex flex-col items-center pt-[14px] pb-[14px] flex-shrink-0 z-30 dark:bg-[#1A1A1A] dark:border-[#333333]">
+    <div className="w-[44px] h-full bg-sidebar-bg border-r-[0.5px] border-sidebar-border flex flex-col items-center pt-[14px] pb-[14px] flex-shrink-0 z-30">
       {/* S Lettermark */}
       <Link
         href="/home"
         title="Studio OS"
         className="flex items-center justify-center mb-4"
       >
-        <span className="text-[16px] font-semibold text-[#1A1A1A] dark:text-[#FFFFFF] leading-none tracking-[-0.01em]">
+        <span className="text-[16px] font-semibold text-text-primary leading-none tracking-[-0.01em]">
           S
         </span>
       </Link>
@@ -125,13 +142,28 @@ export function MiniRail({
             <HelpCircle size={16} strokeWidth={1.5} />
           </RailButton>
         )}
+
+        {onOpenShortcuts && (
+          <RailButton onClick={onOpenShortcuts} title="Keyboard shortcuts (?)" active={false}>
+            <span className="font-mono text-[10px] font-medium">?</span>
+          </RailButton>
+        )}
       </div>
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Bottom group - 16px gap implied by spacer */}
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center gap-0">
+        {onCycleEditorTheme && (
+          <RailButton
+            onClick={onCycleEditorTheme}
+            title={`Theme: ${editorThemePreference} (click to cycle)`}
+            active={false}
+          >
+            <ThemeIcon size={16} strokeWidth={1.5} />
+          </RailButton>
+        )}
         <RailLink href="/home" title="Back to dashboard">
           <ChevronsRight size={16} strokeWidth={1.5} />
         </RailLink>

@@ -153,6 +153,20 @@ export function walkDesignTree(node: DesignNode, callback: (n: DesignNode) => vo
   node.children?.forEach((child) => walkDesignTree(child, callback));
 }
 
+/** Path from root to target, or null if not found. */
+export function findDesignNodePath(root: DesignNode, targetId: string): DesignNode[] | null {
+  function walk(n: DesignNode, path: DesignNode[]): DesignNode[] | null {
+    const next = [...path, n];
+    if (n.id === targetId) return next;
+    for (const child of n.children ?? []) {
+      const found = walk(child, next);
+      if (found) return found;
+    }
+    return null;
+  }
+  return walk(root, []);
+}
+
 export function findDesignNodeById(node: DesignNode, targetId: string | null): DesignNode | null {
   if (!targetId) return null;
   if (node.id === targetId) return node;

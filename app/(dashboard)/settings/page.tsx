@@ -3,6 +3,11 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import {
+  readEditorThemePreference,
+  writeEditorThemePreference,
+  type EditorThemePreference,
+} from "@/lib/editor-theme-preference";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,11 +119,13 @@ export default function SettingsPage() {
   const [clearConfirm, setClearConfirm] = React.useState(false);
   const [lummiKey, setLummiKey] = React.useState("");
   const [showLummiInput, setShowLummiInput] = React.useState(false);
+  const [editorChromeTheme, setEditorChromeTheme] = React.useState<EditorThemePreference>("system");
 
   React.useEffect(() => {
     const profile = getStoredProfile();
     setName(profile.name);
     setLummiKey(localStorage.getItem("studio-os:lummi-key") ?? "");
+    setEditorChromeTheme(readEditorThemePreference());
     setMounted(true);
   }, []);
 
@@ -208,8 +215,9 @@ export default function SettingsPage() {
         {/* ── Appearance ── */}
         <SectionGroup label="Appearance">
           <div>
-            <FieldLabel>Theme</FieldLabel>
-            <div className="inline-flex">
+            <FieldLabel>Dashboard & marketing theme</FieldLabel>
+            <FieldHint>Applies to home, projects, and this settings page.</FieldHint>
+            <div className="inline-flex mt-2">
               {themeOptions.map((t, i) => (
                 <button
                   key={t}
@@ -221,6 +229,36 @@ export default function SettingsPage() {
                     i === 1 && "rounded-none border-x-0",
                     i === 2 && "rounded-r-[4px] rounded-l-none",
                     activeTheme === t
+                      ? "border-[#4B57DB] bg-[#4B57DB] text-white"
+                      : "border-[#E5E5E0] bg-white text-[#6B6B6B] hover:border-[#D1E4FC]"
+                  )}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Editor chrome</FieldLabel>
+            <FieldHint>
+              Fullscreen canvas only — light or dark panel chrome; artboard stays light. Syncs with the rail theme
+              control.
+            </FieldHint>
+            <div className="inline-flex mt-2">
+              {themeOptions.map((t, i) => (
+                <button
+                  key={`editor-${t}`}
+                  type="button"
+                  onClick={() => {
+                    writeEditorThemePreference(t);
+                    setEditorChromeTheme(t);
+                  }}
+                  className={cn(
+                    "border px-4 py-2 text-[13px] transition-colors duration-150",
+                    i === 0 && "rounded-l-[4px] rounded-r-none",
+                    i === 1 && "rounded-none border-x-0",
+                    i === 2 && "rounded-r-[4px] rounded-l-none",
+                    editorChromeTheme === t
                       ? "border-[#4B57DB] bg-[#4B57DB] text-white"
                       : "border-[#E5E5E0] bg-white text-[#6B6B6B] hover:border-[#D1E4FC]"
                   )}

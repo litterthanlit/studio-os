@@ -17,7 +17,7 @@ const tabs: Array<{ id: InspectorTabId; label: string }> = [
 
 export function InspectorTabs({ activeTab, onTabChange }: InspectorTabsProps) {
   return (
-    <div className="flex border-b-[0.5px] border-[#EFEFEC] dark:border-[#333333] px-4 sticky top-0 bg-white dark:bg-[#1A1A1A] z-10">
+    <div className="flex border-b-[0.5px] border-sidebar-border px-4 sticky top-0 bg-card-bg z-10">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -26,8 +26,8 @@ export function InspectorTabs({ activeTab, onTabChange }: InspectorTabsProps) {
           className={cn(
             "py-2.5 px-3 text-[10px] font-mono uppercase tracking-[1px] transition-colors cursor-pointer flex items-center gap-1.5",
             activeTab === tab.id
-              ? "text-[#0A0A0A] dark:text-[#FFFFFF] font-semibold border-b-[1.5px] border-[#4B57DB]"
-              : "text-[#A0A0A0] dark:text-[#666666] hover:text-[#6B6B6B] dark:hover:text-[#D0D0D0] border-b-[1.5px] border-transparent"
+              ? "text-text-primary font-semibold border-b-[1.5px] border-accent"
+              : "text-text-muted hover:text-text-secondary border-b-[1.5px] border-transparent"
           )}
         >
           {tab.label}

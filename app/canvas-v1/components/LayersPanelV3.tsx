@@ -792,7 +792,7 @@ export function LayersPanelV3() {
 
   return (
     <div
-      className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r-[0.5px] border-[#EFEFEC] bg-white dark:bg-[#1A1A1A] dark:border-[#333333]"
+      className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r-[0.5px] border-sidebar-border bg-sidebar-bg"
       style={{ contain: "strict" }}
     >
       {/* Scrollable content — isolated from the positioning shell above so

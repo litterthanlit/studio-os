@@ -250,13 +250,15 @@ The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compil
 
 ### Theme System
 
-Editor theme follows the user's OS preference via `prefers-color-scheme`. `data-theme` is set dynamically on the editor container div in `UnifiedCanvasView.tsx` (NOT on `<html>`). This scopes all `dark:` Tailwind variants to fire only inside the editor. Dashboard and marketing pages stay light regardless of OS preference.
+**Editor chrome (fullscreen canvas only):** User preference **Light | Dark | System** is stored in `localStorage` under `studio-os:editor-theme-preference` (`lib/editor-theme-preference.ts`). `useEditorTheme` resolves **System** with `prefers-color-scheme` and sets `data-theme` to **`light` or `dark` only** on the editor root in `UnifiedCanvasView.tsx` (never the string `system` on the DOM). Writes dispatch `studio-os:editor-theme-preference` so open canvas tabs update without reload. **MiniRail** cycles the same preference; **Settings → Appearance → Editor chrome** mirrors it.
 
-When OS is dark mode: editor gets `data-theme="dark"` (warm-dark chrome). When OS is light mode: editor gets `data-theme="light"` (light cleanup build). The preference is read reactively via `matchMedia` — changes mid-session are reflected immediately. No localStorage override, no manual toggle.
+Semantic tokens for editor UI live in `app/globals.css`: light mode aligns with hybrid/marketing neutrals (`--sidebar-bg`, `--border-subtle`, `--text-*`). Dark mode uses marketing **ink** chrome (`--bg-primary` / `--sidebar-bg` `#0C0C14`, panels `--surface` `#1C1C1C`, rules `--border` `#2A2A2A`) with stronger secondary text for contrast. **`--canvas-workspace`** / `bg-canvas-workspace` keeps the **artboard area light** (`#FAFAF8`) in both themes.
 
-The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `[data-theme="dark"]` and its descendants. Dark tokens are defined in `globals.css` under `[data-theme="dark"]`. Light tokens are in `:root` and `html[data-theme="light"]`.
+**Dashboard & marketing** use `next-themes` on `<html>` separately; they are not required to match editor chrome.
 
-**Canvas stays light** (`#FAFAF8`) in both modes — the "studio metaphor." Chrome frames the light work surface.
+The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `[data-theme="dark"]` and its descendants. Prefer semantic classes (`bg-card-bg`, `border-sidebar-border`, `text-text-secondary`) inside the editor so behavior stays correct when `data-theme` flips.
+
+**Static reference:** `docs/ui-cleanup-pass/variant-c-hybrid.html` — light editor shell layout target (accent in product remains `#4B57DB`, not the mock blue).
 
 ### Key Caveats
 
@@ -267,7 +269,7 @@ The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `
 
 ## Design System
 
-Editor: Warm Dark (dark chrome, light canvas). Dashboard/marketing: Light only.
+Editor: **True light** or **true dark** chrome (user-chosen), light canvas. Dashboard/marketing: default light + optional `next-themes` dark.
 
 ### Colors (hex values used directly — no CSS variable indirection in V2 components)
 - Accent: `#4B57DB` (primary violet-blue)
@@ -307,7 +309,10 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 - `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds
 - `app/canvas-v1/components/InspectorPanelV3.tsx` — 3 exclusive tabs: Design | CSS | Export. Each tab gets full height. Prompt promoted to floating panel
 - `app/canvas-v1/components/LayersPanelV3.tsx` — grouped tree (Site/References/Notes)
-- `app/canvas-v1/components/BottomBarV3.tsx` — zoom, undo/redo, panel toggles
+- `app/canvas-v1/components/BottomBarV3.tsx` — zoom pill + Generate
+- `app/canvas-v1/components/EditorContextStrip.tsx` — compact selection/breakpoint context above canvas
+- `app/canvas-v1/components/EditorShortcutsModal.tsx` — keyboard shortcuts (?)
+- `components/ui/studio-button.tsx` — primary/secondary/ghost using CSS variables
 - `lib/canvas/unified-canvas-state.ts` — V3 types, migration, persistence. Also has GenerationStage, GenerationResult types and getGenerationStage() function
 - `lib/canvas/canvas-reducer.ts` + `canvas-context.tsx` + `history.ts` — state engine
 
@@ -397,9 +402,9 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/PromptPanel.tsx` | Legacy floating prompt (preserved for rollback, not rendered in V3.1) |
 | `app/canvas-v1/hooks/useResize.ts` | Resize hook — pointer cycle, zoom-aware, aspect-ratio lock |
 | `app/canvas-v1/components/ResizeHandles.tsx` | 8-handle resize UI for reference items |
-| `app/canvas-v1/components/InspectorPanelV3.tsx` | 280px right rail — 4 exclusive tabs (Design/CSS/Export/Prompt), full-height per tab, selection-adaptive |
-| `app/canvas-v1/components/LayersPanelV3.tsx` | 240px tree navigator — Site/References/Notes groups |
-| `app/canvas-v1/components/BottomBarV3.tsx` | Transport strip — zoom, undo/redo, panel toggles |
+| `app/canvas-v1/components/InspectorPanelV3.tsx` | 288px right rail — Design/CSS/Export tabs; header Export opens Export tab |
+| `app/canvas-v1/components/LayersPanelV3.tsx` | 200px tree navigator — Site/References/Notes groups |
+| `app/canvas-v1/components/BottomBarV3.tsx` | Zoom pill + Generate CTA |
 | `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — portal, viewport clamping, document colors, hex input, defaults grid |
 | `app/canvas-v1/components/inspector/InspectorField.tsx` | Shared inspector primitives — Section, Label, TextInput, Textarea, NumberInput, Select, ColorField, Row, Divider |
 | `app/canvas-v1/components/inspector/SpacingDiagram.tsx` | Spacing box model — two-axis paddingX/paddingY sync, collapsed mode, gap |
@@ -412,7 +417,7 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/SlashCommandPalette.tsx` | "/" command palette for section insertion — search, keyboard nav |
 | `app/canvas-v1/components/AIPreviewBar.tsx` | Accept/Reject/Vary bar for AI preview proposals |
 | `app/canvas-v1/components/InsertionBar.tsx` | Between-section "+" hover bar with slash palette integration |
-| `app/canvas-v1/components/MiniRail.tsx` | 48px left navigation rail — logo, panel toggles, Home/Settings, back button |
+| `app/canvas-v1/components/MiniRail.tsx` | 44px left rail — panel toggles, Home/Settings, theme cycle, shortcuts |
 | `app/canvas-v1/components/inspector/InspectorSkeleton.tsx` | Stable 8-section inspector shell — same section order for all node types |
 | `app/canvas-v1/components/inspector/InspectorTabs.tsx` | Design/CSS tab switcher at top of inspector |
 | `app/canvas-v1/components/inspector/CSSTab.tsx` | Computed CSS display with Copy CSS button |

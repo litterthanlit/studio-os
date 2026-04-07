@@ -14,7 +14,7 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { getProjectState, PROJECT_STATE_UPDATED_EVENT } from "@/lib/project-store";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
-import type { CanvasItem, ReferenceItem } from "@/lib/canvas/unified-canvas-state";
+import type { CanvasItem, ReferenceItem, ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import { useDrag } from "../hooks/useDrag";
 import { useResize } from "../hooks/useResize";
 import { useCanvasGestures } from "../hooks/useCanvasGestures";
@@ -24,15 +24,17 @@ import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
 import { InspectorPanelV3, type InspectorPanelV3Handle } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
-import { BottomBarV3 } from "./BottomBarV3";
-// BreadcrumbBar removed from rendering — info available via layers panel and escape hierarchy
+import { EditorTransportBar } from "./EditorTransportBar";
+import { useEditorTheme } from "../hooks/useEditorTheme";
+import { EditorContextStrip } from "./EditorContextStrip";
+import { EditorShortcutsModal } from "./EditorShortcutsModal";
+import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { exitAnyActiveTextEditing } from "./ComposeDocumentView";
 import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
 import { useCanvasKeyboard } from "../hooks/useCanvasKeyboard";
 import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
 import { MiniRail } from "./MiniRail";
-import { ToolPalette } from "./ToolPalette";
 import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
 import { isDesignNodeTree, findNodeById } from "@/lib/canvas/compose";
@@ -184,15 +186,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     }
   }, [state.selection.activeArtboardId, state.selection.selectedNodeId, items]);
 
-  // System theme: respect OS preference (dark/light)
-  const [systemTheme, setSystemTheme] = React.useState<"dark" | "light">("dark");
-  React.useEffect(() => {
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
-    setSystemTheme(mql.matches ? "dark" : "light");
-    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? "dark" : "light");
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
+  const { effectiveTheme, preference, cyclePreference } = useEditorTheme();
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
 
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(true);
@@ -200,6 +195,11 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const [activeTool, setActiveTool] = React.useState("select");
   const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
     React.useState<number | null>(null);
+
+  const openPromptWithInspector = React.useCallback(() => {
+    setShowInspector(true);
+    setActiveTool("prompt");
+  }, []);
 
   const handleOpenSectionLibrary = React.useCallback((insertAtIndex: number) => {
     setSectionLibraryInsertIndex(insertAtIndex);
@@ -455,7 +455,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     zoomToFit();
   }, [state.selection, items, containerRef, viewport, dispatch, triggerDiscreteZoom, zoomToFit]);
 
-  // ── Zoom change handler for BottomBarV3 ──────────────────────────────
+  // ── Zoom change handler for EditorTransportBar ─────────────────────
 
   const handleZoomChange = React.useCallback(
     (newZoom: number) => {
@@ -699,6 +699,31 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // ── Click on empty canvas → deselect ───────────────────────────────
 
+  const activeArtboard = React.useMemo((): ArtboardItem | null => {
+    const id = state.selection.activeArtboardId;
+    if (!id) return null;
+    const item = items.find((i) => i.kind === "artboard" && i.id === id);
+    return item ? (item as ArtboardItem) : null;
+  }, [state.selection.activeArtboardId, items]);
+
+  const contextBreakpointLabel = React.useMemo(() => {
+    if (!activeArtboard) return "";
+    const w = BREAKPOINT_WIDTHS[activeArtboard.breakpoint] ?? activeArtboard.width;
+    return `${activeArtboard.breakpoint} · ${w}px`;
+  }, [activeArtboard]);
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "?") return;
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      e.preventDefault();
+      setShortcutsOpen(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const handleCanvasClick = React.useCallback(
     (e: React.MouseEvent) => {
       // Suppress click-to-deselect when a drag selection just completed
@@ -716,7 +741,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full w-full" data-theme={systemTheme}>
+    <div className="flex h-full w-full" data-theme={effectiveTheme}>
+      <EditorShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {/* Mini rail sidebar */}
       <MiniRail
         layersVisible={showLayers}
@@ -724,17 +750,20 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         inspectorVisible={showInspector}
         onToggleInspector={() => setShowInspector((v) => !v)}
         onShowWelcome={showWelcome}
+        editorThemePreference={preference}
+        onCycleEditorTheme={cyclePreference}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
       />
 
       {/* Canvas surface */}
       <div
         ref={containerRef}
         className={cn(
-          "relative h-full flex-1 overflow-hidden bg-[#FAFAF8]",
+          "relative h-full flex-1 overflow-hidden bg-canvas-workspace",
           isDragOver && "ring-2 ring-inset ring-[#4B57DB] ring-dashed"
         )}
       style={{
-        backgroundColor: "var(--canvas-color, #FAFAF8)",
+        backgroundColor: "var(--canvas-color, var(--canvas-workspace))",
         backgroundImage:
           "url(\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='21' height='21'><rect width='20' height='20' rx='1' fill='%23000' opacity='.02'/></svg>\")",
         backgroundSize: "21px 21px",
@@ -748,6 +777,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       onDrop={handleDrop}
       data-canvas-surface="true"
     >
+      <EditorContextStrip
+        activeArtboard={activeArtboard}
+        selectedNodeId={state.selection.selectedNodeId}
+        breakpointLabel={contextBreakpointLabel}
+      />
+
       {/* Empty canvas state */}
       {items.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -759,7 +794,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             <rect x="28" y="4" width="4" height="40" rx="2" fill="#A0A0A0" />
             <rect x="36" y="8" width="4" height="32" rx="2" fill="#A0A0A0" />
           </svg>
-          <p className="text-[14px] text-[#A0A0A0] dark:text-[#666666]">Drop references or start with a prompt</p>
+          <p className="text-[14px] text-text-muted">Drop references or start with a prompt</p>
         </div>
       )}
 
@@ -859,11 +894,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       {/* Layers panel */}
       {showLayers && <LayersPanelV3 />}
 
-      {/* Tool palette */}
-      <ToolPalette activeTool={activeTool} onToolChange={setActiveTool} />
-
-      {/* Floating prompt panel — shown when Prompt tool (K) is active */}
-      {activeTool === "prompt" && showInspector && (() => {
+      {/* Floating prompt panel — Prompt tool (K); not gated on inspector visibility */}
+      {activeTool === "prompt" && (() => {
         const activeArtboard = state.selection.activeArtboardId
           ? items.find((i) => i.kind === "artboard" && i.id === state.selection.activeArtboardId) ?? null
           : null;
@@ -877,17 +909,19 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
           <FloatingPromptPanel
             projectId={projectId}
             selectedNode={selectedNode}
+            inspectorOpen={showInspector}
             onClose={() => setActiveTool("select")}
           />
         );
       })()}
 
-      {/* Inspector panel — single-mode tabs (Design/CSS/Export/Prompt) */}
+      {/* Inspector panel — Design | CSS | Export (prompt = floating panel) */}
       {showInspector && (
         <InspectorPanelV3
           projectId={projectId}
           promptTextareaRef={promptTextareaRef}
           panelRef={inspectorPanelRef}
+          onOpenGenerate={openPromptWithInspector}
         />
       )}
 
@@ -902,11 +936,13 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         )}
       </AnimatePresence>
 
-      {/* Bottom bar — zoom display */}
-      <BottomBarV3
+      <EditorTransportBar
+        activeTool={activeTool}
+        onToolChange={setActiveTool}
         zoom={viewport.zoom}
         onZoomChange={handleZoomChange}
         onZoomToFit={zoomToFit}
+        onGenerate={openPromptWithInspector}
       />
       </div>
 

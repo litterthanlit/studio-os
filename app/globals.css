@@ -170,7 +170,7 @@
   --accent-pill: #D1E4FC;
 
   --sidebar-bg: #FAFAF8;
-  --sidebar-border: #E5E5E0;
+  --sidebar-border: #EFEFEC;
   --sidebar-hover: #F5F5F0;
   --sidebar-active: #D1E4FC;
 
@@ -208,6 +208,9 @@
 
   --success: #22C55E;
   --destructive: #EF4444;
+
+  /* Editor infinite canvas (light in both chrome modes) */
+  --canvas-workspace: #FAFAF8;
 }
 
 html[data-theme="light"] {
@@ -240,7 +243,7 @@ html[data-theme="light"] {
   --accent-pill: #D1E4FC;
 
   --sidebar-bg: #FAFAF8;
-  --sidebar-border: #E5E5E0;
+  --sidebar-border: #EFEFEC;
   --sidebar-hover: #F5F5F0;
   --sidebar-active: #D1E4FC;
 
@@ -278,77 +281,81 @@ html[data-theme="light"] {
 
   --success: #22C55E;
   --destructive: #EF4444;
+
+  --canvas-workspace: #FAFAF8;
 }
 
 [data-theme="dark"] {
-  /* ── Warm Dark (Direction C) ── */
-  --bg-primary: #1A1A1A;
-  --bg-secondary: #222222;
-  --bg-tertiary: #1A1A1A;
+  /* ── Editor true dark — marketing ink + elevated chrome (readable) ── */
+  --bg-primary: #0C0C14;
+  --bg-secondary: #1C1C1C;
+  --bg-tertiary: #14141c;
   --bg-input: #2A2A2A;
 
-  --surface: #1A1A1A;
+  --surface: #1C1C1C;
   --surface-hover: #2A2A2A;
 
-  --text-primary: #FFFFFF;
-  --text-secondary: #D0D0D0;
-  --text-tertiary: #D0D0D0;
-  --text-muted: #666666;
-  --text-placeholder: #555555;
+  --text-primary: #F5F5F5;
+  --text-secondary: #C8C8C8;
+  --text-tertiary: #B8B8B8;
+  --text-muted: #8A8A8A;
+  --text-placeholder: #6B6B6B;
 
-  --border: #333333;
-  --border-primary: #333333;
-  --border-secondary: #444444;
-  --border-subtle: #333333;
+  --border: #2A2A2A;
+  --border-primary: #2A2A2A;
+  --border-secondary: #3A3A42;
+  --border-subtle: #2A2A2A;
   --border-hover: #4B57DB;
   --border-active: #4B57DB;
 
   --accent: #4B57DB;
   --accent-hover: #5B67EB;
-  --accent-light: #222244;
-  --accent-subtle: rgba(75, 87, 219, 0.15);
+  --accent-light: rgba(75, 87, 219, 0.35);
+  --accent-subtle: rgba(75, 87, 219, 0.18);
   --accent-rgb: 75, 87, 219;
-  --accent-pill: #222244;
+  --accent-pill: rgba(75, 87, 219, 0.22);
 
-  --sidebar-bg: #1A1A1A;
-  --sidebar-border: #333333;
-  --sidebar-hover: #2A2A2A;
-  --sidebar-active: #222244;
+  --sidebar-bg: #0C0C14;
+  --sidebar-border: #2A2A2A;
+  --sidebar-hover: #1C1C1C;
+  --sidebar-active: rgba(75, 87, 219, 0.2);
 
-  --card-bg: #222222;
-  --card-border: #333333;
+  --card-bg: #1C1C1C;
+  --card-border: #2A2A2A;
 
-  --section-label: #666666;
-  --section-dot: #666666;
+  --section-label: #8A8A8A;
+  --section-dot: #8A8A8A;
 
-  --ascii-color: rgba(75, 87, 219, 0.05);
+  --ascii-color: rgba(75, 87, 219, 0.06);
 
   --button-primary-bg: #4B57DB;
   --button-primary-text: #FFFFFF;
   --button-secondary-bg: transparent;
-  --button-secondary-text: #7B87EB;
+  --button-secondary-text: #A8B4FC;
   --button-secondary-border: #4B57DB;
 
-  --quote-color: #888888;
-  --dot-separator: #333333;
+  --quote-color: #9A9A9A;
+  --dot-separator: #2A2A2A;
 
-  --dot-grid-color: rgba(255, 255, 255, 0.025);
-  --halftone-blue: rgba(75, 87, 219, 0.08);
-  --halftone-blue-strong: rgba(75, 87, 219, 0.12);
-  --halftone-ink: rgba(255, 255, 255, 0.03);
-  --halftone-warm: rgba(26, 26, 26, 0.92);
-  --shell-gradient: linear-gradient(180deg, #1A1A1A 0%, #111111 100%);
-  --shell-glow: radial-gradient(circle at top left, rgba(75, 87, 219, 0.15), transparent 34%);
-  --shell-grid: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0.8px, transparent 0.9px);
+  --dot-grid-color: rgba(255, 255, 255, 0.04);
+  --halftone-blue: rgba(75, 87, 219, 0.10);
+  --halftone-blue-strong: rgba(75, 87, 219, 0.14);
+  --halftone-ink: rgba(255, 255, 255, 0.04);
+  --halftone-warm: rgba(12, 12, 20, 0.95);
+  --shell-gradient: linear-gradient(180deg, #0C0C14 0%, #08080c 100%);
+  --shell-glow: radial-gradient(circle at top left, rgba(75, 87, 219, 0.12), transparent 36%);
+  --shell-grid: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0.8px, transparent 0.9px);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
-  --shadow-glow: 0 0 0 1px var(--accent), 0 0 8px rgba(75, 87, 219, 0.25);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 1px var(--accent), 0 0 10px rgba(75, 87, 219, 0.3);
 
   --success: #22C55E;
-  --destructive: #EF4444;
+  --destructive: #F87171;
+
+  --canvas-workspace: #FAFAF8;
 }
 
 /* ─── Tailwind v4 Color Tokens ──────────────────────────────────────────────── */
@@ -402,6 +409,8 @@ html[data-theme="light"] {
 
   --color-card-bg:     var(--card-bg);
   --color-card-border: var(--card-border);
+
+  --color-canvas-workspace: var(--canvas-workspace);
 
   --color-section-label: var(--section-label);
   --color-section-dot:   var(--section-dot);

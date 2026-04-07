@@ -8,7 +8,7 @@ import React from "react";
 import type { DesignNode, DesignNodeStyle, ComponentMaster } from "@/lib/canvas/design-node";
 import { findDesignNodeById, findDesignNodeParent } from "@/lib/canvas/design-node";
 import { getParent } from "@/lib/canvas/nested-selection";
-import { resolveTree } from "@/lib/canvas/component-resolver";
+import { resolveTree, computeComponentsResolveEpoch } from "@/lib/canvas/component-resolver";
 import { designStyleToCSS } from "@/lib/canvas/design-style-to-css";
 import { useDragDesignNode } from "@/app/canvas-v1/hooks/useDragDesignNode";
 import { useSnapGuides } from "@/app/canvas-v1/hooks/useSnapGuides";
@@ -116,6 +116,12 @@ type ComposeDocumentViewV6Props = {
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
   /** Insert a new blank section at a given index within the root frame */
   onInsertSection?: (index: number, section: DesignNode) => void;
+  /**
+   * When true, `resolveTree` memo depends on full `components` so live master edits re-resolve.
+   * When false, memo uses `computeComponentsResolveEpoch` (id:version:presetKeys) to avoid churn
+   * from new array identity (Track 9 Phase E).
+   */
+  masterEditDirty?: boolean;
 };
 
 type InlineTextEditEventDetail = {
@@ -992,6 +998,7 @@ export function ComposeDocumentViewV6({
   zoom = 1,
   onContextMenu,
   onInsertSection,
+  masterEditDirty = false,
 }: ComposeDocumentViewV6Props) {
   const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
   const historyPushedRef = React.useRef(false);
@@ -1613,12 +1620,11 @@ export function ComposeDocumentViewV6({
     [interactive, onSelectNode, selectedNodeId, selectedNodeIds, editingNodeId]
   );
 
-  // ── Resolve instance nodes (Track 3) ──────────────────────────
-  // NOTE: [tree, components] means any master edit re-resolves all artboards.
-  // This is a known Track 9 optimization target. Do not optimize now.
+  // ── Resolve instance nodes (Track 3 + Track 9 Phase E) ───────────
+  const componentsEpoch = computeComponentsResolveEpoch(components);
   const resolvedTree = React.useMemo(
     () => resolveTree(tree, components),
-    [tree, components]
+    masterEditDirty ? [tree, components] : [tree, componentsEpoch]
   );
 
   // ── Track 4: Nested selection cycling (Cmd+Click) ─────────────────

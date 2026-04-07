@@ -4,7 +4,7 @@
 // for override addressing on ComponentInstance nodes.
 
 import { createTemplateById } from "./design-component-library";
-import type { ComponentMaster } from "./design-node";
+import type { ComponentMaster, DesignNode } from "./design-node";
 
 // ── Builtin registry ──────────────────────────────────────────────────────────
 
@@ -39,16 +39,35 @@ export function getBuiltinMasters(): ComponentMaster[] {
     if (!component) {
       throw new Error(`[component-builtins] Failed to create template for builtin "${def.id}" (templateId: "${def.templateId}")`);
     }
-    return {
+    const base: ComponentMaster = {
       id: def.id,
       name: def.name,
       category: def.category,
-      source: "builtin" as const,
+      source: "builtin",
       tree: component.node,
       version: 1,
       createdAt: now,
       updatedAt: now,
-    } satisfies ComponentMaster;
+    };
+
+    if (def.id === "builtin-hero") {
+      const darkTree = JSON.parse(JSON.stringify(component.node)) as DesignNode;
+      darkTree.style = {
+        ...darkTree.style,
+        background: "#121212",
+      };
+      for (const child of darkTree.children ?? []) {
+        if (child.type === "text" && child.name === "Heading") {
+          child.style = { ...child.style, foreground: "#FAFAF8" };
+        }
+        if (child.type === "text" && child.name === "Subtext") {
+          child.style = { ...child.style, foreground: "#A0A0A0" };
+        }
+      }
+      base.presets = [{ id: "dark", name: "Dark", tree: darkTree }];
+    }
+
+    return base;
   });
 
   return cachedBuiltins;

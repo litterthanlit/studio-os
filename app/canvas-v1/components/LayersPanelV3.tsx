@@ -20,8 +20,15 @@ import { findDesignNodeParent, findDesignNodeById } from "@/lib/canvas/design-no
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
 import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/useLayersDragReorder";
-import { resolveTree, isInstanceChild, findMaster } from "@/lib/canvas/component-resolver";
+import { resolveTree, isInstanceChild, findMaster, splitCompositeId, computeComponentsResolveEpoch } from "@/lib/canvas/component-resolver";
+import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
 import type { ComponentMaster } from "@/lib/canvas/design-node";
+import {
+  getInstanceRootSourceId,
+  instanceRefHasAnyOverrides,
+  isResolvedInstanceSubtreeRoot,
+  resolvedLayerNodeHasOverride,
+} from "@/lib/canvas/component-override-utils";
 
 // ─── Helper: Get all ancestor IDs of a node ──────────────────────────────────
 
@@ -238,19 +245,28 @@ function DesignTreeNode({
   // For resolved nodes, composite IDs (with "::") indicate instance children.
   // Instance roots are detected by looking up the source tree.
   const isInsideInstance = isInstanceChild(node.id);
-  const sourceNodeId = isInsideInstance ? node.id.split("::")[0] : node.id;
+  const sourceNodeId = isInsideInstance ? splitCompositeId(node.id)[0] : node.id;
   const sourceNode = React.useMemo(
     () => findDesignNodeById(sourceTree, sourceNodeId),
     [sourceTree, sourceNodeId]
   );
-  const isInstanceRoot = !isInsideInstance && !!sourceNode?.componentRef;
-  const master = isInstanceRoot && sourceNode?.componentRef
+  const isResolvedInstanceRoot = isResolvedInstanceSubtreeRoot(node.id, sourceTree, components);
+  const isInstanceRoot =
+    (!isInsideInstance && !!sourceNode?.componentRef) || isResolvedInstanceRoot;
+  const dimAsInstanceChild = isInsideInstance && !isResolvedInstanceRoot;
+  const master = sourceNode?.componentRef
     ? findMaster(components, sourceNode.componentRef.masterId)
     : null;
   const masterName = master?.name ?? null;
-  const isStale = isInstanceRoot && sourceNode?.componentRef && master
-    ? sourceNode.componentRef.masterVersion < master.version
-    : false;
+  const isStale =
+    isInstanceRoot && sourceNode?.componentRef && master
+      ? sourceNode.componentRef.masterVersion < master.version
+      : false;
+  const showOverrideDot =
+    (isInstanceRoot &&
+      !!sourceNode?.componentRef &&
+      instanceRefHasAnyOverrides(sourceNode.componentRef)) ||
+    resolvedLayerNodeHasOverride(node.id, sourceTree);
 
   // Show drop indicator above this row when drop target index matches this row's index
   const showDropAbove =
@@ -276,7 +292,7 @@ function DesignTreeNode({
   // Container types that can accept children
   const isContainer = node.type === "frame" || node.isGroup === true;
 
-  const rowOpacity = isDragged ? 0.4 : isInsideInstance ? 0.6 : isInvalidParentTarget ? 0.5 : 1;
+  const rowOpacity = isDragged ? 0.4 : dimAsInstanceChild ? 0.6 : isInvalidParentTarget ? 0.5 : 1;
 
   return (
     <>
@@ -297,7 +313,7 @@ function DesignTreeNode({
           }
         }}
         onPointerDown={(e) => {
-          // Suppress drag for instance children
+          // Suppress drag for any resolved instance subtree row (ids are composite)
           if (isInsideInstance) return;
           onDragPointerDown(e, node.id, parentId);
         }}
@@ -336,6 +352,12 @@ function DesignTreeNode({
             <span className="text-[#A0A0A0] dark:text-[#666666]"> · {masterName}</span>
           )}
         </span>
+        {showOverrideDot && (
+          <span
+            className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#4B57DB] mr-0.5"
+            title="Local overrides"
+          />
+        )}
         {isStale && (
           <span
             className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#F59E0B] mr-1"
@@ -469,9 +491,11 @@ function ArtboardDesignTree({
   expandedNodeIds,
   onToggleExpanded,
   getNodeDepth,
+  masterEditDirty,
 }: {
   artboard: ArtboardItem;
   components: ComponentMaster[];
+  masterEditDirty: boolean;
   selectedNodeId: string | null;
   selectedNodeIds: string[];
   onSelectNode: (artboardId: string, nodeId: string) => void;
@@ -486,9 +510,10 @@ function ArtboardDesignTree({
   getNodeDepth: (nodeId: string) => number;
 }) {
   const sourceTree = artboard.pageTree as DesignNode;
+  const componentsEpoch = computeComponentsResolveEpoch(components);
   const resolvedTree = React.useMemo(
     () => resolveTree(sourceTree, components),
-    [sourceTree, components]
+    masterEditDirty ? [sourceTree, components] : [sourceTree, componentsEpoch]
   );
 
   return (
@@ -525,7 +550,8 @@ function ArtboardDesignTree({
 
 export function LayersPanelV3() {
   const { state, dispatch } = useCanvas();
-  const { items, selection } = state;
+  const { items, selection, components } = state;
+  const masterEditDirty = Boolean(state.masterEditSession?.dirty);
 
   // ── Track expanded node IDs for auto-expand on deep selection ───────────────
   const [expandedNodeIds, setExpandedNodeIds] = React.useState<Set<string>>(new Set());
@@ -633,22 +659,32 @@ export function LayersPanelV3() {
         ? (artboard.pageTree as DesignNode)
         : null;
       const isInsideInst = isInstanceChild(node.id);
-      const sourceNodeId = isInsideInst ? node.id.split("::")[0] : node.id;
+      const sourceNodeId = isInsideInst ? splitCompositeId(node.id)[0] : node.id;
       const sourceNode = sourceTree ? findDesignNodeById(sourceTree, sourceNodeId) : null;
-      const isInstanceRoot = !isInsideInst && !!sourceNode?.componentRef;
+      const master =
+        sourceNode?.componentRef && sourceTree
+          ? findMaster(components, sourceNode.componentRef.masterId)
+          : null;
+      const isResolvedInstanceRoot =
+        isInsideInst &&
+        !!sourceNode?.componentRef &&
+        !!master &&
+        splitCompositeId(node.id)[1] === master.tree.id;
+      const isInstanceRootForMenu =
+        (!isInsideInst && !!sourceNode?.componentRef) || isResolvedInstanceRoot;
 
-      if (isInstanceRoot || isInsideInst) {
+      if (isInstanceRootForMenu || (isInsideInst && !isResolvedInstanceRoot)) {
         setInstanceContextMenu({
           node,
           artboardId,
           position: { x: event.clientX, y: event.clientY },
-          isInstanceRoot,
+          isInstanceRoot: isInstanceRootForMenu,
         });
       } else {
         setDnContextMenu({ node, artboardId, position: { x: event.clientX, y: event.clientY } });
       }
     },
-    [dispatch, artboards]
+    [dispatch, artboards, components]
   );
 
   // ── Scroll container ref for auto-scroll during drag ──
@@ -796,6 +832,7 @@ export function LayersPanelV3() {
                         <ArtboardDesignTree
                           artboard={artboard}
                           components={state.components}
+                          masterEditDirty={masterEditDirty}
                           selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
                           selectedNodeIds={selection.activeArtboardId === artboard.id ? selection.selectedNodeIds : []}
                           onSelectNode={handleSelectNode}
@@ -902,7 +939,7 @@ export function LayersPanelV3() {
         return (
           <DesignNodeContextMenu
             node={dnContextMenu.node}
-            rootNode={sourceTree!}
+            rootNode={tree}
             selectedNodeId={selection.selectedNodeId}
             position={dnContextMenu.position}
             breakpoint={bp}
@@ -955,32 +992,67 @@ export function LayersPanelV3() {
           position={instanceContextMenu.position}
           isInstanceRoot={instanceContextMenu.isInstanceRoot}
           onEditMaster={() => {
-            // TODO(Task 12): open master edit mode
-            console.warn("[Track3] Edit Master — not yet implemented");
+            const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
+            const ab = artboards.find((a) => a.id === instanceContextMenu.artboardId);
+            if (!ab || !isDesignNodeTree(ab.pageTree)) return;
+            const st = ab.pageTree as DesignNode;
+            const inst = findDesignNodeById(st, instanceSourceId);
+            if (!inst?.componentRef) return;
+            const masterId = inst.componentRef.masterId;
+            if (isBuiltinMasterId(masterId)) {
+              dispatch({
+                type: "PROMOTE_BUILTIN_TO_USER",
+                artboardId: instanceContextMenu.artboardId,
+                instanceNodeId: instanceSourceId,
+              });
+            } else {
+              const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
+              dispatch({
+                type: "ENTER_MASTER_EDIT",
+                masterId,
+                returnTo: {
+                  artboardId: instanceContextMenu.artboardId,
+                  instanceRootSourceId: instanceSourceId,
+                  preferredNodeId: selection.selectedNodeId,
+                },
+              });
+            }
           }}
           onDetach={() => {
-            // TODO(Task reducer): wire DETACH_INSTANCE action
+            const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
             dispatch({
               type: "DETACH_INSTANCE",
               artboardId: instanceContextMenu.artboardId,
-              nodeId: instanceContextMenu.node.id,
-            } as unknown as Parameters<typeof dispatch>[0]);
+              nodeId: instanceSourceId,
+            });
           }}
           onResetAll={() => {
-            // TODO(Task reducer): wire RESET_INSTANCE_OVERRIDES action
+            const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
             dispatch({
-              type: "RESET_INSTANCE_OVERRIDES",
+              type: "RESET_ALL_OVERRIDES",
               artboardId: instanceContextMenu.artboardId,
-              nodeId: instanceContextMenu.node.id,
-            } as unknown as Parameters<typeof dispatch>[0]);
+              nodeId: instanceSourceId,
+            });
           }}
           onDelete={() => {
-            dispatch({ type: "DELETE_SECTION", artboardId: instanceContextMenu.artboardId, nodeId: instanceContextMenu.node.id });
+            const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
+            dispatch({
+              type: "DELETE_SECTION",
+              artboardId: instanceContextMenu.artboardId,
+              nodeId: instanceSourceId,
+            });
             setInstanceContextMenu(null);
           }}
           onResetOverride={() => {
-            // TODO(Task 8): reset single override for instance child
-            console.warn("[Track3] Reset Override — not yet implemented");
+            const [instanceId, masterNodeId] = splitCompositeId(instanceContextMenu.node.id);
+            dispatch({
+              type: "RESET_INSTANCE_OVERRIDE_FIELD",
+              artboardId: instanceContextMenu.artboardId,
+              instanceId,
+              masterNodeId,
+              category: "all",
+              field: "",
+            });
           }}
           onCopy={() => {
             // Copy is not wired yet — stub

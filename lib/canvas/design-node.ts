@@ -53,6 +53,15 @@ export type ComponentInstanceRef = {
   masterId: string;
   masterVersion: number;
   overrides: ComponentOverrides;
+  /** Named preset (Track 9). Omitted or null = default `master.tree`. */
+  presetId?: string | null;
+};
+
+/** Alternate full tree for an instance; node IDs should match `master.tree` for overrides. */
+export type ComponentPreset = {
+  id: string;
+  name: string;
+  tree: DesignNode;
 };
 
 export type ComponentMaster = {
@@ -64,6 +73,8 @@ export type ComponentMaster = {
   version: number;
   createdAt: string;
   updatedAt: string;
+  /** Optional named variants (Track 9). Default layout is always `tree`. */
+  presets?: ComponentPreset[];
 };
 
 export type DesignNodeContent = {

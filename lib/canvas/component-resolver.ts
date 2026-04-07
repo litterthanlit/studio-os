@@ -57,6 +57,34 @@ export function findMaster(
   return components.find((c) => c.id === masterId) ?? getBuiltinMaster(masterId);
 }
 
+/**
+ * Base tree for an instance before composite IDs and overrides.
+ * Preset trees are expected to use the same master node IDs as `master.tree`.
+ */
+export function getInstanceBaseTree(
+  master: ComponentMaster,
+  presetId: string | null | undefined
+): DesignNode {
+  if (!presetId) return master.tree;
+  const preset = master.presets?.find((p) => p.id === presetId);
+  return preset?.tree ?? master.tree;
+}
+
+/** Stable fingerprint for memoizing `resolveTree` when master data is logically unchanged. */
+export function computeComponentsResolveEpoch(
+  components: readonly ComponentMaster[]
+): string {
+  return components
+    .map((c) => {
+      const presetKeys = (c.presets ?? [])
+        .map((p) => p.id)
+        .sort()
+        .join(",");
+      return `${c.id}:${c.version}:${presetKeys}`;
+    })
+    .join("|");
+}
+
 // --- Resolution ---
 
 export function resolveInstance(
@@ -64,8 +92,9 @@ export function resolveInstance(
   master: ComponentMaster
 ): DesignNode {
   const ref = instanceNode.componentRef!;
+  const baseTree = getInstanceBaseTree(master, ref.presetId);
   const { tree: clone } = cloneDesignNodeWithIdMap(
-    master.tree,
+    baseTree,
     (masterNodeId) => makeCompositeId(instanceNode.id, masterNodeId)
   );
 

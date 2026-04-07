@@ -33,11 +33,20 @@ export type AIPreviewSession = {
   timestamp: number;
 };
 
+/** Where to restore canvas selection after commit/cancel master edit (Track 9). */
+export type MasterEditReturnTarget = {
+  artboardId: string;
+  instanceRootSourceId: string;
+  preferredNodeId: string | null;
+};
+
 export type MasterEditSession = {
   masterId: string;
   snapshotTree: DesignNode;
   historyBoundaryIndex: number;
   dirty: boolean;
+  /** Null when master edit was entered without an instance context (e.g. gallery-only). */
+  returnTo: MasterEditReturnTarget | null;
 };
 
 export type UnifiedCanvasState = {

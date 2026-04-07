@@ -38,7 +38,12 @@ import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
 import type { DesignNode, DesignNodeStyle, Breakpoint } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
 import type { NodeOverride } from "@/lib/canvas/design-node";
-import { findMaster, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
+import { findMaster, getInstanceBaseTree, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
+import {
+  countOverriddenMasterNodes,
+  isNonEmptyOverride,
+  isResolvedInstanceSubtreeRoot,
+} from "@/lib/canvas/component-override-utils";
 import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 import { useBatchUpdate } from "@/app/canvas-v1/hooks/useBatchUpdate";
@@ -179,10 +184,14 @@ function InstanceRootBanner({
   context,
   onEditMaster,
   onDetach,
+  overriddenMasterNodeCount,
+  onResetAllOverrides,
 }: {
   context: { master: import("@/lib/canvas/design-node").ComponentMaster | null; isStale: boolean };
   onEditMaster: () => void;
   onDetach: () => void;
+  overriddenMasterNodeCount: number;
+  onResetAllOverrides: () => void;
 }) {
   const [confirming, setConfirming] = React.useState(false);
   React.useEffect(() => {
@@ -197,10 +206,26 @@ function InstanceRootBanner({
         <span className="text-[13px] font-medium text-[#1A1A1A]">{context.master?.name}</span>
         <span className="text-[11px] text-[#A0A0A0]">Component Instance</span>
       </div>
-      <div className="flex gap-2 mt-2">
+      {overriddenMasterNodeCount > 0 ? (
+        <div className="mt-1.5 text-[11px] text-[#6B6B6B]">
+          {overriddenMasterNodeCount} nested override{overriddenMasterNodeCount !== 1 ? "s" : ""}
+        </div>
+      ) : (
+        <div className="mt-1.5 text-[11px] text-[#A0A0A0]">No local overrides</div>
+      )}
+      <div className="flex flex-wrap gap-2 mt-2">
         <button onClick={onEditMaster} className="text-[12px] text-[#6B6B6B] border border-[#E5E5E0] rounded-[4px] px-2 py-1 hover:border-[#D1E4FC] hover:text-[#4B57DB]">
           Edit Master
         </button>
+        {overriddenMasterNodeCount > 0 && (
+          <button
+            type="button"
+            onClick={onResetAllOverrides}
+            className="text-[12px] text-[#6B6B6B] border border-[#E5E5E0] rounded-[4px] px-2 py-1 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+          >
+            Reset all to master
+          </button>
+        )}
         <button
           onClick={() => confirming ? onDetach() : setConfirming(true)}
           className="text-[12px] border border-[#E5E5E0] rounded-[4px] px-2 py-1"
@@ -225,7 +250,7 @@ function InstanceChildBanner({
   nodeName: string;
   onResetOverrides: () => void;
 }) {
-  const hasOverrides = context.overrides && Object.keys(context.overrides).length > 0;
+  const hasOverrides = isNonEmptyOverride(context.overrides);
   return (
     <div className="px-4 py-2 border-b border-[#EFEFEC]">
       <span className="text-[13px] text-[#1A1A1A]">{nodeName}</span>
@@ -356,6 +381,8 @@ export function DesignNodeInspector({
     const instanceNode = findDesignNodeById(artboard.pageTree as DesignNode, instanceId);
     if (!instanceNode?.componentRef) return null;
     const master = findMaster(canvasState.components, instanceNode.componentRef.masterId);
+    // Resolved instance root row uses composite id — handled by instanceRootContext
+    if (master && master.tree.id === masterNodeId) return null;
     return {
       instanceId,
       masterNodeId,
@@ -370,8 +397,24 @@ export function DesignNodeInspector({
   const instanceRootContext = React.useMemo(() => {
     // Skip instance context for multi-select
     if (isMultiSelect) return null;
-    if (primaryNode.id.includes("::")) return null;
-    const sourceNode = findDesignNodeById(artboard.pageTree as DesignNode, primaryNode.id);
+    const pageTree = artboard.pageTree as DesignNode;
+
+    if (primaryNode.id.includes("::")) {
+      if (!isResolvedInstanceSubtreeRoot(primaryNode.id, pageTree, canvasState.components)) {
+        return null;
+      }
+      const [instanceId] = splitCompositeId(primaryNode.id);
+      const instanceNode = findDesignNodeById(pageTree, instanceId);
+      if (!instanceNode?.componentRef) return null;
+      const master = findMaster(canvasState.components, instanceNode.componentRef.masterId);
+      return {
+        instanceNode,
+        master,
+        isStale: instanceNode.componentRef.masterVersion < (master?.version ?? 0),
+      };
+    }
+
+    const sourceNode = findDesignNodeById(pageTree, primaryNode.id);
     if (!sourceNode?.componentRef) return null;
     const master = findMaster(canvasState.components, sourceNode.componentRef.masterId);
     return {
@@ -515,7 +558,15 @@ export function DesignNodeInspector({
         instanceNodeId: instanceRootContext.instanceNode.id,
       });
     } else {
-      dispatch({ type: "ENTER_MASTER_EDIT", masterId });
+      dispatch({
+        type: "ENTER_MASTER_EDIT",
+        masterId,
+        returnTo: {
+          artboardId: artboard.id,
+          instanceRootSourceId: instanceRootContext.instanceNode.id,
+          preferredNodeId: canvasState.selection.selectedNodeId,
+        },
+      });
     }
   }
 
@@ -540,9 +591,10 @@ export function DesignNodeInspector({
     if (!master) return;
 
     // Drop orphaned overrides and type-incompatible content
+    const baseTree = getInstanceBaseTree(master, ref.presetId);
     const cleanedOverrides = { ...ref.overrides };
     for (const masterNodeId of Object.keys(cleanedOverrides)) {
-      const masterNode = findDesignNodeById(master.tree, masterNodeId);
+      const masterNode = findDesignNodeById(baseTree, masterNodeId);
       if (!masterNode) {
         delete cleanedOverrides[masterNodeId];
         continue;
@@ -614,13 +666,46 @@ export function DesignNodeInspector({
   return (
     <div data-inspector-first-section className="space-y-6 py-4">
       {/* ── Instance banners ──────────────────────────────────────────── */}
-      {isInstanceRoot && instanceRootContext && (
+      {isInstanceRoot && instanceRootContext && instanceRootContext.instanceNode.componentRef && (
         <InstanceRootBanner
           context={instanceRootContext}
           onEditMaster={handleEditMaster}
           onDetach={handleDetach}
+          overriddenMasterNodeCount={countOverriddenMasterNodes(
+            instanceRootContext.instanceNode.componentRef.overrides
+          )}
+          onResetAllOverrides={handleResetAllOverrides}
         />
       )}
+      {isInstanceRoot &&
+        instanceRootContext?.master?.presets &&
+        instanceRootContext.master.presets.length > 0 &&
+        !isMultiSelect &&
+        instanceRootContext.instanceNode.componentRef && (
+          <div className="px-4 py-2 border-b border-[#EFEFEC]">
+            <div className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0] mb-1.5">Preset</div>
+            <InspectorSelect
+              aria-label="Component preset"
+              value={instanceRootContext.instanceNode.componentRef.presetId ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                dispatch({
+                  type: "SET_INSTANCE_PRESET",
+                  artboardId: artboard.id,
+                  instanceNodeId: instanceRootContext.instanceNode.id,
+                  presetId: v === "" ? null : v,
+                });
+              }}
+            >
+              <option value="">Default</option>
+              {instanceRootContext.master.presets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </InspectorSelect>
+          </div>
+        )}
       {isInstanceChild && instanceContext && (
         <InstanceChildBanner
           context={instanceContext}

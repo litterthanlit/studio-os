@@ -13,7 +13,12 @@ import {
   walkDesignTree,
 } from "./design-node";
 import {
-  findMaster, bakeInstance, filterAllowedOverrides, isInstanceChild,
+  findMaster,
+  bakeInstance,
+  filterAllowedOverrides,
+  isInstanceChild,
+  resolveTree as resolveComponentTree,
+  makeCompositeId,
 } from "./component-resolver";
 import { cloneDesignNodeWithIdMap } from "./design-node";
 import { isBuiltinMasterId } from "./component-builtins";
@@ -26,6 +31,7 @@ import type {
   ArtboardItem,
   PromptRun,
   MasterEditSession,
+  MasterEditReturnTarget,
 } from "./unified-canvas-state";
 import {
   createHistoryStack,
@@ -116,7 +122,8 @@ export type CanvasAction =
 
   // Component system (Track 3)
   | { type: "CREATE_MASTER"; artboardId: string; nodeId: string; name: string; category: string }
-  | { type: "INSERT_INSTANCE"; artboardId: string; masterId: string; index?: number }
+  | { type: "INSERT_INSTANCE"; artboardId: string; masterId: string; index?: number; presetId?: string | null }
+  | { type: "SET_INSTANCE_PRESET"; artboardId: string; instanceNodeId: string; presetId: string | null }
   | { type: "DETACH_INSTANCE"; artboardId: string; nodeId: string }
   | { type: "UPDATE_INSTANCE_OVERRIDE"; artboardId: string; instanceId: string; masterNodeId: string; override: NodeOverride }
   | { type: "UPDATE_INSTANCE_OVERRIDE_BATCH"; artboardId: string; instanceIds: string[]; masterNodeIds: string[]; override: NodeOverride }
@@ -129,7 +136,7 @@ export type CanvasAction =
   | { type: "PROMOTE_BUILTIN_TO_USER"; artboardId: string; instanceNodeId: string }
 
   // Master edit mode (Track 3)
-  | { type: "ENTER_MASTER_EDIT"; masterId: string }
+  | { type: "ENTER_MASTER_EDIT"; masterId: string; returnTo?: MasterEditReturnTarget | null }
   | { type: "UPDATE_MASTER_NODE"; masterId: string; nodeId: string; changes: Partial<DesignNode> }
   | { type: "UPDATE_MASTER_NODE_STYLE"; masterId: string; nodeId: string; style: Partial<import("./design-node").DesignNodeStyle> }
   | { type: "COMMIT_MASTER_EDIT" }
@@ -491,6 +498,95 @@ function pushHistoryHelper(state: CanvasReducerState, description: string): Canv
   return {
     ...state,
     history: pushHistory(state.history, description, state.items, state.selection, state.components),
+  };
+}
+
+/** Restore selection on the page artboard after exiting master edit (Track 9 Phase B). */
+function selectionAfterMasterEdit(
+  state: CanvasReducerState,
+  returnTo: MasterEditReturnTarget
+): UnifiedCanvasState["selection"] {
+  const base = state.selection;
+  const artboard = state.items.find(
+    (i): i is ArtboardItem => i.kind === "artboard" && i.id === returnTo.artboardId
+  );
+  if (!artboard) {
+    return { ...base, activeArtboardId: returnTo.artboardId };
+  }
+  const source = artboard.pageTree as DesignNode;
+  const inst = findDesignNodeById(source, returnTo.instanceRootSourceId);
+  if (!inst?.componentRef) {
+    return {
+      ...base,
+      activeArtboardId: returnTo.artboardId,
+      selectedNodeId: null,
+      selectedNodeIds: [],
+    };
+  }
+  const master = findMaster(state.components, inst.componentRef.masterId);
+  if (!master) {
+    return { ...base, activeArtboardId: returnTo.artboardId };
+  }
+  const resolved = resolveComponentTree(source, state.components);
+  const pref = returnTo.preferredNodeId;
+  const inResolved = (id: string | null) => Boolean(id && findDesignNodeById(resolved, id));
+
+  if (pref && inResolved(pref)) {
+    return {
+      ...base,
+      activeArtboardId: returnTo.artboardId,
+      selectedNodeId: pref,
+      selectedNodeIds: [pref],
+    };
+  }
+
+  const rootComposite = makeCompositeId(returnTo.instanceRootSourceId, master.tree.id);
+  if (inResolved(rootComposite)) {
+    return {
+      ...base,
+      activeArtboardId: returnTo.artboardId,
+      selectedNodeId: rootComposite,
+      selectedNodeIds: [rootComposite],
+    };
+  }
+
+  if (findDesignNodeById(source, returnTo.instanceRootSourceId)) {
+    return {
+      ...base,
+      activeArtboardId: returnTo.artboardId,
+      selectedNodeId: returnTo.instanceRootSourceId,
+      selectedNodeIds: [returnTo.instanceRootSourceId],
+    };
+  }
+
+  return {
+    ...base,
+    activeArtboardId: returnTo.artboardId,
+    selectedNodeId: null,
+    selectedNodeIds: [],
+  };
+}
+
+/** Remap selection from a detached instance id to the baked subtree root (Track 9 Phase C). */
+function selectionAfterDetach(
+  sel: UnifiedCanvasState["selection"],
+  artboardId: string,
+  oldInstanceId: string,
+  bakedRootId: string
+): UnifiedCanvasState["selection"] {
+  if (sel.activeArtboardId !== artboardId) return sel;
+
+  const under = (id: string | null) =>
+    Boolean(id && (id === oldInstanceId || id.startsWith(`${oldInstanceId}::`)));
+
+  if (!under(sel.selectedNodeId) && !sel.selectedNodeIds.some((id) => under(id))) {
+    return sel;
+  }
+
+  return {
+    ...sel,
+    selectedNodeId: bakedRootId,
+    selectedNodeIds: [bakedRootId],
   };
 }
 
@@ -987,14 +1083,17 @@ export function canvasReducer(
         const sourceNode = children[sourceIndex] as DesignNode;
         if (sourceNode.componentRef) {
           // Duplicate an instance root → fresh instance with empty overrides
+          const srcRef = sourceNode.componentRef;
+          const newRef: ComponentInstanceRef = {
+            masterId: srcRef.masterId,
+            masterVersion: srcRef.masterVersion,
+            overrides: {},
+          };
+          if (srcRef.presetId) newRef.presetId = srcRef.presetId;
           const newInstance: TreeNode = {
             ...sourceNode,
             id: uid(sourceNode.type),
-            componentRef: {
-              masterId: sourceNode.componentRef.masterId,
-              masterVersion: sourceNode.componentRef.masterVersion,
-              overrides: {},
-            },
+            componentRef: newRef,
             children: undefined, // resolved tree will be rebuilt by resolveTree
           };
           clones.push({ sourceId: id, clone: newInstance });
@@ -1865,7 +1964,7 @@ export function canvasReducer(
     }
 
     case "INSERT_INSTANCE": {
-      const { artboardId, masterId, index } = action;
+      const { artboardId, masterId, index, presetId: insertPresetId } = action;
       const stateH = pushHistoryHelper(state, "Insert component");
 
       const master = findMaster(stateH.components, masterId);
@@ -1877,16 +1976,19 @@ export function canvasReducer(
       );
       if (!artboard) return stateH;
 
+      const instanceRef: ComponentInstanceRef = {
+        masterId,
+        masterVersion: master.version,
+        overrides: {},
+      };
+      if (insertPresetId) instanceRef.presetId = insertPresetId;
+
       const instanceNode: DesignNode = {
         id: uid("frame"),
         type: "frame",
         name: master.name,
         style: { width: "fill" as const },
-        componentRef: {
-          masterId,
-          masterVersion: master.version,
-          overrides: {},
-        },
+        componentRef: instanceRef,
       };
 
       const insertIndex = index ?? ((artboard.pageTree as DesignNode).children?.length ?? 0);
@@ -1903,6 +2005,48 @@ export function canvasReducer(
           children.splice(insertIndex, 0, inst);
           return { ...item, pageTree: { ...tree, children } };
         }),
+        updatedAt: now(),
+      };
+    }
+
+    case "SET_INSTANCE_PRESET": {
+      const { artboardId, instanceNodeId, presetId } = action;
+      const stateH = pushHistoryHelper(state, "Set component preset");
+
+      const artboard = stateH.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return stateH;
+
+      const tree = artboard.pageTree as DesignNode;
+      const instanceNode = findDesignNodeById(tree, instanceNodeId);
+      if (!instanceNode?.componentRef) return stateH;
+
+      const master = findMaster(stateH.components, instanceNode.componentRef.masterId);
+      if (!master) return stateH;
+      if (presetId !== null && !master.presets?.some((p) => p.id === presetId)) {
+        return stateH;
+      }
+
+      const newTree = updateNodeInTree(tree, instanceNodeId, (n) => {
+        const ref = { ...n.componentRef! };
+        if (presetId === null) {
+          delete ref.presetId;
+        } else {
+          ref.presetId = presetId;
+        }
+        return { ...n, componentRef: ref };
+      });
+
+      const nextItems = updateArtboardsForSite(stateH.items, artboardId, (pageTree) => {
+        if (pageTree === artboard.pageTree) return newTree;
+        return pageTree;
+      });
+
+      return {
+        ...stateH,
+        items: nextItems ?? stateH.items,
         updatedAt: now(),
       };
     }
@@ -1925,6 +2069,7 @@ export function canvasReducer(
 
       const baked = bakeInstance(instanceNode, master);
       const newTree = replaceNodeInTree(tree, nodeId, baked);
+      const nextSelection = selectionAfterDetach(stateH.selection, artboardId, nodeId, baked.id);
 
       return {
         ...stateH,
@@ -1943,6 +2088,7 @@ export function canvasReducer(
           }
           return item;
         }),
+        selection: nextSelection,
         updatedAt: now(),
       };
     }
@@ -2218,6 +2364,18 @@ export function canvasReducer(
 
       const userMasterId = uid("comp");
       const timestamp = now();
+      const userPresets = (builtinMaster.presets ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        tree: cloneDesignNodeWithIdMap(p.tree, (oldId) => {
+          const mapped = idMap[oldId];
+          if (!mapped) {
+            return uid("node");
+          }
+          return mapped;
+        }).tree,
+      }));
+
       const userMaster: ComponentMaster = {
         id: userMasterId,
         name: `${builtinMaster.name} (Custom)`,
@@ -2227,6 +2385,7 @@ export function canvasReducer(
         version: 1,
         createdAt: timestamp,
         updatedAt: timestamp,
+        ...(userPresets.length > 0 ? { presets: userPresets } : {}),
       };
 
       // Re-key overrides using idMap
@@ -2241,15 +2400,21 @@ export function canvasReducer(
         if (item.kind !== "artboard" || item.id !== artboardId) return item;
         return {
           ...item,
-          pageTree: updateNodeInTree(item.pageTree as DesignNode, instanceNodeId, (n) => ({
-            ...n,
-            componentRef: {
-              ...n.componentRef!,
+          pageTree: updateNodeInTree(item.pageTree as DesignNode, instanceNodeId, (n) => {
+            const prev = n.componentRef!;
+            const nextRef: ComponentInstanceRef = {
               masterId: userMasterId,
               masterVersion: 1,
               overrides: remappedOverrides,
-            },
-          })),
+            };
+            if (
+              prev.presetId &&
+              userMaster.presets?.some((p) => p.id === prev.presetId)
+            ) {
+              nextRef.presetId = prev.presetId;
+            }
+            return { ...n, componentRef: nextRef };
+          }),
         };
       }) as CanvasItem[];
 
@@ -2265,6 +2430,11 @@ export function canvasReducer(
           snapshotTree: JSON.parse(JSON.stringify(userTree)),
           historyBoundaryIndex: stateWithHistory.history.cursor,
           dirty: false,
+          returnTo: {
+            artboardId,
+            instanceRootSourceId: instanceNodeId,
+            preferredNodeId: stateWithHistory.selection.selectedNodeId,
+          },
         },
         updatedAt: timestamp,
       };
@@ -2273,7 +2443,7 @@ export function canvasReducer(
     // ── Master Edit Mode (Track 3) ──────────────────────────────────────
 
     case "ENTER_MASTER_EDIT": {
-      const { masterId } = action;
+      const { masterId, returnTo: returnToArg } = action;
       if (state.masterEditSession) return state; // already editing
 
       const master = state.components.find((c) => c.id === masterId);
@@ -2288,6 +2458,7 @@ export function canvasReducer(
           snapshotTree: JSON.parse(JSON.stringify(master.tree)),
           historyBoundaryIndex: stateWithHistory.history.cursor,
           dirty: false,
+          returnTo: returnToArg ?? null,
         },
       };
     }
@@ -2332,10 +2503,11 @@ export function canvasReducer(
 
     case "COMMIT_MASTER_EDIT": {
       if (!state.masterEditSession) return state;
+      const session = state.masterEditSession;
       const stateWithHistory = pushHistoryHelper(state, "Commit master edit");
 
       const updatedComponents = stateWithHistory.components.map((c) => {
-        if (c.id !== stateWithHistory.masterEditSession!.masterId) return c;
+        if (c.id !== session.masterId) return c;
         return {
           ...c,
           version: c.version + 1,
@@ -2343,16 +2515,23 @@ export function canvasReducer(
         };
       });
 
-      return {
+      const nextState: CanvasReducerState = {
         ...stateWithHistory,
         components: updatedComponents,
         masterEditSession: null,
+      };
+
+      return {
+        ...nextState,
+        selection: session.returnTo
+          ? selectionAfterMasterEdit(nextState, session.returnTo)
+          : nextState.selection,
       };
     }
 
     case "CANCEL_MASTER_EDIT": {
       if (!state.masterEditSession) return state;
-      const { masterId, snapshotTree, historyBoundaryIndex } = state.masterEditSession;
+      const { masterId, snapshotTree, historyBoundaryIndex, returnTo } = state.masterEditSession;
 
       const restoredComponents = state.components.map((c) => {
         if (c.id !== masterId) return c;
@@ -2366,11 +2545,16 @@ export function canvasReducer(
         cursor: Math.min(state.history.cursor, historyBoundaryIndex),
       };
 
-      return {
+      const nextState: CanvasReducerState = {
         ...state,
         components: restoredComponents,
         history: rewoundHistory,
         masterEditSession: null,
+      };
+
+      return {
+        ...nextState,
+        selection: returnTo ? selectionAfterMasterEdit(nextState, returnTo) : nextState.selection,
       };
     }
 

@@ -296,7 +296,7 @@ No `rounded-xl` (12px+), no pill shapes except avatars/status dots.
 - Scale: Display 28–36px → H1 22px → H2 17px → Body 14px → Small 13px → Caption 11px → Mono overline 10px.
 
 ### Icons
-Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={1.5}` (14px in compact contexts like BottomBar).
+Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={1.5}` (14px in compact contexts like `EditorTransportBar`).
 
 ### Key Patterns
 - **`.mono-kicker`** — IBM Plex Mono 10px uppercase tracking-[1px] `#A0A0A0`. Used for all section headers, panel labels, overline text.
@@ -310,10 +310,10 @@ Lucide only. Sidebar: 18×18 `strokeWidth={1}`. Elsewhere: 16×16 `strokeWidth={
 
 ### V3 Core Architecture (current)
 
-- `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds
+- `app/canvas-v1/components/UnifiedCanvasView.tsx` — single infinite canvas, all item kinds; `data-theme` + `.editor-canvas-surface` (workspace fill + dot grid; dark mode uses `--canvas-workspace` void, light mode warm paper)
 - `app/canvas-v1/components/InspectorPanelV3.tsx` — 3 exclusive tabs: Design | CSS | Export. Each tab gets full height. Prompt promoted to floating panel
 - `app/canvas-v1/components/LayersPanelV3.tsx` — grouped tree (Site/References/Notes)
-- `app/canvas-v1/components/BottomBarV3.tsx` — zoom pill + Generate
+- `app/canvas-v1/components/EditorTransportBar.tsx` — bottom-centered transport: tools (V/H/M/K), zoom, Generate, undo/redo; replaces legacy ToolPalette + BottomBarV3
 - `app/canvas-v1/components/EditorContextStrip.tsx` — compact selection/breakpoint context above canvas
 - `app/canvas-v1/components/EditorShortcutsModal.tsx` — keyboard shortcuts (?)
 - `components/ui/studio-button.tsx` — primary/secondary/ghost using CSS variables
@@ -355,7 +355,7 @@ Folder silhouette filled with vertical tapered diamond slats. Navy `#071D5C` at 
 ### V2 Design Rules
 1. **Bespoke Serif for display text only** — page greetings, marketing headlines, section titles
 2. **Violet-blue (#4B57DB) is the ONLY accent color** — everything else is grayscale
-3. **Halftone dot texture is background only** — never on interactive components, only canvas bg + empty/loading states
+3. **Halftone dot texture is background only** — never on interactive components; infinite canvas workspace uses `.editor-canvas-surface` (theme-aware dots) plus app-shell halftone where applicable; empty/loading states only as designed
 4. **No decorative elements** — no gradients on buttons, no heavy shadows, no emojis
 5. **Panel headers use `.mono-kicker`** — IBM Plex Mono 10px uppercase 1px letter-spacing `#A0A0A0`
 6. **List items are compact rows, not big cards** — thin rows with 40px thumbnail, hover borders only
@@ -375,11 +375,11 @@ Single infinite canvas per project. References, generation, and composition on o
 **Layout:** References cluster on the left (3-column grid at x=100). Artboards positioned on the right (desktop at x=1200, tablet at x=2720, mobile at x=3568). Desktop artboard: `border-t-2 border-t-[#4B57DB]`. Others: `border-t border-t-[#E5E5E0]`. Headers: `font-mono text-[10px] uppercase tracking-[1px]`.
 
 **Panels:**
-- LayersPanelV3: 240px left, grouped tree (Site/References/Notes), recursive expand/collapse
+- LayersPanelV3: 200px left, grouped tree (Site/References/Notes), recursive expand/collapse, drag-to-reparent
 - InspectorPanelV3: 288px right, 3 exclusive tabs (Design/CSS/Export), adapts by selection type (reference/artboard/node/empty)
-- FloatingPromptPanel: 300px floating panel, activated by Prompt tool (K shortcut). Only element with shadow. Contains PromptComposerV2.
-- ToolPalette: 4 tools — Cursor (V), Hand (H), Marquee (M), Prompt (K)
-- BottomBarV3: floating centered strip — zoom, undo/redo, panel toggles (L/I)
+- FloatingPromptPanel: floating panel, activated by Prompt tool (K). Position follows inspector visibility. Contains PromptComposerV2.
+- EditorTransportBar: bottom-centered — tools (V/H/M/K), zoom %, Generate, undo/redo; panel toggles remain on MiniRail / keyboard (L/I)
+- MiniRail: 44px — layers/inspector toggles, Home/Settings, theme cycle, shortcuts
 
 **Interactions:** `useDrag` (pointer cycle, shift-axis lock), `useCanvasGestures` (wheel zoom, space+drag pan, middle-mouse pan), file drop, clipboard paste, `useCanvasKeyboard` (full shortcut set).
 
@@ -395,7 +395,7 @@ Single infinite canvas per project. References, generation, and composition on o
 
 | File | Purpose |
 |------|---------|
-| `app/globals.css` | Design tokens, `.mono-kicker`, `.app-shell::before` halftone, animations |
+| `app/globals.css` | Design tokens, `.mono-kicker`, `.app-shell::before` halftone, `.editor-canvas-surface` workspace dot grid, `--canvas-workspace` / `--canvas-workspace-dot` |
 | `app/layout.tsx` | Google Fonts link for Bespoke Serif (Instrument Serif) |
 | `components/navigation/sidebar.tsx` | Sidebar — Home, Projects only (V3 simplified) |
 | `app/(canvas-view)/canvas/page.tsx` | Canvas route — V3 entry point, redirects legacy `step` param |
@@ -408,10 +408,12 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/ResizeHandles.tsx` | 8-handle resize UI for reference items |
 | `app/canvas-v1/components/InspectorPanelV3.tsx` | 288px right rail — Design/CSS/Export tabs; header Export opens Export tab |
 | `app/canvas-v1/components/LayersPanelV3.tsx` | 200px tree navigator — Site/References/Notes groups |
-| `app/canvas-v1/components/BottomBarV3.tsx` | Zoom pill + Generate CTA |
+| `app/canvas-v1/components/EditorTransportBar.tsx` | Bottom transport — tools, zoom, Generate, undo/redo |
+| `lib/editor-theme-preference.ts` + `app/canvas-v1/hooks/useEditorTheme.ts` | Persisted editor Light/Dark/System; effective `data-theme` on canvas shell |
+| `docs/editor-hybrid-mapping.md` | Hybrid mock ↔ live editor dimensions + QA checklist (see `docs/ui-cleanup-pass/variant-c-hybrid.html`) |
 | `app/canvas-v1/components/ColorPickerPopover.tsx` | Color picker — portal, viewport clamping, document colors, hex input, defaults grid |
 | `app/canvas-v1/components/inspector/InspectorField.tsx` | Shared inspector primitives — Section, Label, TextInput, Textarea, NumberInput, Select, ColorField, Row, Divider |
-| `app/canvas-v1/components/inspector/SpacingDiagram.tsx` | Spacing box model — two-axis paddingX/paddingY sync, collapsed mode, gap |
+| `app/canvas-v1/components/inspector/SpacingDiagram.tsx` | Padding box model — per-side inputs with Top/Left/Right/Bottom + corner hints (TL/TR/BL/BR) |
 | `app/canvas-v1/components/SectionDragHandle.tsx` | Drag handle for top-level section reorder — GripVertical, hover/selected visibility |
 | `app/canvas-v1/components/ElementActionMenu.tsx` | Double-click popover — type-specific actions (Edit Text, AI, Replace Image, Add Section, Move, Duplicate, Delete) |
 | `app/canvas-v1/components/NodeFormatToolbar.tsx` | Floating B/I/U/Font/Color/AI toolbar above selected text nodes |
@@ -431,7 +433,7 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/inspector/InspectorSegmented.tsx` | Segmented control for inspector options (direction, shadow style) |
 | `app/canvas-v1/components/ComposeDocumentView.tsx` | Artboard renderer — point-and-edit, inline text editing, section drag-reorder, action menu, floating toolbar |
 | `app/canvas-v1/components/ComposeDocumentViewV6.tsx` | V6 renderer — DesignNode trees as live HTML/CSS, full interaction layer (select, hover, drill-down, drag, resize, snap guides) |
-| `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` | V6 inspector — Position, Layout, Spacing, Typography, Fill, Appearance sections for DesignNode editing |
+| `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` | V6 inspector — Position, Layout, Spacing, Typography, Fill, Appearance (radius presets + “All corners” custom px, etc.) |
 | `app/canvas-v1/hooks/useDragDesignNode.ts` | V6 drag-to-reposition — absolute-positioned DesignNodes, zoom-aware, shift-axis lock, snap guide integration |
 | `app/canvas-v1/hooks/useSnapGuides.ts` | Smart snap guides — sibling edge/center alignment during drag, 5px threshold, cached bounds |
 | `app/canvas-v1/components/DesignNodeResizeHandles.tsx` | V6 8-handle resize — corners + edges, shift aspect-lock, alt center-resize, min 20px |

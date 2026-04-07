@@ -145,6 +145,35 @@ The taste engine is what makes Studio OS a harness, not just an editor:
   - `app/canvas-v1/components/MultiSelectActionBar.tsx` — align/distribute/group toolbar
   - `app/canvas-v1/hooks/useLayersDragReorder.ts` — layers panel drag reorder
 
+**Track 3 — True Reusable Components (2026-04-07):**
+- Master/instance component model with `ComponentMaster` and `ComponentInstanceRef`
+- 7 built-in component templates (Hero, Split Content, Features Grid, Quote Block, Proof Row, CTA Banner, Footer)
+- Component gallery with save-to-library
+- Override system: allowed style fields, content overrides, per-breakpoint visibility
+- Instance banners in inspector (edit master, detach, accept update)
+- Files: `lib/canvas/design-component-library.ts`, `app/canvas-v1/components/ComponentGalleryPanel.tsx`, `app/canvas-v1/components/ComponentQuickPicker.tsx`
+
+**Track 4 — Direct Nested Selection (2026-04-07):**
+- Cmd+Click cycles through depth levels under cursor (deepest → ancestors)
+- Cmd+Shift+Click cycles through siblings at same depth
+- Contextual hover preview with breadcrumb label (dashed outline)
+- Layers panel auto-expand to show deep selections, smooth scroll into view
+- Keyboard shortcuts: Cmd+[/] for siblings, Cmd+arrows for parent/child, Shift+Escape for root
+- Context menu nav: Select Parent / Next Sibling / Previous Sibling / Select Root
+- Files: `lib/canvas/nested-selection.ts`, `app/canvas-v1/hooks/useNestedSelection.ts`, `app/canvas-v1/components/NestedHoverPreview.tsx`
+
+**Track 5 — Richer Text Editing (2026-04-07):**
+- Hover affordances: "Click to edit" (selected) / "Double-click to edit" (unselected)
+- Single-click enters edit mode if text already selected (Figma pattern)
+- Custom selection color (#D1E4FC) via scoped `::selection` CSS
+- Triple-click selects all text in node
+- Cmd+A in edit mode selects all text (not layer)
+- Cmd+B/I/U formatting shortcuts (bold/italic/underline)
+- Inline floating toolbar with Bold, Italic, Font Size (12-72px)
+- Toolbar positions above/flips below, 15ms Framer Motion animation
+- Toolbar dismiss: Escape, click-away, or entering edit mode
+- Files: `app/canvas-v1/components/TextInlineToolbar.tsx`, updated `ComposeDocumentViewV6.tsx`, `useCanvasKeyboard.ts`
+
 **Phase 5a — Export Pipeline (2026-04-03):**
 - `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes
 - `app/canvas-v1/components/inspector/ExportTab.tsx` — Selection/Full Page scope toggle, HTML preview, Copy HTML button
@@ -402,6 +431,9 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/FloatingPromptPanel.tsx` | Floating prompt panel — 300px, shadow, mono header, wraps PromptComposerV2 |
 | `app/canvas-v1/components/PromptComposerV2.tsx` | Extracted standalone prompt composer — generation pipeline, chat UI, suggestion chips |
 | `app/canvas-v1/components/inspector/SectionRule.tsx` | Static section header — `── LABEL ──` embedded-label rule pattern, replaces collapsible chevrons |
+| `app/canvas-v1/components/TextInlineToolbar.tsx` | Inline text formatting toolbar — Bold/Italic/Font Size, floats above selected text |
+| `app/canvas-v1/components/NestedHoverPreview.tsx` | Track 4 hover preview — dashed outline + breadcrumb for nested selection |
+| `lib/canvas/nested-selection.ts` | Track 4 core — hit testing, parent chain traversal, sibling cycling |
 
 ### Pre-existing TypeScript Errors (not regressions)
 - `canvas-client.tsx:525` — token merge type mismatch (`Record<string, unknown>` vs `Record<string, string>`)

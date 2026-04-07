@@ -23,6 +23,32 @@ import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/use
 import { resolveTree, isInstanceChild, findMaster } from "@/lib/canvas/component-resolver";
 import type { ComponentMaster } from "@/lib/canvas/design-node";
 
+// ─── Helper: Get all ancestor IDs of a node ──────────────────────────────────
+
+function getAncestors(nodeId: string, root: DesignNode): string[] {
+  const ancestors: string[] = [];
+  
+  function findPath(node: DesignNode, targetId: string, path: string[]): boolean {
+    if (node.id === targetId) {
+      ancestors.push(...path);
+      return true;
+    }
+    
+    if (node.children) {
+      for (const child of node.children) {
+        if (findPath(child, targetId, [...path, node.id])) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  findPath(root, nodeId, []);
+  return ancestors;
+}
+
 // ─── Node type → icon ────────────────────────────────────────────────────────
 
 function NodeIcon({ type }: { type: PageNode["type"] }) {
@@ -183,6 +209,7 @@ function DesignTreeNode({
   onSelectNode, onContextMenu, dispatch,
   draggedId, dropTarget, onDragPointerDown,
   sourceTree, components,
+  expandedNodeIds, onToggleExpanded,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
   selectedNodeIds: string[]; artboardId: string;
@@ -195,9 +222,11 @@ function DesignTreeNode({
   onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
   sourceTree: DesignNode;
   components: ComponentMaster[];
+  expandedNodeIds: Set<string>;
+  onToggleExpanded: (nodeId: string) => void;
 }) {
   const hasChildren = node.children && node.children.length > 0;
-  const [expanded, setExpanded] = React.useState(depth < 2);
+  const expanded = expandedNodeIds.has(node.id);
   const isPrimary = selectedNodeId === node.id;
   const isSecondary = !isPrimary && selectedNodeIds.includes(node.id);
   const isDragged = draggedId === node.id;
@@ -233,6 +262,7 @@ function DesignTreeNode({
       {showDropAbove && <DropIndicatorLine depth={depth} />}
       <button
         type="button"
+        data-layer-id={node.id}
         data-layer-node-id={node.id}
         data-layer-parent-id={parentId}
         data-layer-index={index}
@@ -267,7 +297,7 @@ function DesignTreeNode({
       >
         {hasChildren && (
           <span
-            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            onClick={(e) => { e.stopPropagation(); onToggleExpanded(node.id); }}
             className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm hover:bg-[#E5E5E0] dark:hover:bg-[#333333]"
           >
             <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", expanded && "rotate-90")} />
@@ -304,6 +334,7 @@ function DesignTreeNode({
           onSelectNode={onSelectNode} onContextMenu={onContextMenu} dispatch={dispatch}
           draggedId={draggedId} dropTarget={dropTarget} onDragPointerDown={onDragPointerDown}
           sourceTree={sourceTree} components={components}
+          expandedNodeIds={expandedNodeIds} onToggleExpanded={onToggleExpanded}
         />
       ))}
       {/* Drop indicator after last sibling */}
@@ -399,6 +430,8 @@ function ArtboardDesignTree({
   draggedId,
   dropTarget,
   onDragPointerDown,
+  expandedNodeIds,
+  onToggleExpanded,
 }: {
   artboard: ArtboardItem;
   components: ComponentMaster[];
@@ -410,6 +443,8 @@ function ArtboardDesignTree({
   draggedId: string | null;
   dropTarget: DropTarget | null;
   onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
+  expandedNodeIds: Set<string>;
+  onToggleExpanded: (nodeId: string) => void;
 }) {
   const sourceTree = artboard.pageTree as DesignNode;
   const resolvedTree = React.useMemo(
@@ -437,6 +472,8 @@ function ArtboardDesignTree({
           onDragPointerDown={onDragPointerDown}
           sourceTree={sourceTree}
           components={components}
+          expandedNodeIds={expandedNodeIds}
+          onToggleExpanded={onToggleExpanded}
         />
       ))}
     </>
@@ -448,6 +485,68 @@ function ArtboardDesignTree({
 export function LayersPanelV3() {
   const { state, dispatch } = useCanvas();
   const { items, selection } = state;
+
+  // ── Track expanded node IDs for auto-expand on deep selection ───────────────
+  const [expandedNodeIds, setExpandedNodeIds] = React.useState<Set<string>>(new Set());
+  
+  const selectedNodeId = selection.selectedNodeId;
+  
+  // ── Active artboard for ancestor lookup ─────────────────────────────────────
+  const activeArtboard = React.useMemo(() => {
+    if (!selection.activeArtboardId) return null;
+    return items.find((i): i is ArtboardItem => 
+      i.kind === "artboard" && i.id === selection.activeArtboardId
+    ) || null;
+  }, [items, selection.activeArtboardId]);
+
+  // ── Auto-expand ancestors and scroll to selected node ───────────────────────
+  React.useEffect(() => {
+    if (selectedNodeId && activeArtboard && isDesignNodeTree(activeArtboard.pageTree)) {
+      const root = activeArtboard.pageTree as DesignNode;
+      
+      // Find all ancestors of selected node
+      const ancestors = getAncestors(selectedNodeId, root);
+      
+      // Add them to expanded set (only if not already expanded)
+      setExpandedNodeIds(prev => {
+        const next = new Set(prev);
+        let changed = false;
+        ancestors.forEach(id => {
+          if (!next.has(id)) {
+            next.add(id);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+      
+      // Scroll into view after expansion renders
+      setTimeout(() => {
+        const rowElement = document.querySelector(`[data-layer-id="${selectedNodeId}"]`);
+        if (rowElement) {
+          rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Add highlight pulse class
+          rowElement.classList.add('highlight-pulse');
+          setTimeout(() => {
+            rowElement.classList.remove('highlight-pulse');
+          }, 300);
+        }
+      }, 50);
+    }
+  }, [selectedNodeId, activeArtboard]);
+
+  const handleToggleExpanded = React.useCallback((nodeId: string) => {
+    setExpandedNodeIds(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
 
   const artboards = items.filter((i): i is ArtboardItem => i.kind === "artboard");
   const references = items.filter((i): i is ReferenceItem => i.kind === "reference");
@@ -579,6 +678,8 @@ export function LayersPanelV3() {
                           draggedId={draggedId}
                           dropTarget={dropTarget}
                           onDragPointerDown={dragPointerDown}
+                          expandedNodeIds={expandedNodeIds}
+                          onToggleExpanded={handleToggleExpanded}
                         />
                       )
                     : artboard.pageTree.children?.map((child) => (
@@ -647,6 +748,17 @@ export function LayersPanelV3() {
           )}
         </div>
       </div>
+
+      {/* Highlight pulse animation styles */}
+      <style jsx>{`
+        @keyframes highlight-pulse {
+          0% { background-color: rgba(75, 87, 219, 0.2); }
+          100% { background-color: transparent; }
+        }
+        .highlight-pulse {
+          animation: highlight-pulse 300ms ease-out;
+        }
+      `}</style>
 
       {/* DesignNode context menu */}
       {dnContextMenu && (() => {

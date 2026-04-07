@@ -9,7 +9,7 @@ import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
-  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond,
+  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -207,9 +207,10 @@ function InstanceContextMenu({
 function DesignTreeNode({
   node, depth, selectedNodeId, selectedNodeIds, artboardId, parentId, index,
   onSelectNode, onContextMenu, dispatch,
-  draggedId, dropTarget, onDragPointerDown,
+  draggedId, dropTarget, isValidDrop, onDragPointerDown,
   sourceTree, components,
   expandedNodeIds, onToggleExpanded,
+  getNodeDepth,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
   selectedNodeIds: string[]; artboardId: string;
@@ -219,11 +220,13 @@ function DesignTreeNode({
   dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
   draggedId: string | null;
   dropTarget: DropTarget | null;
+  isValidDrop: boolean;
   onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
   sourceTree: DesignNode;
   components: ComponentMaster[];
   expandedNodeIds: Set<string>;
   onToggleExpanded: (nodeId: string) => void;
+  getNodeDepth: (nodeId: string) => number;
 }) {
   const hasChildren = node.children && node.children.length > 0;
   const expanded = expandedNodeIds.has(node.id);
@@ -255,7 +258,25 @@ function DesignTreeNode({
     dropTarget.parentId === parentId &&
     dropTarget.index === index;
 
-  const rowOpacity = isDragged ? 0.4 : isInsideInstance ? 0.6 : 1;
+  // Check if this row is the drop target's parent target (middle zone on valid frame)
+  const isParentTarget =
+    draggedId !== null &&
+    dropTarget !== null &&
+    dropTarget.parentId === node.id &&
+    node.id !== draggedId;
+
+  // Check if this row is being hovered as an invalid parent target
+  const isInvalidParentTarget =
+    draggedId !== null &&
+    dropTarget !== null &&
+    dropTarget.parentId === node.id &&
+    !isValidDrop &&
+    node.id !== draggedId;
+
+  // Container types that can accept children
+  const isContainer = node.type === "frame" || node.isGroup === true;
+
+  const rowOpacity = isDragged ? 0.4 : isInsideInstance ? 0.6 : isInvalidParentTarget ? 0.5 : 1;
 
   return (
     <>
@@ -287,7 +308,9 @@ function DesignTreeNode({
             ? "bg-[#D1E4FC]/50 text-[#4B57DB] border-l-[1.5px] border-[#4B57DB] dark:bg-[#222244]/50"
             : isSecondary
               ? "bg-[#D1E4FC]/25 text-[#4B57DB]/70 border-l-[1.5px] border-[#4B57DB]/45 dark:bg-[#222244]/25"
-              : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
+              : isParentTarget && isContainer && isValidDrop
+                ? "bg-[#D1E4FC]/20 text-[#1A1A1A] border-l-[1.5px] border-[#4B57DB] dark:text-[#D0D0D0]"
+                : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
         )}
         style={{
           height: 28,
@@ -325,6 +348,10 @@ function DesignTreeNode({
         {isPrimary && selectedNodeIds.length > 1 && (
           <span className="ml-auto mr-2 text-[9px] text-[#4B57DB] bg-[#D1E4FC]/50 px-1 rounded-[2px] dark:bg-[#222244]/50">primary</span>
         )}
+        {/* Invalid parent target indicator */}
+        {isInvalidParentTarget && !isContainer && (
+          <X className="shrink-0 mr-2" size={14} color="#EF4444" />
+        )}
       </button>
       {expanded && hasChildren && node.children!.map((child, childIdx) => (
         <DesignTreeNode
@@ -332,15 +359,23 @@ function DesignTreeNode({
           selectedNodeId={selectedNodeId} selectedNodeIds={selectedNodeIds}
           artboardId={artboardId} parentId={node.id} index={childIdx}
           onSelectNode={onSelectNode} onContextMenu={onContextMenu} dispatch={dispatch}
-          draggedId={draggedId} dropTarget={dropTarget} onDragPointerDown={onDragPointerDown}
+          draggedId={draggedId} dropTarget={dropTarget} isValidDrop={isValidDrop} onDragPointerDown={onDragPointerDown}
           sourceTree={sourceTree} components={components}
           expandedNodeIds={expandedNodeIds} onToggleExpanded={onToggleExpanded}
+          getNodeDepth={getNodeDepth}
         />
       ))}
       {/* Drop indicator after last sibling */}
       {dropTarget !== null &&
         dropTarget.parentId === parentId &&
         dropTarget.index === index + 1 && (
+          <DropIndicatorLine depth={depth} />
+        )}
+      {/* Drop indicator when this row's parent is the drop target and drop is after last sibling */}
+      {dropTarget !== null &&
+        parentId === dropTarget.parentId &&
+        dropTarget.index === index + 1 &&
+        !node.children?.length && (
           <DropIndicatorLine depth={depth} />
         )}
     </>
@@ -429,9 +464,11 @@ function ArtboardDesignTree({
   dispatch,
   draggedId,
   dropTarget,
+  isValidDrop,
   onDragPointerDown,
   expandedNodeIds,
   onToggleExpanded,
+  getNodeDepth,
 }: {
   artboard: ArtboardItem;
   components: ComponentMaster[];
@@ -442,9 +479,11 @@ function ArtboardDesignTree({
   dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
   draggedId: string | null;
   dropTarget: DropTarget | null;
+  isValidDrop: boolean;
   onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
   expandedNodeIds: Set<string>;
   onToggleExpanded: (nodeId: string) => void;
+  getNodeDepth: (nodeId: string) => number;
 }) {
   const sourceTree = artboard.pageTree as DesignNode;
   const resolvedTree = React.useMemo(
@@ -469,11 +508,13 @@ function ArtboardDesignTree({
           dispatch={dispatch}
           draggedId={draggedId}
           dropTarget={dropTarget}
+          isValidDrop={isValidDrop}
           onDragPointerDown={onDragPointerDown}
           sourceTree={sourceTree}
           components={components}
           expandedNodeIds={expandedNodeIds}
           onToggleExpanded={onToggleExpanded}
+          getNodeDepth={getNodeDepth}
         />
       ))}
     </>
@@ -610,25 +651,108 @@ export function LayersPanelV3() {
     [dispatch, artboards]
   );
 
+  // ── Scroll container ref for auto-scroll during drag ──
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // ── Helper: Get node type for valid parent checking ──
+  const getNodeType = React.useCallback((nodeId: string): { type: string; isGroup?: boolean } | null => {
+    if (!activeArtboard || !isDesignNodeTree(activeArtboard.pageTree)) return null;
+    const node = findDesignNodeById(activeArtboard.pageTree as DesignNode, nodeId);
+    if (!node) return null;
+    return { type: node.type, isGroup: node.isGroup };
+  }, [activeArtboard]);
+
+  // ── Helper: Get root children count ──
+  const getRootChildCount = React.useCallback((): number => {
+    if (!activeArtboard || !isDesignNodeTree(activeArtboard.pageTree)) return 0;
+    return (activeArtboard.pageTree as DesignNode).children?.length ?? 0;
+  }, [activeArtboard]);
+
+  // ── Helper: Get depth of a node by id ──
+  const getNodeDepth = React.useCallback((nodeId: string): number => {
+    if (!activeArtboard || !isDesignNodeTree(activeArtboard.pageTree)) return 0;
+    const ancestors = getAncestors(nodeId, activeArtboard.pageTree as DesignNode);
+    return ancestors.length;
+  }, [activeArtboard]);
+
   // ── Drag reorder hook ──
-  const { draggedId, dropTarget, handlePointerDown: dragPointerDown, handlePointerMove, handlePointerUp, handlePointerCancel } = useLayersDragReorder({
-    onReorder: React.useCallback((nodeId: string, parentId: string | undefined, newIndex: number) => {
+  const dragHook = useLayersDragReorder({
+    onReparent: React.useCallback((nodeId: string, sourceParentId: string | undefined, targetParentId: string | undefined, targetIndex: number) => {
       const activeArtboardId = selection.activeArtboardId;
       if (!activeArtboardId) return;
-
       dispatch({
-        type: "REORDER_NODE",
+        type: "REPARENT_NODE",
         artboardId: activeArtboardId,
         nodeId,
-        newIndex,
-        parentNodeId: parentId,
+        sourceParentId,
+        targetParentId,
+        targetIndex,
       });
     }, [selection.activeArtboardId, dispatch]),
     selectedNodeIds: selection.selectedNodeIds,
     onCollapseToSingle: React.useCallback((artboardId: string, nodeId: string) => {
       dispatch({ type: "SELECT_NODE", artboardId, nodeId });
     }, [dispatch]),
+    getNodeType,
+    getRootChildCount,
   });
+
+  const { draggedId, dropTarget, isValidDrop } = dragHook;
+
+  // ── Auto-scroll during drag ──
+  React.useEffect(() => {
+    if (!draggedId || !scrollContainerRef.current) return;
+    
+    const container = scrollContainerRef.current;
+    let animationFrameId: number;
+    let lastPointerY = 0;
+    
+    const handlePointerMove = (e: PointerEvent) => {
+      lastPointerY = e.clientY;
+    };
+    
+    window.addEventListener("pointermove", handlePointerMove);
+    
+    const checkAndScroll = () => {
+      if (!container || !draggedId) return;
+      
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 40; // px from edge
+      const scrollSpeed = 100; // px per 150ms
+      
+      const distanceFromTop = lastPointerY - rect.top;
+      const distanceFromBottom = rect.bottom - lastPointerY;
+      
+      if (distanceFromTop < edgeThreshold && distanceFromTop > 0) {
+        // Near top edge - scroll up
+        container.scrollTop -= scrollSpeed;
+      } else if (distanceFromBottom < edgeThreshold && distanceFromBottom > 0) {
+        // Near bottom edge - scroll down
+        container.scrollTop += scrollSpeed;
+      }
+      
+      animationFrameId = window.setTimeout(checkAndScroll, 150);
+    };
+    
+    checkAndScroll();
+    
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.clearTimeout(animationFrameId);
+    };
+  }, [draggedId]);
+
+  // ── Escape key to cancel drag ──
+  React.useEffect(() => {
+    if (!draggedId) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        dragHook.handlePointerCancel();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [draggedId, dragHook]);
 
   return (
     <div
@@ -638,10 +762,11 @@ export function LayersPanelV3() {
       {/* Scrollable content — isolated from the positioning shell above so
           scroll position can never shift the panel's top edge. */}
       <div
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
+        onPointerMove={dragHook.handlePointerMove}
+        onPointerUp={dragHook.handlePointerUp}
+        onPointerCancel={dragHook.handlePointerCancel}
       >
         <div className="pt-3 pb-2">
           {/* Site group */}
@@ -677,9 +802,11 @@ export function LayersPanelV3() {
                           dispatch={dispatch}
                           draggedId={draggedId}
                           dropTarget={dropTarget}
-                          onDragPointerDown={dragPointerDown}
+                          isValidDrop={isValidDrop}
+                          onDragPointerDown={dragHook.handlePointerDown}
                           expandedNodeIds={expandedNodeIds}
                           onToggleExpanded={handleToggleExpanded}
+                          getNodeDepth={getNodeDepth}
                         />
                       )
                     : artboard.pageTree.children?.map((child) => (

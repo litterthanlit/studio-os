@@ -1827,6 +1827,15 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
       ? findDesignNodeById(activeArtboard.pageTree as unknown as DesignNode, selection.selectedNodeId)
       : null;
 
+  // Get all selected DesignNodes for multi-select support
+  const selectedDesignNodes: DesignNode[] = React.useMemo(() => {
+    if (!activeArtboard || !isV6Tree) return [];
+    const tree = activeArtboard.pageTree as unknown as DesignNode;
+    return selection.selectedNodeIds
+      .map((id) => findDesignNodeById(tree, id))
+      .filter((n): n is DesignNode => n !== null);
+  }, [activeArtboard, isV6Tree, selection.selectedNodeIds]);
+
   const isNodeInspector = Boolean((selectedNode || selectedDesignNode) && activeArtboard);
 
   // ── Header: zoom + node type ──────────────────────────────────────
@@ -1853,13 +1862,13 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
 
   let inspectorContent: React.ReactNode;
 
-  if (selectedDesignNode && activeArtboard) {
+  if (selectedDesignNodes.length > 0 && activeArtboard) {
     inspectorContent = (
       <>
         {selection.selectedNodeIds.length > 1 && <MultiSelectActionBar />}
         <DesignNodeInspector
           artboard={activeArtboard}
-          node={selectedDesignNode}
+          nodes={selectedDesignNodes}
           documentColors={documentColors}
         />
       </>
@@ -1923,8 +1932,14 @@ export function InspectorPanelV3({ projectId, promptTextareaRef, panelRef: exter
     >
       {/* Header area — shrink-0 so it never grows/shrinks */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E0] dark:border-[#333333] shrink-0">
-        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNode) ? "text-[#1A1A1A] dark:text-[#FFFFFF]" : "text-[#A0A0A0] dark:text-[#666666]")}>
-          {selectedDesignNode ? `${selectedDesignNode.type} — ${selectedDesignNode.name}` : selectedNode ? formatNodeType(selectedNode.type) : "No Selection"}
+        <span className={cn("flex-1 min-w-0 truncate text-[13px] font-medium", (selectedNode || selectedDesignNodes.length > 0) ? "text-[#1A1A1A] dark:text-[#FFFFFF]" : "text-[#A0A0A0] dark:text-[#666666]")}>
+          {selectedDesignNodes.length > 1 
+            ? `${selectedDesignNodes.length} nodes selected`
+            : selectedDesignNodes.length === 1 
+              ? `${selectedDesignNodes[0].type} — ${selectedDesignNodes[0].name}`
+              : selectedNode 
+                ? formatNodeType(selectedNode.type) 
+                : "No Selection"}
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <span

@@ -5,6 +5,8 @@
  *
  * Two-column layout with 32px row height, embedded rule headers,
  * and visual box model for spacing.
+ *
+ * Supports both single-select and multi-select modes via the `nodes` prop.
  */
 
 import * as React from "react";
@@ -39,6 +41,7 @@ import type { NodeOverride } from "@/lib/canvas/design-node";
 import { findMaster, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
 import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
+import { useBatchUpdate } from "@/app/canvas-v1/hooks/useBatchUpdate";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -229,28 +232,75 @@ function InstanceChildBanner({
   );
 }
 
+// ── Multi-select section visibility helpers ────────────────────────────────
+
+function classifyMultiSelect(nodes: DesignNode[]) {
+  // For single-select, use the existing classification
+  if (nodes.length === 1) {
+    return classifyDesignNode(nodes[0]);
+  }
+
+  // For multi-select, compute shared section visibility
+  const allTypes = new Set(nodes.map((n) => n.type));
+  
+  // Show typography only if ALL nodes support it (text or button)
+  const showTypography = nodes.every((n) => n.type === "text" || n.type === "button");
+  
+  // Show layout if ANY node is a frame or group
+  const showLayout = nodes.some((n) => n.type === "frame" || n.isGroup);
+  
+  // Show spacing if ANY node is a frame or text
+  const showSpacing = nodes.some((n) => n.type === "frame" || n.type === "text");
+  
+  // Show size for any multi-select (all nodes have size properties)
+  const showSize = true;
+  
+  // Show fill if ANY node supports fill (not divider)
+  const showFill = nodes.some((n) => n.type !== "divider");
+  
+  // Show appearance for all
+  const showAppearance = true;
+
+  return { showSize, showLayout, showSpacing, showTypography, showFill, showAppearance };
+}
+
 // ── DesignNodeInspector ─────────────────────────────────────────────────────
 
 type DesignNodeInspectorProps = {
   artboard: ArtboardItem;
-  node: DesignNode;
+  nodes: DesignNode[];  // Changed from node: DesignNode to support multi-select
   documentColors: string[];
 };
 
 export function DesignNodeInspector({
   artboard,
-  node,
+  nodes,
   documentColors,
 }: DesignNodeInspectorProps) {
   const { dispatch, state: canvasState } = useCanvas();
   const zoom = canvasState.viewport.zoom || 1;
-  const style = node.style;
-  const sections = classifyDesignNode(node);
+  
+  // Multi-select detection
+  const isMultiSelect = nodes.length > 1;
+  const primaryNode = nodes[0];  // Use first node for shared property display
+  const nodeIds = nodes.map((n) => n.id);
+  
+  // Use batch update hook for unified single/multi-select handling
+  const batchUpdate = useBatchUpdate(artboard.id, nodeIds, dispatch);
+  
+  // For single-select, use the node's style directly; for multi-select, use primary node style
+  // Future enhancement: compute shared values across all selected nodes
+  const style = primaryNode.style;
+  const sections = isMultiSelect ? classifyMultiSelect(nodes) : classifyDesignNode(primaryNode);
 
   // ── Instance context ──
+  // For multi-select, instance banners are shown only if ALL selected nodes
+  // are from the same instance (rare case) - for simplicity, we hide them in multi-select
   const instanceContext = React.useMemo(() => {
-    if (!node.id.includes("::")) return null;
-    const [instanceId, masterNodeId] = splitCompositeId(node.id);
+    // Skip instance context for multi-select
+    if (isMultiSelect) return null;
+    if (!primaryNode.id.includes("::")) return null;
+    const [instanceId, masterNodeId] = splitCompositeId(primaryNode.id);
     const instanceNode = findDesignNodeById(artboard.pageTree as DesignNode, instanceId);
     if (!instanceNode?.componentRef) return null;
     const master = findMaster(canvasState.components, instanceNode.componentRef.masterId);
@@ -263,11 +313,13 @@ export function DesignNodeInspector({
       isStale: instanceNode.componentRef.masterVersion < (master?.version ?? 0),
       isRoot: false as const,
     };
-  }, [node.id, artboard.pageTree, canvasState.components]);
+  }, [primaryNode.id, artboard.pageTree, canvasState.components, isMultiSelect]);
 
   const instanceRootContext = React.useMemo(() => {
-    if (node.id.includes("::")) return null;
-    const sourceNode = findDesignNodeById(artboard.pageTree as DesignNode, node.id);
+    // Skip instance context for multi-select
+    if (isMultiSelect) return null;
+    if (primaryNode.id.includes("::")) return null;
+    const sourceNode = findDesignNodeById(artboard.pageTree as DesignNode, primaryNode.id);
     if (!sourceNode?.componentRef) return null;
     const master = findMaster(canvasState.components, sourceNode.componentRef.masterId);
     return {
@@ -275,7 +327,7 @@ export function DesignNodeInspector({
       master,
       isStale: sourceNode.componentRef.masterVersion < (master?.version ?? 0),
     };
-  }, [node.id, artboard.pageTree, canvasState.components]);
+  }, [primaryNode.id, artboard.pageTree, canvasState.components, isMultiSelect]);
 
   const isInstanceChild = instanceContext !== null;
   const isInstanceRoot = instanceRootContext !== null;
@@ -287,9 +339,11 @@ export function DesignNodeInspector({
   // ── Breakpoint override helpers ──
   const breakpoint: Breakpoint = artboard.breakpoint;
   const isNonDesktop = breakpoint !== "desktop";
-  const overrides = node.responsiveOverrides?.[breakpoint];
+  const overrides = primaryNode.responsiveOverrides?.[breakpoint];
 
   function hasOverride(property: keyof DesignNodeStyle): boolean {
+    // No overrides shown in multi-select mode
+    if (isMultiSelect) return false;
     // Component override check for instance children
     if (isInstanceChild && instanceContext?.overrides?.style) {
       return (instanceContext.overrides.style as Record<string, unknown>)[property] !== undefined;
@@ -299,6 +353,8 @@ export function DesignNodeInspector({
   }
 
   function resetOverride(property: keyof DesignNodeStyle) {
+    // No override reset in multi-select mode
+    if (isMultiSelect) return;
     if (isInstanceChild) {
       dispatch({
         type: "RESET_INSTANCE_OVERRIDE_FIELD",
@@ -313,17 +369,18 @@ export function DesignNodeInspector({
     dispatch({
       type: "RESET_NODE_STYLE_OVERRIDE",
       artboardId: artboard.id,
-      nodeId: node.id,
+      nodeId: primaryNode.id,
       breakpoint,
       property,
     });
   }
 
   // Resolve inherited typography from parent chain
+  // Only for single-select; multi-select uses primary node style directly
   const tree = isDesignNodeTree(artboard.pageTree) ? artboard.pageTree : null;
   const resolved = React.useMemo(
-    () => tree ? resolveInheritedTypography(node, tree) : null,
-    [node, tree]
+    () => tree && !isMultiSelect ? resolveInheritedTypography(primaryNode, tree) : null,
+    [primaryNode, tree, isMultiSelect]
   );
 
   // Debounced history
@@ -337,23 +394,20 @@ export function DesignNodeInspector({
       const filtered = filterAllowedOverrides({ style: patch } as NodeOverride);
       if (filtered.style && Object.keys(filtered.style).length > 0) {
         history.begin(`Styled instance override`);
-        dispatch({
-          type: "UPDATE_INSTANCE_OVERRIDE",
-          artboardId: artboard.id,
-          instanceId: instanceContext!.instanceId,
-          masterNodeId: instanceContext!.masterNodeId,
-          override: filtered,
-        });
+        batchUpdate.updateInstanceOverride(
+          instanceContext!.instanceId,
+          instanceContext!.masterNodeId,
+          filtered
+        );
       }
       return;
     }
-    history.begin(`Styled ${node.type}`);
-    dispatch({
-      type: "UPDATE_NODE_STYLE",
-      artboardId: artboard.id,
-      nodeId: node.id,
-      style: patch as Record<string, unknown>,
-    });
+    // Use batch update for unified single/multi-select handling
+    const description = isMultiSelect 
+      ? `Styled ${nodes.length} nodes` 
+      : `Styled ${primaryNode.type}`;
+    history.begin(description);
+    batchUpdate.updateStyle(patch);
   }
 
   function applyImmediate(patch: Partial<DesignNodeStyle>, description: string) {
@@ -362,34 +416,29 @@ export function DesignNodeInspector({
       if (filtered.style && Object.keys(filtered.style).length > 0) {
         history.flush();
         dispatch({ type: "PUSH_HISTORY", description });
-        dispatch({
-          type: "UPDATE_INSTANCE_OVERRIDE",
-          artboardId: artboard.id,
-          instanceId: instanceContext!.instanceId,
-          masterNodeId: instanceContext!.masterNodeId,
-          override: filtered,
-        });
+        batchUpdate.updateInstanceOverride(
+          instanceContext!.instanceId,
+          instanceContext!.masterNodeId,
+          filtered
+        );
       }
       return;
     }
     history.flush();
     dispatch({ type: "PUSH_HISTORY", description });
-    dispatch({
-      type: "UPDATE_NODE_STYLE",
-      artboardId: artboard.id,
-      nodeId: node.id,
-      style: patch as Record<string, unknown>,
-    });
+    batchUpdate.updateStyle(patch);
   }
 
   function updatePadding(side: "top" | "right" | "bottom" | "left", value: number | undefined) {
-    history.begin(`Styled ${node.type} padding`);
-    dispatch({
-      type: "UPDATE_NODE_STYLE",
-      artboardId: artboard.id,
-      nodeId: node.id,
-      style: { padding: { ...node.style.padding, [side]: value } } as Record<string, unknown>,
-    });
+    const description = isMultiSelect 
+      ? `Styled ${nodes.length} nodes padding` 
+      : `Styled ${primaryNode.type} padding`;
+    history.begin(description);
+    
+    // For padding, we need to merge with existing padding values
+    // In multi-select, we apply the same padding to all nodes
+    const paddingPatch = { padding: { [side]: value } };
+    batchUpdate.updateStyle(paddingPatch as Partial<DesignNodeStyle>);
   }
 
   // ── Border addable state ──
@@ -419,6 +468,8 @@ export function DesignNodeInspector({
   }
 
   function handleDetach() {
+    // Detach not available in multi-select
+    if (isMultiSelect) return;
     const nodeId = isInstanceRoot
       ? instanceRootContext!.instanceNode.id
       : isInstanceChild
@@ -429,6 +480,8 @@ export function DesignNodeInspector({
   }
 
   function handleAcceptUpdate() {
+    // Not available in multi-select
+    if (isMultiSelect) return;
     if (!instanceRootContext?.instanceNode.componentRef) return;
     const ref = instanceRootContext.instanceNode.componentRef;
     const master = instanceRootContext.master;
@@ -469,6 +522,8 @@ export function DesignNodeInspector({
   }
 
   function handleResetAllOverrides() {
+    // Not available in multi-select
+    if (isMultiSelect) return;
     if (isInstanceRoot) {
       dispatch({
         type: "RESET_ALL_OVERRIDES",
@@ -517,7 +572,7 @@ export function DesignNodeInspector({
       {isInstanceChild && instanceContext && (
         <InstanceChildBanner
           context={instanceContext}
-          nodeName={node.name}
+          nodeName={primaryNode.name}
           onResetOverrides={handleResetAllOverrides}
         />
       )}
@@ -632,7 +687,7 @@ export function DesignNodeInspector({
                     } else if (mode === "hug") {
                       applyImmediate({ width: "hug" }, "Set width to Hug");
                     } else {
-                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const el = document.querySelector(`[data-node-id="${primaryNode.id}"]`);
                       const measured = el ? Math.round(el.getBoundingClientRect().width / zoom) : 200;
                       applyImmediate({ width: measured }, "Set width to Fixed");
                     }
@@ -652,7 +707,7 @@ export function DesignNodeInspector({
                   <button
                     type="button"
                     onClick={() => {
-                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const el = document.querySelector(`[data-node-id="${primaryNode.id}"]`);
                       const measured = el ? Math.round(el.getBoundingClientRect().width / zoom) : 200;
                       applyImmediate({ width: measured }, "Reset width to measured");
                     }}
@@ -686,7 +741,7 @@ export function DesignNodeInspector({
                     } else if (mode === "hug") {
                       applyImmediate({ height: "hug" }, "Set height to Hug");
                     } else {
-                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const el = document.querySelector(`[data-node-id="${primaryNode.id}"]`);
                       const measured = el ? Math.round(el.getBoundingClientRect().height / zoom) : 200;
                       applyImmediate({ height: measured }, "Set height to Fixed");
                     }
@@ -706,7 +761,7 @@ export function DesignNodeInspector({
                   <button
                     type="button"
                     onClick={() => {
-                      const el = document.querySelector(`[data-node-id="${node.id}"]`);
+                      const el = document.querySelector(`[data-node-id="${primaryNode.id}"]`);
                       const measured = el ? Math.round(el.getBoundingClientRect().height / zoom) : 200;
                       applyImmediate({ height: measured }, "Reset height to measured");
                     }}
@@ -728,7 +783,7 @@ export function DesignNodeInspector({
           <SectionRule label="SPACING" />
           <div className="px-4">
             <SpacingDiagram
-              node={node}
+              node={primaryNode}
               style={style}
               onPaddingChange={updatePadding}
               onHistoryFlush={() => history.flush()}
@@ -1039,7 +1094,7 @@ export function DesignNodeInspector({
             </InspectorFieldRow>
 
             {/* Cover Image (frame only) */}
-            {node.type === "frame" && (
+            {primaryNode.type === "frame" && (
               <div className="pt-2">
                 {!style.coverImage ? (
                   <div className="flex items-center justify-between h-8">
@@ -1118,7 +1173,7 @@ export function DesignNodeInspector({
           <SectionRule label="APPEARANCE" />
           <div className="px-4 space-y-2">
             {/* Radius */}
-            {node.type !== "divider" && (
+            {primaryNode.type !== "divider" && (
               <InspectorFieldRow 
                 label="Radius"
                 hasOverride={hasOverride("borderRadius")} 
@@ -1157,7 +1212,7 @@ export function DesignNodeInspector({
             )}
 
             {/* Border */}
-            {node.type === "divider" ? (
+            {primaryNode.type === "divider" ? (
               <InspectorFieldRow label="Color">
                 <InspectorColorField
                   color={style.borderColor || "rgba(0,0,0,0.1)"}
@@ -1217,7 +1272,7 @@ export function DesignNodeInspector({
             )}
 
             {/* Shadow */}
-            {node.type !== "divider" && (
+            {primaryNode.type !== "divider" && (
               <InspectorFieldRow 
                 label="Shadow"
                 hasOverride={hasOverride("shadow")} 

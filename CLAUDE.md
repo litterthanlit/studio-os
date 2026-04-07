@@ -198,7 +198,9 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes; `outputMode` fragment vs full document
 - `lib/canvas/export-options.ts` — Track 10 `ExportOptions`, `countExternalImageReferences`
 - `lib/canvas/build-export-zip.ts` — ZIP handoff (`index.html` + `README.md`)
-- `app/canvas-v1/components/inspector/ExportTab.tsx` — Track 10 Phase A: scope, HTML fragment/document, desktop vs active artboard source, resolved-tree export, external-image warning, Copy HTML, Download ZIP (`jszip` + `build-export-zip.ts`)
+- `app/canvas-v1/components/inspector/ExportTab.tsx` — Track 10: export options, ZIP, **Publish link** (Phase B → `POST /api/export/publish`)
+- `app/api/export/publish/route.ts` — authenticated publish to Supabase `published_exports`
+- `app/published/[id]/route.ts` — public `text/html` for shared exports
 
 **Component Gallery (2026-04-03):**
 - `lib/canvas/design-component-library.ts` — 7 pre-built DesignNode section templates (Hero, Split Content, Features Grid, Quote Block, Proof Row, CTA Banner, Footer), save-to-library, localStorage persistence
@@ -448,7 +450,9 @@ Single infinite canvas per project. References, generation, and composition on o
 | `lib/ai/model-router.ts` | Multi-model AI router via OpenRouter |
 | `app/canvas-v1/components/GenerationAnimation.tsx` | Canvas 2D generation animation — three-stage visualization (dots → bars → waves), failure/fallback states, 800ms handoff |
 | `app/canvas-v1/components/SizingModeToast.tsx` | "Converted to Fixed" toast on Fill→Fixed resize conversion |
-| `app/canvas-v1/components/inspector/ExportTab.tsx` | Export tab — scope, fragment/document, breakpoint source, ZIP, warnings |
+| `app/canvas-v1/components/inspector/ExportTab.tsx` | Export — scope, fragment/document, ZIP, publish URL |
+| `app/api/export/publish/route.ts` | POST HTML → shareable `/published/:id` |
+| `app/published/[id]/route.ts` | GET published static HTML |
 | `app/canvas-v1/components/TasteCard.tsx` | Extracted taste summary display in Prompt tab |
 | `app/canvas-v1/components/ReferenceRail.tsx` | Horizontal reference image strip in Prompt tab |
 | `app/canvas-v1/components/ComponentQuickPicker.tsx` | Quick insert popover — templates + recent + Browse All |

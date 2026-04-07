@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { InspectorSegmented } from "./InspectorSegmented";
 import { designNodeToHTML } from "@/lib/canvas/design-node-to-html";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
@@ -35,6 +36,11 @@ export function ExportTab({
   const [copied, setCopied] = React.useState(false);
   const [clipboardError, setClipboardError] = React.useState<string | null>(null);
   const [zipLoading, setZipLoading] = React.useState(false);
+  const [publishLoading, setPublishLoading] = React.useState(false);
+  const [publishError, setPublishError] = React.useState<string | null>(null);
+  const [publishNeedsSignIn, setPublishNeedsSignIn] = React.useState(false);
+  const [publishUrl, setPublishUrl] = React.useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = React.useState(false);
 
   const desktopArtboard = React.useMemo(
     () => artboards.find((a) => a.breakpoint === "desktop") ?? null,
@@ -121,6 +127,53 @@ export function ExportTab({
     }
   }, [htmlString]);
 
+  const handlePublish = React.useCallback(async () => {
+    if (!htmlString) return;
+    setPublishLoading(true);
+    setPublishError(null);
+    setPublishNeedsSignIn(false);
+    try {
+      const res = await fetch("/api/export/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ html: htmlString }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        publishUrl?: string;
+      };
+      if (!res.ok) {
+        if (res.status === 401) {
+          setPublishNeedsSignIn(true);
+          return;
+        }
+        setPublishError(
+          typeof data.error === "string" ? data.error : "Publish failed"
+        );
+        return;
+      }
+      if (data.publishUrl) {
+        setPublishUrl(data.publishUrl);
+      }
+    } catch {
+      setPublishError("Network error — try again.");
+    } finally {
+      setPublishLoading(false);
+    }
+  }, [htmlString]);
+
+  const handleCopyPublishUrl = React.useCallback(async () => {
+    if (!publishUrl) return;
+    try {
+      await navigator.clipboard.writeText(publishUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
+    } catch {
+      setPublishError("Could not copy link — copy manually.");
+    }
+  }, [publishUrl]);
+
   if (!rawTree) {
     return (
       <div className="p-4">
@@ -135,7 +188,7 @@ export function ExportTab({
     <div className="p-4 flex flex-col gap-3 h-full min-h-0">
       <OnboardingHint
         hintKey="export-seen"
-        text="Copy HTML or download a ZIP for your project"
+        text="Copy HTML, download a ZIP, or publish a read-only link (sign-in required)"
       />
 
       <div>
@@ -240,10 +293,74 @@ export function ExportTab({
             variant="secondary"
             className="w-full shrink-0 text-[12px]"
             onClick={handleDownloadZip}
-            disabled={zipLoading}
+            disabled={zipLoading || publishLoading}
           >
             {zipLoading ? "Building ZIP…" : "Download ZIP"}
           </StudioButton>
+
+          <div className="border-t border-[var(--border-primary)] pt-3 mt-1 space-y-2">
+            <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono block">
+              Publish
+            </span>
+            {opts.outputMode === "fragment" && (
+              <p className="text-[10px] text-text-muted leading-snug">
+                Tip: switch Output to &quot;HTML document&quot; for a full page when
+                sharing in the browser.
+              </p>
+            )}
+            <StudioButton
+              type="button"
+              variant="secondary"
+              className="w-full shrink-0 text-[12px]"
+              onClick={handlePublish}
+              disabled={publishLoading || zipLoading}
+            >
+              {publishLoading ? "Publishing…" : "Publish link"}
+            </StudioButton>
+            {publishNeedsSignIn && (
+              <p className="text-[11px] text-text-muted">
+                <Link
+                  href="/auth/login"
+                  className="text-[#4B57DB] dark:text-[#7B8CFF] underline underline-offset-2"
+                >
+                  Sign in
+                </Link>{" "}
+                to publish a shareable link.
+              </p>
+            )}
+            {publishError && !publishNeedsSignIn && (
+              <p className="text-[11px] text-red-600 dark:text-red-400 break-words">
+                {publishError}
+              </p>
+            )}
+            {publishUrl && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-text-muted font-mono break-all">
+                  {publishUrl}
+                </p>
+                <div className="flex gap-2">
+                  <StudioButton
+                    type="button"
+                    variant="secondary"
+                    className="flex-1 text-[12px]"
+                    onClick={handleCopyPublishUrl}
+                  >
+                    {linkCopied ? "Copied!" : "Copy link"}
+                  </StudioButton>
+                  <StudioButton
+                    type="button"
+                    variant="ghost"
+                    className="flex-1 text-[12px]"
+                    onClick={() =>
+                      window.open(publishUrl, "_blank", "noopener,noreferrer")
+                    }
+                  >
+                    Open
+                  </StudioButton>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       ) : null}
     </div>

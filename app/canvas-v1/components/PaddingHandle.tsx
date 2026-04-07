@@ -58,6 +58,7 @@ export function PaddingHandle({
           height: isVertical ? height + 16 : 32,
           cursor,
           zIndex: 25,
+          pointerEvents: "auto",
         }}
         onMouseEnter={() => onHover(true)}
         onMouseLeave={() => onHover(false)}

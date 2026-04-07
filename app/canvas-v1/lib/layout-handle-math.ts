@@ -17,7 +17,9 @@ export type GapRect = {
  * For row layout: gaps are vertical strips between children (x-axis gaps)
  * For column layout: gaps are horizontal strips between children (y-axis gaps)
  * 
- * All coordinates are relative to the parent container.
+ * Inputs use `getBoundingClientRect()` (screen space). Callers that paint inside
+ * a `transform: scale(zoom)` subtree should convert outputs to container-local
+ * CSS pixels (see `LayoutHandlesOverlay` + `ResizeOverlay`).
  */
 export function calculateGapRects(
   parentRect: DOMRect,

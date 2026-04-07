@@ -86,45 +86,71 @@ export function LayoutHandlesOverlay({
   
   // Measure gaps when selection changes
   React.useEffect(() => {
-    if (!isLayoutContainer || !containerRef.current || !selectedNodeId) {
+    if (!isLayoutContainer || !containerRef.current || !selectedNodeId || !selectedNode) {
       setGapRects([]);
       return;
     }
-    
+
     const container = containerRef.current;
-    const parentEl = container.querySelector<HTMLElement>(`[data-node-id="${selectedNodeId}"]`);
+    const parentEl = container.querySelector<HTMLElement>(
+      `[data-node-id="${selectedNodeId}"]`
+    );
+
     if (!parentEl) {
       setGapRects([]);
       return;
     }
-    
+
+    const z = zoom > 0 ? zoom : 1;
+
     const measure = () => {
+      const containerRect = container.getBoundingClientRect();
       const parentRect = parentEl.getBoundingClientRect();
-      
-      // FIX: Use querySelectorAll to find ALL descendant elements with data-node-id,
-      // not just direct children. This handles cases where children are wrapped
-      // in intermediate divs (e.g., when a frame has coverImage).
-      const childElements = Array.from(parentEl.querySelectorAll<HTMLElement>(":scope > [data-node-id], :scope > div > [data-node-id]"));
-      
-      if (childElements.length < 2) {
+
+      // Resolve DOM nodes for each tree child (handles wrapper divs, coverImage, etc.)
+      const treeChildren = selectedNode.children ?? [];
+      const finalChildren: HTMLElement[] = [];
+      for (const child of treeChildren) {
+        const el = parentEl.querySelector<HTMLElement>(
+          `[data-node-id="${child.id}"]`
+        );
+        if (el && el !== parentEl) finalChildren.push(el);
+      }
+
+      if (finalChildren.length < 2) {
         setGapRects([]);
         return;
       }
-      
-      const childRects = childElements.map(el => el.getBoundingClientRect());
-      const direction = selectedNode!.style.flexDirection === "column" ? "column" : "row";
+
+      const childRects = finalChildren.map((el) => el.getBoundingClientRect());
+      const direction =
+        selectedNode.style.flexDirection === "column" ? "column" : "row";
       const rects = calculateGapRects(parentRect, childRects, direction);
-      setGapRects(rects);
+
+      // Match ResizeOverlay: rect math from getBoundingClientRect is in screen space
+      // inside a CSS transform:scale(zoom) subtree — convert to container-local CSS px.
+      const ox = (parentRect.left - containerRect.left) / z;
+      const oy = (parentRect.top - containerRect.top) / z;
+      const transformed = rects.map((r) => ({
+        ...r,
+        x: ox + r.x / z,
+        y: oy + r.y / z,
+        width: r.width / z,
+        height: r.height / z,
+        centerX: ox + r.centerX / z,
+        centerY: oy + r.centerY / z,
+      }));
+
+      setGapRects(transformed);
     };
-    
+
     measure();
-    
-    // Re-measure on resize
+
     const observer = new ResizeObserver(measure);
     observer.observe(parentEl);
-    
+
     return () => observer.disconnect();
-  }, [selectedNodeId, selectedNode, isLayoutContainer, containerRef, tree]);
+  }, [selectedNodeId, selectedNode, isLayoutContainer, containerRef, tree, zoom]);
   
   // Measure padding when selection changes
   React.useEffect(() => {
@@ -132,36 +158,40 @@ export function LayoutHandlesOverlay({
       setPaddingPositions([]);
       return;
     }
-    
+
     const container = containerRef.current;
-    const nodeEl = container.querySelector<HTMLElement>(`[data-node-id="${selectedNodeId}"]`);
+    const nodeEl = container.querySelector<HTMLElement>(
+      `[data-node-id="${selectedNodeId}"]`
+    );
     if (!nodeEl) {
       setPaddingPositions([]);
       return;
     }
-    
+
+    const z = zoom > 0 ? zoom : 1;
+
     const measure = () => {
       const nodeRect = nodeEl.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
       const relativeRect = {
-        x: nodeRect.left - containerRect.left,
-        y: nodeRect.top - containerRect.top,
-        width: nodeRect.width,
-        height: nodeRect.height,
+        x: (nodeRect.left - containerRect.left) / z,
+        y: (nodeRect.top - containerRect.top) / z,
+        width: nodeRect.width / z,
+        height: nodeRect.height / z,
       };
-      
+
       const padding = selectedNode?.style.padding || {};
       const positions = calculatePaddingPositions(relativeRect, padding);
       setPaddingPositions(positions);
     };
-    
+
     measure();
-    
+
     const observer = new ResizeObserver(measure);
     observer.observe(nodeEl);
-    
+
     return () => observer.disconnect();
-  }, [selectedNodeId, selectedNode, containerRef]);
+  }, [selectedNodeId, selectedNode, containerRef, zoom]);
   
   const handleGapDragStart = React.useCallback((gapIndex: number, pointerEvent: React.PointerEvent) => {
     const gapRect = gapRects[gapIndex];
@@ -186,8 +216,8 @@ export function LayoutHandlesOverlay({
     if (!dragState.isDragging || dragState.gapIndex === null || !selectedNode) return;
     
     const direction = selectedNode.style.flexDirection === "column" ? "column" : "row";
-    const deltaX = (e.clientX - dragState.pointerX) / zoom;
-    const deltaY = (e.clientY - dragState.pointerY) / zoom;
+    const deltaX = (e.clientX - dragState.pointerX) / (zoom > 0 ? zoom : 1);
+    const deltaY = (e.clientY - dragState.pointerY) / (zoom > 0 ? zoom : 1);
     const deltaPixels = direction === "row" ? deltaX : deltaY;
     
     // Check shift key
@@ -199,9 +229,11 @@ export function LayoutHandlesOverlay({
       0
     );
     
-    setDragState(prev => ({
+    setDragState((prev) => ({
       ...prev,
       currentValue: newValue,
+      pointerX: e.clientX,
+      pointerY: e.clientY,
     }));
   }, [dragState, selectedNode, zoom]);
   
@@ -267,9 +299,11 @@ export function LayoutHandlesOverlay({
     
     const newValue = constrainValue(paddingDragState.startValue + snappedDelta, 0);
     
-    setPaddingDragState(prev => ({
+    setPaddingDragState((prev) => ({
       ...prev,
       currentValue: newValue,
+      pointerX: e.clientX,
+      pointerY: e.clientY,
       modifiers: { ...prev.modifiers, shift: isShift },
     }));
   }, [paddingDragState, selectedNode, zoom]);
@@ -331,7 +365,9 @@ export function LayoutHandlesOverlay({
   const showGapHandles = isLayoutContainer && gapRects.length > 0;
   
   // Skip during SSR and if nothing to show
-  if (!isMounted || (!showPaddingHandles && !showGapHandles)) return null;
+  if (!isMounted || (!showPaddingHandles && !showGapHandles)) {
+    return null;
+  }
   
   const direction = selectedNode?.style.flexDirection === "column" ? "column" : "row";
   
@@ -348,24 +384,51 @@ export function LayoutHandlesOverlay({
       }}
     >
       {/* Gap handles */}
-      {showGapHandles && gapRects.map((gapRect, index) => (
-        <GapHandle
-          key={`gap-${index}`}
-          gapRect={gapRect}
-          currentValue={selectedNode!.style.gap ?? 0}
-          direction={direction}
-          zoom={zoom}
-          isHovered={hoveredGapIndex === index}
-          isDragging={dragState.isDragging && dragState.gapIndex === index}
-          dragValue={dragState.currentValue}
-          onHover={(hovered) => setHoveredGapIndex(hovered ? index : null)}
-          onDragStart={(e) => handleGapDragStart(index, e)}
-          onDragMove={handleGapDragMove}
-          onDragEnd={handleGapDragEnd}
-        />
-      ))}
-      
-      {/* Measurement label at pointer position during gap drag */}
+      {showGapHandles &&
+        gapRects.map((gapRect, index) => (
+          <GapHandle
+            key={`gap-${index}`}
+            gapRect={gapRect}
+            currentValue={selectedNode!.style.gap ?? 0}
+            direction={direction}
+            zoom={zoom}
+            isHovered={hoveredGapIndex === index}
+            isDragging={dragState.isDragging && dragState.gapIndex === index}
+            dragValue={dragState.currentValue}
+            onHover={(hovered) => setHoveredGapIndex(hovered ? index : null)}
+            onDragStart={(e) => handleGapDragStart(index, e)}
+            onDragMove={handleGapDragMove}
+            onDragEnd={handleGapDragEnd}
+          />
+        ))}
+
+      {/* Padding handles */}
+      {showPaddingHandles &&
+        paddingPositions.map((position) => (
+          <PaddingHandle
+            key={`padding-${position.side}`}
+            position={position}
+            zoom={zoom}
+            isHovered={hoveredPaddingSide === position.side}
+            isDragging={
+              paddingDragState.isDragging &&
+              paddingDragState.side === position.side
+            }
+            dragValue={
+              paddingDragState.side === position.side
+                ? paddingDragState.currentValue
+                : undefined
+            }
+            onHover={(hovered) =>
+              setHoveredPaddingSide(hovered ? position.side : null)
+            }
+            onDragStart={(e) => handlePaddingDragStart(position.side, e)}
+            onDragMove={handlePaddingDragMove}
+            onDragEnd={handlePaddingDragEnd}
+          />
+        ))}
+
+      {/* Measurement labels: fixed positioning, outside pointer-capture layer */}
       {dragState.isDragging && (
         <MeasurementLabel
           value={dragState.currentValue}
@@ -375,24 +438,7 @@ export function LayoutHandlesOverlay({
           label="Gap"
         />
       )}
-      
-      {/* Padding handles */}
-      {showPaddingHandles && paddingPositions.map((position) => (
-        <PaddingHandle
-          key={`padding-${position.side}`}
-          position={position}
-          zoom={zoom}
-          isHovered={hoveredPaddingSide === position.side}
-          isDragging={paddingDragState.isDragging && paddingDragState.side === position.side}
-          dragValue={paddingDragState.side === position.side ? paddingDragState.currentValue : undefined}
-          onHover={(hovered) => setHoveredPaddingSide(hovered ? position.side : null)}
-          onDragStart={(e) => handlePaddingDragStart(position.side, e)}
-          onDragMove={handlePaddingDragMove}
-          onDragEnd={handlePaddingDragEnd}
-        />
-      ))}
 
-      {/* Measurement label for padding drag */}
       {paddingDragState.isDragging && (
         <MeasurementLabel
           value={paddingDragState.currentValue}

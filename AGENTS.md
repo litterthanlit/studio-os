@@ -291,7 +291,7 @@ These are patterns discovered during the project. Do not re-learn them.
 
 ### Current project state (update this section each major session)
 
-**Last updated:** 2026-04-07 (post-Track 6)
+**Last updated:** 2026-04-07 (post-Track 8 fix)
 
 - **Track 4 (Direct Nested Selection):** COMPLETE. Framer-like selection cycling: Cmd+Click cycles depth, Cmd+Shift+Click cycles siblings, contextual hover preview, layers auto-expand to deep selections, keyboard shortcuts (Cmd+arrows, Shift+Escape), context menu selection nav. 9 commits, +1,277 lines.
 - **V5 Alpha (harness engine):** Shipped. Benchmark delta +4.
@@ -322,6 +322,9 @@ These are patterns discovered during the project. Do not re-learn them.
 - **Debut master plan:** Gated execution order: Track 2 (DONE) → Stabilization (DONE) → Speed diagnostic (DONE) → Generation Animation (DONE) → Training Canvas (DONE) → UI Cleanup (DONE) → Warm-Dark + Persistence Fix (DONE) → Final regression (DONE) → System-aware theme (DONE) → **DEBUT SHIPPED.**
 - **Track 5 (Richer Text Editing):** COMPLETE. Hover affordances ("Click to edit"/"Double-click to edit"), single-click entry on selected text, custom selection color (#D1E4FC), triple-click select-all, Cmd+A in edit mode, Cmd+B/I/U formatting shortcuts, inline floating toolbar (Bold/Italic/Font Size), 15ms animation, dismiss on Escape/click-away/edit-mode. 4 files, ~450 lines.
 - **Track 6 (Reparenting / Tree Surgery):** COMPLETE. Drag-to-reparent in layers panel: cross-parent moves, three-zone hit-testing (top/middle/bottom), parent highlight, invalid target indicator (red ×), auto-scroll, Escape cancel. 4 commits, +483 lines. 25/25 proof gate assertions pass.
+- **Track 7 (Advanced Multi-Edit / Shared Properties):** COMPLETE. Property comparison, batch style updates, mixed-value UI, inspector single path for multi-select. Proof gate 25/25 passed.
+- **Track 8 (Direct Layout Manipulation):** CODE COMPLETE. Gap + padding handles on V6 canvas; **fix shipped** for invisible handles — container-local coords with `zoom` divide (same as `ResizeOverlay`), flex children resolved in tree order. **Manual QA** per `docs/superpowers/plans/2026-04-07-track8-implementation-plan.md` still required.
+- **Editor maturity docs:** Spine + backlog — `docs/superpowers/specs/2026-04-04-editor-maturity-tracks.md`, `docs/superpowers/plans/editor-maturity-backlog.md`. **Next spine:** Track 9 plan at `docs/superpowers/plans/2026-04-07-track9-component-maturity-plan.md`.
 - **Consistency gate:** PASSED (3/3 BS-01 runs with stylistic range).
 - **Benchmark:** BLOCKED. Needs API credits to run further sets.
 

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { MeasurementLabel } from "./MeasurementLabel";
 import type { GapRect } from "@/app/canvas-v1/lib/layout-handle-math";
 
 export type GapHandleProps = {
@@ -20,12 +19,9 @@ export type GapHandleProps = {
 
 export function GapHandle({
   gapRect,
-  currentValue,
   direction,
-  zoom,
   isHovered,
   isDragging,
-  dragValue,
   onHover,
   onDragStart,
   onDragMove,
@@ -39,7 +35,7 @@ export function GapHandle({
   const size = isDragging ? 8 : isHovered ? 6 : 4;
   const opacity = isDragging ? 1 : isHovered ? 1 : 0.3;
   const color = isHovered || isDragging ? "#4B57DB" : "#A0A0A0";
-
+  
   return (
     <>
       {/* Hit area - extended for easier targeting */}
@@ -52,6 +48,7 @@ export function GapHandle({
           height: gapRect.height + 24,
           cursor: direction === "row" ? "ew-resize" : "ns-resize",
           zIndex: 20,
+          pointerEvents: "auto",
         }}
         onMouseEnter={() => onHover(true)}
         onMouseLeave={() => onHover(false)}
@@ -77,17 +74,6 @@ export function GapHandle({
           transform: isHovered ? "scale(1.2)" : undefined,
         }}
       />
-
-      {/* Measurement label during drag */}
-      {isDragging && (
-        <MeasurementLabel
-          value={dragValue ?? currentValue}
-          x={gapRect.centerX}
-          y={gapRect.centerY}
-          visible={true}
-          label="Gap"
-        />
-      )}
     </>
   );
 }

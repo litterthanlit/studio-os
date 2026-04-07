@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  EDITOR_THEME_STORAGE_KEY,
   readEditorThemePreference,
   writeEditorThemePreference,
   resolveEditorEffectiveTheme,
@@ -27,6 +28,19 @@ export function useEditorTheme() {
     window.addEventListener("studio-os:editor-theme-preference", onPref);
     return () => window.removeEventListener("studio-os:editor-theme-preference", onPref);
   }, []);
+
+  /** Other tabs / windows: localStorage changes do not fire `storage` in the writer's tab. */
+  React.useEffect(() => {
+    if (!hydrated) return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== EDITOR_THEME_STORAGE_KEY || e.storageArea !== localStorage) return;
+      if (e.newValue === "light" || e.newValue === "dark" || e.newValue === "system") {
+        setPreferenceState(e.newValue);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [hydrated]);
 
   React.useEffect(() => {
     if (!hydrated) return;

@@ -8,6 +8,8 @@ const ROWS: { keys: string; action: string }[] = [
   { keys: "V / H / M / K", action: "Select / Hand / Marquee / Prompt tools" },
   { keys: "Space + drag", action: "Pan canvas" },
   { keys: "⌘ 0 / ⌘ 1", action: "Zoom to fit / selection" },
+  { keys: "⇧ + Click", action: "Add to selection (multi-select)" },
+  { keys: "Marquee (M)", action: "Drag to box-select; ⇧ adds to selection" },
   { keys: "⌘ + Click", action: "Cycle nested selection depth" },
   { keys: "⌘ ⇧ + Click", action: "Cycle siblings at depth" },
   { keys: "⌘ [ / ]", action: "Previous / next sibling" },
@@ -16,6 +18,9 @@ const ROWS: { keys: string; action: string }[] = [
   { keys: "⌘ G / ⌘ ⇧ G", action: "Group / Ungroup" },
   { keys: "⌘ A", action: "Select all (canvas) / all text in edit mode" },
   { keys: "L / I", action: "Toggle Layers / Inspector" },
+  { keys: "Layers tree", action: "Drag a row to reparent (top / middle / bottom zones)" },
+  { keys: "Selection", action: "Resize handles; flex frames show gap & padding handles" },
+  { keys: "Inspector", action: "Design · CSS · Export — Copy HTML on Export tab" },
   { keys: "⌘ Z / ⌘ ⇧ Z", action: "Undo / Redo" },
 ];
 

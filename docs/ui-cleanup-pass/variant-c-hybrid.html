@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio OS — Variant C: Hybrid</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.min.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 1440px;
+      height: 900px;
+      overflow: hidden;
+      font-family: 'Geist Sans', -apple-system, sans-serif;
+      background: #FAFAF8;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ─── EDITOR SHELL ──────────────────────────────────── */
+    .editor {
+      display: flex;
+      width: 1440px;
+      height: 900px;
+      overflow: hidden;
+    }
+
+    /* ─── MINI RAIL ─────────────────────────────────────── */
+    .mini-rail {
+      width: 44px;
+      flex-shrink: 0;
+      height: 900px;
+      background: #FAFAF8;
+      border-right: 1px solid #EFEFEC;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+
+    .rail-lettermark {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1A1A1A;
+      line-height: 1;
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .rail-nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      flex: 1;
+    }
+
+    .rail-icon-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 120ms ease;
+      color: #C0C0C0;
+    }
+
+    .rail-icon-btn:hover {
+      color: #6B6B6B;
+      background: rgba(0,0,0,0.04);
+    }
+
+    .rail-icon-btn.active {
+      color: #1E5DF2;
+    }
+
+    .rail-icon-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.5;
+    }
+
+    .rail-bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* ─── LAYERS PANEL ──────────────────────────────────── */
+    .layers-panel {
+      width: 200px;
+      flex-shrink: 0;
+      height: 900px;
+      background: #FFFFFF;
+      border-right: 1px solid #EFEFEC;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .layers-header {
+      padding: 16px 16px 12px;
+      flex-shrink: 0;
+    }
+
+    .layers-header-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+    }
+
+    .layers-tree {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .layers-tree::-webkit-scrollbar {
+      width: 3px;
+    }
+    .layers-tree::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .layers-tree::-webkit-scrollbar-thumb {
+      background: #E5E5E0;
+      border-radius: 2px;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      padding-left: 16px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: background 80ms ease;
+    }
+
+    .tree-item:hover {
+      background: #F8F8F6;
+    }
+
+    .tree-item.selected {
+      background: #F0F4FF;
+    }
+
+    .tree-item.selected::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #1E5DF2;
+    }
+
+    .tree-item.selected .tree-label {
+      color: #1A1A1A;
+    }
+
+    .tree-toggle {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #A0A0A0;
+      flex-shrink: 0;
+      font-size: 9px;
+    }
+
+    .tree-toggle svg {
+      width: 10px;
+      height: 10px;
+      stroke-width: 2;
+    }
+
+    .tree-icon {
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #A0A0A0;
+      flex-shrink: 0;
+      margin-left: 0px;
+    }
+
+    .tree-icon svg {
+      width: 12px;
+      height: 12px;
+      stroke-width: 1.5;
+    }
+
+    .tree-label {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 12px;
+      color: #6B6B6B;
+      margin-left: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ─── CANVAS AREA ───────────────────────────────────── */
+    .canvas-area {
+      flex: 1;
+      height: 900px;
+      background: #FAFAF8;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .canvas-content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Dot grid */
+    .canvas-content::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(0,0,0,0.035) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+    }
+
+    .artboard-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) translateY(-16px);
+    }
+
+    .artboard-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      color: #A0A0A0;
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    .artboard {
+      width: 780px;
+      height: 480px;
+      background: #FFFFFF;
+      border: 1px solid #E5E5E0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Corner handles */
+    .artboard::before,
+    .artboard::after {
+      content: '';
+      position: absolute;
+    }
+
+    .handle {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: #1E5DF2;
+      border: 1px solid #FFFFFF;
+      z-index: 10;
+    }
+
+    .handle-tl { top: -3px; left: -3px; }
+    .handle-tr { top: -3px; right: -3px; }
+    .handle-bl { bottom: -3px; left: -3px; }
+    .handle-br { bottom: -3px; right: -3px; }
+
+    /* Canvas selection border */
+    .artboard-selected {
+      outline: 1px solid #1E5DF2;
+    }
+
+    /* ─── ARTBOARD CONTENT ──────────────────────────────── */
+    .artboard-inner {
+      padding: 56px 64px 48px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .artboard-hero {
+      margin-bottom: 40px;
+    }
+
+    .artboard-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #1E5DF2;
+      margin-bottom: 16px;
+    }
+
+    .artboard-tag-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #1E5DF2;
+    }
+
+    .artboard-heading {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #1A1A1A;
+      line-height: 1.18;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+      max-width: 480px;
+    }
+
+    .artboard-sub {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 14px;
+      color: #6B6B6B;
+      line-height: 1.55;
+      max-width: 400px;
+      margin-bottom: 24px;
+    }
+
+    .artboard-cta-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 20px;
+      background: #1E5DF2;
+      color: #FFFFFF;
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 16px;
+      background: transparent;
+      color: #6B6B6B;
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      border-radius: 4px;
+      border: 1px solid #E5E5E0;
+      cursor: pointer;
+    }
+
+    .artboard-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: auto;
+    }
+
+    .artboard-card {
+      background: #FAFAF8;
+      border: 1px solid #EFEFEC;
+      border-radius: 4px;
+      padding: 20px;
+    }
+
+    .card-icon-block {
+      width: 32px;
+      height: 32px;
+      background: #F0F4FF;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      color: #1E5DF2;
+    }
+
+    .card-icon-block svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.5;
+    }
+
+    .card-title {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1A1A1A;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+
+    .card-body {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 12px;
+      color: #A0A0A0;
+      line-height: 1.5;
+    }
+
+    /* ─── BOTTOM BAR ────────────────────────────────────── */
+    .bottom-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 32px;
+      background: #FFFFFF;
+      border: 1px solid #EFEFEC;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 0;
+      white-space: nowrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .bottom-bar-item {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      color: #6B6B6B;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      padding: 0 8px;
+      height: 100%;
+      transition: color 100ms ease;
+    }
+
+    .bottom-bar-item:hover {
+      color: #1A1A1A;
+    }
+
+    .bottom-bar-divider {
+      width: 1px;
+      height: 16px;
+      background: #EFEFEC;
+      flex-shrink: 0;
+    }
+
+    .bottom-bar-icon-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #A0A0A0;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: color 100ms ease;
+    }
+
+    .bottom-bar-icon-btn:hover {
+      color: #1A1A1A;
+    }
+
+    .bottom-bar-icon-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 1.5;
+    }
+
+    .bottom-bar-chevron {
+      width: 10px;
+      height: 10px;
+      stroke-width: 2;
+    }
+
+    /* ─── INSPECTOR PANEL ───────────────────────────────── */
+    .inspector-panel {
+      width: 288px;
+      flex-shrink: 0;
+      height: 900px;
+      background: #FFFFFF;
+      border-left: 1px solid #EFEFEC;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Tab bar */
+    .inspector-tabs {
+      height: 40px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid #EFEFEC;
+      padding: 0 16px;
+      gap: 0;
+    }
+
+    .inspector-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+      cursor: pointer;
+      position: relative;
+      transition: color 100ms ease;
+      border: none;
+      background: none;
+    }
+
+    .inspector-tab:hover {
+      color: #6B6B6B;
+    }
+
+    .inspector-tab.active {
+      color: #1A1A1A;
+      font-weight: 600;
+    }
+
+    .inspector-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #1E5DF2;
+    }
+
+    /* Tab content panels */
+    .tab-panel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .tab-panel.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-panel::-webkit-scrollbar {
+      width: 3px;
+    }
+    .tab-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .tab-panel::-webkit-scrollbar-thumb {
+      background: #E5E5E0;
+      border-radius: 2px;
+    }
+
+    /* Design tab */
+    .design-tab-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Section header — embedded rule */
+    .section-rule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .section-rule-line {
+      height: 1px;
+      background: #EFEFEC;
+      flex-shrink: 0;
+      width: 12px;
+    }
+
+    .section-rule-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .section-rule-line-end {
+      height: 1px;
+      background: #EFEFEC;
+      flex: 1;
+    }
+
+    /* Inspector rows */
+    .inspector-row {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      gap: 8px;
+    }
+
+    .field-label {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 11px;
+      color: #6B6B6B;
+      flex-shrink: 0;
+    }
+
+    .field-label-mono {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      color: #A0A0A0;
+      width: 16px;
+      flex-shrink: 0;
+    }
+
+    .field-value {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #1A1A1A;
+      text-align: right;
+    }
+
+    .field-unit {
+      font-family: 'Geist Mono', monospace;
+      font-size: 9px;
+      color: #A0A0A0;
+    }
+
+    .field-spacer {
+      flex: 1;
+    }
+
+    /* Segmented control */
+    .segmented {
+      display: flex;
+      align-items: center;
+      background: #F5F5F0;
+      border-radius: 2px;
+      padding: 2px;
+      height: 22px;
+      gap: 1px;
+    }
+
+    .seg-option {
+      height: 18px;
+      padding: 0 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      color: #A0A0A0;
+      border-radius: 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 100ms ease, color 100ms ease;
+    }
+
+    .seg-option:hover {
+      color: #6B6B6B;
+    }
+
+    .seg-option.active {
+      background: #FFFFFF;
+      color: #1A1A1A;
+      font-weight: 500;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+
+    /* Input fields */
+    .field-input {
+      background: #F8F8F6;
+      border: 1px solid #EFEFEC;
+      border-radius: 2px;
+      height: 24px;
+      padding: 0 6px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #1A1A1A;
+      outline: none;
+      width: 100%;
+      transition: border-color 100ms ease;
+    }
+
+    .field-input:focus {
+      border-color: #1E5DF2;
+    }
+
+    .field-select {
+      background: #F8F8F6;
+      border: 1px solid #EFEFEC;
+      border-radius: 2px;
+      height: 24px;
+      padding: 0 6px;
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 12px;
+      color: #1A1A1A;
+      outline: none;
+      width: 100%;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23A0A0A0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      padding-right: 22px;
+      transition: border-color 100ms ease;
+    }
+
+    .field-select:focus {
+      border-color: #1E5DF2;
+    }
+
+    .field-half {
+      flex: 1;
+    }
+
+    /* Spacing diagram */
+    .spacing-diagram {
+      width: 100%;
+      height: 120px;
+      position: relative;
+      margin: 4px 0;
+    }
+
+    .spacing-outer {
+      position: absolute;
+      inset: 0;
+      border: 1px dashed #D0D0D0;
+      border-radius: 2px;
+    }
+
+    .spacing-outer-label {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 9px;
+      color: #A0A0A0;
+    }
+
+    .spacing-inner {
+      position: absolute;
+      inset: 20px;
+      border: 1px dashed #D0D0D0;
+      border-radius: 2px;
+    }
+
+    .spacing-inner-label {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-family: 'Geist Mono', monospace;
+      font-size: 9px;
+      color: #A0A0A0;
+    }
+
+    .spacing-center {
+      position: absolute;
+      inset: 36px;
+      background: #F0F0F0;
+      border-radius: 2px;
+    }
+
+    .spacing-val {
+      position: absolute;
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      color: #6B6B6B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Margin values (outer box edges) */
+    .mv-top    { top: 5px; left: 50%; transform: translateX(-50%); }
+    .mv-right  { right: 5px; top: 50%; transform: translateY(-50%); }
+    .mv-bottom { bottom: 5px; left: 50%; transform: translateX(-50%); }
+    .mv-left   { left: 5px; top: 50%; transform: translateY(-50%); }
+
+    /* Padding values (between inner boxes) */
+    .pv-top    { top: 23px; left: 50%; transform: translateX(-50%); }
+    .pv-right  { right: 23px; top: 50%; transform: translateY(-50%); }
+    .pv-bottom { bottom: 23px; left: 50%; transform: translateX(-50%); }
+    .pv-left   { left: 23px; top: 50%; transform: translateY(-50%); }
+
+    /* Alignment buttons */
+    .align-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .align-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+      cursor: pointer;
+      color: #A0A0A0;
+      transition: background 100ms ease, color 100ms ease;
+    }
+
+    .align-btn:hover {
+      background: #F5F5F0;
+      color: #6B6B6B;
+    }
+
+    .align-btn.active {
+      background: #EEF3FE;
+      color: #1E5DF2;
+    }
+
+    .align-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 1.5;
+    }
+
+    /* Fill swatch row */
+    .fill-row {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      gap: 8px;
+    }
+
+    .fill-swatch {
+      width: 14px;
+      height: 14px;
+      border: 1px solid #E5E5E0;
+      border-radius: 2px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .fill-hex {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #1A1A1A;
+    }
+
+    .fill-opacity {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      color: #A0A0A0;
+    }
+
+    /* Appearance rows */
+    .corner-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .corner-btn {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #EFEFEC;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 9px;
+      color: #A0A0A0;
+      transition: border-color 100ms ease, background 100ms ease;
+    }
+
+    .corner-btn.active {
+      background: #1E5DF2;
+      border-color: #1E5DF2;
+      color: #FFFFFF;
+    }
+
+    .add-btn {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #EFEFEC;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #A0A0A0;
+      transition: border-color 100ms ease, color 100ms ease;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .add-btn:hover {
+      border-color: #C0C0C0;
+      color: #6B6B6B;
+    }
+
+    /* Placeholder tabs */
+    .tab-placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #C0C0C0;
+    }
+
+    .tab-placeholder svg {
+      width: 24px;
+      height: 24px;
+      stroke-width: 1;
+      opacity: 0.5;
+    }
+
+    .tab-placeholder-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #C0C0C0;
+    }
+
+    /* ─── PROMPT TAB ────────────────────────────────────── */
+    .prompt-tab-wrap {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .prompt-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .prompt-scroll-area::-webkit-scrollbar {
+      width: 3px;
+    }
+    .prompt-scroll-area::-webkit-scrollbar-thumb {
+      background: #E5E5E0;
+      border-radius: 2px;
+    }
+
+    .taste-card {
+      background: #F8F8F6;
+      border: 1px solid #EFEFEC;
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .taste-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .taste-badge {
+      display: inline-flex;
+      align-items: center;
+      height: 18px;
+      padding: 0 6px;
+      background: #EEF3FE;
+      color: #1E5DF2;
+      font-family: 'Geist Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+
+    .taste-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 24px;
+    }
+
+    .taste-key {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+    }
+
+    .taste-val {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 11px;
+      color: #6B6B6B;
+    }
+
+    .ref-strip {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ref-thumb {
+      width: 48px;
+      height: 32px;
+      background: #F0F0F0;
+      border-radius: 2px;
+      border: 1px solid #EFEFEC;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ref-thumb::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #E8E8E4 25%, #F0F0F0 50%, #E8E8E4 75%);
+    }
+
+    .ref-strip-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+      margin-bottom: 6px;
+    }
+
+    .gen-history-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #A0A0A0;
+      margin-bottom: 6px;
+    }
+
+    .gen-history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 32px;
+      border-bottom: 1px solid #F5F5F0;
+    }
+
+    .gen-history-item:last-child {
+      border-bottom: none;
+    }
+
+    .gen-timestamp {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      color: #A0A0A0;
+    }
+
+    .gen-restore {
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 11px;
+      color: #1E5DF2;
+      cursor: pointer;
+    }
+
+    .gen-restore:hover {
+      text-decoration: underline;
+    }
+
+    .prompt-fixed-area {
+      flex-shrink: 0;
+      padding: 12px 16px 16px;
+      border-top: 1px solid #EFEFEC;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #FFFFFF;
+    }
+
+    .prompt-context-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .prompt-badge {
+      display: inline-flex;
+      align-items: center;
+      height: 18px;
+      padding: 0 6px;
+      background: #F5F5F0;
+      color: #6B6B6B;
+      font-family: 'Geist Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      border-radius: 2px;
+    }
+
+    .prompt-context-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      color: #A0A0A0;
+    }
+
+    .prompt-textarea {
+      width: 100%;
+      height: 72px;
+      background: #F8F8F6;
+      border: 1px solid #EFEFEC;
+      border-radius: 2px;
+      padding: 8px 10px;
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 12px;
+      color: #1A1A1A;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      transition: border-color 100ms ease;
+    }
+
+    .prompt-textarea::placeholder {
+      color: #C0C0C0;
+    }
+
+    .prompt-textarea:focus {
+      border-color: #1E5DF2;
+    }
+
+    .generate-btn {
+      width: 100%;
+      height: 32px;
+      background: #1E5DF2;
+      color: #FFFFFF;
+      font-family: 'Geist Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 2px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 100ms ease;
+    }
+
+    .generate-btn:hover {
+      background: #1A4FD6;
+    }
+
+    .generate-btn svg {
+      width: 13px;
+      height: 13px;
+      stroke-width: 2;
+    }
+
+    /* ─── UTILITY ───────────────────────────────────────── */
+    .none-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px;
+      color: #A0A0A0;
+    }
+
+    .section-block {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+<div class="editor">
+
+  <!-- ═══════════════════════════════════════════
+       MINI RAIL
+  ════════════════════════════════════════════ -->
+  <div class="mini-rail">
+    <div class="rail-lettermark">S</div>
+
+    <div class="rail-nav">
+      <div class="rail-icon-btn active" data-rail="layers" title="Layers">
+        <i data-lucide="layers"></i>
+      </div>
+      <div class="rail-icon-btn" data-rail="inspector" title="Inspector">
+        <i data-lucide="sliders-horizontal"></i>
+      </div>
+      <div class="rail-icon-btn" data-rail="components" title="Components">
+        <i data-lucide="layout-grid"></i>
+      </div>
+    </div>
+
+    <div class="rail-bottom">
+      <div class="rail-icon-btn" title="Help">
+        <i data-lucide="circle-help"></i>
+      </div>
+      <div class="rail-icon-btn" title="Settings">
+        <i data-lucide="settings"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       LAYERS PANEL
+  ════════════════════════════════════════════ -->
+  <div class="layers-panel">
+    <div class="layers-header">
+      <span class="layers-header-label">Layers</span>
+    </div>
+
+    <div class="layers-tree">
+
+      <!-- Page -->
+      <div class="tree-item" data-layer="page" style="padding-left:16px;">
+        <div class="tree-toggle"><i data-lucide="chevron-down"></i></div>
+        <div class="tree-icon"><i data-lucide="file"></i></div>
+        <span class="tree-label">Page</span>
+      </div>
+
+      <!-- Hero Section -->
+      <div class="tree-item" data-layer="hero" style="padding-left:30px;">
+        <div class="tree-toggle"><i data-lucide="chevron-down"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">Hero Section</span>
+      </div>
+
+      <!-- Heading -->
+      <div class="tree-item" data-layer="heading" style="padding-left:44px;">
+        <div class="tree-toggle" style="visibility:hidden;"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="type"></i></div>
+        <span class="tree-label">Heading</span>
+      </div>
+
+      <!-- Subheading — SELECTED -->
+      <div class="tree-item selected" data-layer="subheading" style="padding-left:44px;">
+        <div class="tree-toggle" style="visibility:hidden;"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="type"></i></div>
+        <span class="tree-label">Subheading</span>
+      </div>
+
+      <!-- CTA Button -->
+      <div class="tree-item" data-layer="cta" style="padding-left:44px;">
+        <div class="tree-toggle" style="visibility:hidden;"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">CTA Button</span>
+      </div>
+
+      <!-- Features -->
+      <div class="tree-item" data-layer="features" style="padding-left:30px;">
+        <div class="tree-toggle"><i data-lucide="chevron-down"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">Features</span>
+      </div>
+
+      <!-- Card 1 -->
+      <div class="tree-item" data-layer="card1" style="padding-left:44px;">
+        <div class="tree-toggle"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">Card 1</span>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="tree-item" data-layer="card2" style="padding-left:44px;">
+        <div class="tree-toggle"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">Card 2</span>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="tree-item" data-layer="card3" style="padding-left:44px;">
+        <div class="tree-toggle"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">Card 3</span>
+      </div>
+
+      <!-- Footer -->
+      <div class="tree-item" data-layer="footer" style="padding-left:30px;">
+        <div class="tree-toggle"><i data-lucide="chevron-right"></i></div>
+        <div class="tree-icon"><i data-lucide="square"></i></div>
+        <span class="tree-label">Footer</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       CANVAS AREA
+  ════════════════════════════════════════════ -->
+  <div class="canvas-area">
+    <div class="canvas-content">
+
+      <div class="artboard-wrapper">
+        <div class="artboard-label">Homepage — 1440×900</div>
+
+        <div class="artboard artboard-selected" id="artboard">
+          <!-- Corner handles -->
+          <div class="handle handle-tl"></div>
+          <div class="handle handle-tr"></div>
+          <div class="handle handle-bl"></div>
+          <div class="handle handle-br"></div>
+
+          <!-- Artboard inner content -->
+          <div class="artboard-inner">
+
+            <!-- Hero -->
+            <div class="artboard-hero">
+              <div class="artboard-tag">
+                <div class="artboard-tag-dot"></div>
+                New
+              </div>
+              <div class="artboard-heading">Design with AI,<br>faster than ever</div>
+              <div class="artboard-sub">Studio OS combines intelligent generation with precise control. Build production-ready layouts in minutes.</div>
+              <div class="artboard-cta-row">
+                <div class="btn-primary">
+                  Get started free
+                </div>
+                <div class="btn-ghost">
+                  View demo
+                </div>
+              </div>
+            </div>
+
+            <!-- Feature cards -->
+            <div class="artboard-cards">
+              <div class="artboard-card">
+                <div class="card-icon-block">
+                  <i data-lucide="zap"></i>
+                </div>
+                <div class="card-title">AI Generation</div>
+                <div class="card-body">Prompt-driven layout creation with taste-aware references.</div>
+              </div>
+              <div class="artboard-card">
+                <div class="card-icon-block">
+                  <i data-lucide="layers"></i>
+                </div>
+                <div class="card-title">Smart Layers</div>
+                <div class="card-body">Structured hierarchy with auto-layout and sizing semantics.</div>
+              </div>
+              <div class="artboard-card">
+                <div class="card-icon-block">
+                  <i data-lucide="sliders-horizontal"></i>
+                </div>
+                <div class="card-title">Precision Inspector</div>
+                <div class="card-body">Dense, scannable controls with an 8px baseline grid.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <div class="bottom-bar-item">100%</div>
+      <div class="bottom-bar-divider"></div>
+      <div class="bottom-bar-item">
+        Auto
+        <svg class="bottom-bar-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="bottom-bar-divider"></div>
+      <div class="bottom-bar-icon-btn" title="Undo">
+        <i data-lucide="undo-2"></i>
+      </div>
+      <div class="bottom-bar-icon-btn" title="Redo">
+        <i data-lucide="redo-2"></i>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       INSPECTOR PANEL
+  ════════════════════════════════════════════ -->
+  <div class="inspector-panel">
+
+    <!-- Tab bar -->
+    <div class="inspector-tabs">
+      <button class="inspector-tab active" data-tab="design">Design</button>
+      <button class="inspector-tab" data-tab="css">CSS</button>
+      <button class="inspector-tab" data-tab="export">Export</button>
+      <button class="inspector-tab" data-tab="prompt">Prompt</button>
+    </div>
+
+    <!-- ── DESIGN TAB ── -->
+    <div class="tab-panel active" id="tab-design">
+      <div class="design-tab-content">
+
+        <!-- SIZE -->
+        <div class="section-block">
+          <div class="section-rule">
+            <div class="section-rule-line"></div>
+            <span class="section-rule-label">Size</span>
+            <div class="section-rule-line-end"></div>
+          </div>
+
+          <!-- W row -->
+          <div class="inspector-row">
+            <span class="field-label-mono">W</span>
+            <div class="segmented" style="flex:1;">
+              <div class="seg-option active">Fixed</div>
+              <div class="seg-option">Hug</div>
+              <div class="seg-option">Fill</div>
+            </div>
+            <span class="field-value">—</span>
+          </div>
+
+          <!-- H row -->
+          <div class="inspector-row">
+            <span class="field-label-mono">H</span>
+            <div class="segmented" style="flex:1;">
+              <div class="seg-option">Fixed</div>
+              <div class="seg-option active">Hug</div>
+              <div class="seg-option">Fill</div>
+            </div>
+            <span class="field-value">—</span>
+          </div>
+        </div>
+
+        <!-- SPACING -->
+        <div class="section-block">
+          <div class="section-rule">
+            <div class="section-rule-line"></div>
+            <span class="section-rule-label">Spacing</span>
+            <div class="section-rule-line-end"></div>
+          </div>
+
+          <div class="spacing-diagram">
+            <!-- Outer (margin) -->
+            <div class="spacing-outer">
+              <span class="spacing-outer-label">Margin</span>
+            </div>
+            <!-- Margin values -->
+            <span class="spacing-val mv-top">0</span>
+            <span class="spacing-val mv-right">0</span>
+            <span class="spacing-val mv-bottom">0</span>
+            <span class="spacing-val mv-left">0</span>
+            <!-- Inner (padding) -->
+            <div class="spacing-inner">
+              <span class="spacing-inner-label">Padding</span>
+            </div>
+            <!-- Padding values -->
+            <span class="spacing-val pv-top">12</span>
+            <span class="spacing-val pv-right">20</span>
+            <span class="spacing-val pv-bottom">12</span>
+            <span class="spacing-val pv-left">20</span>
+            <!-- Center -->
+            <div class="spacing-center"></div>
+          </div>
+        </div>
+
+        <!-- TYPOGRAPHY -->
+        <div class="section-block">
+          <div class="section-rule">
+            <div class="section-rule-line"></div>
+            <span class="section-rule-label">Typography</span>
+            <div class="section-rule-line-end"></div>
+          </div>
+
+          <!-- Font family -->
+          <div class="inspector-row">
+            <select class="field-select">
+              <option>Geist Sans</option>
+              <option>Geist Mono</option>
+              <option>Inter</option>
+            </select>
+          </div>
+
+          <!-- Weight + Size -->
+          <div class="inspector-row" style="gap:6px;">
+            <div class="field-half">
+              <select class="field-select">
+                <option>Medium</option>
+                <option>Regular</option>
+                <option>SemiBold</option>
+                <option>Bold</option>
+              </select>
+            </div>
+            <div class="field-half" style="display:flex;align-items:center;gap:2px;">
+              <input type="text" class="field-input" value="16" style="text-align:right;width:100%;">
+              <span class="field-unit">px</span>
+            </div>
+          </div>
+
+          <!-- Line height + Tracking -->
+          <div class="inspector-row" style="gap:6px;">
+            <div class="field-half" style="display:flex;align-items:center;gap:2px;">
+              <input type="text" class="field-input" value="1.5" style="text-align:right;">
+              <span class="field-unit" style="white-space:nowrap;">lh</span>
+            </div>
+            <div class="field-half" style="display:flex;align-items:center;gap:2px;">
+              <input type="text" class="field-input" value="-0.01" style="text-align:right;">
+              <span class="field-unit">em</span>
+            </div>
+          </div>
+
+          <!-- Alignment -->
+          <div class="inspector-row">
+            <span class="field-label" style="flex:1;">Align</span>
+            <div class="align-group">
+              <div class="align-btn active" title="Left"><i data-lucide="align-left"></i></div>
+              <div class="align-btn" title="Center"><i data-lucide="align-center"></i></div>
+              <div class="align-btn" title="Right"><i data-lucide="align-right"></i></div>
+              <div class="align-btn" title="Justify"><i data-lucide="align-justify"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FILL -->
+        <div class="section-block">
+          <div class="section-rule">
+            <div class="section-rule-line"></div>
+            <span class="section-rule-label">Fill</span>
+            <div class="section-rule-line-end"></div>
+          </div>
+
+          <!-- Background -->
+          <div class="fill-row">
+            <span class="field-label" style="flex:1;">Background</span>
+            <div class="fill-swatch" style="background:#FFFFFF;"></div>
+            <span class="fill-hex">#FFFFFF</span>
+            <span class="fill-opacity">100%</span>
+          </div>
+
+          <!-- Text color -->
+          <div class="fill-row">
+            <span class="field-label" style="flex:1;">Text</span>
+            <div class="fill-swatch" style="background:#1A1A1A;"></div>
+            <span class="fill-hex">#1A1A1A</span>
+            <span class="fill-opacity">100%</span>
+          </div>
+        </div>
+
+        <!-- APPEARANCE -->
+        <div class="section-block">
+          <div class="section-rule">
+            <div class="section-rule-line"></div>
+            <span class="section-rule-label">Appearance</span>
+            <div class="section-rule-line-end"></div>
+          </div>
+
+          <!-- Radius -->
+          <div class="inspector-row">
+            <span class="field-label" style="flex:1;">Radius</span>
+            <div class="corner-btn-group" style="margin-right:6px;">
+              <div class="corner-btn" title="Top-left">┌</div>
+              <div class="corner-btn" title="Top-right">┐</div>
+              <div class="corner-btn active" title="Bottom-left">└</div>
+              <div class="corner-btn" title="Bottom-right">┘</div>
+            </div>
+            <span class="field-value">0</span>
+          </div>
+
+          <!-- Border -->
+          <div class="inspector-row">
+            <span class="field-label" style="flex:1;">Border</span>
+            <span class="none-label" style="flex:1;text-align:right;margin-right:6px;">None</span>
+            <div class="add-btn" title="Add border">+</div>
+          </div>
+
+          <!-- Opacity -->
+          <div class="inspector-row">
+            <span class="field-label" style="flex:1;">Opacity</span>
+            <span class="field-value">100%</span>
+          </div>
+
+          <!-- Shadow -->
+          <div class="inspector-row">
+            <span class="field-label" style="flex:1;">Shadow</span>
+            <span class="none-label" style="flex:1;text-align:right;margin-right:6px;">None</span>
+            <div class="add-btn" title="Add shadow">+</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── CSS TAB ── -->
+    <div class="tab-panel" id="tab-css">
+      <div class="tab-placeholder">
+        <i data-lucide="code-2"></i>
+        <span class="tab-placeholder-label">CSS Output</span>
+      </div>
+    </div>
+
+    <!-- ── EXPORT TAB ── -->
+    <div class="tab-panel" id="tab-export">
+      <div class="tab-placeholder">
+        <i data-lucide="download"></i>
+        <span class="tab-placeholder-label">Export</span>
+      </div>
+    </div>
+
+    <!-- ── PROMPT TAB ── -->
+    <div class="tab-panel" id="tab-prompt">
+      <div class="prompt-tab-wrap">
+
+        <!-- Scrollable upper section -->
+        <div class="prompt-scroll-area">
+
+          <!-- Taste summary card -->
+          <div class="taste-card">
+            <div class="taste-card-header">
+              <span class="taste-badge">Editorial</span>
+            </div>
+            <div class="taste-row">
+              <span class="taste-key">Palette</span>
+              <span class="taste-val">Warm neutral</span>
+            </div>
+            <div class="taste-row">
+              <span class="taste-key">Font</span>
+              <span class="taste-val">Geist Sans</span>
+            </div>
+            <div class="taste-row">
+              <span class="taste-key">Density</span>
+              <span class="taste-val">Balanced</span>
+            </div>
+          </div>
+
+          <!-- Reference strip -->
+          <div>
+            <div class="ref-strip-label">References</div>
+            <div class="ref-strip">
+              <div class="ref-thumb"></div>
+              <div class="ref-thumb"></div>
+              <div class="ref-thumb"></div>
+            </div>
+          </div>
+
+          <!-- Generation history -->
+          <div>
+            <div class="gen-history-label">History</div>
+            <div class="gen-history-item">
+              <span class="gen-timestamp">Today 14:22</span>
+              <span class="gen-restore">Restore</span>
+            </div>
+            <div class="gen-history-item">
+              <span class="gen-timestamp">Today 13:47</span>
+              <span class="gen-restore">Restore</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Fixed bottom prompt area -->
+        <div class="prompt-fixed-area">
+          <div class="prompt-context-row">
+            <span class="prompt-badge">3 refs</span>
+            <span class="prompt-context-label">·</span>
+            <span class="prompt-context-label">Editorial</span>
+          </div>
+          <textarea
+            class="prompt-textarea"
+            placeholder="Describe what to generate or adjust..."
+          ></textarea>
+          <button class="generate-btn">
+            <i data-lucide="sparkles"></i>
+            Generate
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ─── LUCIDE ICONS ────────────────────────────────────
+  lucide.createIcons();
+
+  // ─── INSPECTOR TAB SWITCHING ─────────────────────────
+  const tabs = document.querySelectorAll('.inspector-tab');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+
+      // Update tab active state
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      // Update panel visibility
+      panels.forEach(p => p.classList.remove('active'));
+      const targetPanel = document.getElementById('tab-' + target);
+      if (targetPanel) targetPanel.classList.add('active');
+    });
+  });
+
+  // ─── LAYER ITEM SELECTION ────────────────────────────
+  const treeItems = document.querySelectorAll('.tree-item');
+
+  treeItems.forEach(item => {
+    item.addEventListener('click', () => {
+      treeItems.forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+    });
+  });
+
+  // ─── RAIL ICON HOVER & TOGGLE ────────────────────────
+  const railBtns = document.querySelectorAll('[data-rail]');
+
+  railBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      railBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // ─── SEGMENTED CONTROLS ──────────────────────────────
+  const segGroups = document.querySelectorAll('.segmented');
+
+  segGroups.forEach(group => {
+    const options = group.querySelectorAll('.seg-option');
+    options.forEach(opt => {
+      opt.addEventListener('click', () => {
+        options.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+      });
+    });
+  });
+
+  // ─── ALIGN BUTTONS ───────────────────────────────────
+  const alignGroups = document.querySelectorAll('.align-group');
+
+  alignGroups.forEach(group => {
+    const btns = group.querySelectorAll('.align-btn');
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  // ─── CORNER BUTTONS ──────────────────────────────────
+  const cornerGroups = document.querySelectorAll('.corner-btn-group');
+
+  cornerGroups.forEach(group => {
+    const btns = group.querySelectorAll('.corner-btn');
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  // ─── RE-INIT LUCIDE AFTER DOM MANIPULATION ───────────
+  // (Icons in dynamically shown panels need re-render)
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      lucide.createIcons();
+    });
+  });
+</script>
+</body>
+</html>

@@ -795,6 +795,14 @@ export function LayersPanelV3() {
       className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r-[0.5px] border-sidebar-border bg-sidebar-bg"
       style={{ contain: "strict" }}
     >
+      <div className="shrink-0 border-b-[0.5px] border-sidebar-border px-3 py-2">
+        <div className="font-mono text-[10px] uppercase tracking-[1px] text-[var(--section-label)]">
+          Layers
+        </div>
+        <p className="mt-0.5 text-[9px] leading-snug text-[var(--text-muted)]">
+          Drag a row to move or reparent in the tree. Esc cancels drag.
+        </p>
+      </div>
       {/* Scrollable content — isolated from the positioning shell above so
           scroll position can never shift the panel's top edge. */}
       <div

@@ -16,6 +16,7 @@ import { ENTER_TEXT_EDIT_MODE_EVENT } from "@/app/canvas-v1/hooks/useCanvasKeybo
 import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
 import { SizingModeToast } from "./SizingModeToast";
 import { SnapGuideLines } from "./SnapGuideLines";
+import { LayoutHandlesOverlay } from "./LayoutHandlesOverlay";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
 import { useRubberBandSelection } from "@/app/canvas-v1/hooks/useRubberBandSelection";
@@ -1730,6 +1731,17 @@ export function ComposeDocumentViewV6({
             guides={snapGuidesHook.activeGuides}
             containerWidth={containerWidth || 1200}
             containerHeight={containerHeight || 2000}
+          />
+        )}
+        {/* LayoutHandlesOverlay for gap manipulation */}
+        {interactive && selectedNodeId && (
+          <LayoutHandlesOverlay
+            tree={tree}
+            selectedNodeId={selectedNodeId}
+            zoom={zoom}
+            containerRef={containerRef}
+            onUpdateNodeStyle={onUpdateNodeStyle ?? (() => {})}
+            onPushHistory={onPushHistory ?? (() => {})}
           />
         )}
         {/* ── Rubber-band marquee overlay ── */}

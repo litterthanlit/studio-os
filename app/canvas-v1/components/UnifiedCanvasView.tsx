@@ -759,14 +759,11 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       <div
         ref={containerRef}
         className={cn(
-          "relative h-full flex-1 overflow-hidden bg-canvas-workspace",
+          "editor-canvas-surface relative h-full flex-1 overflow-hidden bg-canvas-workspace",
           isDragOver && "ring-2 ring-inset ring-[#4B57DB] ring-dashed"
         )}
       style={{
         backgroundColor: "var(--canvas-color, var(--canvas-workspace))",
-        backgroundImage:
-          "url(\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='21' height='21'><rect width='20' height='20' rx='1' fill='%23000' opacity='.02'/></svg>\")",
-        backgroundSize: "21px 21px",
       }}
       onClick={handleCanvasClick}
       onMouseDown={handleDragSelectDown}

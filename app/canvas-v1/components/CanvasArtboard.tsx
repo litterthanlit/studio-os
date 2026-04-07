@@ -195,7 +195,7 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
       onPointerDown={(e) => onPointerDown?.(e, item.id, item.x, item.y)}
     >
       {/* Artboard header */}
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0]">
+      <div className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[var(--text-muted)]">
         {label}
       </div>
 
@@ -203,7 +203,7 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
       <div
         className={cn(
           "canvas-artboard relative",
-          isDesktop ? "border-t-2 border-t-[#4B57DB]" : "border-t border-t-[#E5E5E0]",
+          isDesktop ? "border-t-2 border-t-[#4B57DB]" : "border-t border-t-[var(--border-primary)]",
           isSelected && "outline outline-1 outline-[#4B57DB]",
           isActiveArtboard && "editing",
           // Template fallback: persistent amber border

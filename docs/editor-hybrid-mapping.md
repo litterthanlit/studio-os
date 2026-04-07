@@ -21,7 +21,7 @@ The mock uses **#1E5DF2** (Vercel-like blue). The live editor uses Studio accent
 1. Open the HTML file in a browser (fixed 1440×900).
 2. Open `http://localhost:3000/canvas?project=sample-project` in another window; match zoom so widths align (or compare measurements in DevTools).
 3. Confirm: rail width, layers/inspector gutters, section-rule density, bottom bar shadow presence (live uses design tokens, not necessarily identical blur values).
-4. Toggle **editor** Light / Dark / System (rail sun icon or **Settings → Editor chrome**); artboard area should stay **light** (`--canvas-workspace`).
+4. Toggle **editor** Light / Dark / System (rail sun icon or **Settings → Editor chrome**): **light** workspace is warm paper (`--canvas-workspace`); **dark** workspace is a deep void; **frames** stay a light paper surface inside.
 
 ## When this doc changes
 

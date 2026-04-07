@@ -209,8 +209,9 @@
   --success: #22C55E;
   --destructive: #EF4444;
 
-  /* Editor infinite canvas (light in both chrome modes) */
+  /* Editor infinite canvas — workspace behind artboards */
   --canvas-workspace: #FAFAF8;
+  --canvas-workspace-dot: rgba(0, 0, 0, 0.045);
 }
 
 html[data-theme="light"] {
@@ -283,6 +284,7 @@ html[data-theme="light"] {
   --destructive: #EF4444;
 
   --canvas-workspace: #FAFAF8;
+  --canvas-workspace-dot: rgba(0, 0, 0, 0.045);
 }
 
 [data-theme="dark"] {
@@ -355,7 +357,19 @@ html[data-theme="light"] {
   --success: #22C55E;
   --destructive: #F87171;
 
-  --canvas-workspace: #FAFAF8;
+  /* Dark workspace — void behind frames (artboards stay light inside) */
+  --canvas-workspace: #10101a;
+  --canvas-workspace-dot: rgba(255, 255, 255, 0.09);
+}
+
+/* Infinite pan/zoom area: fill + dot texture (theme via --canvas-workspace-*) */
+.editor-canvas-surface {
+  background-image: radial-gradient(
+    circle,
+    var(--canvas-workspace-dot) 0.65px,
+    transparent 0.75px
+  );
+  background-size: 14px 14px;
 }
 
 /* ─── Tailwind v4 Color Tokens ──────────────────────────────────────────────── */

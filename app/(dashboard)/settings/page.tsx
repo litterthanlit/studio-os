@@ -241,8 +241,8 @@ export default function SettingsPage() {
           <div>
             <FieldLabel>Editor chrome</FieldLabel>
             <FieldHint>
-              Fullscreen canvas only — light or dark panel chrome; artboard stays light. Syncs with the rail theme
-              control.
+              Fullscreen canvas: panel chrome and the infinite workspace follow light or dark; frames stay a light
+              “paper” surface. Syncs with the rail theme control.
             </FieldHint>
             <div className="inline-flex mt-2">
               {themeOptions.map((t, i) => (

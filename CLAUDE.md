@@ -252,7 +252,7 @@ The pipeline: references → `/api/taste/extract` → `TasteProfile` → `compil
 
 **Editor chrome (fullscreen canvas only):** User preference **Light | Dark | System** is stored in `localStorage` under `studio-os:editor-theme-preference` (`lib/editor-theme-preference.ts`). `useEditorTheme` resolves **System** with `prefers-color-scheme` and sets `data-theme` to **`light` or `dark` only** on the editor root in `UnifiedCanvasView.tsx` (never the string `system` on the DOM). Writes dispatch `studio-os:editor-theme-preference` so the **same browser** updates other open canvas tabs without reload; **`storage`** events sync changes made from **other tabs** (e.g. Settings in one tab, canvas in another). **MiniRail** cycles the same preference; **Settings → Appearance → Editor chrome** mirrors it.
 
-Semantic tokens for editor UI live in `app/globals.css`: light mode aligns with hybrid/marketing neutrals (`--sidebar-bg`, `--border-subtle`, `--text-*`). Dark mode uses marketing **ink** chrome (`--bg-primary` / `--sidebar-bg` `#0C0C14`, panels `--surface` `#1C1C1C`, rules `--border` `#2A2A2A`) with stronger secondary text for contrast. **`--canvas-workspace`** / `bg-canvas-workspace` keeps the **artboard area light** (`#FAFAF8`) in both themes.
+Semantic tokens for editor UI live in `app/globals.css`: light mode aligns with hybrid/marketing neutrals (`--sidebar-bg`, `--border-subtle`, `--text-*`). Dark mode uses marketing **ink** chrome (`--bg-primary` / `--sidebar-bg` `#0C0C14`, panels `--surface` `#1C1C1C`, rules `--border` `#2A2A2A`) with stronger secondary text for contrast. **`--canvas-workspace`** / `bg-canvas-workspace` + `.editor-canvas-surface` dot grid: **light** theme uses warm paper (`#FAFAF8`); **dark** theme uses a deep void (`#10101a`) behind frames. **Artboard document** surfaces inside frames stay light (`#FFFFFF` / warm off-white) so content stays readable.
 
 **Dashboard & marketing** use `next-themes` on `<html>` separately; they are not required to match editor chrome.
 
@@ -269,7 +269,7 @@ The `@custom-variant dark` in `globals.css` ties Tailwind's `dark:` variant to `
 
 ## Design System
 
-Editor: **True light** or **true dark** chrome (user-chosen), light canvas. Dashboard/marketing: default light + optional `next-themes` dark.
+Editor: **True light** or **true dark** chrome (user-chosen); workspace is warm paper in light mode and a dark void in dark mode (frames stay light). Dashboard/marketing: default light + optional `next-themes` dark.
 
 ### Colors (hex values used directly — no CSS variable indirection in V2 components)
 - Accent: `#4B57DB` (primary violet-blue)

@@ -20,8 +20,61 @@ type SpacingDiagramProps = {
   onResetOverride?: () => void;
 };
 
+const SIDE_CORNERS: Record<"top" | "right" | "bottom" | "left", string> = {
+  top: "TL · TR",
+  right: "TR · BR",
+  bottom: "BL · BR",
+  left: "TL · BL",
+};
+
+function SidePadInput({
+  side,
+  label,
+  value,
+  onPaddingChange,
+  onHistoryFlush,
+}: {
+  side: "top" | "right" | "bottom" | "left";
+  label: string;
+  value: number | "";
+  onPaddingChange: SpacingDiagramProps["onPaddingChange"];
+  onHistoryFlush: () => void;
+}) {
+  const corners = SIDE_CORNERS[side];
+  return (
+    <div className="flex w-full min-w-[3.25rem] flex-col items-stretch gap-1">
+      <label
+        htmlFor={`padding-${side}`}
+        className="flex flex-col items-center gap-0.5 text-center"
+      >
+        <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+          {label}
+        </span>
+        <span className="text-[9px] font-mono tabular-nums tracking-wide text-[var(--text-muted)]">
+          {corners}
+        </span>
+      </label>
+      <div className="w-full">
+        <InspectorNumberInput
+          id={`padding-${side}`}
+          value={value}
+          placeholder="0"
+          min={0}
+          aria-label={`${label} padding (${corners}) in pixels`}
+          title={`${label} padding — affects ${corners} (px)`}
+          onChange={(e) => {
+            const val = e.target.value;
+            onPaddingChange(side, val === "" ? undefined : Number(val));
+          }}
+          onBlur={onHistoryFlush}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function SpacingDiagram({
-  node,
+  node: _node,
   style,
   onPaddingChange,
   onHistoryFlush,
@@ -32,40 +85,35 @@ export function SpacingDiagram({
 
   return (
     <div className="space-y-3">
+      <p className="text-[10px] leading-snug text-[#A0A0A0] dark:text-[#666666]">
+        Each value is padding for that side (px). Corner tags show which corners that side touches (TL top-left, TR, BL, BR).
+      </p>
+
       {/* Top padding */}
       <div className="flex justify-center">
-        <div className="w-16">
-          <InspectorNumberInput
-            value={padding.top ?? ""}
-            placeholder="0"
-            min={0}
-            onChange={(e) => {
-              const val = e.target.value;
-              onPaddingChange("top", val === "" ? undefined : Number(val));
-            }}
-            onBlur={onHistoryFlush}
-          />
-        </div>
+        <SidePadInput
+          side="top"
+          label="Top"
+          value={padding.top ?? ""}
+          onPaddingChange={onPaddingChange}
+          onHistoryFlush={onHistoryFlush}
+        />
       </div>
 
-      {/* Box model visualization */}
-      <div className="relative h-[100px] rounded-[4px] border border-dashed border-[#C5C5C0] dark:border-[#444444] bg-[#FAFAF8] dark:bg-[#1A1A1A]">
-        {/* Background label */}
+      {/* Box model visualization — dashed region = padding band */}
+      <div className="relative min-h-[112px] rounded-[4px] border border-dashed border-[#C5C5C0] dark:border-[#444444] bg-[#FAFAF8] dark:bg-[#1A1A1A]">
         <span className="absolute left-2 top-2 text-[9px] font-mono uppercase tracking-wider text-[#A0A0A0] dark:text-[#555555]">
-          Margin
+          Padding
         </span>
 
         {/* Left padding */}
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-14">
-          <InspectorNumberInput
+        <div className="absolute left-2 top-1/2 -translate-y-1/2">
+          <SidePadInput
+            side="left"
+            label="Left"
             value={padding.left ?? ""}
-            placeholder="0"
-            min={0}
-            onChange={(e) => {
-              const val = e.target.value;
-              onPaddingChange("left", val === "" ? undefined : Number(val));
-            }}
-            onBlur={onHistoryFlush}
+            onPaddingChange={onPaddingChange}
+            onHistoryFlush={onHistoryFlush}
           />
         </div>
 
@@ -77,34 +125,26 @@ export function SpacingDiagram({
         </div>
 
         {/* Right padding */}
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-14">
-          <InspectorNumberInput
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <SidePadInput
+            side="right"
+            label="Right"
             value={padding.right ?? ""}
-            placeholder="0"
-            min={0}
-            onChange={(e) => {
-              const val = e.target.value;
-              onPaddingChange("right", val === "" ? undefined : Number(val));
-            }}
-            onBlur={onHistoryFlush}
+            onPaddingChange={onPaddingChange}
+            onHistoryFlush={onHistoryFlush}
           />
         </div>
       </div>
 
       {/* Bottom padding */}
       <div className="flex justify-center">
-        <div className="w-16">
-          <InspectorNumberInput
-            value={padding.bottom ?? ""}
-            placeholder="0"
-            min={0}
-            onChange={(e) => {
-              const val = e.target.value;
-              onPaddingChange("bottom", val === "" ? undefined : Number(val));
-            }}
-            onBlur={onHistoryFlush}
-          />
-        </div>
+        <SidePadInput
+          side="bottom"
+          label="Bottom"
+          value={padding.bottom ?? ""}
+          onPaddingChange={onPaddingChange}
+          onHistoryFlush={onHistoryFlush}
+        />
       </div>
 
       {/* Section label row */}

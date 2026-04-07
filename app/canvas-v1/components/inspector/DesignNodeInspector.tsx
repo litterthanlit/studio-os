@@ -1353,45 +1353,77 @@ export function DesignNodeInspector({
         <section className="space-y-3">
           <SectionRule label="APPEARANCE" />
           <div className="px-4 space-y-2">
-            {/* Radius */}
+            {/* Radius — single uniform value (all corners), px */}
             {primaryNode.type !== "divider" && (
-              <InspectorFieldRow 
+              <InspectorFieldRow
                 label="Radius"
-                hasOverride={hasOverride("borderRadius")} 
+                className="!h-auto min-h-0 items-start py-0.5"
+                hasOverride={hasOverride("borderRadius")}
                 onResetOverride={() => resetOverride("borderRadius")}
               >
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5">
-                    {["0", "2", "4", "8"].map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => applyImmediate({ borderRadius: Number(r) }, `Set radius to ${r}`)}
-                        className={cn(
-                          "h-6 w-6 flex items-center justify-center rounded-[2px] text-[10px] font-mono transition-colors",
-                          style.borderRadius === Number(r)
-                            ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
-                            : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
-                        )}
-                        title={`${r}px`}
+                <div className="flex w-full flex-col gap-1">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                        Presets (all corners)
+                      </span>
+                      <div className="flex gap-0.5" role="group" aria-label="Radius presets — all corners">
+                        {(["0", "2", "4", "8"] as const).map((r) => (
+                          <div key={r} className="flex flex-col items-center gap-1">
+                            <span className="h-[14px] text-[10px] font-mono leading-none text-[var(--text-muted)]">
+                              {r}px
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => applyImmediate({ borderRadius: Number(r) }, `Set radius to ${r}`)}
+                              className={cn(
+                                "h-6 w-6 flex items-center justify-center rounded-[2px] text-[10px] font-mono transition-colors",
+                                style.borderRadius === Number(r)
+                                  ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
+                                  : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
+                              )}
+                              title={`${r}px on every corner (TL, TR, BR, BL)`}
+                              aria-label={`${r} pixel radius on all four corners`}
+                            >
+                              {r}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor="inspector-border-radius-custom"
+                        className="text-[10px] font-mono uppercase tracking-[0.06em] text-[var(--text-secondary)]"
                       >
-                        {r}
-                      </button>
-                    ))}
+                        All corners
+                      </label>
+                      <div className="relative">
+                        <InspectorNumberInput
+                          id="inspector-border-radius-custom"
+                          value={isMultiSelect
+                            ? (comparisons?.borderRadius?.sharedValue as number | "") ?? ""
+                            : style.borderRadius ?? ""
+                          }
+                          mixed={isMultiSelect && comparisons?.borderRadius?.status === "mixed"}
+                          placeholder="0"
+                          min={0}
+                          max={999}
+                          className="w-[4.25rem] pr-6"
+                          aria-label="Border radius in pixels — all corners"
+                          onChange={(e) => updateStyle({ borderRadius: Number(e.target.value) || undefined })}
+                          onBlur={() => history.flush()}
+                        />
+                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">
+                          px
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <InspectorNumberInput
-                    value={isMultiSelect
-                      ? (comparisons?.borderRadius?.sharedValue as number | "") ?? ""
-                      : style.borderRadius ?? ""
-                    }
-                    mixed={isMultiSelect && comparisons?.borderRadius?.status === "mixed"}
-                    placeholder="0"
-                    min={0}
-                    max={999}
-                    className="w-16"
-                    onChange={(e) => updateStyle({ borderRadius: Number(e.target.value) || undefined })}
-                    onBlur={() => history.flush()}
-                  />
+                  <p className="text-[10px] leading-snug text-[#A0A0A0] dark:text-[#666666]">
+                    One value sets the same radius on every corner (like CSS{" "}
+                    <span className="font-mono text-[9px]">border-radius</span>).
+                  </p>
                 </div>
               </InspectorFieldRow>
             )}

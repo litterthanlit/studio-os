@@ -136,17 +136,21 @@ export function DesignNodeResizeHandles({
     lastUpdateKey: string | null;
   } | null>(null);
 
-  // Allow Fill/Hug nodes to be resized — converts to Fixed on drag
+  // Allow Fill/Hug nodes to be resized — converts to Fixed on drag.
+  // Omitted width/height (undefined) is common on buttons/text — still show handles
+  // so the selection box matches Framer/Figma (blue outline without handles felt broken).
   const canResizeWidth =
     node.style.position === "absolute" ||
     typeof node.style.width === "number" ||
     node.style.width === "fill" ||
-    node.style.width === "hug";
+    node.style.width === "hug" ||
+    node.style.width === undefined;
   const canResizeHeight =
     node.style.position === "absolute" ||
     typeof node.style.height === "number" ||
     node.style.height === "fill" ||
-    node.style.height === "hug";
+    node.style.height === "hug" ||
+    node.style.height === undefined;
 
   const enabledHandles = HANDLES.filter(({ position }) => {
     const affectsHorizontal =

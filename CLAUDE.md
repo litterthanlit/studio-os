@@ -195,7 +195,9 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - Files: `lib/canvas/property-comparison.ts`, `hooks/useBatchUpdate.ts`, updated `DesignNodeInspector.tsx`, `InspectorField.tsx`, `InspectorSegmented.tsx`
 
 **Phase 5a — Export Pipeline (2026-04-03):**
-- `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes
+- `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes; `outputMode` fragment vs full document
+- `lib/canvas/export-options.ts` — Track 10 `ExportOptions`, `countExternalImageReferences`
+- `lib/canvas/build-export-zip.ts` — ZIP handoff (`index.html` + `README.md`)
 - `app/canvas-v1/components/inspector/ExportTab.tsx` — Track 10 Phase A: scope, HTML fragment/document, desktop vs active artboard source, resolved-tree export, external-image warning, Copy HTML, Download ZIP (`jszip` + `build-export-zip.ts`)
 
 **Component Gallery (2026-04-03):**
@@ -452,7 +454,9 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/ComponentQuickPicker.tsx` | Quick insert popover — templates + recent + Browse All |
 | `app/canvas-v1/components/ComponentGalleryPanel.tsx` | Full component gallery — filter tabs, search, card grid |
 | `lib/canvas/design-component-library.ts` | 7 DesignNode section templates + saved component persistence |
-| `lib/canvas/design-node-to-html.ts` | DesignNode → HTML conversion with inline styles |
+| `lib/canvas/design-node-to-html.ts` | DesignNode → HTML; fragment or document mode |
+| `lib/canvas/export-options.ts` | Export options + external URL counting |
+| `lib/canvas/build-export-zip.ts` | Client ZIP builder for export |
 | `app/canvas-v1/components/FloatingPromptPanel.tsx` | Floating prompt panel — 300px, shadow, mono header, wraps PromptComposerV2 |
 | `app/canvas-v1/components/PromptComposerV2.tsx` | Extracted standalone prompt composer — generation pipeline, chat UI, suggestion chips |
 | `app/canvas-v1/components/inspector/SectionRule.tsx` | Static section header — `── LABEL ──` embedded-label rule pattern, replaces collapsible chevrons |

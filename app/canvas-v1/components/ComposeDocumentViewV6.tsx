@@ -221,9 +221,10 @@ function getSelectionLevel(
 
 // ── Text Content Renderer ──────────────────────────────────────────
 
-function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCommitEdit }: {
+function TextContent({ node, isEditing, isSelected = false, dragProtected = false, onStartEdit, onCommitEdit }: {
   node: DesignNode;
   isEditing: boolean;
+  isSelected?: boolean;
   dragProtected?: boolean;
   onStartEdit: () => void;
   onCommitEdit: (newText: string) => void;
@@ -231,6 +232,9 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
   const textRef = React.useRef<HTMLDivElement>(null);
   const originalTextRef = React.useRef<string>("");
   const content = node.content;
+  const [isHovered, setIsHovered] = React.useState(false);
+  const clickCountRef = React.useRef(0);
+  const clickTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Enter edit mode
   React.useEffect(() => {
@@ -261,6 +265,16 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
         el.textContent = originalTextRef.current;
         commit();
       }
+      // Cmd+A in edit mode selects all text (not the layer)
+      if (e.key === "a" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
     };
 
     const commit = () => {
@@ -281,39 +295,160 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
     };
   }, [isEditing, onCommitEdit]);
 
+  // Triple-click handler
+  const handleClick = React.useCallback((e: React.MouseEvent) => {
+    if (isEditing) return;
+    
+    clickCountRef.current += 1;
+    
+    if (clickCountRef.current === 3) {
+      // Triple-click: select all text
+      e.stopPropagation();
+      if (textRef.current) {
+        const range = document.createRange();
+        range.selectNodeContents(textRef.current);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      clickCountRef.current = 0;
+    } else {
+      // Single/double click: start edit mode timer
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+      clickTimeoutRef.current = setTimeout(() => {
+        clickCountRef.current = 0;
+      }, 500);
+    }
+  }, [isEditing]);
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+    };
+  }, []);
+
   if (!content) return null;
 
   // For text nodes with only content.text, render a single editable div
   const hasOnlyText = content.text && !content.kicker && !content.subtext;
 
+  const selectionColorStyles = `
+    <style>
+      [data-text-edit-target="true"]::selection {
+        background: #D1E4FC;
+      }
+      [data-text-edit-target="true"]::-moz-selection {
+        background: #D1E4FC;
+      }
+    </style>
+  `;
+
+  const tooltipText = isSelected ? "Click to edit" : "Double-click to edit";
+
   if (hasOnlyText) {
     return (
       <div
-        ref={textRef}
-        data-text-edit-target="true"
-        onPointerDownCapture={
-          dragProtected
-            ? (e) => {
-                e.stopPropagation();
-              }
-            : undefined
-        }
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          // Already editing — let native double-click-to-select-word work
-          if (isEditing) return;
-          onStartEdit();
-        }}
-        suppressContentEditableWarning
+        style={{ position: "relative" }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        {content.text}
+        <div
+          dangerouslySetInnerHTML={{ __html: selectionColorStyles }}
+        />
+        {/* Hover tooltip */}
+        {isHovered && !isEditing && (
+          <div
+            style={{
+              position: "absolute",
+              top: -18,
+              left: 0,
+              zIndex: 10001,
+              pointerEvents: "none",
+            }}
+          >
+            <span style={{
+              fontSize: 9,
+              fontFamily: "'IBM Plex Mono', monospace",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "#A0A0A0",
+              background: "rgba(255,255,255,0.9)",
+              padding: "1px 4px",
+              borderRadius: 2,
+              whiteSpace: "nowrap",
+            }}>
+              {tooltipText}
+            </span>
+          </div>
+        )}
+        <div
+          ref={textRef}
+          data-text-edit-target="true"
+          onPointerDownCapture={
+            dragProtected
+              ? (e) => {
+                  e.stopPropagation();
+                }
+              : undefined
+          }
+          onClick={handleClick}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            // Already editing — let native double-click-to-select-word work
+            if (isEditing) return;
+            onStartEdit();
+          }}
+          suppressContentEditableWarning
+        >
+          {content.text}
+        </div>
       </div>
     );
   }
 
   // Multi-field text content (kicker + text + subtext)
   return (
-    <>
+    <div
+      style={{ position: "relative" }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div dangerouslySetInnerHTML={{ __html: selectionColorStyles }} />
+      {/* Hover tooltip */}
+      {isHovered && !isEditing && (
+        <div
+          style={{
+            position: "absolute",
+            top: -18,
+            left: 0,
+            zIndex: 10001,
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{
+            fontSize: 9,
+            fontFamily: "'IBM Plex Mono', monospace",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            color: "#A0A0A0",
+            background: "rgba(255,255,255,0.9)",
+            padding: "1px 4px",
+            borderRadius: 2,
+            whiteSpace: "nowrap",
+          }}>
+            {tooltipText}
+          </span>
+        </div>
+      )}
       {content.kicker && (
         <span style={{
           display: "block",
@@ -338,6 +473,7 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
                 }
               : undefined
           }
+          onClick={handleClick}
           onDoubleClick={(e) => {
             e.stopPropagation();
             // Already editing — let native double-click-to-select-word work
@@ -355,7 +491,7 @@ function TextContent({ node, isEditing, dragProtected = false, onStartEdit, onCo
           {content.subtext}
         </span>
       )}
-    </>
+    </div>
   );
 }
 
@@ -584,6 +720,11 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             // Don't re-select (which exits edit mode) if clicking inside active contentEditable
             if (isEditing) return;
             if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
+            // Figma pattern: single-click on already-selected text enters edit mode
+            if (isSelected) {
+              onStartEdit(node.id);
+              return;
+            }
             onSelect(node.id);
           } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
@@ -593,6 +734,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
           <TextContent
             node={node}
             isEditing={isEditing}
+            isSelected={isSelected}
             dragProtected={interactive && isSelected && isAbsolute}
             onStartEdit={() => onStartEdit(node.id)}
             onCommitEdit={(newText) => onCommitEdit(node.id, newText)}

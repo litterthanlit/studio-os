@@ -37,6 +37,8 @@ import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
 import { isDesignNodeTree, findNodeById } from "@/lib/canvas/compose";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
+import type { DesignNode } from "@/lib/canvas/design-node";
+import { TextInlineToolbar } from "./TextInlineToolbar";
 import { MasterEditOverlay } from "./MasterEditOverlay";
 
 function uid(prefix: string): string {
@@ -119,6 +121,68 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // Welcome overlay for first-time users
   const { visible: welcomeVisible, dismiss: dismissWelcome, show: showWelcome } = useWelcomeOverlay();
+
+  // Text inline toolbar state
+  const [showTextToolbar, setShowTextToolbar] = React.useState(false);
+  const [textToolbarAnchor, setTextToolbarAnchor] = React.useState<HTMLElement | null>(null);
+  const [selectedTextNode, setSelectedTextNode] = React.useState<DesignNode | null>(null);
+
+  // Track selected text node and show toolbar when appropriate
+  React.useEffect(() => {
+    const activeArtboardId = state.selection.activeArtboardId;
+    const selectedNodeId = state.selection.selectedNodeId;
+
+    if (!activeArtboardId || !selectedNodeId) {
+      setShowTextToolbar(false);
+      setTextToolbarAnchor(null);
+      setSelectedTextNode(null);
+      return;
+    }
+
+    const activeArtboard = items.find(
+      (i) => i.kind === "artboard" && i.id === activeArtboardId
+    ) as Extract<CanvasItem, { kind: "artboard" }> | undefined;
+    if (!activeArtboard) {
+      setShowTextToolbar(false);
+      setTextToolbarAnchor(null);
+      setSelectedTextNode(null);
+      return;
+    }
+
+    // Check if this is a V6 tree with DesignNodes
+    const isV6 = isDesignNodeTree(activeArtboard.pageTree);
+    if (!isV6) {
+      setShowTextToolbar(false);
+      setTextToolbarAnchor(null);
+      setSelectedTextNode(null);
+      return;
+    }
+
+    // Find the selected node
+    const node = findDesignNodeById(
+      activeArtboard.pageTree as any,
+      selectedNodeId
+    );
+
+    if (node && node.type === "text") {
+      setSelectedTextNode(node);
+      // Find the DOM element for this node
+      const nodeEl = document.querySelector<HTMLElement>(
+        `[data-node-id="${selectedNodeId}"]`
+      );
+      if (nodeEl) {
+        setTextToolbarAnchor(nodeEl);
+        setShowTextToolbar(true);
+      } else {
+        setShowTextToolbar(false);
+        setTextToolbarAnchor(null);
+      }
+    } else {
+      setShowTextToolbar(false);
+      setTextToolbarAnchor(null);
+      setSelectedTextNode(null);
+    }
+  }, [state.selection.activeArtboardId, state.selection.selectedNodeId, items]);
 
   // System theme: respect OS preference (dark/light)
   const [systemTheme, setSystemTheme] = React.useState<"dark" | "light">("dark");
@@ -857,6 +921,20 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       {/* Welcome overlay for first-time users */}
       <WelcomeOverlay visible={welcomeVisible} onDismiss={dismissWelcome} />
+
+      {/* Text inline toolbar for selected text nodes */}
+      {showTextToolbar && selectedTextNode && state.selection.activeArtboardId && (
+        <TextInlineToolbar
+          node={selectedTextNode}
+          artboardId={state.selection.activeArtboardId}
+          zoom={viewport.zoom}
+          onDismiss={() => {
+            setShowTextToolbar(false);
+            setTextToolbarAnchor(null);
+          }}
+          anchorEl={textToolbarAnchor}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@
 import React from "react";
 import type { DesignNode, DesignNodeStyle, ComponentMaster } from "@/lib/canvas/design-node";
 import { findDesignNodeById, findDesignNodeParent } from "@/lib/canvas/design-node";
+import { getParent } from "@/lib/canvas/nested-selection";
 import { resolveTree } from "@/lib/canvas/component-resolver";
 import { designStyleToCSS } from "@/lib/canvas/design-style-to-css";
 import { useDragDesignNode } from "@/app/canvas-v1/hooks/useDragDesignNode";
@@ -18,6 +19,8 @@ import { SnapGuideLines } from "./SnapGuideLines";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
 import { useRubberBandSelection } from "@/app/canvas-v1/hooks/useRubberBandSelection";
+import { useNestedSelection } from "../hooks/useNestedSelection";
+import { NestedHoverPreview } from "./NestedHoverPreview";
 
 // ── Blank section factory for insertion ────────────────────────────────────
 let _insertCounter = 0;
@@ -1475,6 +1478,21 @@ export function ComposeDocumentViewV6({
     [tree, components]
   );
 
+  // ── Track 4: Nested selection cycling (Cmd+Click) ─────────────────
+  const {
+    hoverTarget,
+    parentChain,
+    setHoverPosition,
+    clearHover,
+    cycleAtPosition,
+    cycleSiblings,
+    cycleInfo,
+    resetCycle,
+  } = useNestedSelection(resolvedTree, selectedNodeId);
+
+  // Track hover position for cycle indicator
+  const [hoverPosition, setHoverPositionLocal] = React.useState<{ x: number; y: number } | null>(null);
+
   // ── Container dimensions for snap guide lines ──────────────────
   const containerWidth = typeof tree.style.width === "number" ? tree.style.width : 0;
   const containerHeight = typeof tree.style.height === "number" ? tree.style.height : 0;
@@ -1489,8 +1507,66 @@ export function ComposeDocumentViewV6({
         onMouseLeave={interactive ? handleHoverLeave : undefined}
         onDoubleClick={interactive ? handleDoubleClick : undefined}
         onPointerDown={interactive ? rubberBand.handlePointerDown : undefined}
-        onPointerMove={interactive ? rubberBand.handlePointerMove : undefined}
+        onPointerMove={interactive ? (e) => {
+          // Track hover position for nested selection (Track 4)
+          if (!isDragging && !isResizing && !editingNodeId) {
+            setHoverPosition(e.clientX, e.clientY);
+            setHoverPositionLocal({ x: e.clientX, y: e.clientY });
+          }
+          // Also forward to rubber band
+          rubberBand.handlePointerMove(e);
+        } : undefined}
         onPointerUp={interactive ? rubberBand.handlePointerUp : undefined}
+        onPointerLeave={interactive ? () => {
+          clearHover();
+          resetCycle();
+        } : undefined}
+        onClick={interactive ? (e) => {
+          const isCmd = e.metaKey || e.ctrlKey;
+          const isShift = e.shiftKey;
+
+          // Cmd+Click: cycle through depth levels
+          if (isCmd && !isShift) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const nextId = cycleAtPosition(
+              e.clientX,
+              e.clientY,
+              selectedNodeId,
+              zoom,
+              0, // scrollX - artboard is at container origin
+              0  // scrollY
+            );
+
+            if (nextId) {
+              exitAnyActiveTextEditingV6();
+              setEditingNodeId(null);
+              onSelectNode?.(nextId);
+            }
+            return;
+          }
+
+          // Cmd+Shift+Click: cycle through siblings
+          if (isCmd && isShift && selectedNodeId && hoverTarget) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const parent = getParent(hoverTarget, resolvedTree);
+            if (parent) {
+              const siblingId = cycleSiblings(selectedNodeId, parent, "next");
+              if (siblingId && siblingId !== selectedNodeId) {
+                exitAnyActiveTextEditingV6();
+                setEditingNodeId(null);
+                onSelectNode?.(siblingId);
+              }
+            }
+            return;
+          }
+
+          // Shift+Click for multi-select: let it bubble to node handlers
+          // Regular click: also bubbles to node handlers
+        } : undefined}
       >
         <RenderDesignNode
           node={resolvedTree}
@@ -1571,6 +1647,43 @@ export function ComposeDocumentViewV6({
           border: "1px dashed #E5E5E0",
           pointerEvents: "none", zIndex: 9998,
         }} />
+      )}
+      {/* ── Track 4: Nested hover preview ── */}
+      {interactive && (
+        <NestedHoverPreview
+          targetNode={hoverTarget}
+          parentChain={parentChain}
+          zoom={zoom}
+          scrollX={0}
+          scrollY={0}
+          artboardX={0}
+          artboardY={0}
+        />
+      )}
+      {/* ── Track 4: Cycle indicator ── */}
+      {interactive && cycleInfo && cycleInfo.totalHits > 1 && (
+        <div
+          style={{
+            position: "fixed",
+            left: hoverPosition?.x ?? 0,
+            top: (hoverPosition?.y ?? 0) - 24,
+            transform: "translateX(-50%)",
+            zIndex: 10002,
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{
+            fontSize: 10,
+            fontFamily: "'IBM Plex Mono', monospace",
+            color: "white",
+            background: "#4B57DB",
+            padding: "2px 6px",
+            borderRadius: 4,
+            whiteSpace: "nowrap",
+          }}>
+            {cycleInfo.currentIndex + 1} of {cycleInfo.totalHits}
+          </span>
+        </div>
       )}
     </div>
   );

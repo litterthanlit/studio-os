@@ -763,6 +763,7 @@ export function LayersPanelV3() {
           scroll position can never shift the panel's top edge. */}
       <div
         ref={scrollContainerRef}
+        data-layers-panel
         className="flex-1 overflow-y-auto overflow-x-hidden min-h-0"
         onPointerMove={dragHook.handlePointerMove}
         onPointerUp={dragHook.handlePointerUp}

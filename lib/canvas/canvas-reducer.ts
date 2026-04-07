@@ -531,6 +531,7 @@ export function canvasReducer(
   const STRUCTURAL_ACTIONS = new Set([
     "DELETE_SECTION", "REORDER_NODE", "INSERT_SECTION",
     "GROUP_NODES", "UNGROUP_NODES", "DUPLICATE_SECTION",
+    "REPARENT_NODE",
   ]);
 
   if (STRUCTURAL_ACTIONS.has(action.type)) {
@@ -863,6 +864,11 @@ export function canvasReducer(
 
           return synced ? { ...item, pageTree: synced } : item;
         }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: nodeId,
+          selectedNodeIds: [nodeId],
+        },
         history: historyAfterReparent,
         updatedAt: now(),
       };

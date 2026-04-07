@@ -774,6 +774,8 @@ export function LayersPanelV3() {
         return (
           <DesignNodeContextMenu
             node={dnContextMenu.node}
+            rootNode={sourceTree!}
+            selectedNodeId={selection.selectedNodeId}
             position={dnContextMenu.position}
             breakpoint={bp}
             isFirst={idx === 0}
@@ -813,6 +815,7 @@ export function LayersPanelV3() {
             isGroupNode={Boolean(dnContextMenu.node.isGroup)}
             multiSelectCount={selection.selectedNodeIds.length}
             onDismiss={() => setDnContextMenu(null)}
+            onSelectNode={(nodeId) => { dispatch({ type: "SELECT_NODE", artboardId: dnContextMenu.artboardId, nodeId }); setDnContextMenu(null); }}
           />
         );
       })()}

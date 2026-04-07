@@ -63,6 +63,7 @@ export type CanvasAction =
   // Artboard node editing
   | { type: "UPDATE_NODE"; artboardId: string; nodeId: string; changes: Partial<PageNode> }
   | { type: "UPDATE_NODE_STYLE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
+  | { type: "UPDATE_NODE_STYLE_BATCH"; artboardId: string; nodeIds: string[]; style: Partial<PageNodeStyle> }
   | { type: "UPDATE_TEXT_CONTENT_SITE"; artboardId: string; nodeId: string; text: string }
   | { type: "UPDATE_TEXT_STYLE_SITE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
   | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number; parentNodeId?: string }
@@ -118,6 +119,7 @@ export type CanvasAction =
   | { type: "INSERT_INSTANCE"; artboardId: string; masterId: string; index?: number }
   | { type: "DETACH_INSTANCE"; artboardId: string; nodeId: string }
   | { type: "UPDATE_INSTANCE_OVERRIDE"; artboardId: string; instanceId: string; masterNodeId: string; override: NodeOverride }
+  | { type: "UPDATE_INSTANCE_OVERRIDE_BATCH"; artboardId: string; instanceIds: string[]; masterNodeIds: string[]; override: NodeOverride }
   | { type: "RESET_INSTANCE_OVERRIDE_FIELD"; artboardId: string; instanceId: string; masterNodeId: string; category: "style" | "content" | "hidden" | "all"; field: string }
   | { type: "RESET_ALL_OVERRIDES"; artboardId: string; nodeId: string }
   | { type: "DELETE_MASTER"; masterId: string }
@@ -681,6 +683,51 @@ export function canvasReducer(
       return {
         ...state,
         items: nextItems ?? state.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "UPDATE_NODE_STYLE_BATCH": {
+      const breakpoint = getActiveBreakpoint(state);
+      const { nodeIds } = action;
+
+      const updater = (pageTree: PageNode) => {
+        let result = pageTree;
+        for (const nodeId of nodeIds) {
+          result = updateNodeInTree(result, nodeId, (node) => {
+            if (breakpoint === "desktop") {
+              return { ...node, style: { ...node.style, ...action.style } };
+            }
+            return {
+              ...node,
+              responsiveOverrides: {
+                ...node.responsiveOverrides,
+                [breakpoint]: {
+                  ...node.responsiveOverrides?.[breakpoint],
+                  ...action.style,
+                },
+              },
+            };
+          });
+        }
+        return result;
+      };
+
+      const nextItems = updateArtboardsForSite(state.items, action.artboardId, updater);
+      if (!nextItems) return state;
+
+      const historyAfterBatch = pushHistory(
+        state.history,
+        `Styled ${nodeIds.length} element${nodeIds.length === 1 ? "" : "s"}`,
+        state.items,
+        state.selection,
+        state.components
+      );
+
+      return {
+        ...state,
+        items: nextItems,
+        history: historyAfterBatch,
         updatedAt: now(),
       };
     }
@@ -1945,6 +1992,75 @@ export function canvasReducer(
       return {
         ...state,
         items: nextItems ?? state.items,
+        updatedAt: now(),
+      };
+    }
+
+    case "UPDATE_INSTANCE_OVERRIDE_BATCH": {
+      const { artboardId, instanceIds, masterNodeIds, override } = action;
+      if (instanceIds.length !== masterNodeIds.length) return state;
+
+      const filtered = filterAllowedOverrides(override);
+      if (!filtered.style && !filtered.content && !filtered.hidden) return state;
+
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+      if (!artboard) return state;
+
+      let tree = artboard.pageTree as DesignNode;
+
+      for (let i = 0; i < instanceIds.length; i++) {
+        const instanceId = instanceIds[i];
+        const masterNodeId = masterNodeIds[i];
+
+        const instanceNode = findDesignNodeById(tree, instanceId);
+        if (!instanceNode?.componentRef) continue;
+
+        const existing = instanceNode.componentRef.overrides[masterNodeId] ?? {};
+        const merged: NodeOverride = {
+          style: filtered.style ? { ...existing.style, ...filtered.style } : existing.style,
+          content: filtered.content ? { ...existing.content, ...filtered.content } : existing.content,
+          hidden: filtered.hidden ? { ...existing.hidden, ...filtered.hidden } : existing.hidden,
+        };
+
+        if (merged.style && Object.keys(merged.style).length === 0) delete merged.style;
+        if (merged.content && Object.keys(merged.content).length === 0) delete merged.content;
+        if (merged.hidden && Object.keys(merged.hidden).length === 0) delete merged.hidden;
+
+        const newOverrides = { ...instanceNode.componentRef.overrides };
+        if (!merged.style && !merged.content && !merged.hidden) {
+          delete newOverrides[masterNodeId];
+        } else {
+          newOverrides[masterNodeId] = merged;
+        }
+
+        tree = updateNodeInTree(tree, instanceId, (n) => ({
+          ...n,
+          componentRef: { ...n.componentRef!, overrides: newOverrides },
+        })) as DesignNode;
+      }
+
+      const nextItems = updateArtboardsForSite(state.items, artboardId, (pageTree) => {
+        if (pageTree === artboard.pageTree) return tree;
+        return pageTree;
+      });
+
+      if (!nextItems) return state;
+
+      const historyAfterBatch = pushHistory(
+        state.history,
+        `Styled ${instanceIds.length} instance element${instanceIds.length === 1 ? "" : "s"}`,
+        state.items,
+        state.selection,
+        state.components
+      );
+
+      return {
+        ...state,
+        items: nextItems,
+        history: historyAfterBatch,
         updatedAt: now(),
       };
     }

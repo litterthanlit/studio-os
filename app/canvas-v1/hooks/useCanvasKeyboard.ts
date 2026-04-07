@@ -18,6 +18,11 @@ import {
 } from "@/lib/canvas/compose";
 import { findDesignNodeById, findDesignNodeParent, type DesignNode } from "@/lib/canvas/design-node";
 import { normalizeSelection, allSameParent } from "@/lib/canvas/multi-select-helpers";
+import {
+  findNodeById as findDesignNodeByIdFromNested,
+  getParent,
+  cycleSiblingSelection,
+} from "@/lib/canvas/nested-selection";
 
 export const ENTER_TEXT_EDIT_MODE_EVENT = "studio:enter-edit-mode";
 export const FLASH_NODE_OUTLINES_EVENT = "studio:flash-node-outlines";
@@ -494,6 +499,164 @@ export function useCanvasKeyboard({
           artboardId: metadata.activeArtboard.id,
           nodeId: metadata.siblings[nextIndex].id,
         });
+        return;
+      }
+
+      // Cmd+[ - Previous sibling
+      if (isMeta && e.key === "[") {
+        e.preventDefault();
+        const activeArtboard = getActiveArtboard();
+        if (state.selection.selectedNodeId && activeArtboard?.pageTree) {
+          const parent = getParent(
+            { id: state.selection.selectedNodeId } as DesignNode,
+            activeArtboard.pageTree as DesignNode
+          );
+          if (parent) {
+            const prevSiblingId = cycleSiblingSelection(state.selection.selectedNodeId, parent, "previous");
+            if (prevSiblingId) {
+              dispatch({
+                type: "SELECT_NODE",
+                artboardId: activeArtboard.id,
+                nodeId: prevSiblingId,
+              });
+            }
+          }
+        }
+        return;
+      }
+
+      // Cmd+] - Next sibling
+      if (isMeta && e.key === "]") {
+        e.preventDefault();
+        const activeArtboard = getActiveArtboard();
+        if (state.selection.selectedNodeId && activeArtboard?.pageTree) {
+          const parent = getParent(
+            { id: state.selection.selectedNodeId } as DesignNode,
+            activeArtboard.pageTree as DesignNode
+          );
+          if (parent) {
+            const nextSiblingId = cycleSiblingSelection(state.selection.selectedNodeId, parent, "next");
+            if (nextSiblingId) {
+              dispatch({
+                type: "SELECT_NODE",
+                artboardId: activeArtboard.id,
+                nodeId: nextSiblingId,
+              });
+            }
+          }
+        }
+        return;
+      }
+
+      // Shift+Escape - Jump to root artboard
+      if (e.shiftKey && e.key === "Escape") {
+        e.preventDefault();
+        const activeArtboard = getActiveArtboard();
+        if (activeArtboard?.pageTree) {
+          dispatch({
+            type: "SELECT_NODE",
+            artboardId: activeArtboard.id,
+            nodeId: activeArtboard.pageTree.id,
+          });
+        }
+        return;
+      }
+
+      // Cmd+Enter - Enter frame (drill into group, select first child)
+      if (isMeta && e.key === "Enter") {
+        e.preventDefault();
+        const activeArtboard = getActiveArtboard();
+        if (state.selection.selectedNodeId && activeArtboard?.pageTree) {
+          const rootNode = activeArtboard.pageTree as DesignNode;
+          const node = findDesignNodeByIdFromNested(rootNode, state.selection.selectedNodeId);
+          if (node?.children && node.children.length > 0) {
+            dispatch({
+              type: "SELECT_NODE",
+              artboardId: activeArtboard.id,
+              nodeId: node.children[0].id,
+            });
+          }
+        }
+        return;
+      }
+
+      // Cmd+Arrow navigation (parent/first child/previous sibling/next sibling)
+      if (isMeta && (e.key.startsWith("Arrow") || ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))) {
+        const activeArtboard = getActiveArtboard();
+        if (!state.selection.selectedNodeId || !activeArtboard?.pageTree) {
+          return;
+        }
+
+        const rootNode = activeArtboard.pageTree as DesignNode;
+        const selectedNodeId = state.selection.selectedNodeId;
+
+        switch (e.key) {
+          case "ArrowUp":
+            e.preventDefault();
+            // Select parent
+            {
+              const parent = getParent({ id: selectedNodeId } as DesignNode, rootNode);
+              if (parent && parent.id !== rootNode.id) {
+                dispatch({
+                  type: "SELECT_NODE",
+                  artboardId: activeArtboard.id,
+                  nodeId: parent.id,
+                });
+              }
+            }
+            break;
+
+          case "ArrowDown":
+            e.preventDefault();
+            // Select first child
+            {
+              const node = findDesignNodeByIdFromNested(rootNode, selectedNodeId);
+              if (node?.children && node.children.length > 0) {
+                dispatch({
+                  type: "SELECT_NODE",
+                  artboardId: activeArtboard.id,
+                  nodeId: node.children[0].id,
+                });
+              }
+            }
+            break;
+
+          case "ArrowLeft":
+            e.preventDefault();
+            // Previous sibling
+            {
+              const parent = getParent({ id: selectedNodeId } as DesignNode, rootNode);
+              if (parent) {
+                const prevSiblingId = cycleSiblingSelection(selectedNodeId, parent, "previous");
+                if (prevSiblingId) {
+                  dispatch({
+                    type: "SELECT_NODE",
+                    artboardId: activeArtboard.id,
+                    nodeId: prevSiblingId,
+                  });
+                }
+              }
+            }
+            break;
+
+          case "ArrowRight":
+            e.preventDefault();
+            // Next sibling
+            {
+              const parent = getParent({ id: selectedNodeId } as DesignNode, rootNode);
+              if (parent) {
+                const nextSiblingId = cycleSiblingSelection(selectedNodeId, parent, "next");
+                if (nextSiblingId) {
+                  dispatch({
+                    type: "SELECT_NODE",
+                    artboardId: activeArtboard.id,
+                    nodeId: nextSiblingId,
+                  });
+                }
+              }
+            }
+            break;
+        }
         return;
       }
 

@@ -174,6 +174,26 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - Toolbar dismiss: Escape, click-away, or entering edit mode
 - Files: `app/canvas-v1/components/TextInlineToolbar.tsx`, updated `ComposeDocumentViewV6.tsx`, `useCanvasKeyboard.ts`
 
+**Track 6 — Reparenting / Tree Surgery (2026-04-07):**
+- Drag-to-reparent in layers panel: cross-parent moves
+- Three-zone hit-testing: top (before), middle (child-of), bottom (after)
+- Parent highlight (#D1E4FC/20) when hovering valid drop target
+- Invalid target indicator (red ×) for text/image/button/divider
+- Auto-scroll when dragging near panel edges
+- Escape key cancels drag operation
+- All reparent operations undoable
+- Component instance children cannot be reparented (structural guard)
+- Files: `lib/canvas/canvas-reducer.ts` (REPARENT_NODE), `hooks/useLayersDragReorder.ts`, `components/LayersPanelV3.tsx`
+
+**Track 7 — Advanced Multi-Edit / Shared Properties (2026-04-07):**
+- Property comparison engine: detects shared vs mixed values across selection
+- Batch update actions: `UPDATE_NODE_STYLE_BATCH` applies to multiple nodes with single history entry
+- Mixed value UI: "—" placeholder for numbers, checkerboard gradient for colors, unselected segments
+- Smart section filtering: Typography only shows when ALL selected are text/button
+- Single inspector code path: `DesignNodeInspector` handles both single and multi-select via `nodes: DesignNode[]`
+- Performance: 0.002ms for 50 nodes (5000x under target)
+- Files: `lib/canvas/property-comparison.ts`, `hooks/useBatchUpdate.ts`, updated `DesignNodeInspector.tsx`, `InspectorField.tsx`, `InspectorSegmented.tsx`
+
 **Phase 5a — Export Pipeline (2026-04-03):**
 - `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes
 - `app/canvas-v1/components/inspector/ExportTab.tsx` — Selection/Full Page scope toggle, HTML preview, Copy HTML button
@@ -434,6 +454,9 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/TextInlineToolbar.tsx` | Inline text formatting toolbar — Bold/Italic/Font Size, floats above selected text |
 | `app/canvas-v1/components/NestedHoverPreview.tsx` | Track 4 hover preview — dashed outline + breadcrumb for nested selection |
 | `lib/canvas/nested-selection.ts` | Track 4 core — hit testing, parent chain traversal, sibling cycling |
+| `lib/canvas/property-comparison.ts` | Track 7 — property comparison engine for multi-select shared/mixed detection |
+| `app/canvas-v1/hooks/useBatchUpdate.ts` | Track 7 — unified single/batch dispatch hook for inspector updates |
+| `app/canvas-v1/hooks/useLayersDragReorder.ts` | Track 6 — layers panel drag-to-reparent with three-zone hit-testing |
 
 ### Pre-existing TypeScript Errors (not regressions)
 - `canvas-client.tsx:525` — token merge type mismatch (`Record<string, unknown>` vs `Record<string, string>`)

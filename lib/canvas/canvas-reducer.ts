@@ -66,6 +66,7 @@ export type CanvasAction =
   | { type: "UPDATE_TEXT_CONTENT_SITE"; artboardId: string; nodeId: string; text: string }
   | { type: "UPDATE_TEXT_STYLE_SITE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
   | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number; parentNodeId?: string }
+  | { type: "REPARENT_NODE"; artboardId: string; nodeId: string; sourceParentId: string | undefined; targetParentId: string | undefined; targetIndex: number }
   | { type: "INSERT_SECTION"; artboardId: string; index?: number; section: import("./compose").PageNode }
   | { type: "DUPLICATE_SECTION"; artboardId: string; nodeId: string }
   | { type: "DELETE_SECTION"; artboardId: string; nodeId: string }
@@ -264,6 +265,174 @@ function reorderWithinParent(
     }
   }
   return null;
+}
+
+/**
+ * Check if a node is a descendant of another node in the tree.
+ * Used for cycle detection during reparenting.
+ */
+function isDescendantOf(tree: TreeNode, potentialDescendantId: string, ancestorId: string): boolean {
+  if (tree.id === ancestorId) {
+    // Check if potentialDescendantId exists in this subtree
+    if (tree.id === potentialDescendantId) return true;
+    const children = tree.children ?? [];
+    for (const child of children) {
+      if (child.id === potentialDescendantId || isDescendantOf(child, potentialDescendantId, child.id)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (!tree.children) return false;
+  for (const child of tree.children) {
+    if (isDescendantOf(child, potentialDescendantId, ancestorId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if a target node is a valid parent for reparenting operations.
+ * Valid parents are frames or groups.
+ */
+function isValidParent(node: TreeNode): boolean {
+  return node.type === "frame" || (node as DesignNode).isGroup === true;
+}
+
+/**
+ * Reparent a node in a tree: remove from source and insert at target.
+ * Returns null if the operation is invalid.
+ */
+export function reparentNodeInTree(
+  tree: TreeNode,
+  nodeId: string,
+  sourceParentId: string | undefined,
+  targetParentId: string | undefined,
+  targetIndex: number
+): TreeNode | null {
+  // Find the node being moved
+  let nodeToMove: TreeNode | null = null;
+
+  // Helper to extract a node from a parent
+  function extractNode(parent: TreeNode, id: string): TreeNode | null {
+    const children = parent.children ?? [];
+    const found = children.find((c) => c.id === id);
+    if (found) return found;
+    for (const child of children) {
+      const result = extractNode(child, id);
+      if (result) return result;
+    }
+    return null;
+  }
+
+  // If sourceParentId is undefined, node is at root level
+  if (sourceParentId === undefined) {
+    const rootChildren = tree.children ?? [];
+    const sourceIndex = rootChildren.findIndex((c) => c.id === nodeId);
+    if (sourceIndex === -1) return null;
+    nodeToMove = rootChildren[sourceIndex];
+  } else {
+    const sourceParent = findDesignNodeById(tree as DesignNode, sourceParentId);
+    if (!sourceParent) return null;
+    const children = sourceParent.children ?? [];
+    const sourceIndex = children.findIndex((c) => c.id === nodeId);
+    if (sourceIndex === -1) return null;
+    nodeToMove = children[sourceIndex];
+  }
+
+  if (!nodeToMove) return null;
+
+  // Cycle detection: cannot reparent into own descendant
+  if (targetParentId !== undefined) {
+    if (isDescendantOf(tree, targetParentId, nodeId)) {
+      return null;
+    }
+  }
+
+  // Build the new tree with node removed from source and inserted at target
+  function rebuildTree(currentNode: TreeNode): TreeNode {
+    // Case 1: This is the source parent - remove the node
+    if (sourceParentId !== undefined && currentNode.id === sourceParentId) {
+      const children = currentNode.children ?? [];
+      const filtered = children.filter((c) => c.id !== nodeId);
+      if (filtered.length === children.length) return currentNode; // No change
+      return { ...currentNode, children: filtered } as TreeNode;
+    }
+
+    // Case 2: This is the target parent - insert the node
+    if (targetParentId !== undefined && currentNode.id === targetParentId) {
+      const children = currentNode.children ?? [];
+      // Check for valid parent type
+      if (!isValidParent(currentNode)) {
+        return currentNode;
+      }
+      // If same parent, account for removal
+      const adjustedIndex = sourceParentId === targetParentId
+        ? (sourceParentId === undefined ? (tree.children ?? []).findIndex((c) => c.id === nodeId) : 0)
+        : 0;
+      const effectiveIndex = sourceParentId === targetParentId
+        ? (targetIndex > adjustedIndex ? targetIndex - 1 : targetIndex)
+        : targetIndex;
+
+      const clampedIndex = Math.max(0, Math.min(effectiveIndex, children.length));
+      const newChildren = [...children];
+      newChildren.splice(clampedIndex, 0, nodeToMove!);
+      return { ...currentNode, children: newChildren } as TreeNode;
+    }
+
+    // Case 3: This is the root (when source or target is undefined)
+    if (currentNode === tree || (currentNode.id === tree.id)) {
+      let result = currentNode;
+
+      // Handle root-level source removal
+      if (sourceParentId === undefined) {
+        const rootChildren = result.children ?? [];
+        const filtered = rootChildren.filter((c) => c.id !== nodeId);
+        if (filtered.length !== rootChildren.length) {
+          result = { ...result, children: filtered } as TreeNode;
+        }
+      }
+
+      // Handle root-level target insertion
+      if (targetParentId === undefined) {
+        const rootChildren = result.children ?? [];
+        // If same parent, account for removal
+        const adjustedIndex = sourceParentId === undefined
+          ? (rootChildren.findIndex((c) => c.id === nodeId))
+          : -1;
+        const effectiveIndex = sourceParentId === undefined && adjustedIndex !== -1
+          ? (targetIndex > adjustedIndex ? targetIndex - 1 : targetIndex)
+          : targetIndex;
+        const clampedIndex = Math.max(0, Math.min(effectiveIndex, rootChildren.length));
+        const newChildren = [...rootChildren];
+        newChildren.splice(clampedIndex, 0, nodeToMove!);
+        result = { ...result, children: newChildren } as TreeNode;
+        return result;
+      }
+
+      // Recurse into children if no root-level operation handled it
+      if (result.children) {
+        const newChildren = result.children.map((child) => rebuildTree(child));
+        if (newChildren.some((c, i) => c !== result.children![i])) {
+          result = { ...result, children: newChildren } as TreeNode;
+        }
+      }
+
+      return result;
+    }
+
+    // Case 4: Recurse into children
+    if (!currentNode.children) return currentNode;
+    const newChildren = currentNode.children.map((child) => rebuildTree(child));
+    if (newChildren.every((c, i) => c === currentNode.children![i])) {
+      return currentNode;
+    }
+    return { ...currentNode, children: newChildren } as TreeNode;
+  }
+
+  return rebuildTree(tree);
 }
 
 function updateArtboardsForSite(
@@ -620,6 +789,81 @@ export function canvasReducer(
           return synced ? { ...item, pageTree: synced } : item;
         }),
         history: historyAfterPush,
+        updatedAt: now(),
+      };
+    }
+
+    case "REPARENT_NODE": {
+      const { artboardId, nodeId, sourceParentId, targetParentId, targetIndex } = action;
+
+      // Reject structural mutations on instance children
+      if (isInstanceChild(nodeId)) {
+        return state;
+      }
+
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === artboardId
+      );
+
+      if (!artboard) return state;
+
+      // Validate target parent type if specified
+      if (targetParentId !== undefined) {
+        const targetParent = findDesignNodeById(artboard.pageTree as DesignNode, targetParentId);
+        if (!targetParent) return state;
+        // Target must be a valid parent: frame or group
+        if (!isValidParent(targetParent)) {
+          return state;
+        }
+      }
+
+      // Apply reparenting
+      const reparentedTree = reparentNodeInTree(
+        artboard.pageTree,
+        nodeId,
+        sourceParentId,
+        targetParentId,
+        targetIndex
+      );
+
+      if (!reparentedTree) return state;
+
+      const historyAfterReparent = pushHistory(
+        state.history,
+        "Moved element to new container",
+        state.items,
+        state.selection,
+        state.components
+      );
+
+      // Sync across all artboards in the same site
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) {
+            return item;
+          }
+
+          if (item.id === artboard.id) {
+            return {
+              ...item,
+              pageTree: reparentedTree,
+            };
+          }
+
+          // Apply same reparenting to other artboards in same site
+          const synced = reparentNodeInTree(
+            item.pageTree,
+            nodeId,
+            sourceParentId,
+            targetParentId,
+            targetIndex
+          );
+
+          return synced ? { ...item, pageTree: synced } : item;
+        }),
+        history: historyAfterReparent,
         updatedAt: now(),
       };
     }

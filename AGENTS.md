@@ -291,7 +291,7 @@ These are patterns discovered during the project. Do not re-learn them.
 
 ### Current project state (update this section each major session)
 
-**Last updated:** 2026-04-07 (post-Track 8 fix)
+**Last updated:** 2026-04-09 (Track 10 Phase A + B; QA gates pending)
 
 - **Track 4 (Direct Nested Selection):** COMPLETE. Framer-like selection cycling: Cmd+Click cycles depth, Cmd+Shift+Click cycles siblings, contextual hover preview, layers auto-expand to deep selections, keyboard shortcuts (Cmd+arrows, Shift+Escape), context menu selection nav. 9 commits, +1,277 lines.
 - **V5 Alpha (harness engine):** Shipped. Benchmark delta +4.
@@ -303,7 +303,7 @@ These are patterns discovered during the project. Do not re-learn them.
 - **V6 Interaction Polish:** COMPLETE. Hover outlines, double-click drill-down, Escape hierarchy navigation, smart snap guides.
 - **Phase 3 (Inspector Rebuild):** COMPLETE. Breakpoint overrides, grid picker, coverImage controls, layers panel icons.
 - **Phase 4a (Tree Management):** COMPLETE. Reducer widening, context menu, insertion bars.
-- **Phase 5a (Export):** COMPLETE. Copy HTML with inline styles, ExportTab in inspector.
+- **Phase 5a (Export):** COMPLETE (baseline; Track 10 extends handoff). Copy HTML with inline styles, ExportTab in inspector.
 - **Component Gallery:** COMPLETE. 7 templates, quick picker, gallery panel, save-to-library.
 - **Right-Rail Refactor:** COMPLETE. Single-mode tabs (Design/CSS/Export), layout containment fixed. Prompt tab removed — promoted to floating panel.
 - **Taste Intelligence UX:** COMPLETE. TasteCard, ReferenceRail, fidelity selector.
@@ -324,7 +324,8 @@ These are patterns discovered during the project. Do not re-learn them.
 - **Track 6 (Reparenting / Tree Surgery):** COMPLETE. Drag-to-reparent in layers panel: cross-parent moves, three-zone hit-testing (top/middle/bottom), parent highlight, invalid target indicator (red ×), auto-scroll, Escape cancel. 4 commits, +483 lines. 25/25 proof gate assertions pass.
 - **Track 7 (Advanced Multi-Edit / Shared Properties):** COMPLETE. Property comparison, batch style updates, mixed-value UI, inspector single path for multi-select. Proof gate 25/25 passed.
 - **Track 8 (Direct Layout Manipulation):** CODE COMPLETE. Gap + padding handles on V6 canvas; **fix shipped** for invisible handles — container-local coords with `zoom` divide (same as `ResizeOverlay`), flex children resolved in tree order. **Manual QA** per `docs/superpowers/plans/2026-04-07-track8-implementation-plan.md` still required.
-- **Editor maturity docs:** Spine + backlog — `docs/superpowers/specs/2026-04-04-editor-maturity-tracks.md`, `docs/superpowers/plans/editor-maturity-backlog.md`. **Next spine:** Track 9 plan at `docs/superpowers/plans/2026-04-07-track9-component-maturity-plan.md`.
+- **Track 10 (Export / Handoff / Publish):** CODE COMPLETE. **Phase A:** `export-options.ts`, `design-node-to-html` document mode, `resolveTree` export, `build-export-zip.ts`, Export tab (scope/output/breakpoint, warnings, Copy, ZIP). **Phase B:** `app/api/export/publish/route.ts`, `app/published/[id]/route.ts`, Supabase `published_exports` migration. **QA pending:** parent-repo spec §9 + §11.4. Run migration: `supabase/migrations/20260409120000_published_exports.sql`.
+- **Editor maturity docs (parent workspace):** `../docs/superpowers/specs/2026-04-04-editor-maturity-tracks.md`, Track 10 [spec](../docs/superpowers/specs/2026-04-08-track10-export-handoff-spec.md) / [plan](../docs/superpowers/plans/2026-04-08-track10-implementation-plan.md). **Next spine:** Track 9 plan at `../docs/superpowers/plans/2026-04-07-track9-component-maturity-plan.md`.
 - **Consistency gate:** PASSED (3/3 BS-01 runs with stylistic range).
 - **Benchmark:** BLOCKED. Needs API credits to run further sets.
 
@@ -436,3 +437,4 @@ The COO / Architect asks Nick before:
 | 2026-04-05 (continued) | Warm-Dark debut theme shipped. Dark editor chrome (#1A1A1A) scoped to editor container, light canvas (#FAFAF8) preserved — the "studio metaphor." Canvas persistence race condition fixed (RAF-based hydration gate → synchronous check). InspectorSkeleton brought to SectionRule standard matching DesignNodeInspector. Both inspector paths now visually consistent. 24 files. Build clean. |
 | 2026-04-05 (debut) | **DEBUT SHIPPED.** Final regression QA passed 15/15 (welcome flow, sample project, warm-dark shell, inspector, persistence, dashboard light, console clean). System-aware theme added (prefers-color-scheme via matchMedia — dark OS → warm-dark, light OS → light cleanup). 3 commits pushed, all 3 Vercel deploys READY. Production live at studio-os.io. |
 | 2026-04-07 | Track 6 (Reparenting / Tree Surgery) shipped. Layers-first drag-to-reparent: three-zone hit-testing (top=before, middle=child-of, bottom=after), parent highlight (#D1E4FC/20), invalid target indicator (red ×), auto-scroll, Escape cancel. Cross-artboard reparent out of scope. 4 commits, +483 lines. 25/25 proof gate assertions pass. Pushed to main. |
+| 2026-04-09 | **Track 10** Phase A + B: export pipeline + ZIP, publish API + public HTML route + Supabase table. QA gates spec §9 / §11.4; apply migration before prod publish. |

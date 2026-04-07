@@ -4,13 +4,16 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {
   Copy, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Type, Bookmark,
-  Group, Ungroup,
+  Group, Ungroup, ArrowUp, ArrowRight, ArrowLeft, Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignNode, Breakpoint } from "@/lib/canvas/design-node";
+import { getParent, cycleSiblingSelection } from "@/lib/canvas/nested-selection";
 
 type DesignNodeContextMenuProps = {
   node: DesignNode;
+  rootNode: DesignNode;
+  selectedNodeId: string | null;
   position: { x: number; y: number };
   breakpoint: Breakpoint;
   isFirst: boolean;
@@ -27,6 +30,7 @@ type DesignNodeContextMenuProps = {
   onUngroup?: () => void;
   isGroupNode?: boolean;
   multiSelectCount?: number;
+  onSelectNode?: (nodeId: string) => void;
   onDismiss: () => void;
 };
 
@@ -75,6 +79,8 @@ function Divider() {
 
 export function DesignNodeContextMenu({
   node,
+  rootNode,
+  selectedNodeId,
   position,
   breakpoint,
   isFirst,
@@ -91,6 +97,7 @@ export function DesignNodeContextMenu({
   onUngroup,
   isGroupNode,
   multiSelectCount,
+  onSelectNode,
   onDismiss,
 }: DesignNodeContextMenuProps) {
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -133,6 +140,10 @@ export function DesignNodeContextMenu({
 
   const iconProps = { size: 14, strokeWidth: 1.5 } as const;
 
+  // Compute selection navigation state
+  const parent = selectedNodeId ? getParent({ id: selectedNodeId } as DesignNode, rootNode) : null;
+  const hasSiblings = parent ? (parent.children && parent.children.length > 1) : false;
+
   return ReactDOM.createPortal(
     <div
       ref={menuRef}
@@ -169,6 +180,64 @@ export function DesignNodeContextMenu({
         label="Move Down"
         onClick={() => { onMoveDown(); onDismiss(); }}
         disabled={isLast}
+      />
+
+      <Divider />
+
+      {/* Select Navigation */}
+      <MenuItem
+        icon={<ArrowUp {...iconProps} />}
+        label="Select Parent"
+        shortcut="⌘↑"
+        onClick={() => { 
+          if (parent && onSelectNode) {
+            onSelectNode(parent.id);
+            onDismiss();
+          }
+        }}
+        disabled={!parent || !onSelectNode}
+      />
+      <MenuItem
+        icon={<ArrowRight {...iconProps} />}
+        label="Select Next Sibling"
+        shortcut="⌘]"
+        onClick={() => { 
+          if (parent && selectedNodeId && onSelectNode) {
+            const nextId = cycleSiblingSelection(selectedNodeId, parent, 'next');
+            if (nextId) {
+              onSelectNode(nextId);
+            }
+            onDismiss();
+          }
+        }}
+        disabled={!hasSiblings || !onSelectNode}
+      />
+      <MenuItem
+        icon={<ArrowLeft {...iconProps} />}
+        label="Select Previous Sibling"
+        shortcut="⌘["
+        onClick={() => { 
+          if (parent && selectedNodeId && onSelectNode) {
+            const prevId = cycleSiblingSelection(selectedNodeId, parent, 'previous');
+            if (prevId) {
+              onSelectNode(prevId);
+            }
+            onDismiss();
+          }
+        }}
+        disabled={!hasSiblings || !onSelectNode}
+      />
+      <MenuItem
+        icon={<Home {...iconProps} />}
+        label="Select Root"
+        shortcut="⇧Esc"
+        onClick={() => { 
+          if (onSelectNode) {
+            onSelectNode(rootNode.id);
+            onDismiss();
+          }
+        }}
+        disabled={!onSelectNode}
       />
 
       <Divider />

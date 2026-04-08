@@ -362,6 +362,9 @@ ${tasteSection}${accentMapping4A}
 
     // VISUAL
     "background": "#hex",
+    "gradient": { "type": "linear"|"radial", "angle": number, "position": { "x": 50, "y": 50 }, "stops": [{ "color": "#hex or rgba()", "position": 0-100 }], "interpolation": "srgb"|"oklch" },
+    // gradient: angle is degrees 0-360 (linear only, 180 = top-to-bottom); position is radial center as %; interpolation defaults to srgb, use oklch for distant hues (e.g. blue to orange) to avoid muddy midpoints.
+    // Use gradient for hero backgrounds, section transitions, and decorative fills. Prefer 2-3 stops. Subtle gradients over dramatic ones. gradient renders on top of background but behind coverImage.
     "coverImage": "photo:...",   // BACKGROUND PHOTO on frames — full-bleed <img> behind children
     "coverSize": "cover" | "contain",
     "coverPosition": string,     // e.g. "center", "center 30%"

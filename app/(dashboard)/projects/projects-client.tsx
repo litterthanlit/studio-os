@@ -158,8 +158,8 @@ function FilterPill({
       className={cn(
         "flex items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
         active
-          ? "bg-[#4B57DB] text-white"
-          : "bg-[#F5F5F0] text-[#6B6B6B] hover:bg-[#E5E5E0] hover:text-[#1A1A1A]"
+          ? "bg-accent text-white"
+          : "bg-surface-hover text-text-secondary hover:bg-border hover:text-text-primary"
       )}
     >
       {label}
@@ -167,7 +167,7 @@ function FilterPill({
         <span
           className={cn(
             "font-mono text-[10px]",
-            active ? "text-white/70" : "text-[#A0A0A0]"
+            active ? "text-white/70" : "text-text-muted"
           )}
         >
           {count}
@@ -189,13 +189,13 @@ function ProjectRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-[#E5E5E0] hover:bg-white/70">
+    <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-border hover:bg-card-bg/70">
       <Link
         href={`/canvas?project=${project.id}`}
         className="flex flex-1 items-center gap-4 min-w-0"
       >
         {/* Thumbnail */}
-        <div className="thumb-halftone-placeholder h-10 w-10 shrink-0 overflow-hidden rounded-[4px] border border-[#E5E5E0]">
+        <div className="thumb-halftone-placeholder h-10 w-10 shrink-0 overflow-hidden rounded-[4px] border border-border">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={project.leadImage}
@@ -206,10 +206,10 @@ function ProjectRow({
 
         {/* Name + meta */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[14px] font-medium text-[#1A1A1A]">
+          <span className="truncate text-[14px] font-medium text-text-primary">
             {project.name}
           </span>
-          <span className="text-[11px] text-[#A0A0A0]">
+          <span className="text-[11px] text-text-muted">
             {project.lastActivity} · {project.references} refs
           </span>
         </div>
@@ -217,7 +217,7 @@ function ProjectRow({
         {/* Phase badge */}
         <div className="flex shrink-0 items-center gap-2">
           <StatusDot phase={project.phase} />
-          <span className="font-mono text-[11px] text-[#6B6B6B]">
+          <span className="font-mono text-[11px] text-text-secondary">
             {project.phase}
           </span>
         </div>
@@ -226,7 +226,7 @@ function ProjectRow({
         <ArrowRight
           size={14}
           strokeWidth={1.5}
-          className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#4B57DB]"
+          className="shrink-0 text-border transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-accent"
         />
       </Link>
 
@@ -238,7 +238,7 @@ function ProjectRow({
             e.stopPropagation();
             onDelete();
           }}
-          className="shrink-0 rounded-[4px] p-1.5 text-[#A0A0A0] opacity-0 transition-all duration-150 hover:bg-red-50 hover:text-red-500 group-hover/row:opacity-100"
+          className="shrink-0 rounded-[4px] p-1.5 text-text-muted opacity-0 transition-all duration-150 hover:bg-red-500/10 hover:text-red-500 group-hover/row:opacity-100"
           aria-label={`Delete ${project.name}`}
         >
           <Trash2 size={14} strokeWidth={1.5} />
@@ -331,10 +331,10 @@ export function ProjectsPage() {
         <div className="mb-8 flex items-start justify-between">
           <div>
             <span className="mono-kicker mb-3 block">Studio OS</span>
-            <h1 className="font-serif text-[28px] font-normal tracking-[-0.02em] text-[#1A1A1A] leading-[1.1]">
+            <h1 className="font-serif text-[28px] font-normal tracking-[-0.02em] text-text-primary leading-[1.1]">
               Projects
             </h1>
-            <p className="mt-2 text-[14px] text-[#6B6B6B] leading-relaxed">
+            <p className="mt-2 text-[14px] text-text-secondary leading-relaxed">
               Each project is a self-contained workspace — references, palette,
               typography, and canvas in one room.
             </p>
@@ -342,7 +342,7 @@ export function ProjectsPage() {
           <button
             type="button"
             onClick={openModal}
-            className="flex shrink-0 items-center gap-1.5 rounded-[4px] bg-[#4B57DB] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#3D49C7]"
+            className="flex shrink-0 items-center gap-1.5 rounded-[4px] bg-accent px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-accent-hover"
           >
             <Plus size={14} strokeWidth={2} />
             New Project
@@ -372,14 +372,14 @@ export function ProjectsPage() {
               <Search
                 size={14}
                 strokeWidth={1.5}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A0A0A0]"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
               />
               <input
                 type="text"
                 placeholder="Search projects..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-full rounded-[2px] border border-[#E5E5E0] bg-white pl-8 pr-3 text-[13px] text-[#1A1A1A] outline-none placeholder:text-[#A0A0A0] transition-colors duration-150 focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 sm:w-[200px]"
+                className="h-8 w-full rounded-[2px] border border-border bg-card-bg pl-8 pr-3 text-[13px] text-text-primary outline-none placeholder:text-text-muted transition-colors duration-150 focus:border-border-hover focus:ring-2 focus:ring-accent-light/40 sm:w-[200px]"
               />
             </div>
           </div>
@@ -389,16 +389,16 @@ export function ProjectsPage() {
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center py-24">
             <LogoMarkMuted size={48} />
-            <p className="mt-5 text-[14px] font-medium text-[#1A1A1A]">
+            <p className="mt-5 text-[14px] font-medium text-text-primary">
               No projects yet
             </p>
-            <p className="mt-1 text-[13px] text-[#A0A0A0]">
+            <p className="mt-1 text-[13px] text-text-muted">
               Create your first project to start collecting references.
             </p>
             <button
               type="button"
               onClick={openModal}
-              className="mt-5 flex items-center gap-1.5 rounded-[4px] bg-[#4B57DB] px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-[#3D49C7]"
+              className="mt-5 flex items-center gap-1.5 rounded-[4px] bg-accent px-4 py-2 text-[13px] font-medium text-white transition-colors duration-150 hover:bg-accent-hover"
             >
               <Plus size={14} strokeWidth={2} />
               Create Project
@@ -419,41 +419,41 @@ export function ProjectsPage() {
                   transition={{ duration: 0.2, ease: "easeOut" }}
                   className="overflow-hidden"
                 >
-                  <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-[#E5E5E0] hover:bg-white/70">
+                  <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-border hover:bg-card-bg/70">
                     <Link
                       href={`/canvas?project=${DEMO_PROJECT_ID}`}
                       className="flex flex-1 items-center gap-4 min-w-0"
                     >
                       {/* Demo thumbnail */}
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-[#D1E4FC] bg-[#D1E4FC]/20">
-                        <span className="font-mono text-[9px] font-medium uppercase tracking-wider text-[#4B57DB]">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-border-hover bg-accent-light/20">
+                        <span className="font-mono text-[9px] font-medium uppercase tracking-wider text-accent">
                           Demo
                         </span>
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-[14px] font-medium text-[#1A1A1A]">
+                        <span className="truncate text-[14px] font-medium text-text-primary">
                           Studio OS Demo
                         </span>
-                        <span className="text-[11px] text-[#A0A0A0]">
+                        <span className="text-[11px] text-text-muted">
                           Explore the full workflow
                         </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#4B57DB]" />
-                        <span className="font-mono text-[11px] text-[#6B6B6B]">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+                        <span className="font-mono text-[11px] text-text-secondary">
                           Demo
                         </span>
                       </div>
                       <ArrowRight
                         size={14}
                         strokeWidth={1.5}
-                        className="shrink-0 text-[#E5E5E0] transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-[#4B57DB]"
+                        className="shrink-0 text-border transition-all duration-150 group-hover/row:translate-x-0.5 group-hover/row:text-accent"
                       />
                     </Link>
                     <button
                       type="button"
                       onClick={handleDismissDemo}
-                      className="shrink-0 rounded-[4px] p-1.5 text-[#A0A0A0] opacity-0 transition-all duration-150 hover:bg-[#F5F5F0] hover:text-[#6B6B6B] group-hover/row:opacity-100"
+                      className="shrink-0 rounded-[4px] p-1.5 text-text-muted opacity-0 transition-all duration-150 hover:bg-surface-hover hover:text-text-secondary group-hover/row:opacity-100"
                       aria-label="Dismiss demo"
                     >
                       <Trash2 size={14} strokeWidth={1.5} />
@@ -476,7 +476,7 @@ export function ProjectsPage() {
             {/* No results from filter */}
             {filteredProjects.length === 0 && allProjects.length > 0 ? (
               <div className="flex flex-col items-center py-16 text-center">
-                <p className="text-[13px] text-[#A0A0A0]">
+                <p className="text-[13px] text-text-muted">
                   No projects match{" "}
                   {searchQuery
                     ? `"${searchQuery}"`
@@ -489,7 +489,7 @@ export function ProjectsPage() {
                     setFilter("All");
                     setSearchQuery("");
                   }}
-                  className="mt-2 text-[13px] text-[#4B57DB] transition-opacity hover:opacity-70"
+                  className="mt-2 text-[13px] text-accent transition-opacity hover:opacity-70"
                 >
                   Clear filters
                 </button>

@@ -346,7 +346,7 @@ html[data-theme="light"] {
   --halftone-warm: rgba(12, 12, 20, 0.95);
   --shell-gradient: linear-gradient(180deg, #0C0C14 0%, #08080c 100%);
   --shell-glow: radial-gradient(circle at top left, rgba(75, 87, 219, 0.12), transparent 36%);
-  --shell-grid: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0.8px, transparent 0.9px);
+  --shell-grid: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0.8px, transparent 0.9px);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.45);
@@ -519,7 +519,7 @@ body::after {
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.055) 0.5px, transparent 0.5px);
+  background-image: var(--shell-grid);
     background-size: 3.5px 3.5px;
     background-position: 0 0;
   }

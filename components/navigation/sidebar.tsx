@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasStage } from "@/lib/canvas-stage-context";
+import {
+  PROFILE_STORAGE_KEY,
+  PROFILE_UPDATED_EVENT,
+  readStoredProfile,
+} from "@/lib/profile-store";
 
 // ─── V2 Logo Mark — Vertical-slat folder ─────────────────────────────────────
 
@@ -65,10 +70,10 @@ function LogoMark({ size = 28 }: { size?: number }) {
 
 // ─── User Avatar ──────────────────────────────────────────────────────────────
 
-function UserAvatar({ size = 24 }: { size?: number }) {
+function UserAvatar({ size = 24, initials = "NG" }: { size?: number; initials?: string }) {
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-full bg-[#D1E4FC] font-medium text-[#4B57DB] select-none"
+      className="flex shrink-0 items-center justify-center rounded-full bg-[#D1E4FC] font-medium text-accent select-none"
       style={{
         width: size,
         height: size,
@@ -76,7 +81,7 @@ function UserAvatar({ size = 24 }: { size?: number }) {
         letterSpacing: "0.02em",
       }}
     >
-      NG
+      {initials}
     </div>
   );
 }
@@ -106,15 +111,15 @@ function NavItem({
     "group relative flex h-8 w-full items-center rounded-[4px] transition-colors duration-150",
     expanded ? "px-2 gap-2.5" : "justify-center px-0",
     active
-      ? "bg-[#D1E4FC]/40 text-[#4B57DB]"
+      ? "bg-accent-light/40 text-accent"
       : disabled
       ? "opacity-40 cursor-not-allowed"
-      : "hover:bg-[#F5F5F0]"
+      : "hover:bg-surface-hover"
   );
 
   // 2px left accent bar for active state
   const accentBar = active ? (
-    <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#4B57DB]" />
+    <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-accent" />
   ) : null;
 
   const iconEl = (
@@ -123,7 +128,7 @@ function NavItem({
       strokeWidth={1}
       className={cn(
         "shrink-0 transition-colors duration-150",
-        active ? "text-[#4B57DB]" : "text-[#A0A0A0] group-hover:text-[#6B6B6B]"
+        active ? "text-accent" : "text-text-muted group-hover:text-text-secondary"
       )}
     />
   );
@@ -139,7 +144,7 @@ function NavItem({
           transition={{ duration: 0.15 }}
           className={cn(
             "overflow-hidden whitespace-nowrap text-[13px]",
-            active ? "font-medium text-[#4B57DB]" : "text-[#6B6B6B]"
+            active ? "font-medium text-accent" : "text-text-secondary"
           )}
         >
           {label}
@@ -208,13 +213,38 @@ function DashboardSidebarContent({
 }) {
   const pathname = usePathname();
   const railPx = expanded ? "px-3" : "px-1.5";
+  const [profileName, setProfileName] = React.useState("Nick");
+  const profileInitials = React.useMemo(() => {
+    const parts = profileName
+      .split(" ")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return "N";
+    return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
+  }, [profileName]);
+
+  React.useEffect(() => {
+    setProfileName(readStoredProfile().name);
+
+    const syncProfile = () => setProfileName(readStoredProfile().name);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === PROFILE_STORAGE_KEY) syncProfile();
+    };
+
+    window.addEventListener(PROFILE_UPDATED_EVENT, syncProfile);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, syncProfile);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* ── Logo area ── */}
       <div
         className={cn(
-          "flex h-[52px] shrink-0 items-center border-b border-[#E5E5E0]/60",
+          "flex h-[52px] shrink-0 items-center border-b border-border/60",
           expanded ? "justify-between px-3" : "justify-center px-0"
         )}
       >
@@ -232,7 +262,7 @@ function DashboardSidebarContent({
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-[#1A1A1A]"
+                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-text-primary"
               >
                 Studio OS
               </motion.span>
@@ -252,7 +282,7 @@ function DashboardSidebarContent({
               type="button"
               onClick={onToggle}
               title="Collapse sidebar"
-              className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+              className="flex h-6 w-6 items-center justify-center rounded-[4px] text-text-muted transition-colors hover:bg-surface-hover hover:text-text-secondary"
             >
               <ChevronsLeft size={14} strokeWidth={1.5} />
             </motion.button>
@@ -267,7 +297,7 @@ function DashboardSidebarContent({
             type="button"
             onClick={onToggle}
             title="Expand sidebar"
-            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-text-muted transition-colors hover:bg-surface-hover hover:text-text-secondary"
           >
             <ChevronsRight size={14} strokeWidth={1.5} />
           </button>
@@ -302,7 +332,7 @@ function DashboardSidebarContent({
           </span>
         </div>
       ) : (
-        <div className="mx-auto mt-5 mb-1 h-px w-5 bg-[#E5E5E0]" />
+        <div className="mx-auto mt-5 mb-1 h-px w-5 bg-border" />
       )}
 
       <div className={cn("mt-1.5 flex flex-col gap-0.5", railPx)}>
@@ -319,12 +349,12 @@ function DashboardSidebarContent({
                 "group relative flex h-8 items-center rounded-[4px] transition-colors duration-150",
                 expanded ? "gap-2.5 px-2" : "justify-center px-0",
                 active
-                  ? "bg-[#D1E4FC]/40"
-                  : "hover:bg-[#F5F5F0]"
+                  ? "bg-accent-light/40"
+                  : "hover:bg-surface-hover"
               )}
             >
               {active ? (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#4B57DB]" />
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-accent" />
               ) : null}
               <span
                 className="h-[6px] w-[6px] shrink-0 rounded-full"
@@ -341,8 +371,8 @@ function DashboardSidebarContent({
                     className={cn(
                       "overflow-hidden whitespace-nowrap text-[13px] truncate",
                       active
-                        ? "font-medium text-[#4B57DB]"
-                        : "text-[#6B6B6B]"
+                        ? "font-medium text-accent"
+                        : "text-text-secondary"
                     )}
                   >
                     {project.name}
@@ -360,7 +390,7 @@ function DashboardSidebarContent({
       {/* ── Bottom: Search + Settings + Avatar ── */}
       <div
         className={cn(
-          "flex flex-col gap-0.5 border-t border-[#E5E5E0] pt-2 pb-3",
+          "flex flex-col gap-0.5 border-t border-border pt-2 pb-3",
           railPx
         )}
       >
@@ -370,14 +400,14 @@ function DashboardSidebarContent({
           onClick={onCmdK}
           title={!expanded ? "Search (⌘K)" : undefined}
           className={cn(
-            "group flex h-8 w-full items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0]",
+            "group flex h-8 w-full items-center rounded-[4px] transition-colors duration-150 hover:bg-surface-hover",
             expanded ? "px-2 gap-2.5" : "justify-center px-0"
           )}
         >
           <Search
             size={18}
             strokeWidth={1}
-            className="shrink-0 text-[#A0A0A0] transition-colors duration-150 group-hover:text-[#6B6B6B]"
+            className="shrink-0 text-text-muted transition-colors duration-150 group-hover:text-text-secondary"
           />
           <AnimatePresence initial={false}>
             {expanded ? (
@@ -387,10 +417,10 @@ function DashboardSidebarContent({
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap text-[13px] text-[#6B6B6B]"
+                className="flex min-w-0 flex-1 items-center justify-between overflow-hidden whitespace-nowrap text-[13px] text-text-secondary"
               >
                 Search
-                <kbd className="ml-2 rounded-[2px] border border-[#E5E5E0] bg-[#F5F5F0] px-1 py-0.5 font-mono text-[9px] text-[#A0A0A0]">
+                <kbd className="ml-2 rounded-[2px] border border-border bg-surface-hover px-1 py-0.5 font-mono text-[9px] text-text-muted">
                   ⌘K
                 </kbd>
               </motion.span>
@@ -410,11 +440,11 @@ function DashboardSidebarContent({
         {/* User row */}
         <div
           className={cn(
-            "flex h-9 items-center rounded-[4px] transition-colors duration-150 hover:bg-[#F5F5F0] cursor-pointer",
+            "flex h-9 items-center rounded-[4px] transition-colors duration-150 hover:bg-surface-hover cursor-pointer",
             expanded ? "gap-2.5 px-2" : "justify-center px-0"
           )}
         >
-          <UserAvatar size={24} />
+          <UserAvatar size={24} initials={profileInitials} />
           <AnimatePresence initial={false}>
             {expanded ? (
               <motion.div
@@ -425,10 +455,10 @@ function DashboardSidebarContent({
                 transition={{ duration: 0.15 }}
                 className="flex min-w-0 flex-col overflow-hidden"
               >
-                <span className="whitespace-nowrap text-[13px] font-medium leading-tight text-[#1A1A1A]">
-                  Nick G
+                <span className="whitespace-nowrap text-[13px] font-medium leading-tight text-text-primary">
+                  {profileName}
                 </span>
-                <span className="whitespace-nowrap text-[11px] leading-tight text-[#A0A0A0]">
+                <span className="whitespace-nowrap text-[11px] leading-tight text-text-muted">
                   Studio OS
                 </span>
               </motion.div>
@@ -473,7 +503,7 @@ function CanvasSidebarContent({
       {/* ── Logo area ── */}
       <div
         className={cn(
-          "flex h-[52px] shrink-0 items-center border-b border-[#E5E5E0]/60",
+          "flex h-[52px] shrink-0 items-center border-b border-border/60",
           expanded ? "justify-between px-3" : "justify-center px-0"
         )}
       >
@@ -491,7 +521,7 @@ function CanvasSidebarContent({
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-[#1A1A1A]"
+                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-text-primary"
               >
                 Studio OS
               </motion.span>
@@ -504,7 +534,7 @@ function CanvasSidebarContent({
             type="button"
             onClick={onToggle}
             title="Collapse sidebar"
-            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-text-muted transition-colors hover:bg-surface-hover hover:text-text-secondary"
           >
             <ChevronsLeft size={14} strokeWidth={1.5} />
           </button>
@@ -517,7 +547,7 @@ function CanvasSidebarContent({
             type="button"
             onClick={onToggle}
             title="Expand sidebar"
-            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-[#A0A0A0] transition-colors hover:bg-[#F5F5F0] hover:text-[#6B6B6B]"
+            className="flex h-6 w-6 items-center justify-center rounded-[4px] text-text-muted transition-colors hover:bg-surface-hover hover:text-text-secondary"
           >
             <ChevronsRight size={14} strokeWidth={1.5} />
           </button>
@@ -555,7 +585,7 @@ function CanvasSidebarContent({
 
       {/* Settings at bottom */}
       <div
-        className={cn("border-t border-[#E5E5E0] pt-2 pb-3", railPx)}
+        className={cn("border-t border-border pt-2 pb-3", railPx)}
       >
         <NavItem
           icon={Settings}
@@ -610,7 +640,7 @@ export function Sidebar() {
       <motion.aside
         className={cn(
           "relative z-20 hidden md:flex shrink-0 flex-col h-screen sticky top-0 overflow-hidden",
-          "bg-[#FAFAF8] border-r border-[#E5E5E0]"
+          "bg-bg-primary border-r border-border"
         )}
         animate={{ width: desktopExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
         transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
@@ -634,7 +664,7 @@ export function Sidebar() {
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open sidebar"
-        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-[#E5E5E0] bg-[#FAFAF8] text-[#A0A0A0] shadow-sm transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+        className="md:hidden fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-[4px] border border-border bg-bg-primary text-text-muted shadow-sm transition-colors duration-150 hover:border-border-hover hover:text-accent"
       >
         <svg
           viewBox="0 0 20 20"
@@ -670,7 +700,7 @@ export function Sidebar() {
       <aside
         className={cn(
           "md:hidden fixed inset-y-0 left-0 z-40 flex flex-col",
-          "bg-[#FAFAF8] border-r border-[#E5E5E0]",
+          "bg-bg-primary border-r border-border",
           "transform transition-transform duration-200 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}

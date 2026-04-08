@@ -4,27 +4,14 @@ import * as React from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import {
+  EDITOR_THEME_STORAGE_KEY,
   readEditorThemePreference,
   writeEditorThemePreference,
   type EditorThemePreference,
 } from "@/lib/editor-theme-preference";
+import { readStoredProfile, writeStoredProfile } from "@/lib/profile-store";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const LS_PROFILE_KEY = "studio-os:profile";
-
-function getStoredProfile(): { name: string } {
-  if (typeof window === "undefined") return { name: "Nick" };
-  try {
-    return JSON.parse(localStorage.getItem(LS_PROFILE_KEY) ?? '{"name":"Nick"}');
-  } catch {
-    return { name: "Nick" };
-  }
-}
-
-function saveProfile(profile: { name: string }) {
-  localStorage.setItem(LS_PROFILE_KEY, JSON.stringify(profile));
-}
 
 function exportAllProjects() {
   try {
@@ -47,14 +34,14 @@ function exportAllProjects() {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="mb-1.5 block text-[12px] font-medium text-[#6B6B6B]">
+    <label className="mb-1.5 block text-[12px] font-medium text-text-secondary">
       {children}
     </label>
   );
 }
 
 function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-[11px] text-[#A0A0A0]">{children}</p>;
+  return <p className="mt-1 text-[11px] text-text-muted">{children}</p>;
 }
 
 function SectionGroup({
@@ -67,9 +54,43 @@ function SectionGroup({
   return (
     <div>
       <span className="mono-kicker mb-3 block">{label}</span>
-      <div className="rounded-[6px] border border-[#E5E5E0] bg-white p-6 space-y-5">
+      <div className="rounded-[6px] border border-border bg-card-bg p-6 space-y-5">
         {children}
       </div>
+    </div>
+  );
+}
+
+function SegmentedThemeControl({
+  value,
+  onChange,
+  options,
+}: {
+  value: string | null;
+  onChange: (v: string) => void;
+  options: readonly string[];
+}) {
+  return (
+    <div className="inline-flex mt-2 rounded-[6px] border border-border bg-card-bg p-0.5">
+      {options.map((opt) => {
+        const active = value === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            aria-pressed={active}
+            className={cn(
+              "rounded-[4px] px-4 py-2 text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B57DB]/30",
+              active
+                ? "bg-[#4B57DB] text-white"
+                : "bg-transparent text-text-secondary hover:bg-surface-hover"
+            )}
+          >
+            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -88,8 +109,8 @@ function IntegrationRow({
   return (
     <div className="flex items-center justify-between gap-4 py-3 border-b border-[#E5E5E0] last:border-0">
       <div className="min-w-0">
-        <div className="text-[13px] text-[#1A1A1A]">{name}</div>
-        <div className="text-[11px] text-[#A0A0A0] mt-0.5">{description}</div>
+        <div className="text-[13px] text-text-primary">{name}</div>
+        <div className="text-[11px] text-text-muted mt-0.5">{description}</div>
       </div>
       {connected ? (
         <span className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600">
@@ -100,7 +121,7 @@ function IntegrationRow({
         <button
           type="button"
           onClick={onConnect}
-          className="rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+          className="rounded-[4px] border border-border px-3 py-2 text-[12px] text-text-secondary transition-colors duration-150 hover:border-border-hover hover:text-accent"
         >
           Connect
         </button>
@@ -120,30 +141,52 @@ export default function SettingsPage() {
   const [lummiKey, setLummiKey] = React.useState("");
   const [showLummiInput, setShowLummiInput] = React.useState(false);
   const [editorChromeTheme, setEditorChromeTheme] = React.useState<EditorThemePreference>("system");
+  const [savedNotice, setSavedNotice] = React.useState<"" | "name" | "lummi">("");
 
   React.useEffect(() => {
-    const profile = getStoredProfile();
+    const profile = readStoredProfile();
     setName(profile.name);
     setLummiKey(localStorage.getItem("studio-os:lummi-key") ?? "");
     setEditorChromeTheme(readEditorThemePreference());
     setMounted(true);
   }, []);
 
+  React.useEffect(() => {
+    const onThemePref = (e: Event) => {
+      const ce = e as CustomEvent<EditorThemePreference>;
+      if (ce.detail === "light" || ce.detail === "dark" || ce.detail === "system") {
+        setEditorChromeTheme(ce.detail);
+      }
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== EDITOR_THEME_STORAGE_KEY || e.storageArea !== localStorage) return;
+      if (e.newValue === "light" || e.newValue === "dark" || e.newValue === "system") {
+        setEditorChromeTheme(e.newValue);
+      }
+    };
+    window.addEventListener("studio-os:editor-theme-preference", onThemePref);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("studio-os:editor-theme-preference", onThemePref);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!savedNotice) return;
+    const timeout = setTimeout(() => setSavedNotice(""), 1500);
+    return () => clearTimeout(timeout);
+  }, [savedNotice]);
+
   function saveName() {
-    saveProfile({ name });
+    writeStoredProfile({ name: name.trim() || "Nick" });
+    setName((prev) => prev.trim() || "Nick");
     setNameDirty(false);
+    setSavedNotice("name");
   }
 
   function handleTheme(value: string) {
     setTheme(value);
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute(
-        "data-theme",
-        value === "system"
-          ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-          : value
-      );
-    }
   }
 
   function handleClearData() {
@@ -166,6 +209,7 @@ export default function SettingsPage() {
       localStorage.removeItem("studio-os:lummi-key");
     }
     setShowLummiInput(false);
+    setSavedNotice("lummi");
   }
 
   const lummiConnected = !!lummiKey.trim();
@@ -173,11 +217,11 @@ export default function SettingsPage() {
   const themeOptions = ["light", "dark", "system"] as const;
 
   return (
-    <div className="relative z-10 mx-auto max-w-[600px] animate-in fade-in slide-in-from-bottom-2 pt-16 pb-20 duration-300 ease-out">
+    <div className="relative z-10 mx-auto max-w-[600px] animate-in fade-in slide-in-from-bottom-2 pt-16 pb-20 duration-300 ease-out text-text-primary">
       {/* ── Header ── */}
       <div className="mb-12">
         <span className="mono-kicker mb-3 block">Studio OS</span>
-        <h1 className="font-serif text-[28px] font-normal tracking-[-0.02em] text-[#1A1A1A] leading-[1.1]">
+        <h1 className="font-serif text-[28px] font-normal tracking-[-0.02em] text-text-primary leading-[1.1]">
           Settings
         </h1>
       </div>
@@ -193,22 +237,21 @@ export default function SettingsPage() {
                 value={name}
                 onChange={(e) => { setName(e.target.value); setNameDirty(true); }}
                 onKeyDown={(e) => { if (e.key === "Enter") saveName(); }}
-                className="w-48 border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] text-[#1A1A1A] placeholder:text-[#A0A0A0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
+                className="w-56 border border-border rounded-[2px] bg-bg-input px-3 py-2 text-[13px] text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-border-hover focus:ring-2 focus:ring-accent-light/50"
               />
               {nameDirty && (
                 <button
                   type="button"
                   onClick={saveName}
-                  className="rounded-[4px] bg-[#4B57DB] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#3D49C7]"
+                  className="rounded-[4px] bg-button-primary-bg px-3 py-2 text-[12px] font-medium text-button-primary-text transition-colors hover:bg-accent-hover"
                 >
                   Save
                 </button>
               )}
+              {savedNotice === "name" && (
+                <span className="text-[11px] font-mono text-emerald-600">Saved</span>
+              )}
             </div>
-          </div>
-          <div>
-            <FieldLabel>Email</FieldLabel>
-            <span className="text-[13px] text-[#A0A0A0]">Sign in to set your email</span>
           </div>
         </SectionGroup>
 
@@ -217,26 +260,7 @@ export default function SettingsPage() {
           <div>
             <FieldLabel>Dashboard & marketing theme</FieldLabel>
             <FieldHint>Applies to home, projects, and this settings page.</FieldHint>
-            <div className="inline-flex mt-2">
-              {themeOptions.map((t, i) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => handleTheme(t)}
-                  className={cn(
-                    "border px-4 py-2 text-[13px] transition-colors duration-150",
-                    i === 0 && "rounded-l-[4px] rounded-r-none",
-                    i === 1 && "rounded-none border-x-0",
-                    i === 2 && "rounded-r-[4px] rounded-l-none",
-                    activeTheme === t
-                      ? "border-[#4B57DB] bg-[#4B57DB] text-white"
-                      : "border-[#E5E5E0] bg-white text-[#6B6B6B] hover:border-[#D1E4FC]"
-                  )}
-                >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-              ))}
-            </div>
+            <SegmentedThemeControl value={activeTheme} onChange={handleTheme} options={themeOptions} />
           </div>
           <div>
             <FieldLabel>Editor chrome</FieldLabel>
@@ -244,34 +268,20 @@ export default function SettingsPage() {
               Fullscreen canvas: panel chrome and the infinite workspace follow light or dark; frames stay a light
               “paper” surface. Syncs with the rail theme control.
             </FieldHint>
-            <div className="inline-flex mt-2">
-              {themeOptions.map((t, i) => (
-                <button
-                  key={`editor-${t}`}
-                  type="button"
-                  onClick={() => {
-                    writeEditorThemePreference(t);
-                    setEditorChromeTheme(t);
-                  }}
-                  className={cn(
-                    "border px-4 py-2 text-[13px] transition-colors duration-150",
-                    i === 0 && "rounded-l-[4px] rounded-r-none",
-                    i === 1 && "rounded-none border-x-0",
-                    i === 2 && "rounded-r-[4px] rounded-l-none",
-                    editorChromeTheme === t
-                      ? "border-[#4B57DB] bg-[#4B57DB] text-white"
-                      : "border-[#E5E5E0] bg-white text-[#6B6B6B] hover:border-[#D1E4FC]"
-                  )}
-                >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-              ))}
-            </div>
+            <SegmentedThemeControl
+              value={editorChromeTheme}
+              onChange={(v) => {
+                const next = v as EditorThemePreference;
+                writeEditorThemePreference(next);
+                setEditorChromeTheme(next);
+              }}
+              options={themeOptions}
+            />
           </div>
         </SectionGroup>
 
-        {/* ── Integrations ── */}
-        <SectionGroup label="Integrations">
+        {/* ── Connections ── */}
+        <SectionGroup label="Connections">
           <IntegrationRow
             name="Lummi API"
             description="Powers the daily inspiration grid"
@@ -286,49 +296,40 @@ export default function SettingsPage() {
                 onChange={(e) => setLummiKey(e.target.value)}
                 placeholder="Paste Lummi API key..."
                 autoFocus
-                className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-white px-3 py-2 text-[13px] text-[#1A1A1A] font-mono placeholder:text-[#A0A0A0] outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
+                className="flex-1 border border-border rounded-[2px] bg-bg-input px-3 py-2 text-[13px] text-text-primary font-mono placeholder:text-text-muted outline-none transition-colors focus:border-border-hover focus:ring-2 focus:ring-accent-light/50"
               />
               <button
                 type="button"
                 onClick={saveLummiKey}
-                className="rounded-[4px] bg-[#4B57DB] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#3D49C7]"
+                className="rounded-[4px] bg-button-primary-bg px-3 py-2 text-[12px] font-medium text-button-primary-text transition-colors hover:bg-accent-hover"
               >
                 Save
               </button>
+              {savedNotice === "lummi" && (
+                <span className="text-[11px] font-mono text-emerald-600">Saved</span>
+              )}
             </div>
           )}
-          <IntegrationRow
-            name="Are.na"
-            description="Import channels as reference boards"
-            connected={false}
-            onConnect={() => window.open("https://www.are.na", "_blank")}
-          />
-          <IntegrationRow
-            name="Pinterest"
-            description="Import boards and pins as references"
-            connected={false}
-            onConnect={() => { window.location.href = "/api/auth/pinterest"; }}
-          />
         </SectionGroup>
 
         {/* ── Data ── */}
         <SectionGroup label="Data">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-[13px] text-[#1A1A1A]">Export all projects</div>
+              <div className="text-[13px] text-text-primary">Export all projects</div>
               <FieldHint>Downloads a JSON file with all your projects and tasks</FieldHint>
             </div>
             <button
               type="button"
               onClick={exportAllProjects}
-              className="shrink-0 rounded-[4px] border border-[#E5E5E0] px-3 py-2 text-[12px] text-[#6B6B6B] transition-colors duration-150 hover:border-[#D1E4FC] hover:text-[#4B57DB]"
+              className="shrink-0 rounded-[4px] border border-border px-3 py-2 text-[12px] text-text-secondary transition-colors duration-150 hover:border-border-hover hover:text-accent"
             >
               Export JSON
             </button>
           </div>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-[13px] text-[#1A1A1A]">Clear all data</div>
+              <div className="text-[13px] text-text-primary">Clear all data</div>
               <FieldHint>Removes all projects, tasks, and preferences from this browser</FieldHint>
             </div>
             <button
@@ -349,12 +350,12 @@ export default function SettingsPage() {
         {/* ── About ── */}
         <SectionGroup label="About">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] text-[#1A1A1A]">Version</span>
-            <span className="font-mono text-[12px] text-[#A0A0A0]">0.1.0</span>
+            <span className="text-[13px] text-text-primary">Version</span>
+            <span className="font-mono text-[12px] text-text-muted">0.1.0</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[13px] text-[#1A1A1A]">Studio OS</span>
-            <span className="text-[12px] text-[#A0A0A0]">Built for designers who think in systems.</span>
+            <span className="text-[13px] text-text-primary">Studio OS</span>
+            <span className="text-[12px] text-text-muted">Built for designers who think in systems.</span>
           </div>
         </SectionGroup>
       </div>

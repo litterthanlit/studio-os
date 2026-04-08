@@ -43,10 +43,25 @@ export type DesignNode = {
   componentRef?: ComponentInstanceRef;  // NEW — Track 3
 };
 
+// === Gradient Types (V6 Phase 2A) ===
+
+export type GradientStop = {
+  color: string;
+  position: number; // 0-100
+};
+
+export type GradientValue = {
+  type: "linear" | "radial";
+  angle?: number;                          // linear only, degrees
+  position?: { x: number; y: number };     // radial only, center %. defaults 50/50
+  stops: GradientStop[];
+  interpolation?: "srgb" | "oklch";        // default "srgb"
+};
+
 // === Component System Types (Track 3) ===
 
 export type AllowedStyleOverride = Pick<DesignNodeStyle,
-  | "background" | "foreground" | "muted" | "accent"
+  | "background" | "gradient" | "foreground" | "muted" | "accent"
   | "borderColor" | "borderWidth" | "borderRadius"
   | "opacity" | "shadow" | "blur" | "effects"
   | "fontFamily" | "fontSize" | "fontWeight" | "lineHeight"
@@ -56,7 +71,7 @@ export type AllowedStyleOverride = Pick<DesignNodeStyle,
 >;
 
 export const ALLOWED_STYLE_FIELDS = new Set<string>([
-  "background", "foreground", "muted", "accent",
+  "background", "gradient", "foreground", "muted", "accent",
   "borderColor", "borderWidth", "borderRadius",
   "opacity", "shadow", "blur", "effects",
   "fontFamily", "fontSize", "fontWeight", "lineHeight",
@@ -153,6 +168,7 @@ export type DesignNodeStyle = {
 
   // ── Visual ──
   background?: string;
+  gradient?: GradientValue;
   coverImage?: string;       // Raw URL — rendered as positioned <img>, NOT CSS background-image
   coverSize?: "cover" | "contain";
   coverPosition?: string;

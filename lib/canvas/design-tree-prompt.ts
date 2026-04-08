@@ -365,6 +365,11 @@ ${tasteSection}${accentMapping4A}
     "gradient": { "type": "linear"|"radial", "angle": number, "position": { "x": 50, "y": 50 }, "stops": [{ "color": "#hex or rgba()", "position": 0-100 }], "interpolation": "srgb"|"oklch" },
     // gradient: angle is degrees 0-360 (linear only, 180 = top-to-bottom); position is radial center as %; interpolation defaults to srgb, use oklch for distant hues (e.g. blue to orange) to avoid muddy midpoints.
     // Use gradient for hero backgrounds, section transitions, and decorative fills. Prefer 2-3 stops. Subtle gradients over dramatic ones. gradient renders on top of background but behind coverImage.
+    "transform": { "rotate": number, "scale": { "x": number, "y": number } },
+    // transform: rotate is degrees clockwise (default 0), scale x/y are multipliers (default 1/1).
+    // Rotate is available but use it rarely. Most elements should not be rotated. Only use rotate when the brief explicitly asks for dynamic or playful composition. Default is 0. Subtle rotations (1-5deg) are more useful than dramatic ones. Use scale sparingly — prefer explicit width/height for sizing.
+    "transformOrigin": { "x": number, "y": number },
+    // transformOrigin: x/y are percentages (default 50/50, center).
     "coverImage": "photo:...",   // BACKGROUND PHOTO on frames — full-bleed <img> behind children
     "coverSize": "cover" | "contain",
     "coverPosition": string,     // e.g. "center", "center 30%"

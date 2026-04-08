@@ -1,10 +1,9 @@
 "use client";
 
 /**
- * V3 Inspector Panel — single-mode tabbed panel (Design | CSS | Export | Prompt).
+ * V3 Inspector Panel — tabbed right rail (Design | CSS | Export).
  *
- * Each tab gets full height. Design/CSS/Export show inspector content only.
- * Prompt tab shows the prompt composer at full height. No split panel, no divider.
+ * Prompt composition lives in FloatingPromptPanel (Prompt tool), not in this rail.
  * Layout chain: panel (absolute, flex-col) -> header (shrink-0) -> tabs (shrink-0)
  * -> content (flex-1 min-h-0 overflow).
  */

@@ -3,13 +3,15 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  X, Layout, Columns2, Grid3x3, Quote, Award, Megaphone, PanelBottom, Trash2, Pencil,
+  X, Layout, Columns2, Grid3x3, Quote, Award, Megaphone, PanelBottom, Trash2, Pencil, Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import {
   loadSavedComponents,
   deleteSavedComponent,
+  createTemplateById,
+  getTemplateList,
   type DesignComponent,
 } from "@/lib/canvas/design-component-library";
 import { cloneDesignNode } from "@/lib/canvas/design-node";
@@ -94,6 +96,19 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
     });
     onClose();
   }
+
+  /** DesignNode section templates from design-component-library (e.g. Primitives) — insert only, no master promotion. */
+  function handleInsertDesignTemplate(templateId: string) {
+    if (!artboardId) return;
+    const comp = createTemplateById(templateId);
+    if (!comp) return;
+    const cloned = cloneDesignNode(comp.node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dispatch({ type: "INSERT_SECTION", artboardId, section: cloned as any });
+    onClose();
+  }
+
+  const primitiveTemplates = getTemplateList().filter((t) => t.category === "Primitives");
 
   // --- Edit / rename / delete for user masters ---
 
@@ -224,6 +239,32 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
                   <p className="text-[11px] text-[#A0A0A0] py-2 text-center">No templates match &ldquo;{search}&rdquo;</p>
                 )}
               </div>
+
+              {primitiveTemplates.some((t) => matchSearch(t.name)) && (
+                <div className="mt-4">
+                  <div className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0] mb-1.5" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    Primitives
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {primitiveTemplates
+                      .filter((t) => matchSearch(t.name))
+                      .map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleInsertDesignTemplate(t.id)}
+                          className="border border-[#E5E5E0] rounded-[4px] p-3 hover:border-[#D1E4FC] cursor-pointer transition-colors flex items-start gap-2.5 w-full text-left"
+                        >
+                          <Box size={16} strokeWidth={1.5} className="text-[#A0A0A0] mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13px] font-medium text-[#1A1A1A]">{t.name}</div>
+                            <div className="text-[10px] text-[#A0A0A0] font-mono uppercase mt-0.5">{t.category}</div>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

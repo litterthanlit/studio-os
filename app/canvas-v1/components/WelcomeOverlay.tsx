@@ -17,7 +17,7 @@ const STEPS = [
   { num: "1", text: "Drop in references", desc: "screenshots, moodboards, anything that represents the vibe" },
   { num: "2", text: "Generate", desc: "AI builds a site that matches your taste" },
   { num: "3", text: "Edit", desc: "select, move, resize, restyle. It's a real editor." },
-  { num: "4", text: "Refine", desc: "use the Prompt tab to push the design further" },
+  { num: "4", text: "Refine", desc: "use the floating prompt panel (Prompt tool) to iterate with AI" },
   { num: "5", text: "Export", desc: "copy the HTML and ship it" },
 ];
 

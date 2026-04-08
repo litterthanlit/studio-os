@@ -432,6 +432,415 @@ function createFooter(): DesignComponent {
   };
 }
 
+/** Geist/shadcn-like product primitives — shared with premium-saas prompt in design-tree-prompt.ts */
+export const PRODUCT_PRIMITIVE_STYLE_TOKENS = {
+  accent: "#4B57DB",
+  accentHover: "#3D49C7",
+  accentLight: "#D1E4FC",
+  border: "#E5E5E0",
+  borderSubtle: "#EFEFEC",
+  text: "#1A1A1A",
+  muted: "#6B6B6B",
+  surface: "#FFFFFF",
+  canvas: "#FAFAF8",
+  destructive: "#EF4444",
+  destructiveSurface: "#FEF2F2",
+} as const;
+
+const TOK = PRODUCT_PRIMITIVE_STYLE_TOKENS;
+
+/** Primary filled button — accent bg, white label, radius 4px. */
+function createPrimitiveButtonPrimary(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-btn-primary",
+    name: "Button — Primary",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Button Primary",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "flex-start",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("button"),
+          type: "button",
+          name: "Primary",
+          style: {
+            width: "hug",
+            height: "hug",
+            background: TOK.accent,
+            foreground: "#FFFFFF",
+            padding: { top: 10, right: 20, bottom: 10, left: 20 },
+            borderRadius: 4,
+            fontSize: 14,
+            fontWeight: 600,
+            borderWidth: 0,
+          },
+          content: { text: "Primary" },
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveButtonOutline(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-btn-outline",
+    name: "Button — Outline",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Button Outline",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("button"),
+          type: "button",
+          name: "Outline",
+          style: {
+            width: "hug",
+            height: "hug",
+            background: "transparent",
+            foreground: TOK.accent,
+            borderColor: TOK.accent,
+            borderWidth: 1,
+            borderRadius: 4,
+            padding: { top: 10, right: 20, bottom: 10, left: 20 },
+            fontSize: 14,
+            fontWeight: 600,
+          },
+          content: { text: "Outline" },
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveButtonGhost(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-btn-ghost",
+    name: "Button — Ghost",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Button Ghost",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("button"),
+          type: "button",
+          name: "Ghost",
+          style: {
+            width: "hug",
+            height: "hug",
+            background: "transparent",
+            foreground: TOK.muted,
+            borderWidth: 0,
+            borderRadius: 4,
+            padding: { top: 10, right: 12, bottom: 10, left: 12 },
+            fontSize: 14,
+            fontWeight: 500,
+          },
+          content: { text: "Ghost" },
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveButtonDestructive(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-btn-destructive",
+    name: "Button — Destructive",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Button Destructive",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("button"),
+          type: "button",
+          name: "Destructive",
+          style: {
+            width: "hug",
+            height: "hug",
+            background: TOK.destructiveSurface,
+            foreground: TOK.destructive,
+            borderColor: TOK.destructive,
+            borderWidth: 1,
+            borderRadius: 4,
+            padding: { top: 10, right: 20, bottom: 10, left: 20 },
+            fontSize: 14,
+            fontWeight: 600,
+          },
+          content: { text: "Remove" },
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveBadge(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-badge",
+    name: "Badge",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Badge",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Badge Pill",
+          style: {
+            width: "hug",
+            height: "hug",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: { top: 4, right: 10, bottom: 4, left: 10 },
+            background: TOK.accentLight,
+            borderRadius: 999,
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Label",
+              style: { fontSize: 12, fontWeight: 600, foreground: TOK.accent },
+              content: { text: "Badge" },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveCard(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-card",
+    name: "Card",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Card",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        padding: { top: 16, right: 24, bottom: 24, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Card Surface",
+          style: {
+            width: "fill",
+            height: "hug",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            padding: { top: 20, right: 20, bottom: 20, left: 20 },
+            background: TOK.surface,
+            borderColor: TOK.border,
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Title",
+              style: { fontSize: 15, fontWeight: 600, foreground: TOK.text },
+              content: { text: "Card title" },
+            },
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Body",
+              style: { fontSize: 14, fontWeight: 400, foreground: TOK.muted, lineHeight: 1.5 },
+              content: { text: "Supporting description for this card. Keep it to one or two lines." },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveInputRow(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-input-row",
+    name: "Input row",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Input Row",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("text"),
+          type: "text",
+          name: "Label",
+          style: { fontSize: 12, fontWeight: 500, foreground: TOK.muted, letterSpacing: 0.02 },
+          content: { text: "Email" },
+        },
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Field",
+          style: {
+            width: "fill",
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            padding: { top: 0, right: 12, bottom: 0, left: 12 },
+            background: TOK.surface,
+            borderColor: TOK.border,
+            borderWidth: 1,
+            borderRadius: 2,
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Placeholder",
+              style: { fontSize: 14, foreground: "#A0A0A0" },
+              content: { text: "you@company.com" },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+function createPrimitiveSeparator(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-separator",
+    name: "Separator",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Separator",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "column",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("divider"),
+          type: "divider",
+          name: "Rule",
+          style: {
+            width: "fill",
+            height: 1,
+            borderWidth: 1,
+            borderColor: TOK.border,
+          },
+        },
+      ],
+    },
+  };
+}
+
 // ── Public template list ───────────────────────────────────────────────────
 
 export const DESIGN_TEMPLATES: Array<() => DesignComponent> = [
@@ -442,7 +851,33 @@ export const DESIGN_TEMPLATES: Array<() => DesignComponent> = [
   createProofRow,
   createCTABanner,
   createFooter,
+  createPrimitiveButtonPrimary,
+  createPrimitiveButtonOutline,
+  createPrimitiveButtonGhost,
+  createPrimitiveButtonDestructive,
+  createPrimitiveBadge,
+  createPrimitiveCard,
+  createPrimitiveInputRow,
+  createPrimitiveSeparator,
 ];
+
+const TEMPLATE_FACTORIES: Record<string, () => DesignComponent> = {
+  "template-hero": createHero,
+  "template-split": createSplitContent,
+  "template-features": createFeaturesGrid,
+  "template-quote": createQuoteBlock,
+  "template-proof": createProofRow,
+  "template-cta": createCTABanner,
+  "template-footer": createFooter,
+  "template-btn-primary": createPrimitiveButtonPrimary,
+  "template-btn-outline": createPrimitiveButtonOutline,
+  "template-btn-ghost": createPrimitiveButtonGhost,
+  "template-btn-destructive": createPrimitiveButtonDestructive,
+  "template-badge": createPrimitiveBadge,
+  "template-card": createPrimitiveCard,
+  "template-input-row": createPrimitiveInputRow,
+  "template-separator": createPrimitiveSeparator,
+};
 
 /** Get template metadata without generating full nodes (for listing). */
 export function getTemplateList(): Array<{ id: string; name: string; category: string }> {
@@ -454,21 +889,20 @@ export function getTemplateList(): Array<{ id: string; name: string; category: s
     { id: "template-proof", name: "Proof Row", category: "Content" },
     { id: "template-cta", name: "CTA Banner", category: "Action" },
     { id: "template-footer", name: "Footer", category: "Action" },
+    { id: "template-btn-primary", name: "Button — Primary", category: "Primitives" },
+    { id: "template-btn-outline", name: "Button — Outline", category: "Primitives" },
+    { id: "template-btn-ghost", name: "Button — Ghost", category: "Primitives" },
+    { id: "template-btn-destructive", name: "Button — Destructive", category: "Primitives" },
+    { id: "template-badge", name: "Badge", category: "Primitives" },
+    { id: "template-card", name: "Card", category: "Primitives" },
+    { id: "template-input-row", name: "Input row", category: "Primitives" },
+    { id: "template-separator", name: "Separator", category: "Primitives" },
   ];
 }
 
 /** Create a fresh DesignComponent from a template by ID. Fresh node IDs on every call. */
 export function createTemplateById(templateId: string): DesignComponent | null {
-  const factories: Record<string, () => DesignComponent> = {
-    "template-hero": createHero,
-    "template-split": createSplitContent,
-    "template-features": createFeaturesGrid,
-    "template-quote": createQuoteBlock,
-    "template-proof": createProofRow,
-    "template-cta": createCTABanner,
-    "template-footer": createFooter,
-  };
-  const factory = factories[templateId];
+  const factory = TEMPLATE_FACTORIES[templateId];
   return factory ? factory() : null;
 }
 

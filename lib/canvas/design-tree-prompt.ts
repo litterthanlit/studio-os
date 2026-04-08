@@ -13,6 +13,7 @@ import {
   type FidelityMode,
 } from "./directive-compiler";
 import { getArchetypeBanDescriptions } from "./design-archetype-bans";
+import { PRODUCT_PRIMITIVE_STYLE_TOKENS as PRIM } from "./design-component-library";
 
 // Re-export for consumers
 export type VariantMode = "safe" | "creative" | "alternative";
@@ -157,6 +158,28 @@ Standard product landing page patterns are appropriate:
 - Footer
 
 SECTION COUNT: 5-8 sections. Structured and scannable.
+
+## PRODUCT UI PRIMITIVES (Geist / shadcn-like)
+
+Use these recipes for buttons, badges, cards, fields, and dividers so output matches the Studio OS primitive library (same hex and radii).
+
+**Token roles:** accent ${PRIM.accent}, accentLight ${PRIM.accentLight}, text ${PRIM.text}, muted ${PRIM.muted}, border ${PRIM.border}, surface ${PRIM.surface}, canvas ${PRIM.canvas}, destructive ${PRIM.destructive}, destructiveSurface ${PRIM.destructiveSurface}.
+
+**Primary button** (type "button"): background ${PRIM.accent}, foreground #FFFFFF, borderRadius 4, padding ~10px 20px vertical/horizontal, fontSize 14, fontWeight 600. Put the label in content.text.
+
+**Outline button**: background transparent, borderWidth 1, borderColor ${PRIM.accent}, foreground ${PRIM.accent}, borderRadius 4, same padding/font as primary.
+
+**Ghost button**: background transparent, no border, foreground ${PRIM.muted}, fontSize 14, fontWeight 500, padding ~10px 12px.
+
+**Destructive button**: background ${PRIM.destructiveSurface}, foreground ${PRIM.destructive}, borderColor ${PRIM.destructive}, borderWidth 1, borderRadius 4, fontSize 14, fontWeight 600.
+
+**Badge**: small hug-width frame, display flex center, padding ~4px 10px, background ${PRIM.accentLight}, borderRadius 999, child text fontSize 12, fontWeight 600, foreground ${PRIM.accent}.
+
+**Card**: frame with background ${PRIM.surface}, borderWidth 1, borderColor ${PRIM.border}, borderRadius 6, padding ~20px; children = title (text, fontSize 15, fontWeight 600) + body (text, fontSize 14, foreground ${PRIM.muted}).
+
+**Input row**: column frame gap ~8px; label text fontSize 12, foreground ${PRIM.muted}; field frame height ~40, width fill, background ${PRIM.surface}, borderWidth 1, borderColor ${PRIM.border}, borderRadius 2, horizontal padding ~12px, placeholder text inside (visual only).
+
+**Separator**: type "divider", width fill, height 1, borderWidth 1, borderColor ${PRIM.border}.
 `;
   }
 }

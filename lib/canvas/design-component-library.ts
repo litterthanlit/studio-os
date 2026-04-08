@@ -445,9 +445,140 @@ export const PRODUCT_PRIMITIVE_STYLE_TOKENS = {
   canvas: "#FAFAF8",
   destructive: "#EF4444",
   destructiveSurface: "#FEF2F2",
+  success: "#22C55E",
+  successSurface: "#F0FDF4",
+  warning: "#F59E0B",
+  warningSurface: "#FFFBEB",
+  info: "#3B82F6",
+  infoSurface: "#EFF6FF",
 } as const;
 
 const TOK = PRODUCT_PRIMITIVE_STYLE_TOKENS;
+
+/** Top navigation — matches SaaS composition recipe; insertable Layout template. */
+function createNavBar(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-nav-bar",
+    name: "Nav Bar",
+    category: "Layout",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Nav Bar",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.surface,
+        borderColor: TOK.border,
+        borderWidth: 1,
+      },
+      children: [
+        {
+          id: uid("text"),
+          type: "text",
+          name: "Logo",
+          style: { fontSize: 15, fontWeight: 700, foreground: TOK.text },
+          content: { text: "Acme" },
+        },
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Nav Links",
+          style: {
+            width: "hug",
+            height: "hug",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 28,
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Link 1",
+              style: { fontSize: 14, fontWeight: 400, foreground: TOK.muted },
+              content: { text: "Features" },
+            },
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Link 2",
+              style: { fontSize: 14, fontWeight: 400, foreground: TOK.muted },
+              content: { text: "Pricing" },
+            },
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Link 3",
+              style: { fontSize: 14, fontWeight: 400, foreground: TOK.muted },
+              content: { text: "Docs" },
+            },
+          ],
+        },
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Nav Actions",
+          style: {
+            width: "hug",
+            height: "hug",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          },
+          children: [
+            {
+              id: uid("button"),
+              type: "button",
+              name: "Log In",
+              style: {
+                width: "hug",
+                height: "hug",
+                background: "transparent",
+                foreground: TOK.muted,
+                borderWidth: 0,
+                padding: { top: 8, right: 12, bottom: 8, left: 12 },
+                borderRadius: 4,
+                fontSize: 14,
+                fontWeight: 500,
+              },
+              content: { text: "Log in" },
+            },
+            {
+              id: uid("button"),
+              type: "button",
+              name: "Sign Up",
+              style: {
+                width: "hug",
+                height: "hug",
+                background: TOK.accent,
+                foreground: "#FFFFFF",
+                borderWidth: 0,
+                padding: { top: 8, right: 16, bottom: 8, left: 16 },
+                borderRadius: 4,
+                fontSize: 14,
+                fontWeight: 600,
+              },
+              content: { text: "Sign up" },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
 
 /** Primary filled button — accent bg, white label, radius 4px. */
 function createPrimitiveButtonPrimary(): DesignComponent {
@@ -773,6 +904,287 @@ function createPrimitiveIconLabelRow(): DesignComponent {
   };
 }
 
+/** KPI stat card — label, value, trend row (success tokens). */
+function createPrimitiveStatCard(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-stat-card",
+    name: "Stat Card",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Stat Card",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "column",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Card Surface",
+          style: {
+            width: "fill",
+            height: "hug",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            padding: { top: 20, right: 20, bottom: 20, left: 20 },
+            background: TOK.surface,
+            borderColor: TOK.border,
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Label",
+              style: {
+                fontSize: 12,
+                fontWeight: 500,
+                foreground: TOK.muted,
+                letterSpacing: 0.04,
+              },
+              content: { text: "Monthly Revenue" },
+            },
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Value",
+              style: { fontSize: 36, fontWeight: 700, foreground: TOK.text, lineHeight: 1.1 },
+              content: { text: "$48,200" },
+            },
+            {
+              id: uid("frame"),
+              type: "frame",
+              name: "Trend Row",
+              style: {
+                width: "hug",
+                height: "hug",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+              },
+              children: [
+                {
+                  id: uid("frame"),
+                  type: "frame",
+                  name: "Trend Indicator",
+                  style: {
+                    width: 18,
+                    height: 18,
+                    flexShrink: 0,
+                    borderRadius: 999,
+                    background: TOK.successSurface,
+                  },
+                  children: [],
+                },
+                {
+                  id: uid("text"),
+                  type: "text",
+                  name: "Delta",
+                  style: { fontSize: 13, fontWeight: 500, foreground: TOK.success },
+                  content: { text: "+12.3%" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+/** Inline alert / note — info tokens default; recolor for warning/success/destructive. */
+function createPrimitiveAlert(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-alert",
+    name: "Alert",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Alert",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "column",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Alert Surface",
+          style: {
+            width: "fill",
+            height: "hug",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: 12,
+            padding: { top: 16, right: 16, bottom: 16, left: 16 },
+            background: TOK.infoSurface,
+            borderColor: TOK.info,
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+          children: [
+            {
+              id: uid("frame"),
+              type: "frame",
+              name: "Icon Slot",
+              style: {
+                width: 20,
+                height: 20,
+                flexShrink: 0,
+                borderRadius: 999,
+                background: TOK.info,
+              },
+              children: [],
+            },
+            {
+              id: uid("frame"),
+              type: "frame",
+              name: "Alert Content",
+              style: {
+                width: "fill",
+                height: "hug",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              },
+              children: [
+                {
+                  id: uid("text"),
+                  type: "text",
+                  name: "Title",
+                  style: { fontSize: 14, fontWeight: 600, foreground: TOK.text },
+                  content: { text: "Heads up" },
+                },
+                {
+                  id: uid("text"),
+                  type: "text",
+                  name: "Message",
+                  style: {
+                    fontSize: 13,
+                    fontWeight: 400,
+                    foreground: TOK.muted,
+                    lineHeight: 1.5,
+                  },
+                  content: { text: "This is an informational alert. Replace with your message." },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+/** Circle initials + name/role — use inside testimonials and team grids. */
+function createPrimitiveAvatar(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-avatar",
+    name: "Avatar",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Avatar",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Avatar Circle",
+          style: {
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            borderRadius: 999,
+            background: TOK.accentLight,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Initials",
+              style: { fontSize: 15, fontWeight: 600, foreground: TOK.accent },
+              content: { text: "JD" },
+            },
+          ],
+        },
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Avatar Meta",
+          style: {
+            width: "hug",
+            height: "hug",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          },
+          children: [
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Name",
+              style: { fontSize: 14, fontWeight: 600, foreground: TOK.text },
+              content: { text: "Jane Doe" },
+            },
+            {
+              id: uid("text"),
+              type: "text",
+              name: "Role",
+              style: { fontSize: 12, fontWeight: 400, foreground: TOK.muted },
+              content: { text: "Product Designer" },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 function createPrimitiveBadge(): DesignComponent {
   const now = new Date().toISOString();
   return {
@@ -988,6 +1400,7 @@ function createPrimitiveSeparator(): DesignComponent {
 
 export const DESIGN_TEMPLATES: Array<() => DesignComponent> = [
   createHero,
+  createNavBar,
   createSplitContent,
   createFeaturesGrid,
   createQuoteBlock,
@@ -1001,6 +1414,9 @@ export const DESIGN_TEMPLATES: Array<() => DesignComponent> = [
   createPrimitiveButtonSecondary,
   createPrimitiveLinkCta,
   createPrimitiveIconLabelRow,
+  createPrimitiveStatCard,
+  createPrimitiveAlert,
+  createPrimitiveAvatar,
   createPrimitiveBadge,
   createPrimitiveCard,
   createPrimitiveInputRow,
@@ -1009,6 +1425,7 @@ export const DESIGN_TEMPLATES: Array<() => DesignComponent> = [
 
 const TEMPLATE_FACTORIES: Record<string, () => DesignComponent> = {
   "template-hero": createHero,
+  "template-nav-bar": createNavBar,
   "template-split": createSplitContent,
   "template-features": createFeaturesGrid,
   "template-quote": createQuoteBlock,
@@ -1022,6 +1439,9 @@ const TEMPLATE_FACTORIES: Record<string, () => DesignComponent> = {
   "template-btn-secondary": createPrimitiveButtonSecondary,
   "template-link-cta": createPrimitiveLinkCta,
   "template-icon-label-row": createPrimitiveIconLabelRow,
+  "template-stat-card": createPrimitiveStatCard,
+  "template-alert": createPrimitiveAlert,
+  "template-avatar": createPrimitiveAvatar,
   "template-badge": createPrimitiveBadge,
   "template-card": createPrimitiveCard,
   "template-input-row": createPrimitiveInputRow,
@@ -1032,6 +1452,7 @@ const TEMPLATE_FACTORIES: Record<string, () => DesignComponent> = {
 export function getTemplateList(): Array<{ id: string; name: string; category: string }> {
   return [
     { id: "template-hero", name: "Hero", category: "Layout" },
+    { id: "template-nav-bar", name: "Nav Bar", category: "Layout" },
     { id: "template-split", name: "Split Content", category: "Layout" },
     { id: "template-features", name: "Features Grid", category: "Content" },
     { id: "template-quote", name: "Quote Block", category: "Content" },
@@ -1045,6 +1466,9 @@ export function getTemplateList(): Array<{ id: string; name: string; category: s
     { id: "template-btn-secondary", name: "Button — Secondary", category: "Primitives" },
     { id: "template-link-cta", name: "Link — CTA", category: "Primitives" },
     { id: "template-icon-label-row", name: "Icon + label row", category: "Primitives" },
+    { id: "template-stat-card", name: "Stat Card", category: "Primitives" },
+    { id: "template-alert", name: "Alert", category: "Primitives" },
+    { id: "template-avatar", name: "Avatar", category: "Primitives" },
     { id: "template-badge", name: "Badge", category: "Primitives" },
     { id: "template-card", name: "Card", category: "Primitives" },
     { id: "template-input-row", name: "Input row", category: "Primitives" },

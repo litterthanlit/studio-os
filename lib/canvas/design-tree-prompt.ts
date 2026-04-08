@@ -18,6 +18,36 @@ import { PRODUCT_PRIMITIVE_STYLE_TOKENS as PRIM } from "./design-component-libra
 // Re-export for consumers
 export type VariantMode = "safe" | "creative" | "alternative";
 
+/** Archetypes that use premium-saas primitive + composition grammar (default branch). */
+function usesPremiumSaasProductGrammar(archetype: string | undefined): boolean {
+  switch (archetype) {
+    case "editorial-brand":
+    case "minimal-tech":
+    case "creative-portfolio":
+    case "culture-brand":
+    case "experimental":
+      return false;
+    default:
+      return true;
+  }
+}
+
+/** Phase 4A — prompt-only accent mapping; no runtime merge of insertable library. */
+function buildProductPrimitiveAccentMapping4A(tokens: DesignSystemTokens): string {
+  return `## PRODUCT PRIMITIVE ACCENT — TASTE / TOKENS (approach 4A)
+
+When generating this **product / SaaS** page, map **accent color** to interactive primitives as follows. Do **not** change radii or padding bands.
+
+**Priority for accent hex:** (1) If **Compiled Design Directives** include **HARD CONSTRAINTS [palette]** with listed colors, use the palette's **accent** (the vivid / CTA color among those hexes) for interactive fills and outlines. (2) Else use **Design Tokens** accent: ${tokens.colors.accent}. (3) Only if neither applies, fall back to default kit accent ${PRIM.accent}.
+
+**Apply that accent to:** **primary** button background; **outline** button borderColor and foreground; **link CTA** (**text** node with underline) foreground; **badge** pill text color; **icon + label row** — small square tile background = a pale tint of the same accent (similar lightness to ${PRIM.accentLight} but hue from the chosen accent).
+
+**Neutrals:** Prefer taste-listed background, surface, text, and border from HARD **[palette]** for **section** backgrounds and page-level type when listed. For **card**, **input**, and **divider** primitives, keep ${PRIM.border}, ${PRIM.muted}, ${PRIM.surface} unless the palette explicitly replaces them.
+
+**Primary button label:** Use **#FFFFFF** on primary unless the accent is very light (near white); then use **${PRIM.text}** for button text for contrast.
+`;
+}
+
 // ─── Archetype Composition Grammars ──────────────────────────────────────────
 
 function getDesignArchetypeGrammar(archetype: string | undefined): string {
@@ -173,6 +203,12 @@ Use these recipes for buttons, badges, cards, fields, and dividers so output mat
 
 **Destructive button**: background ${PRIM.destructiveSurface}, foreground ${PRIM.destructive}, borderColor ${PRIM.destructive}, borderWidth 1, borderRadius 4, fontSize 14, fontWeight 600.
 
+**Secondary button** (type "button"): background ${PRIM.borderSubtle}, foreground ${PRIM.text}, borderWidth 1, borderColor ${PRIM.border}, borderRadius 4, padding ~10px 20px, fontSize 14, fontWeight 600. Use for the less prominent action next to primary.
+
+**Link CTA** (type "text", not button): fontSize 14, fontWeight 500, foreground = accent role, textDecoration "underline". For in-flow actions ("Learn more →", "View docs") beside or below button rows.
+
+**Icon + label row**: horizontal **frame** (flexDirection row, alignItems center, gap ~10). Child 1: small **frame** ~22×22px, borderRadius 4, background = pale accent tint (${PRIM.accentLight}-like). Child 2: **text** label fontSize 14, fontWeight 500, foreground ${PRIM.text}. No SVG — the square is an icon placeholder.
+
 **Badge**: small hug-width frame, display flex center, padding ~4px 10px, background ${PRIM.accentLight}, borderRadius 999, child text fontSize 12, fontWeight 600, foreground ${PRIM.accent}.
 
 **Card**: frame with background ${PRIM.surface}, borderWidth 1, borderColor ${PRIM.border}, borderRadius 6, padding ~20px; children = title (text, fontSize 15, fontWeight 600) + body (text, fontSize 14, foreground ${PRIM.muted}).
@@ -180,6 +216,25 @@ Use these recipes for buttons, badges, cards, fields, and dividers so output mat
 **Input row**: column frame gap ~8px; label text fontSize 12, foreground ${PRIM.muted}; field frame height ~40, width fill, background ${PRIM.surface}, borderWidth 1, borderColor ${PRIM.border}, borderRadius 2, horizontal padding ~12px, placeholder text inside (visual only).
 
 **Separator**: type "divider", width fill, height 1, borderWidth 1, borderColor ${PRIM.border}.
+
+## SAAS COMPOSITION RECIPES
+
+Build each major block as a **section frame** (direct child of the page root). Inside sections, **compose** from the primitives above — reuse the same radii, token hex values, and button variants. Prefer these named compositions:
+
+1. **Top nav** — One row: logo **text** (fontSize 15, fontWeight 600, foreground ${PRIM.text}) + horizontal **frame** (display flex, flexDirection row, gap 24–32, alignItems center) with nav links (**text**, fontSize 14, foreground ${PRIM.muted}) + trailing **ghost** "Log in" + **primary** CTA.
+2. **Hero** — Column (**flexDirection** column, **alignItems** center, gap 16–24, padding vertical 72–120, background often ${PRIM.canvas}). Optional **badge** row at top. **Headline** (**text**, fontSize 48–56, fontWeight 600, textAlign center). **Subtext** (fontSize 16–18, foreground ${PRIM.muted}, maxWidth ~560, textAlign center). **CTA row** (**frame**: flex row, gap 12, justifyContent center): **primary** + **outline** OR **primary** + **secondary** button. Optional **link CTA** **text** node below for tertiary action.
+3. **Logo strip** — Short section: centered kicker (**text**, fontSize 11, letterSpacing, uppercase, foreground ${PRIM.muted}) + **frame** flex row, flexWrap wrap, justifyContent center, gap 32–48 with 4–6 **text** "client name" placeholders (fontSize 13, foreground ${PRIM.muted}).
+4. **Features 3-up** — Section header (**text** title + optional **text** subtitle in ${PRIM.muted}) + **grid** **frame** (display grid, gridTemplate **repeat(3, 1fr)**, gap 24). Each column is one **Card** primitive (surface ${PRIM.surface}, border, borderRadius 6, padding ~20px): optional **icon + label row** at top of card, then **text** title (fontSize 15, fontWeight 600) + **text** body (fontSize 14, foreground ${PRIM.muted}).
+5. **Testimonials 2–3** — Same grid pattern with **repeat(2, 1fr)** or **repeat(3, 1fr)**. Each cell: **Card** with quote **text** (fontSize 15–16, lineHeight 1.5) + name **text** (fontSize 13, fontWeight 600) + role **text** (fontSize 12, foreground ${PRIM.muted}).
+6. **Pricing tiers** — Grid **repeat(3, 1fr)** or **repeat(2, 1fr)** when only two plans: each cell is a **Card** containing tier name **text**, price **text** (larger, fontWeight 600), 3–5 bullet lines as **text** in ${PRIM.muted}, and one **primary** or **outline** button at the bottom inside the card.
+7. **Closing CTA band** — Section **frame** with background ${PRIM.accentLight} or ${PRIM.canvas}: centered column, strong **text** headline + single **primary** button.
+8. **Footer** — **frame** with padding; **text** copyright (fontSize 12, foreground ${PRIM.muted}) + optional row of link **text** or **ghost** buttons. Optional **divider** along the top edge of the section.
+
+**Minimal fragment — nav + hero** (IDs are illustrative; always generate fresh unique ids for real output):
+
+[{"id":"sec-nav","type":"frame","name":"Nav","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"center","padding":{"top":16,"right":48,"bottom":16,"left":48},"background":"${PRIM.surface}"},"children":[{"id":"nav-logo","type":"text","name":"Logo","style":{"fontSize":15,"fontWeight":600,"foreground":"${PRIM.text}"},"content":{"text":"Acme"}},{"id":"nav-actions","type":"frame","name":"Actions","style":{"display":"flex","flexDirection":"row","alignItems":"center","gap":24},"children":[{"id":"nav-p","type":"text","name":"Link","style":{"fontSize":14,"foreground":"${PRIM.muted}"},"content":{"text":"Pricing"}},{"id":"nav-b1","type":"button","name":"Login","style":{"background":"transparent","foreground":"${PRIM.muted}","borderWidth":0,"padding":{"top":10,"right":12,"bottom":10,"left":12},"borderRadius":4,"fontSize":14,"fontWeight":500},"content":{"text":"Log in"}},{"id":"nav-b2","type":"button","name":"CTA","style":{"background":"${PRIM.accent}","foreground":"#FFFFFF","padding":{"top":10,"right":20,"bottom":10,"left":20},"borderRadius":4,"fontSize":14,"fontWeight":600,"borderWidth":0},"content":{"text":"Start"}}]}]},{"id":"sec-hero","type":"frame","name":"Hero","style":{"width":"fill","display":"flex","flexDirection":"column","alignItems":"center","gap":20,"padding":{"top":88,"right":48,"bottom":88,"left":48},"background":"${PRIM.canvas}"},"children":[{"id":"h1","type":"text","name":"Headline","style":{"fontSize":52,"fontWeight":600,"textAlign":"center","maxWidth":720},"content":{"text":"Headline"}},{"id":"h2","type":"text","name":"Sub","style":{"fontSize":17,"foreground":"${PRIM.muted}","textAlign":"center","maxWidth":560},"content":{"text":"Supporting line."}},{"id":"hero-cta","type":"frame","name":"CTAs","style":{"display":"flex","flexDirection":"row","gap":12,"justifyContent":"center"},"children":[{"id":"hb1","type":"button","name":"Primary","style":{"background":"${PRIM.accent}","foreground":"#FFFFFF","padding":{"top":10,"right":20,"bottom":10,"left":20},"borderRadius":4,"fontSize":14,"fontWeight":600,"borderWidth":0},"content":{"text":"Primary"}},{"id":"hb2","type":"button","name":"Secondary","style":{"background":"transparent","foreground":"${PRIM.accent}","borderColor":"${PRIM.accent}","borderWidth":1,"padding":{"top":10,"right":20,"bottom":10,"left":20},"borderRadius":4,"fontSize":14,"fontWeight":600},"content":{"text":"Secondary"}}]}]}]
+
+**Rules:** Adapt copy, counts, and spacing to the brief. Do **not** swap in different border radii or off-palette neutrals for elements that map to a primitive recipe. Typical section order: Nav → Hero → Logo strip (optional) → Features → Social proof → Pricing (optional) → Closing CTA → Footer — reorder if the brief requires it.
 `;
   }
 }
@@ -199,7 +254,7 @@ function getDesignArchetypeStructuralGuard(archetype: string | undefined): strin
     case "experimental":
       return "\nIMPORTANT: Experimental design. Do NOT normalize into safe centered layouts or standard SaaS ordering.";
     default:
-      return "";
+      return "\nIMPORTANT: Product / SaaS page. Use PRODUCT UI PRIMITIVES for buttons, badges, cards, fields, and dividers. Compose major sections using SAAS COMPOSITION RECIPES (nav, hero, grids of cards, pricing cards, footer). Do not invent alternate radii or arbitrary palette colors for those elements.";
   }
 }
 
@@ -229,6 +284,10 @@ export function buildDesignTreePrompt(
       ? `\n## BANNED STRUCTURAL PATTERNS\nDo NOT produce these patterns:\n${banDescriptions.map((b) => `- ${b}`).join("\n")}\n`
       : "";
 
+  const accentMapping4A = usesPremiumSaasProductGrammar(tasteProfile?.archetypeMatch)
+    ? `\n${buildProductPrimitiveAccentMapping4A(tokens)}\n`
+    : "";
+
   return `You are a senior editorial designer composing a landing page as a DesignNode JSON tree.
 
 ## Mental Model
@@ -247,8 +306,7 @@ Frames are the building blocks. The page is a root frame whose children are sect
 Site name: ${siteName}
 ${archetypeGrammar}${banSection}
 
-${tasteSection}
-
+${tasteSection}${accentMapping4A}
 ## DesignNode Schema
 
 \`\`\`

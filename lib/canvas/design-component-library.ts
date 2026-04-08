@@ -630,6 +630,149 @@ function createPrimitiveButtonDestructive(): DesignComponent {
   };
 }
 
+/** Secondary / muted filled button — neutral surface + border (shadcn-like). */
+function createPrimitiveButtonSecondary(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-btn-secondary",
+    name: "Button — Secondary",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Button Secondary",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "flex-start",
+        padding: { top: 16, right: 24, bottom: 16, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("button"),
+          type: "button",
+          name: "Secondary",
+          style: {
+            width: "hug",
+            height: "hug",
+            background: TOK.borderSubtle,
+            foreground: TOK.text,
+            borderColor: TOK.border,
+            borderWidth: 1,
+            borderRadius: 4,
+            padding: { top: 10, right: 20, bottom: 10, left: 20 },
+            fontSize: 14,
+            fontWeight: 600,
+          },
+          content: { text: "Secondary" },
+        },
+      ],
+    },
+  };
+}
+
+/** Text link CTA — underline, accent color (not a button node). */
+function createPrimitiveLinkCta(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-link-cta",
+    name: "Link — CTA",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Link CTA",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        padding: { top: 12, right: 24, bottom: 12, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("text"),
+          type: "text",
+          name: "Link",
+          style: {
+            fontSize: 14,
+            fontWeight: 500,
+            foreground: TOK.accent,
+            textDecoration: "underline",
+          },
+          content: { text: "Learn more →" },
+        },
+      ],
+    },
+  };
+}
+
+/** Icon slot + label row — 22px tinted square + text (icon approximated; no SVG). */
+function createPrimitiveIconLabelRow(): DesignComponent {
+  const now = new Date().toISOString();
+  return {
+    id: "template-icon-label-row",
+    name: "Icon + label row",
+    category: "Primitives",
+    source: "template",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    node: {
+      id: uid("frame"),
+      type: "frame",
+      name: "Icon Label Row",
+      style: {
+        width: "fill",
+        height: "hug",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        padding: { top: 12, right: 24, bottom: 12, left: 24 },
+        background: TOK.canvas,
+      },
+      children: [
+        {
+          id: uid("frame"),
+          type: "frame",
+          name: "Icon slot",
+          style: {
+            width: 22,
+            height: 22,
+            flexShrink: 0,
+            background: TOK.accentLight,
+            borderRadius: 4,
+          },
+          children: [],
+        },
+        {
+          id: uid("text"),
+          type: "text",
+          name: "Label",
+          style: {
+            fontSize: 14,
+            fontWeight: 500,
+            foreground: TOK.text,
+          },
+          content: { text: "Short feature label" },
+        },
+      ],
+    },
+  };
+}
+
 function createPrimitiveBadge(): DesignComponent {
   const now = new Date().toISOString();
   return {
@@ -855,6 +998,9 @@ export const DESIGN_TEMPLATES: Array<() => DesignComponent> = [
   createPrimitiveButtonOutline,
   createPrimitiveButtonGhost,
   createPrimitiveButtonDestructive,
+  createPrimitiveButtonSecondary,
+  createPrimitiveLinkCta,
+  createPrimitiveIconLabelRow,
   createPrimitiveBadge,
   createPrimitiveCard,
   createPrimitiveInputRow,
@@ -873,6 +1019,9 @@ const TEMPLATE_FACTORIES: Record<string, () => DesignComponent> = {
   "template-btn-outline": createPrimitiveButtonOutline,
   "template-btn-ghost": createPrimitiveButtonGhost,
   "template-btn-destructive": createPrimitiveButtonDestructive,
+  "template-btn-secondary": createPrimitiveButtonSecondary,
+  "template-link-cta": createPrimitiveLinkCta,
+  "template-icon-label-row": createPrimitiveIconLabelRow,
   "template-badge": createPrimitiveBadge,
   "template-card": createPrimitiveCard,
   "template-input-row": createPrimitiveInputRow,
@@ -893,6 +1042,9 @@ export function getTemplateList(): Array<{ id: string; name: string; category: s
     { id: "template-btn-outline", name: "Button — Outline", category: "Primitives" },
     { id: "template-btn-ghost", name: "Button — Ghost", category: "Primitives" },
     { id: "template-btn-destructive", name: "Button — Destructive", category: "Primitives" },
+    { id: "template-btn-secondary", name: "Button — Secondary", category: "Primitives" },
+    { id: "template-link-cta", name: "Link — CTA", category: "Primitives" },
+    { id: "template-icon-label-row", name: "Icon + label row", category: "Primitives" },
     { id: "template-badge", name: "Badge", category: "Primitives" },
     { id: "template-card", name: "Card", category: "Primitives" },
     { id: "template-input-row", name: "Input row", category: "Primitives" },

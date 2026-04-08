@@ -58,6 +58,16 @@ export type GradientValue = {
   interpolation?: "srgb" | "oklch";        // default "srgb"
 };
 
+// === Transform Types (V6 Phase 2B) ===
+
+export type TransformValue = {
+  rotate?: number;             // degrees, clockwise
+  scale?: {
+    x: number;                 // 1 = 100%
+    y: number;
+  };
+};
+
 // === Component System Types (Track 3) ===
 
 export type AllowedStyleOverride = Pick<DesignNodeStyle,
@@ -68,6 +78,7 @@ export type AllowedStyleOverride = Pick<DesignNodeStyle,
   | "letterSpacing" | "fontStyle" | "textDecoration" | "textAlign"
   | "padding"
   | "coverImage" | "coverSize" | "coverPosition"
+  | "transform" | "transformOrigin"
 >;
 
 export const ALLOWED_STYLE_FIELDS = new Set<string>([
@@ -78,6 +89,7 @@ export const ALLOWED_STYLE_FIELDS = new Set<string>([
   "letterSpacing", "fontStyle", "textDecoration", "textAlign",
   "padding",
   "coverImage", "coverSize", "coverPosition",
+  "transform", "transformOrigin",
 ]);
 
 export type NodeOverride = {
@@ -141,6 +153,8 @@ export type DesignNodeStyle = {
   height?: number | "hug" | "fill";
   zIndex?: number;
   overflow?: "visible" | "hidden";
+  transform?: TransformValue;
+  transformOrigin?: { x: number; y: number };  // percentage, defaults to { x: 50, y: 50 }
 
   // ── Layout ──
   display?: "flex" | "grid";

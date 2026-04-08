@@ -70,6 +70,22 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
 
   // ── Visual ──
   if (style.background) css.backgroundColor = style.background;
+  if (style.gradient && style.gradient.stops.length >= 2) {
+    const g = style.gradient;
+    const interp = g.interpolation === "oklch" ? "in oklch shorter hue, " : "";
+    const stops = g.stops
+      .map((stop) => `${stop.color} ${stop.position}%`)
+      .join(", ");
+
+    if (g.type === "linear") {
+      const angle = g.angle ?? 180; // default top-to-bottom
+      css.background = `linear-gradient(${interp}${angle}deg, ${stops})`;
+    } else if (g.type === "radial") {
+      const cx = g.position?.x ?? 50;
+      const cy = g.position?.y ?? 50;
+      css.background = `radial-gradient(${interp}circle at ${cx}% ${cy}%, ${stops})`;
+    }
+  }
   if (style.foreground) css.color = style.foreground;
   if (style.borderColor) css.borderColor = style.borderColor;
   if (style.borderWidth != null) {

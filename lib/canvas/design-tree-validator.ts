@@ -191,6 +191,38 @@ export function validateAndNormalizeDesignTree(
         }
       }
 
+      if (style.transform) {
+        const t = style.transform as Record<string, unknown>;
+        if (t.rotate !== undefined && typeof t.rotate !== "number") {
+          delete t.rotate;
+        }
+        if (typeof t.rotate === "number") {
+          t.rotate = ((t.rotate % 360) + 360) % 360;
+          if (t.rotate === 0) delete t.rotate;
+        }
+        if (t.scale) {
+          const sc = t.scale as Record<string, unknown>;
+          if (typeof sc.x !== "number" || typeof sc.y !== "number") {
+            delete t.scale;
+          } else {
+            sc.x = Math.max(0.01, Math.min(10, sc.x as number));
+            sc.y = Math.max(0.01, Math.min(10, sc.y as number));
+          }
+        }
+        if (!t.rotate && !t.scale) {
+          delete style.transform;
+        }
+      }
+      if (style.transformOrigin) {
+        const o = style.transformOrigin as Record<string, unknown>;
+        if (typeof o.x !== "number" || typeof o.y !== "number") {
+          delete style.transformOrigin;
+        } else {
+          o.x = Math.max(0, Math.min(100, o.x as number));
+          o.y = Math.max(0, Math.min(100, o.y as number));
+        }
+      }
+
       n.style = style;
     }
 

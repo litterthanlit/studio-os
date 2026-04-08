@@ -113,6 +113,24 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   if (style.maxWidth != null) {
     css.maxWidth = typeof style.maxWidth === "number" ? style.maxWidth : style.maxWidth;
   }
+  if (style.transform) {
+    const parts: string[] = [];
+    if (typeof style.transform.rotate === "number" && style.transform.rotate !== 0) {
+      parts.push(`rotate(${style.transform.rotate}deg)`);
+    }
+    if (style.transform.scale) {
+      const { x, y } = style.transform.scale;
+      if (x !== 1 || y !== 1) {
+        parts.push(`scaleX(${x}) scaleY(${y})`);
+      }
+    }
+    if (parts.length > 0) {
+      css.transform = parts.join(" ");
+    }
+  }
+  if (style.transformOrigin) {
+    css.transformOrigin = `${style.transformOrigin.x}% ${style.transformOrigin.y}%`;
+  }
 
   return css;
 }

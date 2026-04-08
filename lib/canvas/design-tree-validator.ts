@@ -161,6 +161,36 @@ export function validateAndNormalizeDesignTree(
       if (effects) style.effects = effects;
       else delete style.effects;
 
+      if (style.gradient) {
+        const g = style.gradient as Record<string, unknown>;
+        // Validate type
+        if (g.type !== "linear" && g.type !== "radial") {
+          delete style.gradient;
+        } else if (!Array.isArray(g.stops) || (g.stops as unknown[]).length < 2) {
+          delete style.gradient;
+        } else {
+          // Clamp stop positions to 0-100
+          g.stops = (g.stops as Array<Record<string, unknown>>).map((stop) => ({
+            color: typeof stop.color === "string" ? stop.color : "#000000",
+            position: Math.max(0, Math.min(100, typeof stop.position === "number" ? stop.position : 0)),
+          }));
+          // Validate interpolation
+          if (g.interpolation && g.interpolation !== "srgb" && g.interpolation !== "oklch") {
+            g.interpolation = "srgb";
+          }
+          // Clamp angle for linear
+          if (g.type === "linear" && typeof g.angle === "number") {
+            g.angle = ((g.angle % 360) + 360) % 360;
+          }
+          // Validate radial position
+          if (g.type === "radial" && g.position && typeof g.position === "object") {
+            const pos = g.position as Record<string, unknown>;
+            pos.x = Math.max(0, Math.min(100, typeof pos.x === "number" ? pos.x : 50));
+            pos.y = Math.max(0, Math.min(100, typeof pos.y === "number" ? pos.y : 50));
+          }
+        }
+      }
+
       n.style = style;
     }
 

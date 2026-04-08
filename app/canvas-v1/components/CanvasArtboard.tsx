@@ -7,6 +7,7 @@ import { ComposeDocumentView, exitAnyActiveTextEditing } from "./ComposeDocument
 import { ComposeDocumentViewV6, exitAnyActiveTextEditingV6 } from "./ComposeDocumentViewV6";
 import { BREAKPOINT_WIDTHS, findNodeById, isDesignNodeTree } from "@/lib/canvas/compose";
 import type { ArtboardItem, GenerationResult } from "@/lib/canvas/unified-canvas-state";
+import type { DesignNode } from "@/lib/canvas/design-node";
 import { getGenerationStage } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { GenerationAnimation } from "./GenerationAnimation";
@@ -14,6 +15,8 @@ import { GenerationAnimation } from "./GenerationAnimation";
 type CanvasArtboardProps = {
   item: ArtboardItem;
   tokens: DesignSystemTokens | null;
+  /** Editor tool: select | hand | marquee | frame | prompt */
+  activeTool?: string;
   isDragging?: boolean;
   isGenerating?: boolean;
   agentSteps?: string[];
@@ -24,7 +27,7 @@ type CanvasArtboardProps = {
   onRetry?: () => void;
 };
 
-export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
+export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeArtboardId === item.id;
@@ -142,6 +145,13 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
         nodeId,
         style: style as import("@/lib/canvas/compose").PageNodeStyle,
       });
+    },
+    [dispatch, item.id]
+  );
+
+  const handleInsertSectionV6 = React.useCallback(
+    (index: number, section: DesignNode) => {
+      dispatch({ type: "INSERT_SECTION", artboardId: item.id, index, section });
     },
     [dispatch, item.id]
   );
@@ -290,6 +300,8 @@ export function CanvasArtboard({ item, tokens, isDragging, isGenerating, agentSt
                   onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
                   artboardId={item.id}
                   zoom={state.viewport.zoom}
+                  canvasTool={activeTool}
+                  onInsertSection={handleInsertSectionV6}
                   interactive
                 />
               ) : tokens ? (

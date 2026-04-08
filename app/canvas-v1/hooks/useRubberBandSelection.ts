@@ -51,6 +51,8 @@ type UseRubberBandSelectionOpts = {
   tree: DesignNode;
   zoom: number;
   interactive: boolean;
+  /** When false, marquee drag is disabled (e.g. Frame or Hand tool). */
+  enabled?: boolean;
   spaceHeldRef: React.RefObject<boolean>;
   isInteractingRef: React.RefObject<boolean>;
   existingSelection: string[];
@@ -119,6 +121,7 @@ export function useRubberBandSelection(
     tree,
     zoom,
     interactive,
+    enabled = true,
     spaceHeldRef: spaceHeld,
     isInteractingRef: isInteracting,
     existingSelection,
@@ -226,7 +229,7 @@ export function useRubberBandSelection(
 
   const handlePointerDown = React.useCallback(
     (e: React.PointerEvent) => {
-      if (!interactive) return;
+      if (!interactive || !enabled) return;
 
       // Only primary button (left click)
       if (e.button !== 0) return;
@@ -263,7 +266,7 @@ export function useRubberBandSelection(
         pointerId: e.pointerId,
       };
     },
-    [interactive, spaceHeld, isInteracting],  // refs — stable identity
+    [interactive, enabled, spaceHeld, isInteracting],  // refs — stable identity
   );
 
   // ── Pointer Move ────────────────────────────────────────────────

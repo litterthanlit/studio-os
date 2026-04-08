@@ -20,6 +20,8 @@ import { LayoutHandlesOverlay } from "./LayoutHandlesOverlay";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
 import { useRubberBandSelection } from "@/app/canvas-v1/hooks/useRubberBandSelection";
+import { useFrameDraw } from "@/app/canvas-v1/hooks/useFrameDraw";
+import { useCanvasReparentAltDrag } from "@/app/canvas-v1/hooks/useCanvasReparentAltDrag";
 import { useNestedSelection } from "../hooks/useNestedSelection";
 import { NestedHoverPreview } from "./NestedHoverPreview";
 
@@ -116,6 +118,8 @@ type ComposeDocumentViewV6Props = {
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
   /** Insert a new blank section at a given index within the root frame */
   onInsertSection?: (index: number, section: DesignNode) => void;
+  /** Matches EditorTransportBar: select | hand | marquee | prompt | frame */
+  canvasTool?: string;
   /**
    * When true, `resolveTree` memo depends on full `components` so live master edits re-resolve.
    * When false, memo uses `computeComponentsResolveEpoch` (id:version:presetKeys) to avoid churn
@@ -998,6 +1002,7 @@ export function ComposeDocumentViewV6({
   zoom = 1,
   onContextMenu,
   onInsertSection,
+  canvasTool = "select",
   masterEditDirty = false,
 }: ComposeDocumentViewV6Props) {
   const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
@@ -1387,11 +1392,49 @@ export function ComposeDocumentViewV6({
     onSelectNode?.(null);
   }, [onSelectNode]);
 
+  const rubberBandEnabled =
+    canvasTool === "select" || canvasTool === "marquee";
+
+  const handleFrameCommit = React.useCallback(
+    (rect: { x: number; y: number; width: number; height: number }) => {
+      if (!onInsertSection) return;
+      const id = `frame-${Date.now()}-${++_insertCounter}`;
+      const section: DesignNode = {
+        id,
+        type: "frame",
+        name: "Frame",
+        style: {
+          position: "absolute",
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          width: Math.max(24, Math.round(rect.width)),
+          height: Math.max(24, Math.round(rect.height)),
+          display: "flex",
+          flexDirection: "column",
+          padding: { top: 12, right: 12, bottom: 12, left: 12 },
+        },
+        children: [],
+      };
+      onInsertSection(tree.children?.length ?? 0, section);
+    },
+    [onInsertSection, tree.children?.length]
+  );
+
+  const frameDraw = useFrameDraw({
+    containerRef,
+    zoom,
+    interactive: interactive ?? false,
+    canvasTool,
+    spaceHeldRef,
+    onCommit: handleFrameCommit,
+  });
+
   const rubberBand = useRubberBandSelection({
     containerRef,
     tree,
     zoom,
     interactive: interactive ?? false,
+    enabled: rubberBandEnabled,
     spaceHeldRef,
     isInteractingRef,
     existingSelection: selectedNodeIds,
@@ -1400,12 +1443,61 @@ export function ComposeDocumentViewV6({
     onDeselectAll: rubberBandHandleDeselectAll,
   });
 
+  useCanvasReparentAltDrag({
+    tree,
+    artboardId,
+    selectedNodeIds,
+    interactive: interactive ?? false,
+    containerRef,
+  });
+
+  const mergedPointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!interactive) return;
+      if (canvasTool === "frame") {
+        frameDraw.handlePointerDown(e);
+        return;
+      }
+      rubberBand.handlePointerDown(e);
+    },
+    [interactive, canvasTool, frameDraw, rubberBand]
+  );
+
+  const mergedPointerMove = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!interactive) return;
+      if (canvasTool === "frame") {
+        frameDraw.handlePointerMove(e);
+        return;
+      }
+      rubberBand.handlePointerMove(e);
+    },
+    [interactive, canvasTool, frameDraw, rubberBand]
+  );
+
+  const mergedPointerUp = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!interactive) return;
+      if (canvasTool === "frame") {
+        frameDraw.handlePointerUp(e);
+        return;
+      }
+      rubberBand.handlePointerUp(e);
+    },
+    [interactive, canvasTool, frameDraw, rubberBand]
+  );
+
   // ── Update interaction suppression flag ────────────────────────────
   // isDragging, isResizing, editingNodeId, marquee are reactive — update ref in effect.
   // spaceHeld is read directly from ref in the hover handler (no effect needed).
   React.useEffect(() => {
-    isInteractingRef.current = isDragging || isResizing || editingNodeId !== null || rubberBand.marqueeRect !== null;
-  }, [isDragging, isResizing, editingNodeId, rubberBand.marqueeRect]);
+    isInteractingRef.current =
+      isDragging ||
+      isResizing ||
+      editingNodeId !== null ||
+      rubberBand.marqueeRect !== null ||
+      frameDraw.drawRect !== null;
+  }, [isDragging, isResizing, editingNodeId, rubberBand.marqueeRect, frameDraw.drawRect]);
 
   // ── Selection label (React-rendered, only changes on selection) ──────
   const selectedNodeInfo = React.useMemo(() => {
@@ -1655,17 +1747,16 @@ export function ComposeDocumentViewV6({
         onMouseMove={interactive ? handleHoverMove : undefined}
         onMouseLeave={interactive ? handleHoverLeave : undefined}
         onDoubleClick={interactive ? handleDoubleClick : undefined}
-        onPointerDown={interactive ? rubberBand.handlePointerDown : undefined}
+        onPointerDown={interactive ? mergedPointerDown : undefined}
         onPointerMove={interactive ? (e) => {
           // Track hover position for nested selection (Track 4)
           if (!isDragging && !isResizing && !editingNodeId) {
             setHoverPosition(e.clientX, e.clientY);
             setHoverPositionLocal({ x: e.clientX, y: e.clientY });
           }
-          // Also forward to rubber band
-          rubberBand.handlePointerMove(e);
+          mergedPointerMove(e);
         } : undefined}
-        onPointerUp={interactive ? rubberBand.handlePointerUp : undefined}
+        onPointerUp={interactive ? mergedPointerUp : undefined}
         onPointerLeave={interactive ? () => {
           clearHover();
           resetCycle();
@@ -1763,6 +1854,21 @@ export function ComposeDocumentViewV6({
               background: "rgba(209, 228, 252, 0.05)",
               pointerEvents: "none",
               zIndex: 9999,
+            }}
+          />
+        )}
+        {interactive && canvasTool === "frame" && frameDraw.drawRect && (
+          <div
+            style={{
+              position: "absolute",
+              left: frameDraw.drawRect.x,
+              top: frameDraw.drawRect.y,
+              width: frameDraw.drawRect.width,
+              height: frameDraw.drawRect.height,
+              border: "1px solid #4B57DB",
+              background: "rgba(75, 87, 219, 0.06)",
+              pointerEvents: "none",
+              zIndex: 9998,
             }}
           />
         )}

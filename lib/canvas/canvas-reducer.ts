@@ -74,7 +74,14 @@ export type CanvasAction =
   | { type: "UPDATE_TEXT_STYLE_SITE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
   | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number; parentNodeId?: string }
   | { type: "REPARENT_NODE"; artboardId: string; nodeId: string; sourceParentId: string | undefined; targetParentId: string | undefined; targetIndex: number }
-  | { type: "INSERT_SECTION"; artboardId: string; index?: number; section: import("./compose").PageNode }
+  | { type: "INSERT_SECTION"; artboardId: string; index?: number; section: PageNode | DesignNode }
+  | {
+      type: "PASTE_DESIGN_NODES";
+      artboardId: string;
+      nodes: DesignNode[];
+      /** Insert after this node id in root children; omit = append */
+      insertAfterId?: string | null;
+    }
   | { type: "DUPLICATE_SECTION"; artboardId: string; nodeId: string }
   | { type: "DELETE_SECTION"; artboardId: string; nodeId: string }
   | { type: "RESET_NODE_STYLE_OVERRIDE"; artboardId: string; nodeId: string; property: keyof PageNodeStyle; breakpoint: Breakpoint }
@@ -627,7 +634,7 @@ export function canvasReducer(
 
   // Structural action guard: reject structural mutations on instance children
   const STRUCTURAL_ACTIONS = new Set([
-    "DELETE_SECTION", "REORDER_NODE", "INSERT_SECTION",
+    "DELETE_SECTION", "REORDER_NODE", "INSERT_SECTION", "PASTE_DESIGN_NODES",
     "GROUP_NODES", "UNGROUP_NODES", "DUPLICATE_SECTION",
     "REPARENT_NODE",
   ]);
@@ -1055,6 +1062,53 @@ export function canvasReducer(
           selectedNodeIds: [action.section.id],
         },
         history: historyAfterInsert,
+        updatedAt: now(),
+      };
+    }
+
+    case "PASTE_DESIGN_NODES": {
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.artboardId
+      );
+      if (!artboard || action.nodes.length === 0) return state;
+
+      const insertIntoPageTree = (pageTree: TreeNode): TreeNode => {
+        const children = pageTree.children ?? [];
+        let insertIndex = children.length;
+        if (action.insertAfterId) {
+          const idx = children.findIndex((c) => c.id === action.insertAfterId);
+          if (idx !== -1) insertIndex = idx + 1;
+        }
+        const next = [...children];
+        for (let i = 0; i < action.nodes.length; i++) {
+          next.splice(insertIndex + i, 0, action.nodes[i] as TreeNode);
+        }
+        return { ...pageTree, children: next };
+      };
+
+      const historyAfterPaste = pushHistory(
+        state.history,
+        action.nodes.length === 1 ? "Pasted layer" : `Pasted ${action.nodes.length} layers`,
+        state.items,
+        state.selection,
+        state.components
+      );
+
+      const pastedIds = action.nodes.map((n) => n.id);
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
+          return { ...item, pageTree: insertIntoPageTree(item.pageTree) };
+        }),
+        selection: {
+          ...state.selection,
+          selectedNodeId: pastedIds[0],
+          selectedNodeIds: pastedIds,
+        },
+        history: historyAfterPaste,
         updatedAt: now(),
       };
     }

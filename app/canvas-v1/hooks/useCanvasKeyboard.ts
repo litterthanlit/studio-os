@@ -17,6 +17,12 @@ import {
   type PageNodeStyle,
 } from "@/lib/canvas/compose";
 import { findDesignNodeById, findDesignNodeParent, type DesignNode } from "@/lib/canvas/design-node";
+import {
+  serializeDesignNodesForClipboard,
+  setMemoryDesignClip,
+  getMemoryDesignClip,
+  cloneNodesForPaste,
+} from "@/lib/canvas/design-clipboard";
 import { normalizeSelection, allSameParent } from "@/lib/canvas/multi-select-helpers";
 import {
   findNodeById as findDesignNodeByIdFromNested,
@@ -216,6 +222,52 @@ export function useCanvasKeyboard({
           }
         }
         return;
+      }
+
+      // Cmd+C — Copy selected DesignNode subtrees (V6)
+      if (isMeta && (e.key === "c" || e.key === "C") && !e.shiftKey && !e.altKey) {
+        const activeArtboard = getActiveArtboard();
+        if (
+          activeArtboard &&
+          isDesignNodeTree(activeArtboard.pageTree) &&
+          state.selection.selectedNodeIds.length > 0
+        ) {
+          const tree = activeArtboard.pageTree as DesignNode;
+          const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
+          const nodes: DesignNode[] = [];
+          for (const id of normalized) {
+            const n = findDesignNodeById(tree, id);
+            if (n) nodes.push(JSON.parse(JSON.stringify(n)) as DesignNode);
+          }
+          if (nodes.length > 0) {
+            e.preventDefault();
+            setMemoryDesignClip(nodes);
+            void navigator.clipboard.writeText(serializeDesignNodesForClipboard(nodes));
+            return;
+          }
+        }
+      }
+
+      // Cmd+V — Paste DesignNodes from memory (same-session); paste event handles clipboard text
+      if (isMeta && (e.key === "v" || e.key === "V") && !e.shiftKey && !e.altKey) {
+        const mem = getMemoryDesignClip();
+        const activeArtboard = getActiveArtboard();
+        if (
+          mem &&
+          mem.length > 0 &&
+          state.selection.activeArtboardId &&
+          activeArtboard &&
+          isDesignNodeTree(activeArtboard.pageTree)
+        ) {
+          e.preventDefault();
+          dispatch({
+            type: "PASTE_DESIGN_NODES",
+            artboardId: state.selection.activeArtboardId,
+            nodes: cloneNodesForPaste(mem),
+            insertAfterId: state.selection.selectedNodeId ?? undefined,
+          });
+          return;
+        }
       }
 
       // Cmd+Shift+G — Ungroup selected node (must come before Cmd+G to avoid false match)
@@ -781,6 +833,7 @@ export function useCanvasKeyboard({
             h: "hand", H: "hand",
             m: "marquee", M: "marquee",
             k: "prompt", K: "prompt",
+            f: "frame", F: "frame",
           };
           const tool = toolMap[e.key];
           if (tool) {

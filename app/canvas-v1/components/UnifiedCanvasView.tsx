@@ -38,6 +38,11 @@ import { MiniRail } from "./MiniRail";
 import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
 import { isDesignNodeTree, findNodeById } from "@/lib/canvas/compose";
+import {
+  parseDesignNodesFromClipboard,
+  cloneNodesForPaste,
+  setMemoryDesignClip,
+} from "@/lib/canvas/design-clipboard";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { TextInlineToolbar } from "./TextInlineToolbar";
@@ -648,6 +653,30 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
 
+      const textPlain = e.clipboardData?.getData("text/plain") ?? "";
+      const parsedNodes = parseDesignNodesFromClipboard(textPlain);
+      if (
+        parsedNodes &&
+        parsedNodes.length > 0 &&
+        state.selection.activeArtboardId
+      ) {
+        const ab = items.find(
+          (i): i is ArtboardItem =>
+            i.kind === "artboard" && i.id === state.selection.activeArtboardId
+        );
+        if (ab && isDesignNodeTree(ab.pageTree)) {
+          e.preventDefault();
+          setMemoryDesignClip(parsedNodes);
+          dispatch({
+            type: "PASTE_DESIGN_NODES",
+            artboardId: state.selection.activeArtboardId,
+            nodes: cloneNodesForPaste(parsedNodes),
+            insertAfterId: state.selection.selectedNodeId ?? undefined,
+          });
+          return;
+        }
+      }
+
       const imageItems = Array.from(e.clipboardData?.items ?? []).filter(
         (item) => item.type.startsWith("image/")
       );
@@ -695,7 +724,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [containerRef, dispatch, items.length, viewport]);
+  }, [containerRef, dispatch, items, items.length, viewport, state.selection.activeArtboardId, state.selection.selectedNodeId]);
 
   // ── Click on empty canvas → deselect ───────────────────────────────
 
@@ -827,6 +856,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   key={item.id}
                   item={item}
                   tokens={tokens}
+                  activeTool={activeTool}
                   isDragging={draggingId === item.id}
                   isGenerating={state.prompt.isGenerating}
                   agentSteps={state.prompt.agentSteps}

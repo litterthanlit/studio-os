@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Undo2,
   Redo2,
+  LayoutTemplate,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -27,6 +28,7 @@ const TOOLS: Array<{
   { id: "select", label: "Cursor", shortcut: "V", icon: MousePointer2 },
   { id: "hand", label: "Hand", shortcut: "H", icon: Hand },
   { id: "marquee", label: "Marquee", shortcut: "M", icon: BoxSelect },
+  { id: "frame", label: "Frame", shortcut: "F", icon: LayoutTemplate },
   { id: "prompt", label: "Prompt / chat", shortcut: "K", icon: MessageCircle },
 ];
 

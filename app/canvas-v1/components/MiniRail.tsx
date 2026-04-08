@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Layers,
   SlidersHorizontal,
+  Boxes,
   Home,
   Settings,
   ChevronsRight,
@@ -20,6 +21,8 @@ type MiniRailProps = {
   onToggleLayers: () => void;
   inspectorVisible: boolean;
   onToggleInspector: () => void;
+  componentGalleryVisible?: boolean;
+  onToggleComponentGallery?: () => void;
   onShowWelcome?: () => void;
   editorThemePreference?: EditorThemePreference;
   onCycleEditorTheme?: () => void;
@@ -43,7 +46,7 @@ function RailButton({
       onClick={onClick}
       title={title}
       className={cn(
-        "w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent",
+        "w-10 h-10 rounded-[6px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40",
         active
           ? "text-[var(--accent)]"
           : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -67,7 +70,7 @@ function RailLink({
     <Link
       href={href}
       title={title}
-      className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+      className="w-10 h-10 rounded-[6px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
     >
       {children}
     </Link>
@@ -79,6 +82,8 @@ export function MiniRail({
   onToggleLayers,
   inspectorVisible,
   onToggleInspector,
+  componentGalleryVisible = false,
+  onToggleComponentGallery,
   onShowWelcome,
   editorThemePreference = "system",
   onCycleEditorTheme,
@@ -92,7 +97,7 @@ export function MiniRail({
         : Monitor;
 
   return (
-    <div className="w-[44px] h-full bg-sidebar-bg border-r-[0.5px] border-sidebar-border flex flex-col items-center pt-[14px] pb-[14px] flex-shrink-0 z-30">
+    <div className="w-[52px] h-full bg-sidebar-bg border-r-[0.5px] border-sidebar-border flex flex-col items-center pt-[12px] pb-[12px] flex-shrink-0 z-30">
       {/* S Lettermark */}
       <Link
         href="/home"
@@ -121,6 +126,16 @@ export function MiniRail({
         >
           <SlidersHorizontal size={16} strokeWidth={1.5} />
         </RailButton>
+
+        {onToggleComponentGallery && (
+          <RailButton
+            active={componentGalleryVisible}
+            onClick={onToggleComponentGallery}
+            title="Toggle Component Library"
+          >
+            <Boxes size={16} strokeWidth={1.5} />
+          </RailButton>
+        )}
       </div>
 
       {/* Navigation group - 16px gap from toggles */}

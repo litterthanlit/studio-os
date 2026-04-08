@@ -34,6 +34,7 @@ import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
 import { useCanvasKeyboard } from "../hooks/useCanvasKeyboard";
 import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
+import { ComponentGalleryPanel } from "./ComponentGalleryPanel";
 import { MiniRail } from "./MiniRail";
 import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
@@ -197,6 +198,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(true);
   const [showInspector, setShowInspector] = React.useState(true);
+  const [showComponentGallery, setShowComponentGallery] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState("select");
   const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
     React.useState<number | null>(null);
@@ -778,6 +780,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         onToggleLayers={() => setShowLayers((v) => !v)}
         inspectorVisible={showInspector}
         onToggleInspector={() => setShowInspector((v) => !v)}
+        componentGalleryVisible={showComponentGallery}
+        onToggleComponentGallery={() => setShowComponentGallery((v) => !v)}
         onShowWelcome={showWelcome}
         editorThemePreference={preference}
         onCycleEditorTheme={cyclePreference}
@@ -962,6 +966,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
           />
         )}
       </AnimatePresence>
+
+      {/* Component library panel (templates + primitives + project/legacy components) */}
+      <ComponentGalleryPanel
+        isOpen={showComponentGallery}
+        onClose={() => setShowComponentGallery(false)}
+      />
 
       <EditorTransportBar
         activeTool={activeTool}

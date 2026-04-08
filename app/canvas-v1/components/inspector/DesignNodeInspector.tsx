@@ -30,12 +30,13 @@ import {
 } from "./InspectorField";
 import { GridTemplatePicker } from "./GridTemplatePicker";
 import { SectionRule } from "./SectionRule";
+import { GradientEditor } from "./GradientEditor";
 import { InspectorSegmented, InspectorSegmentedSmall } from "./InspectorSegmented";
 import { BreakpointBadge } from "./BreakpointBadge";
 import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
-import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect } from "@/lib/canvas/design-node";
+import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect, GradientValue } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
 import type { NodeOverride } from "@/lib/canvas/design-node";
 import { findMaster, getInstanceBaseTree, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
@@ -1301,22 +1302,64 @@ export function DesignNodeInspector({
         <section className="space-y-3">
           <SectionRule label="FILL" />
           <div className="px-4 space-y-2">
-            <InspectorFieldRow
-              label="Bg"
-              hasOverride={hasOverride("background")}
-              onResetOverride={() => resetOverride("background")}
-            >
-              <InspectorColorField
-                color={isMultiSelect
-                  ? (comparisons?.background?.sharedValue as string | "") ?? ""
-                  : style.background || ""
-                }
-                mixed={isMultiSelect && comparisons?.background?.status === "mixed"}
-                documentColors={documentColors}
-                onCommit={() => history.flush()}
-                onChange={(c) => updateStyle({ background: c })}
+            {/* Solid / Gradient toggle */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[11px] text-[#6B6B6B] w-10">Fill</span>
+              <div className="flex rounded-[2px] border border-[#E5E5E0] text-[11px]">
+                <button
+                  type="button"
+                  className={`px-2 py-0.5 ${!primaryNode.style.gradient ? "bg-[#4B57DB] text-white" : "text-[#6B6B6B]"}`}
+                  onClick={() => applyImmediate({ gradient: undefined }, "Switched to solid fill")}
+                >
+                  Solid
+                </button>
+                <button
+                  type="button"
+                  className={`px-2 py-0.5 ${primaryNode.style.gradient ? "bg-[#4B57DB] text-white" : "text-[#6B6B6B]"}`}
+                  onClick={() => {
+                    if (!primaryNode.style.gradient) {
+                      applyImmediate({
+                        gradient: {
+                          type: "linear" as const,
+                          angle: 180,
+                          stops: [
+                            { color: primaryNode.style.background || "#000000", position: 0 },
+                            { color: "#ffffff", position: 100 },
+                          ],
+                        },
+                      }, "Switched to gradient fill");
+                    }
+                  }}
+                >
+                  Gradient
+                </button>
+              </div>
+            </div>
+
+            {/* Show gradient editor or solid color picker */}
+            {primaryNode.style.gradient ? (
+              <GradientEditor
+                value={primaryNode.style.gradient}
+                onChange={(gradient) => updateStyle({ gradient })}
               />
-            </InspectorFieldRow>
+            ) : (
+              <InspectorFieldRow
+                label="Bg"
+                hasOverride={hasOverride("background")}
+                onResetOverride={() => resetOverride("background")}
+              >
+                <InspectorColorField
+                  color={isMultiSelect
+                    ? (comparisons?.background?.sharedValue as string | "") ?? ""
+                    : style.background || ""
+                  }
+                  mixed={isMultiSelect && comparisons?.background?.status === "mixed"}
+                  documentColors={documentColors}
+                  onCommit={() => history.flush()}
+                  onChange={(c) => updateStyle({ background: c })}
+                />
+              </InspectorFieldRow>
+            )}
 
             <InspectorFieldRow
               label="Text"

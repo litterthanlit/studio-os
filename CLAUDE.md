@@ -10,6 +10,14 @@ Studio OS is not just an editor — it's a **design harness** that improves AI m
 
 **V6 Renderer Proof (2026-03-23):** PageNode renderer hit a quality ceiling — editorial output looked like 'well-styled blocks' regardless of harness quality. V6 renderer architecture (5 universal node types: frame/text/image/button/divider, expanded CSS style model, hybrid auto-layout + breakout positioning) passed the visual proof gate. Hand-authored DesignNode editorial homepage renders at magazine quality. AI generation now targets the DesignNode model — all phases complete through Track 2 + generation animation.
 
+### Product Principles
+1. **Design with references, now you can** — No other tool lets you feed visual references into AI generation and get output that actually matches. This is the positioning line.
+2. **Your editorial eye is the filter** — The AI generates, but the designer's judgment shapes what comes out. Studio OS amplifies taste, it doesn't replace it.
+3. **For designers who still love to design** — Not a template-swapper. A tool for people who care about craft but want AI to handle the grunt work.
+4. **Designers should feel at home — like picking up a brand new MacBook** — Nothing should feel broken, surprising, or unfamiliar. The editor should behave exactly how a designer expects it to.
+
+These principles filter every scope decision. If a feature doesn't serve at least one, it doesn't ship.
+
 Designers think in images and references, not text prompts. Studio OS bridges that gap:
 1. **Import** moodboards, screenshots, references onto the canvas
 2. **Analyze** — AI extracts color palettes, typography, spacing rhythms, layout patterns, density, mood (the "taste skill")
@@ -194,6 +202,26 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - Performance: 0.002ms for 50 nodes (5000x under target)
 - Files: `lib/canvas/property-comparison.ts`, `hooks/useBatchUpdate.ts`, updated `DesignNodeInspector.tsx`, `InspectorField.tsx`, `InspectorSegmented.tsx`
 
+**Track 8 — Direct Layout Manipulation (2026-04-08):**
+- Gap handles, padding handles, direct visual layout editing on canvas
+- Drag edges of frames to resize, adjust spacing visually instead of typing numbers
+
+**Track 9 — Component System Maturity (2026-04-08):**
+- Nested components, improved override controls, smarter update propagation
+- Component system depth beyond Track 3 foundation
+
+**Track 10 — Export / Handoff Maturity (2026-04-08):**
+- Phase A: Clean HTML export, fragment vs document mode, ZIP download (`index.html` + `README.md`), external image warnings
+- Phase B: One-click publish — shareable URL via Vercel-style deploy, `POST /api/export/publish`, public `/published/:id` routes
+- Typed `ExportOptions`, deterministic output (same tree + options = identical HTML), well-formed HTML validation
+- Files: `lib/canvas/design-node-to-html.ts`, `lib/canvas/export-options.ts`, `lib/canvas/build-export-zip.ts`, `inspector/ExportTab.tsx`, `api/export/publish/route.ts`
+
+**Backlog items shipped (2026-04-08/09):**
+- Frame draw: Figma-style drag on canvas to create sized frames inside artboards
+- Text placement: Click/drag on canvas to place text nodes inside artboards
+- Copy/paste: Cmd+C/V with id remapping, cross-artboard support, system clipboard JSON
+- Canvas-level reparent: Drag on canvas to reparent between containers (reuses REPARENT_NODE from Track 6)
+
 **Phase 5a — Export Pipeline (2026-04-03):**
 - `lib/canvas/design-node-to-html.ts` — DesignNode-to-HTML conversion with inline styles, responsive overrides as CSS classes; `outputMode` fragment vs full document
 - `lib/canvas/export-options.ts` — Track 10 `ExportOptions`, `countExternalImageReferences`
@@ -202,10 +230,12 @@ The taste engine is what makes Studio OS a harness, not just an editor:
 - `app/api/export/publish/route.ts` — authenticated publish to Supabase `published_exports`
 - `app/published/[id]/route.ts` — public `text/html` for shared exports
 
-**Component Gallery (2026-04-03):**
-- `lib/canvas/design-component-library.ts` — 7 pre-built DesignNode section templates (Hero, Split Content, Features Grid, Quote Block, Proof Row, CTA Banner, Footer), save-to-library, localStorage persistence
-- `app/canvas-v1/components/ComponentQuickPicker.tsx` — popover from insertion bars (templates + recent + Browse All)
-- `app/canvas-v1/components/ComponentGalleryPanel.tsx` — full slide-over with filter tabs, search, card grid
+**Component Gallery + Geist/shadcn Primitives Library (2026-04-03, expanded 2026-04-09):**
+- `lib/canvas/design-component-library.ts` — 7 section templates (Hero, Split Content, Features Grid, Quote Block, Proof Row, CTA Banner, Footer) + 14 Geist/shadcn-style primitives: button variants (primary/outline/ghost/destructive/secondary), badge, card, input row, separator, link CTA, icon+label row, stat card, alert/note, nav bar, avatar. `PRODUCT_PRIMITIVE_STYLE_TOKENS` shared token object (accent, border, surface, canvas, text, muted, destructive, success/warning/info + surfaces). Save-to-library, localStorage persistence.
+- `app/canvas-v1/components/ComponentQuickPicker.tsx` — popover from insertion bars (templates + primitives + recent + Browse All)
+- `app/canvas-v1/components/ComponentGalleryPanel.tsx` — full slide-over with filter tabs (Templates with Primitives category), search, card grid
+- Prompt alignment: `design-tree-prompt.ts` has PRODUCT UI PRIMITIVES block + SAAS COMPOSITION RECIPES (8 named patterns) for premium-saas archetype. Phase 4A accent mapping active — generation respects taste-derived accent colors while preserving primitive anatomy (radius, border, spacing).
+- Spec: `docs/superpowers/specs/2026-04-09-geist-shadcn-primitives-prompts-spec.md` (Phases 1–4A shipped, Phase 5 structural repair CEO-gated)
 
 **Right-Rail Refactor (2026-04-03):**
 - Split panel removed entirely. InspectorPanelV3 now uses single-mode exclusive tabs: Design | CSS | Export | Prompt
@@ -459,7 +489,7 @@ Single infinite canvas per project. References, generation, and composition on o
 | `app/canvas-v1/components/ReferenceRail.tsx` | Horizontal reference image strip in Prompt tab |
 | `app/canvas-v1/components/ComponentQuickPicker.tsx` | Quick insert popover — templates + recent + Browse All |
 | `app/canvas-v1/components/ComponentGalleryPanel.tsx` | Full component gallery — filter tabs, search, card grid |
-| `lib/canvas/design-component-library.ts` | 7 DesignNode section templates + saved component persistence |
+| `lib/canvas/design-component-library.ts` | 7 section templates + 14 Geist/shadcn primitives + `PRODUCT_PRIMITIVE_STYLE_TOKENS` + saved component persistence |
 | `lib/canvas/design-node-to-html.ts` | DesignNode → HTML; fragment or document mode |
 | `lib/canvas/export-options.ts` | Export options + external URL counting |
 | `lib/canvas/build-export-zip.ts` | Client ZIP builder for export |
@@ -472,6 +502,32 @@ Single infinite canvas per project. References, generation, and composition on o
 | `lib/canvas/property-comparison.ts` | Track 7 — property comparison engine for multi-select shared/mixed detection |
 | `app/canvas-v1/hooks/useBatchUpdate.ts` | Track 7 — unified single/batch dispatch hook for inspector updates |
 | `app/canvas-v1/hooks/useLayersDragReorder.ts` | Track 6 — layers panel drag-to-reparent with three-zone hit-testing |
+
+### V6 Phase 2 — Visual Expression Properties (Tier 1, 2026-04-09)
+Spec: `docs/superpowers/specs/2026-04-09-v6-phase2-visual-expression-spec.md`. Six phases, sequenced by impact.
+
+- **Phase 2A — Gradients: SHIPPED.** `DesignNodeStyle.gradient` — structured `GradientValue { type, angle, position, interpolation, stops[] }`. Supports linear/radial, oklch-shorter for nearest-hue interpolation. Inspector: solid/gradient toggle, angle wheel, stop bar (2–8 stops), color pickers per stop. Override whitelist updated. Validator sanitizes AI output. Export via `designStyleToCSS()` reuse.
+  - Files: `design-node.ts` (types + whitelist), `design-style-to-css.ts` (CSS compilation), `design-tree-validator.ts` (validation), `design-tree-prompt.ts` (AI docs), `inspector/GradientEditor.tsx` (editor component), `inspector/DesignNodeInspector.tsx` (wiring)
+- **Phase 2B — Transforms:** `DesignNodeStyle.transform` — structured `{ rotate, scale: { x, y } }` + `transformOrigin: { x, y }`. Visual-only (no layout flow impact). Selection outline + handles rotate with element (Option A — Figma behavior). Skew deferred.
+- **Phase 2C — Shadows:** `DesignNodeStyle.shadows` — structured array replaces `shadow` string. Figma model (x, y, blur, spread, color, inset). Multi-shadow stack in inspector. Migration: audit-first, explicit matchers for known patterns.
+- **Phase 2D — Backdrop filter:** `DesignNodeStyle.backdropFilter` — structured `{ blur }` (object for future brightness/contrast). Webkit prefix. Inspector opacity hint.
+- **Phase 2E — Blend modes:** `DesignNodeStyle.blendMode` — typed 16-value union. Inspector: common/more grouped dropdown.
+- **Phase 2F — Clip path:** `DesignNodeStyle.clipPath` — structured `{ type, circle?, ellipse?, inset?, polygon? }`. Presets: triangle, diamond, pentagon, hexagon, star, arrow, chevron. Inspector-only MVP, canvas handles deferred.
+- AI prompt guidance: conservative — rotate rarely, subtle gradients preferred, no gimmicky effects by default.
+
+### Editor Maturity — All 10 Tracks Shipped
+Tracks 1A through 10 complete. Editor spine is done. Post-spine backlog (frame draw, text placement, copy/paste, canvas reparent) also shipped. Current work: Geist/shadcn primitives library expansion (Tranche B: tabs, table row, accordion pending) and V6 visual expression properties (Tier 1).
+
+### Extended Roadmap (post-editor-spine, sequenced by CEO)
+1. UX audit / vibecode relevance check (decision filter, not a build)
+2. Training canvas refresh (onboarding — content + motion)
+3. Expand generations / Geist+shadcn vocabulary (Tranches A–B shipped, more pending)
+4. Shadows / effects (Figma-like effect stack)
+5. Auto-responsive output (couples to responsive editing)
+6. Chrome extension (references → moodboard, distribution)
+7. Native macOS app (wrapper + CI, after web editor is bottleneck)
+8. Gemini engine spike (gated: benchmark parity, cost, structured output)
+9. Collaboration (last — single-player must be airtight first)
 
 ### Pre-existing TypeScript Errors (not regressions)
 - `canvas-client.tsx:525` — token merge type mismatch (`Record<string, unknown>` vs `Record<string, string>`)

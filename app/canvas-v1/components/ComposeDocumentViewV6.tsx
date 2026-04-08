@@ -126,6 +126,8 @@ type ComposeDocumentViewV6Props = {
    * from new array identity (Track 9 Phase E).
    */
   masterEditDirty?: boolean;
+  /** Opens the full component library (e.g. from insertion bar “Browse all”). */
+  onOpenGallery?: () => void;
 };
 
 type InlineTextEditEventDetail = {
@@ -561,7 +563,7 @@ function EmptyFrameLabel({ style }: { style: DesignNodeStyle }) {
 
 // ── Main Render Function ───────────────────────────────────────────
 
-function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection, liveHits }: {
+function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection, onOpenGallery, liveHits }: {
   node: DesignNode;
   selectedNodeId: string | null;
   /** All selected node IDs for multi-select outline rendering. */
@@ -578,6 +580,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
   rootNodeId?: string;
   /** Insert callback — only used at root frame level */
   onInsertSection?: (index: number, section: DesignNode) => void;
+  onOpenGallery?: () => void;
   /** Node IDs currently intersecting the rubber-band marquee. */
   liveHits?: Set<string>;
 }): React.ReactElement | null {
@@ -613,6 +616,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             onStartEdit={onStartEdit}
             onCommitEdit={onCommitEdit}
             onContextMenu={onContextMenu}
+            onOpenGallery={onOpenGallery}
             liveHits={liveHits}
           />
         </div>
@@ -654,6 +658,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
                 <V6InsertionBar
                   key={`insert-${index}`}
                   onInsert={(node) => onInsertSection(index, node)}
+                  onOpenGallery={onOpenGallery}
                 />
               );
               elements.push(
@@ -669,6 +674,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
                     onStartEdit={onStartEdit}
                     onCommitEdit={onCommitEdit}
                     onContextMenu={onContextMenu}
+                    onOpenGallery={onOpenGallery}
                     liveHits={liveHits}
                   />
                 </div>
@@ -678,6 +684,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
               <V6InsertionBar
                 key="insert-end"
                 onInsert={(node) => onInsertSection(children.length, node)}
+                onOpenGallery={onOpenGallery}
               />
             );
             return elements;
@@ -1004,6 +1011,7 @@ export function ComposeDocumentViewV6({
   onInsertSection,
   canvasTool = "select",
   masterEditDirty = false,
+  onOpenGallery,
 }: ComposeDocumentViewV6Props) {
   const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
   const historyPushedRef = React.useRef(false);
@@ -1821,6 +1829,7 @@ export function ComposeDocumentViewV6({
           onContextMenu={onContextMenu}
           rootNodeId={tree.id}
           onInsertSection={onInsertSection}
+          onOpenGallery={onOpenGallery}
           liveHits={rubberBand.liveHits}
         />
         {interactive && dragState.isDragging && snapGuidesHook.activeGuides.length > 0 && (

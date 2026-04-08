@@ -135,12 +135,12 @@ export function ComponentQuickPicker({
   return ReactDOM.createPortal(
     <div
       ref={menuRef}
-      className="fixed z-[9999] w-[220px] rounded-[4px] border border-[#E5E5E0] bg-white py-1 shadow-lg"
+      className="fixed z-[9999] w-[248px] rounded-[4px] border border-[#E5E5E0] bg-white py-1 shadow-lg"
       style={{ left, top }}
     >
       {/* Built-in Templates */}
       <div className="px-3 py-1">
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Templates</span>
+        <span className="text-[11px] uppercase tracking-wide text-[#8A8A8A] font-mono">Templates</span>
       </div>
       {builtinMasters.map((m) => {
         const Icon = BUILTIN_ICONS[m.id] ?? Layout;
@@ -149,11 +149,11 @@ export function ComponentQuickPicker({
             key={m.id}
             type="button"
             onClick={() => handleMasterClick(m.id)}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
+            className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
           >
             <Icon size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
             <span className="flex-1 truncate">{m.name}</span>
-            <span className="text-[9px] text-[#A0A0A0] font-mono uppercase">{m.category}</span>
+            <span className="text-[10px] text-[#8A8A8A] font-mono uppercase">{m.category}</span>
           </button>
         );
       })}
@@ -162,18 +162,18 @@ export function ComponentQuickPicker({
         <>
           <div className="h-px bg-[#E5E5E0] my-1" />
           <div className="px-3 py-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Primitives</span>
+            <span className="text-[11px] uppercase tracking-wide text-[#8A8A8A] font-mono">Primitives</span>
           </div>
           {primitiveTemplates.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => handlePrimitiveTemplateClick(t.id)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
+              className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
             >
               <Box size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
               <span className="flex-1 truncate">{t.name}</span>
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase">{t.category}</span>
+              <span className="text-[10px] text-[#8A8A8A] font-mono uppercase">{t.category}</span>
             </button>
           ))}
         </>
@@ -184,18 +184,18 @@ export function ComponentQuickPicker({
         <>
           <div className="h-px bg-[#E5E5E0] my-1" />
           <div className="px-3 py-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Project</span>
+            <span className="text-[11px] uppercase tracking-wide text-[#8A8A8A] font-mono">Project</span>
           </div>
           {recentUserMasters.map((m) => (
             <button
               key={m.id}
               type="button"
               onClick={() => handleMasterClick(m.id)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
+              className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
             >
               <Layout size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
               <span className="flex-1 truncate">{m.name}</span>
-              <span className="text-[9px] text-[#A0A0A0] font-mono uppercase">{m.category}</span>
+              <span className="text-[10px] text-[#8A8A8A] font-mono uppercase">{m.category}</span>
             </button>
           ))}
         </>
@@ -206,19 +206,19 @@ export function ComponentQuickPicker({
         <>
           <div className="h-px bg-[#E5E5E0] my-1" />
           <div className="px-3 py-1">
-            <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] font-mono">Saved</span>
+            <span className="text-[11px] uppercase tracking-wide text-[#8A8A8A] font-mono">Saved</span>
           </div>
           {legacySaved.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => handleLegacyClick(s)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
+              className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
             >
               <Layout size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
               <span className="flex-1 truncate">{s.name}</span>
               {s.projectName && (
-                <span className="text-[9px] text-[#A0A0A0] font-mono truncate max-w-[60px]">{s.projectName}</span>
+                <span className="text-[10px] text-[#8A8A8A] font-mono truncate max-w-[60px]">{s.projectName}</span>
               )}
             </button>
           ))}
@@ -230,7 +230,7 @@ export function ComponentQuickPicker({
       <button
         type="button"
         onClick={() => { onBrowseAll(); onDismiss(); }}
-        className="flex w-full items-center justify-center px-3 py-1.5 text-[12px] text-[#6B6B6B] hover:text-[#4B57DB] transition-colors"
+        className="flex w-full items-center justify-center px-3 py-2 text-[13px] text-[#6B6B6B] hover:text-[#4B57DB] transition-colors"
       >
         Browse All...
       </button>

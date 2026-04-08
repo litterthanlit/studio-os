@@ -13,6 +13,7 @@ import {
   Search,
   ChevronsLeft,
   ChevronsRight,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasStage } from "@/lib/canvas-stage-context";
@@ -180,6 +181,7 @@ function NavItem({
 const DASH_NAV = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/projects", label: "Projects", icon: FolderOpen },
+  { href: "/component-gallery", label: "Components", icon: LayoutGrid },
 ];
 
 interface SidebarProject {

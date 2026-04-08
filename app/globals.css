@@ -130,7 +130,7 @@
   --font-geist-sans: "Geist", system-ui, sans-serif;
   --font-geist-mono: var(--font-ibm-plex-mono), "IBM Plex Mono", SFMono-Regular, monospace;
   --font-instrument-sans: var(--font-geist-sans);
-  --font-instrument-serif: 'Bespoke Serif', Georgia, serif;
+  --font-instrument-serif: "Noto Serif", Georgia, serif;
 
   /* Global Radius Scale */
   --radius-none: 0px;

@@ -56,7 +56,7 @@ export function EditorTransportBar({
 
   return (
     <div
-      className="absolute bottom-[12px] left-1/2 -translate-x-1/2 z-30 flex h-[32px] items-center gap-1.5 rounded-[4px] border-[0.5px] border-border-subtle bg-card-bg px-2 py-1"
+      className="absolute bottom-[32px] left-1/2 -translate-x-1/2 z-30 flex h-[40px] items-center gap-2 rounded-[6px] border-[0.5px] border-border-subtle bg-card-bg px-2.5 py-1"
       style={{ fontFamily: "'IBM Plex Mono', monospace" }}
     >
       <div className="flex flex-row gap-0.5 pr-1 border-r border-border-subtle">
@@ -70,20 +70,20 @@ export function EditorTransportBar({
         ))}
       </div>
 
-      <div className="flex items-center gap-1 pr-1 border-r border-border-subtle">
+      <div className="flex items-center gap-1 pr-1.5 border-r border-border-subtle">
         <button
           type="button"
           title="Undo (⌘Z)"
           disabled={!canUndo}
           onClick={() => dispatch({ type: "UNDO" })}
           className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
+            "flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors",
             canUndo
               ? "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               : "text-text-muted cursor-not-allowed opacity-40"
           )}
         >
-          <Undo2 size={15} strokeWidth={1.5} />
+          <Undo2 size={17} strokeWidth={1.5} />
         </button>
         <button
           type="button"
@@ -91,22 +91,22 @@ export function EditorTransportBar({
           disabled={!canRedo}
           onClick={() => dispatch({ type: "REDO" })}
           className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
+            "flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors",
             canRedo
               ? "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               : "text-text-muted cursor-not-allowed opacity-40"
           )}
         >
-          <Redo2 size={15} strokeWidth={1.5} />
+          <Redo2 size={17} strokeWidth={1.5} />
         </button>
       </div>
 
-      <div className="flex items-center gap-2 pl-0.5">
+      <div className="flex items-center gap-2.5 pl-0.5">
         {onGenerate && (
           <StudioButton
             type="button"
             variant="primary"
-            className="h-[22px] px-2.5 py-0 text-[11px] shrink-0"
+            className="h-[28px] px-3 py-0 text-[12px] shrink-0"
             onClick={onGenerate}
           >
             Generate
@@ -128,7 +128,7 @@ export function EditorTransportBar({
               if (e.key === "Escape") setEditingZoom(false);
             }}
             onBlur={() => setEditingZoom(false)}
-            className="w-[40px] border-none bg-transparent text-center text-[11px] text-text-primary outline-none"
+            className="w-[48px] border-none bg-transparent text-center text-[12px] text-text-primary outline-none"
             style={{ fontFamily: "inherit" }}
           />
         ) : (
@@ -141,7 +141,7 @@ export function EditorTransportBar({
               e.stopPropagation();
               onZoomToFit();
             }}
-            className="min-w-[36px] cursor-pointer text-[11px] text-text-secondary"
+            className="min-w-[42px] cursor-pointer text-[12px] text-text-secondary"
           >
             {displayPercent}%
           </span>
@@ -167,7 +167,7 @@ function TransportToolButton({
     <button
       type="button"
       className={cn(
-        "flex h-7 w-7 items-center justify-center rounded-[2px] transition-colors",
+        "flex h-8 w-8 items-center justify-center rounded-[4px] transition-colors",
         isActive
           ? "bg-accent-light/30 text-accent"
           : "text-text-muted hover:bg-surface-hover hover:text-text-secondary"
@@ -175,7 +175,7 @@ function TransportToolButton({
       title={title}
       onClick={onClick}
     >
-      <Icon size={16} strokeWidth={1.5} />
+      <Icon size={18} strokeWidth={1.5} />
     </button>
   );
 }

@@ -866,6 +866,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   agentSteps={state.prompt.agentSteps}
                   generationResult={state.prompt.generationResult}
                   onOpenSectionLibrary={handleOpenSectionLibrary}
+                  onOpenComponentGallery={() => setShowComponentGallery(true)}
                   onFocusPromptWithPrefill={focusPromptWithPrefill}
                   onPointerDown={dragHandlers.onPointerDown}
                   onRetry={handleRetryGeneration}

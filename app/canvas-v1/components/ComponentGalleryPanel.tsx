@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   X, Layout, Columns2, Grid3x3, Quote, Award, Megaphone, PanelBottom, Trash2, Pencil, Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DesignNodeIframePreview } from "./DesignNodeIframePreview";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import {
   loadSavedComponents,
@@ -45,6 +47,17 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
   const [renameValue, setRenameValue] = React.useState("");
 
   const artboardId = state.selection.activeArtboardId;
+
+  const staticPrimitiveTemplates = React.useMemo(() => {
+    return getTemplateList()
+      .filter((t) => t.category === "Primitives")
+      .map((t) => {
+        const comp = createTemplateById(t.id);
+        if (!comp) return null;
+        return { id: t.id, name: t.name, category: t.category, node: comp.node };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+  }, []);
 
   // Load legacy saved components when panel opens
   React.useEffect(() => {
@@ -108,8 +121,6 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
     onClose();
   }
 
-  const primitiveTemplates = getTemplateList().filter((t) => t.category === "Primitives");
-
   // --- Edit / rename / delete for user masters ---
 
   function handleEditMaster(masterId: string) {
@@ -168,13 +179,23 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
       style={{ contain: "strict" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0 gap-2">
         <span className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0]" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
           Component Library
         </span>
-        <button onClick={onClose} className="text-[#A0A0A0] hover:text-[#1A1A1A] transition-colors">
-          <X size={14} strokeWidth={1.5} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/component-gallery"
+            className="text-[10px] uppercase tracking-[1px] text-[#4B57DB] hover:underline whitespace-nowrap"
+            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            onClick={onClose}
+          >
+            Full page
+          </Link>
+          <button type="button" onClick={onClose} className="text-[#A0A0A0] hover:text-[#1A1A1A] transition-colors">
+            <X size={14} strokeWidth={1.5} />
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -224,13 +245,23 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
                     return (
                       <button
                         key={m.id}
+                        type="button"
                         onClick={() => handleInsertMaster(m.id)}
-                        className="border border-[#E5E5E0] rounded-[4px] p-3 hover:border-[#D1E4FC] cursor-pointer transition-colors flex items-start gap-2.5 w-full text-left"
+                        className="border border-[#E5E5E0] rounded-[4px] p-2 hover:border-[#D1E4FC] cursor-pointer transition-colors flex flex-col gap-2 w-full text-left"
                       >
-                        <Icon size={16} strokeWidth={1.5} className="text-[#A0A0A0] mt-0.5 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-[#1A1A1A]">{m.name}</div>
-                          <div className="text-[10px] text-[#A0A0A0] font-mono uppercase mt-0.5">{m.category}</div>
+                        <DesignNodeIframePreview
+                          node={m.tree}
+                          height={76}
+                          contentWidth={1200}
+                          contentHeight={420}
+                          title={`Preview: ${m.name}`}
+                        />
+                        <div className="flex items-start gap-2.5 px-1">
+                          <Icon size={16} strokeWidth={1.5} className="text-[#A0A0A0] mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[13px] font-medium text-[#1A1A1A]">{m.name}</div>
+                            <div className="text-[10px] text-[#A0A0A0] font-mono uppercase mt-0.5">{m.category}</div>
+                          </div>
                         </div>
                       </button>
                     );
@@ -240,25 +271,34 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
                 )}
               </div>
 
-              {primitiveTemplates.some((t) => matchSearch(t.name)) && (
+              {staticPrimitiveTemplates.some((t) => matchSearch(t.name)) && (
                 <div className="mt-4">
                   <div className="text-[10px] uppercase tracking-[1px] text-[#A0A0A0] mb-1.5" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
                     Primitives
                   </div>
                   <div className="flex flex-col gap-2">
-                    {primitiveTemplates
+                    {staticPrimitiveTemplates
                       .filter((t) => matchSearch(t.name))
                       .map((t) => (
                         <button
                           key={t.id}
                           type="button"
                           onClick={() => handleInsertDesignTemplate(t.id)}
-                          className="border border-[#E5E5E0] rounded-[4px] p-3 hover:border-[#D1E4FC] cursor-pointer transition-colors flex items-start gap-2.5 w-full text-left"
+                          className="border border-[#E5E5E0] rounded-[4px] p-2 hover:border-[#D1E4FC] cursor-pointer transition-colors flex flex-col gap-2 w-full text-left"
                         >
-                          <Box size={16} strokeWidth={1.5} className="text-[#A0A0A0] mt-0.5 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-medium text-[#1A1A1A]">{t.name}</div>
-                            <div className="text-[10px] text-[#A0A0A0] font-mono uppercase mt-0.5">{t.category}</div>
+                          <DesignNodeIframePreview
+                            node={t.node}
+                            height={64}
+                            contentWidth={640}
+                            contentHeight={220}
+                            title={`Preview: ${t.name}`}
+                          />
+                          <div className="flex items-start gap-2.5 px-1">
+                            <Box size={16} strokeWidth={1.5} className="text-[#A0A0A0] mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-medium text-[#1A1A1A]">{t.name}</div>
+                              <div className="text-[10px] text-[#A0A0A0] font-mono uppercase mt-0.5">{t.category}</div>
+                            </div>
                           </div>
                         </button>
                       ))}

@@ -23,11 +23,13 @@ type CanvasArtboardProps = {
   generationResult?: GenerationResult;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
   onOpenSectionLibrary?: (insertAtIndex: number) => void;
+  /** V6: opens slide-over component library from insertion “Browse all”. */
+  onOpenComponentGallery?: () => void;
   onFocusPromptWithPrefill?: (prefill: string) => void;
   onRetry?: () => void;
 };
 
-export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
+export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onOpenComponentGallery, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeArtboardId === item.id;
@@ -302,6 +304,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
                   zoom={state.viewport.zoom}
                   canvasTool={activeTool}
                   onInsertSection={handleInsertSectionV6}
+                  onOpenGallery={onOpenComponentGallery}
                   interactive
                 />
               ) : tokens ? (

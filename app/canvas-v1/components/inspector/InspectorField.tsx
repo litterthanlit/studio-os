@@ -109,7 +109,7 @@ export function InspectorTextInput({
       type="text"
       {...props}
       className={cn(
-        "w-full h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
+        "w-full h-7 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2.5 font-mono text-[13px] text-[#1A1A1A] dark:text-[#D0D0D0] placeholder:text-[#A0A0A0] dark:placeholder:text-[#555555] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
         className
       )}
     />
@@ -316,7 +316,7 @@ export function InspectorNumberInput({
         onKeyDown={handleKeyDown}
         onChange={handleChange}
         className={cn(
-          "w-full h-6 text-left border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-6 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
+          "w-full h-7 text-left border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2.5 pr-6 font-mono text-[13px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
           focused ? "cursor-text" : "cursor-ew-resize",
           isMixed && "placeholder:text-[#8A8A8A] dark:placeholder:text-[#666666]",
           className
@@ -343,7 +343,7 @@ export function InspectorSelect({
       <select
         {...props}
         className={cn(
-          "w-full h-6 appearance-none border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-7 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors cursor-pointer focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
+          "w-full h-7 appearance-none border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2.5 pr-7 font-mono text-[13px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors cursor-pointer focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
           className
         )}
       >
@@ -503,7 +503,7 @@ export function InspectorColorField({
           ref={setSwatchEl}
           type="button"
           className={cn(
-            "h-5 w-5 rounded-[2px] border shrink-0",
+            "h-6 w-6 rounded-[2px] border shrink-0",
             isMixed
               ? "border-[#E5E5E0] dark:border-[#333333]"
               : isEmpty
@@ -547,7 +547,7 @@ export function InspectorColorField({
           }
         }}
         className={cn(
-          "flex-1 h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
+          "flex-1 h-7 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2.5 font-mono text-[13px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20",
           isMixed && "bg-[#F0F0EC] dark:bg-[#252525] text-[#8A8A8A] dark:text-[#666666] cursor-not-allowed"
         )}
       />
@@ -565,7 +565,7 @@ export function InspectorColorField({
             setOpacityFocused(false);
             onCommit?.();
           }}
-          className="w-full h-6 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2 pr-4 font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 text-right"
+          className="w-full h-7 border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] bg-[#F8F8F6] dark:bg-[#2A2A2A] px-2.5 pr-4 font-mono text-[13px] text-[#1A1A1A] dark:text-[#D0D0D0] outline-none transition-colors focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20 text-right"
         />
         <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">%</span>
       </div>

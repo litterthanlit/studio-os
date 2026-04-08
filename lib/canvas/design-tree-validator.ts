@@ -48,6 +48,43 @@ function isValidNode(node: unknown): node is Record<string, unknown> {
   return true;
 }
 
+function sanitizeEffects(rawEffects: unknown): unknown[] | undefined {
+  if (!Array.isArray(rawEffects)) return undefined;
+  const sanitized = rawEffects.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const effect = entry as Record<string, unknown>;
+    const type = effect.type;
+    const id = typeof effect.id === "string" && effect.id.length > 0 ? effect.id : ensureUniqueId("fx");
+    const enabled = typeof effect.enabled === "boolean" ? effect.enabled : true;
+
+    if (type === "dropShadow" || type === "innerShadow") {
+      return [{
+        id,
+        type,
+        enabled,
+        x: Number(effect.x ?? 0),
+        y: Number(effect.y ?? 0),
+        blur: Math.max(0, Number(effect.blur ?? 0)),
+        spread: Number(effect.spread ?? 0),
+        color: typeof effect.color === "string" ? effect.color : "rgba(0,0,0,0.15)",
+      }];
+    }
+
+    if (type === "layerBlur" || type === "backgroundBlur") {
+      return [{
+        id,
+        type,
+        enabled,
+        radius: Math.max(0, Number(effect.radius ?? 0)),
+      }];
+    }
+
+    return [];
+  });
+
+  return sanitized.length > 0 ? sanitized : undefined;
+}
+
 export function validateAndNormalizeDesignTree(
   raw: unknown
 ): { ok: true; tree: DesignNode } | { ok: false; reason: string } {
@@ -119,6 +156,10 @@ export function validateAndNormalizeDesignTree(
       if (style.display && style.display !== "flex" && style.display !== "grid") {
         delete style.display;
       }
+
+      const effects = sanitizeEffects(style.effects);
+      if (effects) style.effects = effects;
+      else delete style.effects;
 
       n.style = style;
     }

@@ -4,6 +4,7 @@
 
 import type { DesignNodeStyle } from "./design-node";
 import type { CSSProperties } from "react";
+import { blurEffectsToCss, normalizeLegacyEffects, shadowEffectsToCss } from "./design-effects";
 
 export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   const css: CSSProperties = {};
@@ -77,8 +78,21 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   }
   if (style.borderRadius != null) css.borderRadius = style.borderRadius;
   if (style.opacity != null) css.opacity = style.opacity;
-  if (style.shadow) css.boxShadow = style.shadow;
-  if (style.blur != null) css.filter = `blur(${style.blur}px)`;
+  const normalizedEffects = normalizeLegacyEffects(style);
+  if (normalizedEffects && normalizedEffects.length > 0) {
+    const boxShadow = shadowEffectsToCss(normalizedEffects);
+    const { filter, backdropFilter } = blurEffectsToCss(normalizedEffects);
+    if (boxShadow) css.boxShadow = boxShadow;
+    if (filter) css.filter = filter;
+    if (backdropFilter) {
+      css.backdropFilter = backdropFilter;
+      // @ts-expect-error webkit prefixed property for Safari compatibility
+      css.WebkitBackdropFilter = backdropFilter;
+    }
+  } else {
+    if (style.shadow) css.boxShadow = style.shadow;
+    if (style.blur != null) css.filter = `blur(${style.blur}px)`;
+  }
   if (style.objectFit) css.objectFit = style.objectFit;
   if (style.maxWidth != null) {
     css.maxWidth = typeof style.maxWidth === "number" ? style.maxWidth : style.maxWidth;

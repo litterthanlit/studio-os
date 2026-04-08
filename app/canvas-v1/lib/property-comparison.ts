@@ -324,6 +324,7 @@ export function compareVisualProperties(
   | "borderRadius"
   | "opacity"
   | "shadow"
+  | "effects"
 > {
   return {
     background: compareProperty(nodes, (n) => n.style.background),
@@ -333,6 +334,7 @@ export function compareVisualProperties(
     borderRadius: compareProperty(nodes, (n) => n.style.borderRadius),
     opacity: compareProperty(nodes, (n) => n.style.opacity),
     shadow: compareProperty(nodes, (n) => n.style.shadow),
+    effects: compareProperty(nodes, (n) => n.style.effects),
   };
 }
 

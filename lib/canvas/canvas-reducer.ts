@@ -5,8 +5,8 @@
  * History is managed via the snapshot-based history engine (history.ts).
  */
 
-import type { PageNode, PageNodeStyle, Breakpoint } from "./compose";
-import type { DesignNode } from "./design-node";
+import type { PageNode, Breakpoint } from "./compose";
+import type { DesignNode, DesignNodeStyle } from "./design-node";
 import {
   findDesignNodeById,
   findDesignNodeParent,
@@ -68,10 +68,10 @@ export type CanvasAction =
 
   // Artboard node editing
   | { type: "UPDATE_NODE"; artboardId: string; nodeId: string; changes: Partial<PageNode> }
-  | { type: "UPDATE_NODE_STYLE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
-  | { type: "UPDATE_NODE_STYLE_BATCH"; artboardId: string; nodeIds: string[]; style: Partial<PageNodeStyle> }
+  | { type: "UPDATE_NODE_STYLE"; artboardId: string; nodeId: string; style: Partial<DesignNodeStyle> }
+  | { type: "UPDATE_NODE_STYLE_BATCH"; artboardId: string; nodeIds: string[]; style: Partial<DesignNodeStyle> }
   | { type: "UPDATE_TEXT_CONTENT_SITE"; artboardId: string; nodeId: string; text: string }
-  | { type: "UPDATE_TEXT_STYLE_SITE"; artboardId: string; nodeId: string; style: Partial<PageNodeStyle> }
+  | { type: "UPDATE_TEXT_STYLE_SITE"; artboardId: string; nodeId: string; style: Partial<DesignNodeStyle> }
   | { type: "REORDER_NODE"; artboardId: string; nodeId: string; newIndex: number; parentNodeId?: string }
   | { type: "REPARENT_NODE"; artboardId: string; nodeId: string; sourceParentId: string | undefined; targetParentId: string | undefined; targetIndex: number }
   | { type: "INSERT_SECTION"; artboardId: string; index?: number; section: PageNode | DesignNode }
@@ -84,7 +84,7 @@ export type CanvasAction =
     }
   | { type: "DUPLICATE_SECTION"; artboardId: string; nodeId: string }
   | { type: "DELETE_SECTION"; artboardId: string; nodeId: string }
-  | { type: "RESET_NODE_STYLE_OVERRIDE"; artboardId: string; nodeId: string; property: keyof PageNodeStyle; breakpoint: Breakpoint }
+  | { type: "RESET_NODE_STYLE_OVERRIDE"; artboardId: string; nodeId: string; property: keyof DesignNodeStyle; breakpoint: Breakpoint }
   | { type: "TOGGLE_NODE_HIDDEN"; artboardId: string; nodeId: string; breakpoint: Breakpoint }
 
   // Selection
@@ -764,7 +764,7 @@ export function canvasReducer(
 
     case "UPDATE_NODE_STYLE": {
       const breakpoint = getActiveBreakpoint(state);
-      const updater = (pageTree: PageNode) =>
+      const updater = (pageTree: DesignNode) =>
         updateNodeInTree(pageTree, action.nodeId, (node) => {
           if (breakpoint === "desktop") {
             return { ...node, style: { ...node.style, ...action.style } };
@@ -794,7 +794,7 @@ export function canvasReducer(
       const breakpoint = getActiveBreakpoint(state);
       const { nodeIds } = action;
 
-      const updater = (pageTree: PageNode) => {
+      const updater = (pageTree: DesignNode) => {
         let result = pageTree;
         for (const nodeId of nodeIds) {
           result = updateNodeInTree(result, nodeId, (node) => {

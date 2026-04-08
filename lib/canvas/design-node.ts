@@ -6,6 +6,30 @@ export type DesignNodeType = "frame" | "text" | "image" | "button" | "divider";
 
 export type Breakpoint = "desktop" | "mobile";
 
+export type EffectType = "dropShadow" | "innerShadow" | "layerBlur" | "backgroundBlur";
+
+type EffectBase = {
+  id: string;
+  type: EffectType;
+  enabled?: boolean;
+};
+
+export type ShadowEffect = EffectBase & {
+  type: "dropShadow" | "innerShadow";
+  x: number;
+  y: number;
+  blur: number;
+  spread: number;
+  color: string;
+};
+
+export type BlurEffect = EffectBase & {
+  type: "layerBlur" | "backgroundBlur";
+  radius: number;
+};
+
+export type EffectEntry = ShadowEffect | BlurEffect;
+
 export type DesignNode = {
   id: string;
   type: DesignNodeType;
@@ -24,7 +48,7 @@ export type DesignNode = {
 export type AllowedStyleOverride = Pick<DesignNodeStyle,
   | "background" | "foreground" | "muted" | "accent"
   | "borderColor" | "borderWidth" | "borderRadius"
-  | "opacity" | "shadow" | "blur"
+  | "opacity" | "shadow" | "blur" | "effects"
   | "fontFamily" | "fontSize" | "fontWeight" | "lineHeight"
   | "letterSpacing" | "fontStyle" | "textDecoration" | "textAlign"
   | "padding"
@@ -34,7 +58,7 @@ export type AllowedStyleOverride = Pick<DesignNodeStyle,
 export const ALLOWED_STYLE_FIELDS = new Set<string>([
   "background", "foreground", "muted", "accent",
   "borderColor", "borderWidth", "borderRadius",
-  "opacity", "shadow", "blur",
+  "opacity", "shadow", "blur", "effects",
   "fontFamily", "fontSize", "fontWeight", "lineHeight",
   "letterSpacing", "fontStyle", "textDecoration", "textAlign",
   "padding",
@@ -142,6 +166,7 @@ export type DesignNodeStyle = {
   shadow?: string;           // Raw CSS box-shadow value
   scrimEnabled?: boolean;    // undefined = auto (light foreground detection), true = always, false = never
   blur?: number;             // CSS filter: blur(Npx)
+  effects?: EffectEntry[];   // Ordered Figma-like effects stack
   objectFit?: "cover" | "contain" | "fill";
   maxWidth?: number | string; // number=px, string=CSS value
 };

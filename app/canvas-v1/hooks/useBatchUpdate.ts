@@ -9,12 +9,11 @@
 
 import { useCallback, useMemo } from "react";
 import type { CanvasAction } from "@/lib/canvas/canvas-reducer";
-import type { NodeOverride } from "@/lib/canvas/design-node";
-import type { PageNodeStyle } from "@/lib/canvas/compose";
+import type { DesignNodeStyle, NodeOverride } from "@/lib/canvas/design-node";
 
 interface UseBatchUpdateResult {
   /** Update style for single or multiple nodes */
-  updateStyle: (style: Partial<PageNodeStyle>) => void;
+  updateStyle: (style: Partial<DesignNodeStyle>) => void;
   /** Update instance override for single or multiple instances */
   updateInstanceOverride: (instanceId: string, masterNodeId: string, override: NodeOverride) => void;
   /** True when operating on multiple nodes */
@@ -37,7 +36,7 @@ export function useBatchUpdate(
   const isBatch = useMemo(() => nodeIds.length > 1, [nodeIds.length]);
 
   const updateStyle = useCallback(
-    (style: Partial<PageNodeStyle>) => {
+    (style: Partial<DesignNodeStyle>) => {
       if (nodeIds.length === 0) return;
 
       if (isBatch) {

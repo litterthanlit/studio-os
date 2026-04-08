@@ -35,7 +35,7 @@ import { BreakpointBadge } from "./BreakpointBadge";
 import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
-import type { DesignNode, DesignNodeStyle, Breakpoint } from "@/lib/canvas/design-node";
+import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
 import type { NodeOverride } from "@/lib/canvas/design-node";
 import { findMaster, getInstanceBaseTree, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
@@ -47,6 +47,7 @@ import {
 import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 import { useBatchUpdate } from "@/app/canvas-v1/hooks/useBatchUpdate";
+import { normalizeLegacyEffects } from "@/lib/canvas/design-effects";
 import {
   compareProperty,
   compareSizeProperties,
@@ -176,6 +177,28 @@ function getSizingMode(value: number | "hug" | "fill" | undefined): SizingMode {
   if (value === "hug") return "hug";
   if (typeof value === "number") return "fixed";
   return "hug";
+}
+
+function createDefaultEffect(type: EffectType): EffectEntry {
+  const id = `fx-${Math.random().toString(36).slice(2, 8)}`;
+  if (type === "dropShadow" || type === "innerShadow") {
+    return {
+      id,
+      type,
+      enabled: true,
+      x: 0,
+      y: 4,
+      blur: 12,
+      spread: 0,
+      color: "rgba(0,0,0,0.15)",
+    };
+  }
+  return {
+    id,
+    type,
+    enabled: true,
+    radius: 8,
+  };
 }
 
 // ── Instance Banners ────────────────────────────────────────────────────────
@@ -323,6 +346,10 @@ export function DesignNodeInspector({
   // For single-select, use the node's style directly; for multi-select, use primary node style
   const style = primaryNode.style;
   const sections = isMultiSelect ? classifyMultiSelect(nodes) : classifyDesignNode(primaryNode);
+  const activeEffects = React.useMemo(
+    () => normalizeLegacyEffects(style) ?? [],
+    [style]
+  );
 
   // ── Property comparisons for multi-select ──
   const comparisons = React.useMemo(() => {
@@ -357,6 +384,7 @@ export function DesignNodeInspector({
       borderRadius: visualComparisons.borderRadius,
       opacity: visualComparisons.opacity,
       shadow: visualComparisons.shadow,
+      effects: visualComparisons.effects,
       // Layout
       flexDirection: compareProperty(nodes, (n) => n.style.flexDirection),
       alignItems: compareProperty(nodes, (n) => n.style.alignItems),
@@ -544,6 +572,39 @@ export function DesignNodeInspector({
   }
   function removeBorder() {
     applyImmediate({ borderColor: undefined, borderWidth: undefined }, "Removed border");
+  }
+
+  function setEffects(nextEffects: EffectEntry[], description: string) {
+    applyImmediate(
+      { effects: nextEffects, shadow: undefined, blur: undefined },
+      description
+    );
+  }
+
+  function addEffect(type: EffectType) {
+    setEffects([...activeEffects, createDefaultEffect(type)], "Added effect");
+  }
+
+  function updateEffect(effectId: string, patch: Partial<EffectEntry>) {
+    const nextEffects = activeEffects.map((effect) =>
+      effect.id === effectId ? { ...effect, ...patch } as EffectEntry : effect
+    );
+    updateStyle({ effects: nextEffects, shadow: undefined, blur: undefined });
+  }
+
+  function removeEffect(effectId: string) {
+    setEffects(activeEffects.filter((effect) => effect.id !== effectId), "Removed effect");
+  }
+
+  function moveEffect(effectId: string, direction: "up" | "down") {
+    const index = activeEffects.findIndex((effect) => effect.id === effectId);
+    if (index === -1) return;
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= activeEffects.length) return;
+    const next = [...activeEffects];
+    const [moved] = next.splice(index, 1);
+    next.splice(target, 0, moved);
+    setEffects(next, "Reordered effects");
   }
 
   // ── Instance handlers ──
@@ -1348,6 +1409,67 @@ export function DesignNodeInspector({
         </section>
       )}
 
+      {/* ── EFFECTS (all types) ─────────────────────────────────────── */}
+      {sections.showAppearance && (
+        <section className="space-y-3">
+          <SectionRule label="EFFECTS" />
+          <div className="px-4 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => addEffect("dropShadow")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Drop Shadow</button>
+              <button type="button" onClick={() => addEffect("innerShadow")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Inner Shadow</button>
+              <button type="button" onClick={() => addEffect("layerBlur")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Layer Blur</button>
+              <button type="button" onClick={() => addEffect("backgroundBlur")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Background Blur</button>
+            </div>
+
+            {isMultiSelect && comparisons?.effects?.status === "mixed" && (
+              <div className="text-[11px] text-[#A0A0A0]">Mixed effects across selection.</div>
+            )}
+
+            {activeEffects.map((effect, index) => (
+              <div key={effect.id} className="rounded-[4px] border border-[#E5E5E0] p-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={effect.enabled !== false}
+                    onChange={(e) => updateEffect(effect.id, { enabled: e.target.checked })}
+                  />
+                  <InspectorSelect
+                    value={effect.type}
+                    onChange={(e) => {
+                      const nextType = e.target.value as EffectType;
+                      const next = createDefaultEffect(nextType);
+                      setEffects(activeEffects.map((item) => item.id === effect.id ? { ...next, id: effect.id } : item), "Changed effect type");
+                    }}
+                  >
+                    <option value="dropShadow">Drop Shadow</option>
+                    <option value="innerShadow">Inner Shadow</option>
+                    <option value="layerBlur">Layer Blur</option>
+                    <option value="backgroundBlur">Background Blur</option>
+                  </InspectorSelect>
+                  <button type="button" onClick={() => moveEffect(effect.id, "up")} disabled={index === 0} className="text-[11px]">Up</button>
+                  <button type="button" onClick={() => moveEffect(effect.id, "down")} disabled={index === activeEffects.length - 1} className="text-[11px]">Down</button>
+                  <button type="button" onClick={() => removeEffect(effect.id)} className="text-[11px] text-red-500">Remove</button>
+                </div>
+
+                {(effect.type === "dropShadow" || effect.type === "innerShadow") ? (
+                  <div className="grid grid-cols-5 gap-2">
+                    <InspectorNumberInput value={(effect as ShadowEffect).x} placeholder="X" onChange={(e) => updateEffect(effect.id, { x: Number(e.target.value) || 0 } as Partial<EffectEntry>)} onBlur={() => history.flush()} />
+                    <InspectorNumberInput value={(effect as ShadowEffect).y} placeholder="Y" onChange={(e) => updateEffect(effect.id, { y: Number(e.target.value) || 0 } as Partial<EffectEntry>)} onBlur={() => history.flush()} />
+                    <InspectorNumberInput value={(effect as ShadowEffect).blur} placeholder="Blur" onChange={(e) => updateEffect(effect.id, { blur: Number(e.target.value) || 0 } as Partial<EffectEntry>)} onBlur={() => history.flush()} />
+                    <InspectorNumberInput value={(effect as ShadowEffect).spread} placeholder="Spread" onChange={(e) => updateEffect(effect.id, { spread: Number(e.target.value) || 0 } as Partial<EffectEntry>)} onBlur={() => history.flush()} />
+                    <InspectorColorField color={(effect as ShadowEffect).color} documentColors={documentColors} onChange={(c) => updateEffect(effect.id, { color: c } as Partial<EffectEntry>)} onCommit={() => history.flush()} />
+                  </div>
+                ) : (
+                  <InspectorFieldRow label="Radius">
+                    <InspectorNumberInput value={(effect as BlurEffect).radius} placeholder="8" min={0} onChange={(e) => updateEffect(effect.id, { radius: Number(e.target.value) || 0 } as Partial<EffectEntry>)} onBlur={() => history.flush()} />
+                  </InspectorFieldRow>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── APPEARANCE (all types) ───────────────────────────────────── */}
       {sections.showAppearance && (
         <section className="space-y-3">
@@ -1490,22 +1612,6 @@ export function DesignNodeInspector({
                   </div>
                 )}
               </>
-            )}
-
-            {/* Shadow */}
-            {primaryNode.type !== "divider" && (
-              <InspectorFieldRow 
-                label="Shadow"
-                hasOverride={hasOverride("shadow")} 
-                onResetOverride={() => resetOverride("shadow")}
-              >
-                <InspectorTextInput
-                  value={style.shadow || ""}
-                  placeholder="0 4px 12px rgba(0,0,0,0.08)"
-                  onChange={(e) => updateStyle({ shadow: (e.target as HTMLInputElement).value || undefined })}
-                  onBlur={() => history.flush()}
-                />
-              </InspectorFieldRow>
             )}
 
             {/* Opacity */}

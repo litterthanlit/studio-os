@@ -305,7 +305,24 @@ ${tasteSection}
     "borderWidth": number,
     "borderRadius": number,
     "opacity": number,
-    "shadow": string,            // CSS box-shadow
+    "effects": [                 // ordered Figma-like effects stack
+      {
+        "id": string,
+        "type": "dropShadow" | "innerShadow",
+        "enabled": boolean,
+        "x": number,
+        "y": number,
+        "blur": number,
+        "spread": number,
+        "color": string
+      },
+      {
+        "id": string,
+        "type": "layerBlur" | "backgroundBlur",
+        "enabled": boolean,
+        "radius": number
+      }
+    ],
     "objectFit": "cover" | "contain" | "fill"   // image nodes
   },
   "children": DesignNode[]
@@ -367,6 +384,7 @@ Do NOT set width/height to fixed numbers on section-level frames unless creating
 8. gridTemplate MUST be one of the allowed patterns (see schema).
 9. Choose 4-7 sections based on the brief. The page should feel like ONE DESIGNED ARTIFACT.
 10. coverScrim is OPTIONAL. Only add it when placing light text over a light photo. Omit for dark photos or when no text overlays the image.
+11. Prefer effects[] over legacy shadow/blur fields. Keep effects compact and purposeful (0-2 entries for most nodes).
 
 ## Output
 Return ONLY valid JSON. No markdown fences. No explanation. Just the root DesignNode object starting with {.`;

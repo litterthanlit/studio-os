@@ -11,6 +11,7 @@ import type { DesignNode } from "@/lib/canvas/design-node";
 import { getGenerationStage } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { GenerationAnimation } from "./GenerationAnimation";
+import { VariantCarousel } from "./VariantCarousel";
 
 type CanvasArtboardProps = {
   item: ArtboardItem;
@@ -33,8 +34,15 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeItemId === item.id;
+
+  // Variant preview: if this artboard is showing variants, display the active variant tree
+  const variantPreview = state.variantPreview?.itemId === item.id ? state.variantPreview : null;
+  const displayTree = variantPreview
+    ? (variantPreview.variants[variantPreview.activeIndex]?.tree ?? item.pageTree)
+    : item.pageTree;
+
   /** V6 renderer is driven by tree shape, not tokens — sample / pre-analysis projects have DesignNode trees but null tokens. */
-  const usesV6Renderer = isDesignNodeTree(item.pageTree);
+  const usesV6Renderer = isDesignNodeTree(displayTree);
   const rendererMode = usesV6Renderer ? "v6" : tokens ? "legacy" : "no-tokens";
 
   const breakpointWidth = BREAKPOINT_WIDTHS[item.breakpoint];
@@ -269,8 +277,10 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
       }}
     >
       {/* Artboard header */}
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[var(--text-muted)]">
+      <div className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[var(--text-muted)] relative">
         {label}
+        {/* Variant carousel — floats above the artboard header */}
+        {variantPreview && <VariantCarousel itemId={item.id} />}
       </div>
 
       {/* Artboard body */}
@@ -345,43 +355,45 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
                   : "none",
               }}
             >
-              {isDesignNodeTree(item.pageTree) ? (
+              {isDesignNodeTree(displayTree) ? (
                 <ComposeDocumentViewV6
-                  tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
+                  tree={displayTree as import("@/lib/canvas/design-node").DesignNode}
                   components={state.components}
                   masterEditDirty={Boolean(state.masterEditSession?.dirty)}
-                  selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
-                  selectedNodeIds={isActiveArtboard ? state.selection.selectedNodeIds : []}
-                  onSelectNode={handleNodeSelect}
+                  selectedNodeId={isActiveArtboard && !variantPreview ? state.selection.selectedNodeId : null}
+                  selectedNodeIds={isActiveArtboard && !variantPreview ? state.selection.selectedNodeIds : []}
+                  onSelectNode={variantPreview ? () => {} : handleNodeSelect}
                   onToggleNodeSelection={(nodeId) => {
+                    if (variantPreview) return;
                     dispatch({ type: "TOGGLE_NODE_SELECTION", itemId: item.id, nodeId });
                   }}
                   onSetSelectedNodes={(nodeIds) => {
+                    if (variantPreview) return;
                     dispatch({ type: "SET_SELECTED_NODES", itemId: item.id, nodeIds });
                   }}
-                  onUpdateContent={handleNodeContentUpdate}
-                  onUpdateNodeStyle={handleNodeStyleUpdate}
+                  onUpdateContent={variantPreview ? () => {} : handleNodeContentUpdate}
+                  onUpdateNodeStyle={variantPreview ? () => {} : handleNodeStyleUpdate}
                   onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
                   itemId={item.id}
                   zoom={state.viewport.zoom}
-                  canvasTool={activeTool}
-                  onInsertSection={handleInsertSectionV6}
-                  onOpenGallery={onOpenComponentGallery}
-                  interactive
+                  canvasTool={variantPreview ? "select" : activeTool}
+                  onInsertSection={variantPreview ? () => {} : handleInsertSectionV6}
+                  onOpenGallery={variantPreview ? undefined : onOpenComponentGallery}
+                  interactive={!variantPreview}
                 />
               ) : tokens ? (
                 <ComposeDocumentView
-                  pageTree={item.pageTree}
+                  pageTree={displayTree}
                   tokens={tokens}
                   breakpoint={item.breakpoint}
-                  selectedNodeId={isActiveArtboard ? state.selection.selectedNodeId : null}
-                  onSelectNode={handleNodeSelect}
-                  onUpdateContent={handleNodeContentUpdate}
-                  onReorderSection={handleSectionReorder}
-                  onOpenSectionLibrary={onOpenSectionLibrary}
-                  onFocusPromptWithPrefill={onFocusPromptWithPrefill}
-                  onReplaceImage={handleReplaceNodeImage}
-                  interactive
+                  selectedNodeId={isActiveArtboard && !variantPreview ? state.selection.selectedNodeId : null}
+                  onSelectNode={variantPreview ? () => {} : handleNodeSelect}
+                  onUpdateContent={variantPreview ? () => {} : handleNodeContentUpdate}
+                  onReorderSection={variantPreview ? () => {} : handleSectionReorder}
+                  onOpenSectionLibrary={variantPreview ? undefined : onOpenSectionLibrary}
+                  onFocusPromptWithPrefill={variantPreview ? undefined : onFocusPromptWithPrefill}
+                  onReplaceImage={variantPreview ? undefined : handleReplaceNodeImage}
+                  interactive={!variantPreview}
                 />
               ) : (
                 <div

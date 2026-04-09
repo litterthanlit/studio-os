@@ -738,6 +738,40 @@ export function PromptComposerV2({
 
       dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
 
+      // ── Variant carousel: set up Base + Pushed preview (V6 DesignNode only) ──
+      // The route returns 3 variants (safe=base, creative=pushed, alternative=restructured).
+      // We show Base + Pushed on the desktop artboard via the carousel.
+      const desktopArtboard = artboards.find((a) => a.breakpoint === "desktop");
+      const pushedVariant = variants.find(
+        (v: { strategy?: string }) => v.strategy === "creative"
+      );
+
+      if (
+        desktopArtboard &&
+        pushedVariant?.pageTree &&
+        chosenVariant.pageTreeSource !== "template"
+      ) {
+        const isDesignNodeTree = chosenVariant.pageTree?.type === "frame";
+        if (isDesignNodeTree) {
+          dispatch({
+            type: "SET_VARIANT_PREVIEW",
+            itemId: desktopArtboard.id,
+            variants: [
+              {
+                tree: chosenVariant.pageTree as import("@/lib/canvas/design-node").DesignNode,
+                label: "Base",
+                changesSummary: "Faithful to your taste and references.",
+              },
+              {
+                tree: pushedVariant.pageTree as import("@/lib/canvas/design-node").DesignNode,
+                label: "Pushed",
+                changesSummary: "Bolder interpretation — heavier weights, more contrast, tighter spacing.",
+              },
+            ],
+          });
+        }
+      }
+
       // Detect template fallback vs AI success
       const isTemplateFallback = chosenVariant.pageTreeSource === "template";
       dispatch({

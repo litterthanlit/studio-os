@@ -34,6 +34,7 @@ import type {
   PromptRun,
   MasterEditSession,
   MasterEditReturnTarget,
+  VariantPreviewVariant,
 } from "./unified-canvas-state";
 import {
   createHistoryStack,
@@ -171,7 +172,12 @@ export type CanvasAction =
   | { type: "REPARENT_TO_CANVAS"; artboardId: string; nodeId: string }
 
   // Persistence
-  | { type: "LOAD_STATE"; state: UnifiedCanvasState };
+  | { type: "LOAD_STATE"; state: UnifiedCanvasState }
+
+  // Variant comparison (1+1 derivation)
+  | { type: "SET_VARIANT_PREVIEW"; itemId: string; variants: VariantPreviewVariant[] }
+  | { type: "SET_ACTIVE_VARIANT"; index: number }
+  | { type: "PICK_VARIANT"; variantIndex: number };
 
 // ─── Reducer State (extends UnifiedCanvasState with in-memory history) ───────
 
@@ -3189,6 +3195,49 @@ export function canvasReducer(
         aiPreview: null, // Never restore transient AI preview state
         history: state.history, // Preserve in-memory history stack across loads
         masterEditSession: null, // Never restore transient master edit state
+        variantPreview: null, // Never restore transient variant preview state
+      };
+    }
+
+    // ── Variant Comparison ──────────────────────────────────────────────────
+
+    case "SET_VARIANT_PREVIEW": {
+      return {
+        ...state,
+        variantPreview: {
+          itemId: action.itemId,
+          variants: action.variants,
+          activeIndex: 0,
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "SET_ACTIVE_VARIANT": {
+      if (!state.variantPreview) return state;
+      return {
+        ...state,
+        variantPreview: {
+          ...state.variantPreview,
+          activeIndex: action.index,
+        },
+      };
+    }
+
+    case "PICK_VARIANT": {
+      if (!state.variantPreview) return state;
+      const { itemId, variants } = state.variantPreview;
+      const chosen = variants[action.variantIndex];
+      if (!chosen) return state;
+
+      return {
+        ...state,
+        items: state.items.map((item) => {
+          if (item.id !== itemId || item.kind !== "artboard") return item;
+          return { ...item, pageTree: chosen.tree };
+        }),
+        variantPreview: null,
+        updatedAt: now(),
       };
     }
 

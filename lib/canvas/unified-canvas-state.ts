@@ -8,6 +8,20 @@
 
 import type { PageNode } from "./compose";
 import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
+
+// ─── Variant Preview ─────────────────────────────────────────────────────────
+
+export type VariantPreviewVariant = {
+  tree: DesignNode;
+  label: string;
+  changesSummary: string;
+};
+
+export type VariantPreviewState = {
+  itemId: string;
+  variants: VariantPreviewVariant[];
+  activeIndex: number;
+};
 import type { SiteType } from "./templates";
 import {
   listProjectReferences,
@@ -73,6 +87,7 @@ export type UnifiedCanvasState = {
   aiPreview: AIPreviewSession | null;
   masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing
   exportArtifact: ExportArtifact | null;
+  variantPreview: VariantPreviewState | null;
   updatedAt: string;
 };
 
@@ -265,6 +280,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     aiPreview: null,
     masterEditSession: null,
     exportArtifact: null,
+    variantPreview: null,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -656,6 +672,8 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
     aiPreview: null,
     // Master edit session is transient — never persist
     masterEditSession: null,
+    // Variant preview is transient — never persist
+    variantPreview: null,
   };
 
   try {
@@ -731,6 +749,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
           },
           aiPreview: null,
           masterEditSession: null,
+          variantPreview: null,
         };
       }
     }

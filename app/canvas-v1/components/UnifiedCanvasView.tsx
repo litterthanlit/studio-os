@@ -14,7 +14,7 @@ import { useCanvas } from "@/lib/canvas/canvas-context";
 import { getProjectState, PROJECT_STATE_UPDATED_EVENT } from "@/lib/project-store";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
-import type { CanvasItem, ReferenceItem, ArtboardItem } from "@/lib/canvas/unified-canvas-state";
+import type { CanvasItem, ReferenceItem, ArtboardItem, FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
 import { useDrag } from "../hooks/useDrag";
 import { useResize } from "../hooks/useResize";
 import { useCanvasGestures } from "../hooks/useCanvasGestures";
@@ -22,6 +22,8 @@ import { CanvasReference } from "./CanvasReference";
 import { CanvasArtboard } from "./CanvasArtboard";
 import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
+import { CanvasFrame } from "./CanvasFrame";
+import { CanvasText } from "./CanvasText";
 import { InspectorPanelV3, type InspectorPanelV3Handle } from "./InspectorPanelV3";
 import { LayersPanelV3 } from "./LayersPanelV3";
 import { EditorTransportBar } from "./EditorTransportBar";
@@ -979,6 +981,22 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   item={item}
                   isDragging={draggingId === item.id}
                   onPointerDown={dragHandlers.onPointerDown}
+                />
+              );
+            case "frame":
+              return (
+                <CanvasFrame
+                  key={item.id}
+                  item={item as FrameItem}
+                  zoom={viewport.zoom}
+                />
+              );
+            case "text":
+              return (
+                <CanvasText
+                  key={item.id}
+                  item={item as TextItem}
+                  zoom={viewport.zoom}
                 />
               );
             default:

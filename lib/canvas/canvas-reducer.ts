@@ -96,6 +96,7 @@ export type CanvasAction =
     }
   | { type: "DUPLICATE_SECTION"; itemId: string; nodeId: string }
   | { type: "DELETE_SECTION"; itemId: string; nodeId: string }
+  | { type: "REPLACE_SECTION"; itemId: string; nodeId: string; replacement: DesignNode }
   | { type: "RESET_NODE_STYLE_OVERRIDE"; itemId: string; nodeId: string; property: keyof DesignNodeStyle; breakpoint: Breakpoint }
   | { type: "TOGGLE_NODE_HIDDEN"; itemId: string; nodeId: string; breakpoint: Breakpoint }
 
@@ -1756,6 +1757,23 @@ export function canvasReducer(
         history: historyAfterDel,
         updatedAt: now(),
       };
+    }
+
+    case "REPLACE_SECTION": {
+      const { itemId, nodeId, replacement } = action;
+      return updateItemTree(state, itemId, (tree) => {
+        const replaceInTree = (node: DesignNode): DesignNode => {
+          if (node.id === nodeId) {
+            return { ...replacement, id: nodeId };
+          }
+          if (!node.children) return node;
+          return {
+            ...node,
+            children: node.children.map(replaceInTree),
+          };
+        };
+        return replaceInTree(tree);
+      });
     }
 
     // ── Responsive Overrides ───────────────────────────────────────────────

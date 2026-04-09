@@ -372,6 +372,8 @@ ${tasteSection}${accentMapping4A}
     // transformOrigin: x/y are percentages (default 50/50, center).
     // blendMode: "normal"|"multiply"|"screen"|"overlay"|"darken"|"lighten"|"color-dodge"|"color-burn"|"hard-light"|"soft-light"|"difference"|"exclusion"|"hue"|"saturation"|"color"|"luminosity"
     // Default is "normal" (no blending). Use sparingly: "multiply" for darkening overlays on images, "screen" for lightening/glow, "overlay" for contrast-enhancing texture layers. Do not use blend modes on text, buttons, or content that needs to be readable. Only use when the brief calls for textured, layered, or photographic composition.
+    // clipPath: { type: "circle"|"ellipse"|"inset"|"polygon", circle: { radius, cx, cy }, ellipse: { rx, ry, cx, cy }, inset: { top, right, bottom, left, borderRadius? }, polygon: [{ x, y }...] } — all values as percentages
+    // Clips the element to a geometric shape. Use very rarely. Only use for: circular avatar frames (circle), decorative diagonal section dividers (polygon), or angled image reveals (inset). Do not clip text, buttons, or interactive elements. Do not use on more than 1-2 elements per page.
     "coverImage": "photo:...",   // BACKGROUND PHOTO on frames — full-bleed <img> behind children
     "coverSize": "cover" | "contain",
     "coverPosition": string,     // e.g. "center", "center 30%"

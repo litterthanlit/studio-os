@@ -20,7 +20,9 @@ import { LayoutHandlesOverlay } from "./LayoutHandlesOverlay";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
 import { useRubberBandSelection } from "@/app/canvas-v1/hooks/useRubberBandSelection";
-import { useFrameDraw } from "@/app/canvas-v1/hooks/useFrameDraw";
+import { useFrameDraw, type FrameDrawCommitPayload } from "@/app/canvas-v1/hooks/useFrameDraw";
+import { useTextPlace, type TextPlaceCommitPayload } from "@/app/canvas-v1/hooks/useTextPlace";
+import { resolveInsertTargetForRawTree } from "@/lib/canvas/design-canvas-hit";
 import { useCanvasReparentAltDrag } from "@/app/canvas-v1/hooks/useCanvasReparentAltDrag";
 import { useNestedSelection } from "../hooks/useNestedSelection";
 import { NestedHoverPreview } from "./NestedHoverPreview";
@@ -116,9 +118,9 @@ type ComposeDocumentViewV6Props = {
   zoom?: number;
   /** Right-click context menu handler for DesignNodes */
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
-  /** Insert a new blank section at a given index within the root frame */
-  onInsertSection?: (index: number, section: DesignNode) => void;
-  /** Matches EditorTransportBar: select | hand | marquee | prompt | frame */
+  /** Insert under `parentNodeId` when set (frame/group); else legacy root children. */
+  onInsertSection?: (index: number, section: DesignNode, parentNodeId?: string | null) => void;
+  /** Matches EditorTransportBar: select | hand | marquee | prompt | frame | text */
   canvasTool?: string;
   /**
    * When true, `resolveTree` memo depends on full `components` so live master edits re-resolve.
@@ -579,7 +581,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
   /** ID of the root node — used to detect root frame for insertion bars */
   rootNodeId?: string;
   /** Insert callback — only used at root frame level */
-  onInsertSection?: (index: number, section: DesignNode) => void;
+  onInsertSection?: (index: number, section: DesignNode, parentNodeId?: string | null) => void;
   onOpenGallery?: () => void;
   /** Node IDs currently intersecting the rubber-band marquee. */
   liveHits?: Set<string>;
@@ -657,7 +659,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
               elements.push(
                 <V6InsertionBar
                   key={`insert-${index}`}
-                  onInsert={(node) => onInsertSection(index, node)}
+                  onInsert={(sect) => onInsertSection(index, sect, node.id)}
                   onOpenGallery={onOpenGallery}
                 />
               );
@@ -683,7 +685,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             elements.push(
               <V6InsertionBar
                 key="insert-end"
-                onInsert={(node) => onInsertSection(children.length, node)}
+                onInsert={(sect) => onInsertSection(children.length, sect, node.id)}
                 onOpenGallery={onOpenGallery}
               />
             );
@@ -958,6 +960,11 @@ function ResizeOverlay({
 
   if (!nodeRect || !selectedNode || !onUpdateNodeStyle || editingNodeId) return null;
 
+  // Apply the node's rotation to the resize overlay so handles match the element
+  const rotation = selectedNode.style.transform?.rotate ?? 0;
+  const originX = selectedNode.style.transformOrigin?.x ?? 50;
+  const originY = selectedNode.style.transformOrigin?.y ?? 50;
+
   return (
     <div
       style={{
@@ -968,6 +975,10 @@ function ResizeOverlay({
         height: nodeRect.height,
         pointerEvents: "none",
         zIndex: 10,
+        ...(rotation !== 0 ? {
+          transform: `rotate(${rotation}deg)`,
+          transformOrigin: `${originX}% ${originY}%`,
+        } : {}),
       }}
     >
       <div style={{ pointerEvents: "auto" }}>
@@ -1368,6 +1379,7 @@ export function ComposeDocumentViewV6({
     artboardId,
     zoom,
     interactive,
+    canvasTool,
     containerRef,
     snapPosition: snapGuidesHook.snapPosition,
   });
@@ -1376,6 +1388,12 @@ export function ComposeDocumentViewV6({
   React.useEffect(() => {
     setDragState({ isDragging, draggedNodeId: draggedNodeId ?? null });
   }, [isDragging, draggedNodeId]);
+
+  const componentsEpoch = computeComponentsResolveEpoch(components);
+  const resolvedTree = React.useMemo(
+    () => resolveTree(tree, components),
+    masterEditDirty ? [tree, components] : [tree, componentsEpoch]
+  );
 
   // ── Rubber-band (marquee) selection ───────────────────────────────
   const rubberBandHandleSetNodes = React.useCallback(
@@ -1404,8 +1422,47 @@ export function ComposeDocumentViewV6({
     canvasTool === "select" || canvasTool === "marquee";
 
   const handleFrameCommit = React.useCallback(
-    (rect: { x: number; y: number; width: number; height: number }) => {
+    (payload: FrameDrawCommitPayload) => {
       if (!onInsertSection) return;
+      const target = resolveInsertTargetForRawTree(
+        tree,
+        resolvedTree,
+        payload.startClientX,
+        payload.startClientY,
+        containerRef.current
+      );
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+        body: JSON.stringify({
+          sessionId: "f3006b",
+          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          hypothesisId: "H2-frame-insert-target",
+          runId: "initial-pass",
+          location: "ComposeDocumentViewV6:handleFrameCommit",
+          message: target ? "frame commit resolved insert target" : "frame commit missing insert target",
+          data: {
+            ok: Boolean(target),
+            parentId: target?.parentId ?? null,
+            offsetNodeId: target?.offsetElement.getAttribute("data-node-id") ?? null,
+            payload,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      if (!target) return;
+      const parentNode = findDesignNodeById(tree, target.parentId);
+      if (!parentNode) return;
+      const index = parentNode.children?.length ?? 0;
+
+      const cr = containerRef.current?.getBoundingClientRect();
+      if (!cr) return;
+      const pr = target.offsetElement.getBoundingClientRect();
+      const ox = (pr.left - cr.left) / zoom;
+      const oy = (pr.top - cr.top) / zoom;
+
       const id = `frame-${Date.now()}-${++_insertCounter}`;
       const section: DesignNode = {
         id,
@@ -1413,19 +1470,89 @@ export function ComposeDocumentViewV6({
         name: "Frame",
         style: {
           position: "absolute",
-          x: Math.round(rect.x),
-          y: Math.round(rect.y),
-          width: Math.max(24, Math.round(rect.width)),
-          height: Math.max(24, Math.round(rect.height)),
+          x: Math.round(payload.x - ox),
+          y: Math.round(payload.y - oy),
+          width: Math.max(24, Math.round(payload.width)),
+          height: Math.max(24, Math.round(payload.height)),
           display: "flex",
           flexDirection: "column",
           padding: { top: 12, right: 12, bottom: 12, left: 12 },
         },
         children: [],
       };
-      onInsertSection(tree.children?.length ?? 0, section);
+      onInsertSection(index, section, target.parentId);
     },
-    [onInsertSection, tree.children?.length]
+    [onInsertSection, tree, resolvedTree, zoom]
+  );
+
+  const handleTextCommit = React.useCallback(
+    (payload: TextPlaceCommitPayload) => {
+      if (!onInsertSection) return;
+      const target = resolveInsertTargetForRawTree(
+        tree,
+        resolvedTree,
+        payload.startClientX,
+        payload.startClientY,
+        containerRef.current
+      );
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+        body: JSON.stringify({
+          sessionId: "f3006b",
+          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          hypothesisId: "H2-text-insert-target",
+          runId: "initial-pass",
+          location: "ComposeDocumentViewV6:handleTextCommit",
+          message: target ? "text commit resolved insert target" : "text commit missing insert target",
+          data: {
+            ok: Boolean(target),
+            parentId: target?.parentId ?? null,
+            offsetNodeId: target?.offsetElement.getAttribute("data-node-id") ?? null,
+            payload,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      if (!target) return;
+      const parentNode = findDesignNodeById(tree, target.parentId);
+      if (!parentNode) return;
+      const index = parentNode.children?.length ?? 0;
+
+      const cr = containerRef.current?.getBoundingClientRect();
+      if (!cr) return;
+      const pr = target.offsetElement.getBoundingClientRect();
+      const ox = (pr.left - cr.left) / zoom;
+      const oy = (pr.top - cr.top) / zoom;
+
+      const id = `text-${Date.now()}-${++_insertCounter}`;
+      const w = Math.max(24, Math.round(payload.width));
+      const h =
+        payload.mode === "click"
+          ? ("hug" as const)
+          : Math.max(20, Math.round(payload.height));
+
+      const section: DesignNode = {
+        id,
+        type: "text",
+        name: "Text",
+        style: {
+          position: "absolute",
+          x: Math.round(payload.x - ox),
+          y: Math.round(payload.y - oy),
+          width: w,
+          ...(payload.mode === "drag" ? { height: h } : { height: "hug" }),
+          fontSize: 16,
+          lineHeight: 1.4,
+          foreground: "#1A1A1A",
+        },
+        content: { text: "Type something" },
+      };
+      onInsertSection(index, section, target.parentId);
+    },
+    [onInsertSection, tree, resolvedTree, zoom]
   );
 
   const frameDraw = useFrameDraw({
@@ -1435,6 +1562,15 @@ export function ComposeDocumentViewV6({
     canvasTool,
     spaceHeldRef,
     onCommit: handleFrameCommit,
+  });
+
+  const textPlace = useTextPlace({
+    containerRef,
+    zoom,
+    interactive: interactive ?? false,
+    canvasTool,
+    spaceHeldRef,
+    onCommit: handleTextCommit,
   });
 
   const rubberBand = useRubberBandSelection({
@@ -1464,11 +1600,55 @@ export function ComposeDocumentViewV6({
       if (!interactive) return;
       if (canvasTool === "frame") {
         frameDraw.handlePointerDown(e);
+        e.stopPropagation();
+        const targetNodeId =
+          (e.target as HTMLElement).closest("[data-node-id]")?.getAttribute("data-node-id") ?? null;
+        // #region agent log
+        fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+          body: JSON.stringify({
+            sessionId: "f3006b",
+            id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            hypothesisId: "H1-tool-pointer-entry",
+            runId: "initial-pass",
+            location: "ComposeDocumentViewV6:mergedPointerDown",
+            message: "frame tool pointerdown reached compose container",
+            data: { canvasTool, targetNodeId, clientX: e.clientX, clientY: e.clientY },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        return;
+      }
+      if (canvasTool === "text") {
+        textPlace.handlePointerDown(e);
+        e.stopPropagation();
+        const targetNodeId =
+          (e.target as HTMLElement).closest("[data-node-id]")?.getAttribute("data-node-id") ?? null;
+        // #region agent log
+        fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+          body: JSON.stringify({
+            sessionId: "f3006b",
+            id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            hypothesisId: "H1-tool-pointer-entry",
+            runId: "initial-pass",
+            location: "ComposeDocumentViewV6:mergedPointerDown",
+            message: "text tool pointerdown reached compose container",
+            data: { canvasTool, targetNodeId, clientX: e.clientX, clientY: e.clientY },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
         return;
       }
       rubberBand.handlePointerDown(e);
+      // Keep document pointer events off CanvasArtboard's useDrag (moves whole artboard).
+      e.stopPropagation();
     },
-    [interactive, canvasTool, frameDraw, rubberBand]
+    [interactive, canvasTool, frameDraw, textPlace, rubberBand]
   );
 
   const mergedPointerMove = React.useCallback(
@@ -1476,11 +1656,18 @@ export function ComposeDocumentViewV6({
       if (!interactive) return;
       if (canvasTool === "frame") {
         frameDraw.handlePointerMove(e);
+        e.stopPropagation();
+        return;
+      }
+      if (canvasTool === "text") {
+        textPlace.handlePointerMove(e);
+        e.stopPropagation();
         return;
       }
       rubberBand.handlePointerMove(e);
+      e.stopPropagation();
     },
-    [interactive, canvasTool, frameDraw, rubberBand]
+    [interactive, canvasTool, frameDraw, textPlace, rubberBand]
   );
 
   const mergedPointerUp = React.useCallback(
@@ -1488,11 +1675,18 @@ export function ComposeDocumentViewV6({
       if (!interactive) return;
       if (canvasTool === "frame") {
         frameDraw.handlePointerUp(e);
+        e.stopPropagation();
+        return;
+      }
+      if (canvasTool === "text") {
+        textPlace.handlePointerUp(e);
+        e.stopPropagation();
         return;
       }
       rubberBand.handlePointerUp(e);
+      e.stopPropagation();
     },
-    [interactive, canvasTool, frameDraw, rubberBand]
+    [interactive, canvasTool, frameDraw, textPlace, rubberBand]
   );
 
   // ── Update interaction suppression flag ────────────────────────────
@@ -1504,8 +1698,9 @@ export function ComposeDocumentViewV6({
       isResizing ||
       editingNodeId !== null ||
       rubberBand.marqueeRect !== null ||
-      frameDraw.drawRect !== null;
-  }, [isDragging, isResizing, editingNodeId, rubberBand.marqueeRect, frameDraw.drawRect]);
+      frameDraw.drawRect !== null ||
+      textPlace.drawRect !== null;
+  }, [isDragging, isResizing, editingNodeId, rubberBand.marqueeRect, frameDraw.drawRect, textPlace.drawRect]);
 
   // ── Selection label (React-rendered, only changes on selection) ──────
   const selectedNodeInfo = React.useMemo(() => {
@@ -1720,13 +1915,6 @@ export function ComposeDocumentViewV6({
     [interactive, onSelectNode, selectedNodeId, selectedNodeIds, editingNodeId]
   );
 
-  // ── Resolve instance nodes (Track 3 + Track 9 Phase E) ───────────
-  const componentsEpoch = computeComponentsResolveEpoch(components);
-  const resolvedTree = React.useMemo(
-    () => resolveTree(tree, components),
-    masterEditDirty ? [tree, components] : [tree, componentsEpoch]
-  );
-
   // ── Track 4: Nested selection cycling (Cmd+Click) ─────────────────
   const {
     hoverTarget,
@@ -1876,6 +2064,21 @@ export function ComposeDocumentViewV6({
               height: frameDraw.drawRect.height,
               border: "1px solid #4B57DB",
               background: "rgba(75, 87, 219, 0.06)",
+              pointerEvents: "none",
+              zIndex: 9998,
+            }}
+          />
+        )}
+        {interactive && canvasTool === "text" && textPlace.drawRect && (
+          <div
+            style={{
+              position: "absolute",
+              left: textPlace.drawRect.x,
+              top: textPlace.drawRect.y,
+              width: textPlace.drawRect.width,
+              height: textPlace.drawRect.height,
+              border: "1px solid #4B57DB",
+              background: "rgba(75, 87, 219, 0.04)",
               pointerEvents: "none",
               zIndex: 9998,
             }}

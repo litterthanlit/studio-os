@@ -37,7 +37,7 @@ import { EditorShortcutsModal } from "./EditorShortcutsModal";
 import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { exitAnyActiveTextEditing } from "./ComposeDocumentView";
 import { useReferenceExtractor } from "../hooks/useReferenceExtractor";
-import { useCanvasKeyboard } from "../hooks/useCanvasKeyboard";
+import { useCanvasKeyboard, type ClipboardEntry } from "../hooks/useCanvasKeyboard";
 import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
 import { ComponentGalleryPanel } from "./ComponentGalleryPanel";
@@ -309,6 +309,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const zoomToFitStable = React.useCallback(() => zoomToFitRef.current?.(), []);
   const zoomToSelectionStable = React.useCallback(() => zoomToSelectionRef.current?.(), []);
 
+  // Cross-context clipboard for canvas ↔ artboard transfers
+  const [clipboard, setClipboard] = React.useState<ClipboardEntry | null>(null);
+
   // Keyboard shortcuts
   useCanvasKeyboard({
     state,
@@ -319,6 +322,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     onSetActiveTool: setActiveTool,
     zoomToFit: zoomToFitStable,
     zoomToSelection: zoomToSelectionStable,
+    clipboard,
+    setClipboard,
   });
 
   // Load design tokens from project state for artboard rendering

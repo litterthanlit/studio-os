@@ -16,13 +16,19 @@ import {
   findParentNode,
   type PageNodeStyle,
 } from "@/lib/canvas/compose";
-import { findDesignNodeById, findDesignNodeParent, type DesignNode } from "@/lib/canvas/design-node";
+import { findDesignNodeById, findDesignNodeParent, cloneDesignNode, type DesignNode } from "@/lib/canvas/design-node";
 import {
   serializeDesignNodesForClipboard,
   setMemoryDesignClip,
   getMemoryDesignClip,
   cloneNodesForPaste,
 } from "@/lib/canvas/design-clipboard";
+import {
+  canvasItemToDesignNode,
+  designNodeToCanvasItem,
+  isEditableItem,
+} from "@/lib/canvas/canvas-item-conversion";
+import type { FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
 import { computeDesignPasteTarget } from "@/lib/canvas/design-paste-target";
 import { normalizeSelection, allSameParent } from "@/lib/canvas/multi-select-helpers";
 import {
@@ -65,6 +71,14 @@ const STYLE_COPY_KEYS: Array<keyof PageNodeStyle> = [
 
 let copiedStyleClipboard: Partial<PageNodeStyle> | null = null;
 
+export type ClipboardEntry = {
+  node: DesignNode;
+  source: "canvas" | "artboard";
+  canvasX?: number;
+  canvasY?: number;
+  itemId?: string;
+};
+
 type KeyboardOptions = {
   state: UnifiedCanvasState;
   dispatch: React.Dispatch<CanvasAction>;
@@ -74,6 +88,8 @@ type KeyboardOptions = {
   onSetActiveTool?: (tool: string) => void;
   zoomToFit?: () => void;
   zoomToSelection?: () => void;
+  clipboard?: ClipboardEntry | null;
+  setClipboard?: (entry: ClipboardEntry | null) => void;
 };
 
 export function useCanvasKeyboard({
@@ -85,6 +101,8 @@ export function useCanvasKeyboard({
   onSetActiveTool,
   zoomToFit,
   zoomToSelection,
+  clipboard: clipboardState,
+  setClipboard,
 }: KeyboardOptions) {
   useEffect(() => {
     const getActiveItem = () =>
@@ -224,8 +242,25 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // Cmd+C — Copy selected DesignNode subtrees (V6)
+      // Cmd+C — Copy selected DesignNode subtrees (V6) + canvas-level items
       if (isMeta && (e.key === "c" || e.key === "C") && !e.shiftKey && !e.altKey) {
+        // Canvas-level item selected (no active item drilled into)
+        if (!state.selection.activeItemId && state.selection.selectedItemIds.length === 1) {
+          const item = state.items.find((i) => i.id === state.selection.selectedItemIds[0]);
+          if (item && (item.kind === "frame" || item.kind === "text")) {
+            const node = canvasItemToDesignNode(item as FrameItem | TextItem);
+            setClipboard?.({
+              node: cloneDesignNode(node),
+              source: "canvas",
+              canvasX: item.x,
+              canvasY: item.y,
+              itemId: item.id,
+            });
+            e.preventDefault();
+            return;
+          }
+        }
+
         const activeItem = getActiveItem();
         if (
           activeItem &&
@@ -243,7 +278,58 @@ export function useCanvasKeyboard({
             e.preventDefault();
             setMemoryDesignClip(nodes);
             void navigator.clipboard.writeText(serializeDesignNodesForClipboard(nodes));
+            // Also write to cross-context clipboard (single node — use first)
+            setClipboard?.({
+              node: cloneDesignNode(nodes[0]),
+              source: activeItem.kind === "artboard" ? "artboard" : "canvas",
+              canvasX: activeItem.x,
+              canvasY: activeItem.y,
+              itemId: activeItem.id,
+            });
             return;
+          }
+        }
+      }
+
+      // Cmd+X — Cut selected canvas-level item or DesignNode
+      if (isMeta && (e.key === "x" || e.key === "X") && !e.shiftKey && !e.altKey) {
+        // Canvas-level item selected (no active item drilled into)
+        if (!state.selection.activeItemId && state.selection.selectedItemIds.length === 1) {
+          const item = state.items.find((i) => i.id === state.selection.selectedItemIds[0]);
+          if (item && (item.kind === "frame" || item.kind === "text")) {
+            const node = canvasItemToDesignNode(item as FrameItem | TextItem);
+            setClipboard?.({
+              node: cloneDesignNode(node),
+              source: "canvas",
+              canvasX: item.x,
+              canvasY: item.y,
+              itemId: item.id,
+            });
+            dispatch({ type: "PUSH_HISTORY", description: "Cut item" });
+            dispatch({ type: "REMOVE_ITEM", itemId: item.id });
+            e.preventDefault();
+            return;
+          }
+        }
+
+        // Node inside active artboard
+        if (state.selection.activeItemId && state.selection.selectedNodeId) {
+          const activeItem = getActiveItem();
+          if (activeItem && isDesignNodeTree(activeItem.pageTree)) {
+            const tree = activeItem.pageTree as DesignNode;
+            const node = findDesignNodeById(tree, state.selection.selectedNodeId);
+            if (node) {
+              setClipboard?.({
+                node: cloneDesignNode(node),
+                source: "artboard",
+                canvasX: activeItem.x,
+                canvasY: activeItem.y,
+                itemId: activeItem.id,
+              });
+              dispatch({ type: "DELETE_SECTION", itemId: activeItem.id, nodeId: node.id });
+              e.preventDefault();
+              return;
+            }
           }
         }
       }
@@ -252,6 +338,36 @@ export function useCanvasKeyboard({
       if (isMeta && (e.key === "v" || e.key === "V") && !e.shiftKey && !e.altKey) {
         const mem = getMemoryDesignClip();
         const activeItem = getActiveItem();
+
+        // Cross-context paste: use clipboard state if no same-session memory clip in an artboard
+        if (clipboardState && !(mem && mem.length > 0 && state.selection.activeItemId && activeItem && isDesignNodeTree(activeItem.pageTree))) {
+          const cloned = cloneDesignNode(clipboardState.node);
+
+          // Case 1: Active editable item — paste into its tree
+          if (state.selection.activeItemId && activeItem && isEditableItem(activeItem) && isDesignNodeTree(activeItem.pageTree)) {
+            const tree = activeItem.pageTree as DesignNode;
+            const pasteTarget = computeDesignPasteTarget(tree, state.selection.selectedNodeId);
+            e.preventDefault();
+            dispatch({
+              type: "PASTE_DESIGN_NODES",
+              itemId: state.selection.activeItemId,
+              nodes: cloneNodesForPaste([cloned]),
+              insertAfterId: pasteTarget.insertAfterId,
+              parentNodeId: pasteTarget.parentNodeId,
+            });
+            return;
+          }
+
+          // Case 2: No active item — paste onto canvas surface
+          const offsetX = (clipboardState.canvasX ?? 100) + 20;
+          const offsetY = (clipboardState.canvasY ?? 100) + 20;
+          const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
+          const newItem = designNodeToCanvasItem(cloned, offsetX, offsetY, maxZ + 1);
+          dispatch({ type: "ADD_ITEM", item: newItem });
+          e.preventDefault();
+          return;
+        }
+
         if (
           mem &&
           mem.length > 0 &&
@@ -878,5 +994,5 @@ export function useCanvasKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt, onSetActiveTool, zoomToFit, zoomToSelection]);
+  }, [state, dispatch, onToggleLayers, onToggleInspector, onFocusPrompt, onSetActiveTool, zoomToFit, zoomToSelection, clipboardState, setClipboard]);
 }

@@ -512,8 +512,10 @@ Spec: `docs/superpowers/specs/2026-04-09-v6-phase2-visual-expression-spec.md`. S
   - Files: `design-node.ts` (types + whitelist), `design-style-to-css.ts` (CSS compilation), `design-tree-validator.ts` (validation), `design-tree-prompt.ts` (AI docs), `inspector/DesignNodeInspector.tsx` (Transform section), `ComposeDocumentViewV6.tsx` (rotated resize overlay)
 - **Phase 2C — Shadows: ALREADY SHIPPED (via effects system).** The Figma shadow model already exists as `ShadowEffect` in `effects[]` array — `{ type: "dropShadow"|"innerShadow", x, y, blur, spread, color, enabled }`. Inspector has full shadow stack UI (add/remove/reorder). Migration via `normalizeLegacyEffects()` converts legacy `shadow` strings. AI prompt updated to teach effects format. No separate `shadows[]` array needed.
 - **Phase 2D — Backdrop filter: ALREADY SHIPPED (via effects system).** `backgroundBlur` effect type in `effects[]` already compiles to `backdrop-filter: blur(Npx)` + `-webkit-backdrop-filter` via `blurEffectsToCss()`. Inspector has "+ Background Blur" button. Opacity hint deferred as polish.
-- **Phase 2E — Blend modes:** `DesignNodeStyle.blendMode` — typed 16-value union. Inspector: common/more grouped dropdown.
-- **Phase 2F — Clip path:** `DesignNodeStyle.clipPath` — structured `{ type, circle?, ellipse?, inset?, polygon? }`. Presets: triangle, diamond, pentagon, hexagon, star, arrow, chevron. Inspector-only MVP, canvas handles deferred.
+- **Phase 2E — Blend modes: SHIPPED.** `DesignNodeStyle.blendMode` — typed 16-value union. Inspector: `<select>` with Common/More `<optgroup>`. Direct 1:1 mapping to CSS `mix-blend-mode`.
+  - Files: `design-node.ts` (type + whitelist), `design-style-to-css.ts`, `design-tree-validator.ts`, `design-tree-prompt.ts`, `inspector/DesignNodeInspector.tsx`
+- **Phase 2F — Clip path: SHIPPED.** `DesignNodeStyle.clipPath` — structured `ClipPathValue { type, circle?, ellipse?, inset?, polygon? }`. Inspector: segmented type picker (None/Circle/Ellipse/Inset/Polygon), per-type controls, polygon presets (triangle, diamond, pentagon, hexagon, star, arrow, chevron). Webkit prefix for Safari. Canvas handles deferred as polish.
+  - Files: `design-node.ts` (type + whitelist), `design-style-to-css.ts` (with `-webkit-clip-path`), `design-tree-validator.ts`, `design-tree-prompt.ts`, `inspector/DesignNodeInspector.tsx` (Clip Mask section)
 - AI prompt guidance: conservative — rotate rarely, subtle gradients preferred, no gimmicky effects by default.
 
 ### Editor Maturity — All 10 Tracks Shipped

@@ -4,7 +4,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {
   Copy, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Type, Bookmark,
-  Group, Ungroup, ArrowUp, ArrowRight, ArrowLeft, Home,
+  Group, Ungroup, ArrowUp, ArrowRight, ArrowLeft, Home, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignNode, Breakpoint } from "@/lib/canvas/design-node";
@@ -31,6 +31,8 @@ type DesignNodeContextMenuProps = {
   isGroupNode?: boolean;
   multiSelectCount?: number;
   onSelectNode?: (nodeId: string) => void;
+  onRegenerateSimilar?: () => void;
+  onRegenerateDifferent?: () => void;
   onDismiss: () => void;
 };
 
@@ -98,6 +100,8 @@ export function DesignNodeContextMenu({
   isGroupNode,
   multiSelectCount,
   onSelectNode,
+  onRegenerateSimilar,
+  onRegenerateDifferent,
   onDismiss,
 }: DesignNodeContextMenuProps) {
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -143,6 +147,9 @@ export function DesignNodeContextMenu({
   // Compute selection navigation state
   const parent = selectedNodeId ? getParent({ id: selectedNodeId } as DesignNode, rootNode) : null;
   const hasSiblings = parent ? (parent.children && parent.children.length > 1) : false;
+
+  // Check if the node is a direct child of the root (section-level)
+  const isRootChild = rootNode?.children?.some((c) => c.id === node.id) ?? false;
 
   return ReactDOM.createPortal(
     <div
@@ -255,6 +262,25 @@ export function DesignNodeContextMenu({
         label="Duplicate"
         onClick={() => { onDuplicate(); onDismiss(); }}
       />
+
+      {/* Regenerate (root-level frame sections only) */}
+      {isRootChild && node.type === "frame" && onRegenerateSimilar && (
+        <>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+          <MenuItem
+            icon={<RefreshCw {...iconProps} />}
+            label="Regenerate — similar"
+            onClick={() => { onRegenerateSimilar(); onDismiss(); }}
+          />
+          {onRegenerateDifferent && (
+            <MenuItem
+              icon={<RefreshCw {...iconProps} />}
+              label="Regenerate — different"
+              onClick={() => { onRegenerateDifferent(); onDismiss(); }}
+            />
+          )}
+        </>
+      )}
 
       {/* Save to Library (non-root frames only) */}
       {onSaveToLibrary && (

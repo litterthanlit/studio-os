@@ -1,0 +1,6 @@
+.next-build-verify
+.next
+node_modules
+.git
+benchmark-results
+benchmark-refs

@@ -3,6 +3,7 @@
 
 import type { DesignNode, DesignNodeStyle } from "./design-node";
 import { designStyleToCSS } from "./design-style-to-css";
+import { BREAKPOINT_WIDTHS } from "./compose";
 import type { CSSProperties } from "react";
 
 // ── Style serialization ────────────────────────────────────────────────────
@@ -321,7 +322,7 @@ export function designNodeToHTML(
   if (overrideRules.length > 0) {
     const styleLines = [
       "<style>",
-      "  @media (max-width: 767px) {",
+      `  @media (max-width: ${BREAKPOINT_WIDTHS.mobile}px) {`,
       ...overrideRules.map((r) => `    .${r.className} { ${r.css} }`),
       "  }",
       "</style>",

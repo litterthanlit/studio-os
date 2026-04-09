@@ -1213,7 +1213,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       </div>
 
       {/* Layers panel */}
-      {showLayers && <LayersPanelV3 />}
+      {showLayers && <LayersPanelV3 projectId={projectId} />}
 
       {/* Floating prompt panel — Prompt tool (K); not gated on inspector visibility */}
       {activeTool === "prompt" && (() => {

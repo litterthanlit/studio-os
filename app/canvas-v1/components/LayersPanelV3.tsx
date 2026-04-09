@@ -30,6 +30,10 @@ import {
   isResolvedInstanceSubtreeRoot,
   resolvedLayerNodeHasOverride,
 } from "@/lib/canvas/component-override-utils";
+import { buildSectionContext } from "@/lib/canvas/section-context-builder";
+import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
+import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
+import { getProjectState } from "@/lib/project-store";
 
 // ─── Helper: Get all ancestor IDs of a node ──────────────────────────────────
 
@@ -622,7 +626,7 @@ function CanvasItemDesignTree({
 
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
-export function LayersPanelV3() {
+export function LayersPanelV3({ projectId }: { projectId?: string }) {
   const { state, dispatch } = useCanvas();
   const { items, selection, components } = state;
   const masterEditDirty = Boolean(state.masterEditSession?.dirty);
@@ -708,6 +712,81 @@ export function LayersPanelV3() {
   const handleSelectNode = (itemId: string, nodeId: string) => {
     dispatch({ type: "SELECT_NODE", itemId, nodeId });
   };
+
+  // ── Section regeneration ──
+  const handleSectionRegenerate = React.useCallback(
+    async (itemId: string, nodeId: string, intent: "more-like-this" | "different-approach", direction?: string) => {
+      const item = state.items.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const tree = getNodeTree(item);
+      if (!tree?.children) return;
+
+      // Build sibling context
+      const context = buildSectionContext(tree.children, nodeId);
+
+      // Get taste profile and tokens from project state
+      let tasteProfile = null;
+      let tokens = {};
+      if (projectId) {
+        try {
+          const ps = getProjectState(projectId);
+          tasteProfile = ps.canvas?.tasteProfile ?? null;
+          tokens = ps.canvas?.designTokens ?? {};
+        } catch {}
+      }
+
+      // Push history before replacement
+      dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
+
+      try {
+        // Build the section prompt
+        const sectionPrompt = buildDesignTreeSectionPrompt(
+          tokens as any,
+          context.targetName,
+          { above: context.above, below: context.below },
+          { intent, tasteProfile, direction }
+        );
+
+        // Call generation API
+        const res = await fetch("/api/canvas/generate-component", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: sectionPrompt,
+            tokens,
+            regenerationIntent: intent,
+            useDesignNode: true,
+            mode: "single",
+          }),
+        });
+
+        if (!res.ok) throw new Error("Section regeneration failed");
+        const data = await res.json();
+
+        // Extract the generated section
+        const variant = data.variants?.[0];
+        if (!variant?.pageTree) throw new Error("No section generated");
+
+        // The API returns a full tree — extract the section
+        let sectionTree = variant.pageTree;
+        if (sectionTree.type === "frame" && sectionTree.children?.length === 1 && sectionTree.name === "Root") {
+          sectionTree = sectionTree.children[0];
+        }
+
+        // Replace the section
+        dispatch({
+          type: "REPLACE_SECTION",
+          itemId,
+          nodeId,
+          replacement: sectionTree,
+        });
+      } catch (err) {
+        console.error("[Section Regen]", err);
+      }
+    },
+    [state.items, dispatch, projectId],
+  );
 
   // ── DesignNode context menu ──
   const [dnContextMenu, setDnContextMenu] = React.useState<{
@@ -1127,6 +1206,14 @@ export function LayersPanelV3() {
             multiSelectCount={selection.selectedNodeIds.length}
             onDismiss={() => setDnContextMenu(null)}
             onSelectNode={(nodeId) => { dispatch({ type: "SELECT_NODE", itemId: dnContextMenu.itemId, nodeId }); setDnContextMenu(null); }}
+            onRegenerateSimilar={() => {
+              handleSectionRegenerate(dnContextMenu.itemId, dnContextMenu.node.id, "more-like-this");
+              setDnContextMenu(null);
+            }}
+            onRegenerateDifferent={() => {
+              handleSectionRegenerate(dnContextMenu.itemId, dnContextMenu.node.id, "different-approach");
+              setDnContextMenu(null);
+            }}
           />
         );
       })()}

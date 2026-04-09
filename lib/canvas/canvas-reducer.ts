@@ -54,6 +54,7 @@ import {
   type AlignDirection,
   type DistributeAxis,
 } from "./multi-select-helpers";
+import { getNodeTree, withUpdatedTree } from "./canvas-item-conversion";
 
 // ─── Action Types ────────────────────────────────────────────────────────────
 
@@ -688,6 +689,30 @@ function selectionAfterDetach(
   };
 }
 
+/**
+ * Apply an updater to the DesignNode tree of any editable item (artboard, frame, text).
+ * Skips items that don't match itemId or have no tree. Returns null from the updater
+ * to leave the item unchanged.
+ */
+function updateItemTree(
+  state: CanvasReducerState,
+  itemId: string,
+  updater: (tree: DesignNode, item: CanvasItem) => DesignNode | null,
+): CanvasReducerState {
+  return {
+    ...state,
+    items: state.items.map((item) => {
+      if (item.id !== itemId) return item;
+      const tree = getNodeTree(item);
+      if (!tree) return item;
+      const updated = updater(tree, item);
+      if (!updated) return item;
+      return withUpdatedTree(item, updated);
+    }),
+    updatedAt: now(),
+  };
+}
+
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
 // Actions that should NOT auto-accept an active AI preview
@@ -835,28 +860,20 @@ export function canvasReducer(
     // ── Artboard Node Editing ─────────────────────────────────────────────
 
     case "UPDATE_NODE": {
-      return {
-        ...state,
-        items: state.items.map((item) => {
-          if (item.kind !== "artboard" || item.id !== action.itemId) return item;
-          return {
-            ...item,
-            pageTree: updateNodeInTree(item.pageTree, action.nodeId, (node) => ({
-              ...node,
-              ...action.changes,
-              id: node.id,
-              type: node.type,
-            })),
-          };
-        }),
-        updatedAt: now(),
-      };
+      return updateItemTree(state, action.itemId, (tree) =>
+        updateNodeInTree(tree, action.nodeId, (node) => ({
+          ...node,
+          ...action.changes,
+          id: node.id,
+          type: node.type,
+        }))
+      );
     }
 
     case "UPDATE_NODE_STYLE": {
       const breakpoint = getActiveBreakpoint(state);
-      const updater = (pageTree: DesignNode) =>
-        updateNodeInTree(pageTree, action.nodeId, (node) => {
+      const treeUpdater = (tree: DesignNode) =>
+        updateNodeInTree(tree, action.nodeId, (node) => {
           if (breakpoint === "desktop") {
             return { ...node, style: { ...node.style, ...action.style } };
           }
@@ -872,20 +889,26 @@ export function canvasReducer(
           };
         });
 
-      const nextItems = updateArtboardsForSite(state.items, action.itemId, updater);
+      // Artboards: sync across all artboards in the site (desktop/tablet/mobile)
+      const targetItem = state.items.find((i) => i.id === action.itemId);
+      if (targetItem?.kind === "artboard") {
+        const nextItems = updateArtboardsForSite(state.items, action.itemId, treeUpdater);
+        return {
+          ...state,
+          items: nextItems ?? state.items,
+          updatedAt: now(),
+        };
+      }
 
-      return {
-        ...state,
-        items: nextItems ?? state.items,
-        updatedAt: now(),
-      };
+      // Frame / text items: single-item update via updateItemTree
+      return updateItemTree(state, action.itemId, treeUpdater);
     }
 
     case "UPDATE_NODE_STYLE_BATCH": {
       const breakpoint = getActiveBreakpoint(state);
       const { nodeIds } = action;
 
-      const updater = (pageTree: DesignNode) => {
+      const treeUpdater = (pageTree: DesignNode) => {
         let result = pageTree;
         for (const nodeId of nodeIds) {
           result = updateNodeInTree(result, nodeId, (node) => {
@@ -907,9 +930,6 @@ export function canvasReducer(
         return result;
       };
 
-      const nextItems = updateArtboardsForSite(state.items, action.itemId, updater);
-      if (!nextItems) return state;
-
       const historyAfterBatch = pushHistory(
         state.history,
         `Styled ${nodeIds.length} element${nodeIds.length === 1 ? "" : "s"}`,
@@ -918,12 +938,22 @@ export function canvasReducer(
         state.components
       );
 
-      return {
-        ...state,
-        items: nextItems,
-        history: historyAfterBatch,
-        updatedAt: now(),
-      };
+      // Artboards: sync across all artboards in the site
+      const targetItem = state.items.find((i) => i.id === action.itemId);
+      if (targetItem?.kind === "artboard") {
+        const nextItems = updateArtboardsForSite(state.items, action.itemId, treeUpdater);
+        if (!nextItems) return state;
+        return {
+          ...state,
+          items: nextItems,
+          history: historyAfterBatch,
+          updatedAt: now(),
+        };
+      }
+
+      // Frame / text items: single-item update
+      const stateAfterUpdate = updateItemTree(state, action.itemId, treeUpdater);
+      return { ...stateAfterUpdate, history: historyAfterBatch };
     }
 
     case "UPDATE_TEXT_CONTENT_SITE": {
@@ -1043,6 +1073,45 @@ export function canvasReducer(
         return state;
       }
 
+      const historyAfterReparent = pushHistory(
+        state.history,
+        "Moved element to new container",
+        state.items,
+        state.selection,
+        state.components
+      );
+
+      const targetItem = state.items.find((i) => i.id === itemId);
+
+      // Frame / text items: single-item reparent
+      if (targetItem && targetItem.kind !== "artboard") {
+        const tree = getNodeTree(targetItem);
+        if (!tree) return state;
+
+        if (targetParentId !== undefined) {
+          const targetParent = findDesignNodeById(tree, targetParentId);
+          if (!targetParent || !isValidParent(targetParent)) return state;
+        }
+
+        const reparentedTree = reparentNodeInTree(tree, nodeId, sourceParentId, targetParentId, targetIndex);
+        if (!reparentedTree) return state;
+
+        return {
+          ...state,
+          items: state.items.map((item) =>
+            item.id === itemId ? withUpdatedTree(item, reparentedTree as DesignNode) : item
+          ),
+          selection: {
+            ...state.selection,
+            selectedNodeId: nodeId,
+            selectedNodeIds: [nodeId],
+          },
+          history: historyAfterReparent,
+          updatedAt: now(),
+        };
+      }
+
+      // Artboards: validate and sync across site
       const artboard = state.items.find(
         (item): item is ArtboardItem =>
           item.kind === "artboard" && item.id === itemId
@@ -1070,14 +1139,6 @@ export function canvasReducer(
       );
 
       if (!reparentedTree) return state;
-
-      const historyAfterReparent = pushHistory(
-        state.history,
-        "Moved element to new container",
-        state.items,
-        state.selection,
-        state.components
-      );
 
       // Sync across all artboards in the same site
       return {
@@ -1116,12 +1177,6 @@ export function canvasReducer(
     }
 
     case "INSERT_SECTION": {
-      const artboard = state.items.find(
-        (item): item is ArtboardItem =>
-          item.kind === "artboard" && item.id === action.itemId
-      );
-      if (!artboard) return state;
-
       const parentKey =
         action.parentNodeId === null || action.parentNodeId === undefined
           ? undefined
@@ -1129,31 +1184,6 @@ export function canvasReducer(
 
       const tryInsert = (pageTree: TreeNode): TreeNode | null =>
         insertSectionInTree(pageTree, parentKey, action.index, action.section);
-
-      const sourceInsertedTree = tryInsert(artboard.pageTree);
-      // #region agent log
-      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-        body: JSON.stringify({
-          sessionId: "f3006b",
-          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          hypothesisId: "H4-insert-reducer",
-          runId: "initial-pass",
-          location: "canvasReducer:INSERT_SECTION",
-          message: sourceInsertedTree ? "INSERT_SECTION accepted by reducer" : "INSERT_SECTION rejected by reducer",
-          data: {
-            itemId: action.itemId,
-            index: action.index ?? null,
-            parentNodeId: parentKey ?? null,
-            sectionId: action.section.id,
-            sectionType: action.section.type,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      if (!sourceInsertedTree) return state;
 
       const historyAfterInsert = pushHistory(
         state.history,
@@ -1163,6 +1193,41 @@ export function canvasReducer(
         state.components
       );
 
+      const selectionAfterInsert = {
+        ...state.selection,
+        selectedNodeId: action.section.id,
+        selectedNodeIds: [action.section.id],
+      };
+
+      const targetItem = state.items.find((i) => i.id === action.itemId);
+
+      // Frame / text items: single-item insert
+      if (targetItem && targetItem.kind !== "artboard") {
+        const tree = getNodeTree(targetItem);
+        if (!tree) return state;
+        const nextTree = tryInsert(tree);
+        if (!nextTree) return state;
+        return {
+          ...state,
+          items: state.items.map((item) =>
+            item.id === action.itemId ? withUpdatedTree(item, nextTree as DesignNode) : item
+          ),
+          selection: selectionAfterInsert,
+          history: historyAfterInsert,
+          updatedAt: now(),
+        };
+      }
+
+      // Artboards: validate on source then sync across site
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.itemId
+      );
+      if (!artboard) return state;
+
+      const sourceInsertedTree = tryInsert(artboard.pageTree);
+      if (!sourceInsertedTree) return state;
+
       return {
         ...state,
         items: state.items.map((item) => {
@@ -1170,22 +1235,14 @@ export function canvasReducer(
           const nextTree = tryInsert(item.pageTree);
           return nextTree ? { ...item, pageTree: nextTree } : item;
         }),
-        selection: {
-          ...state.selection,
-          selectedNodeId: action.section.id,
-          selectedNodeIds: [action.section.id],
-        },
+        selection: selectionAfterInsert,
         history: historyAfterInsert,
         updatedAt: now(),
       };
     }
 
     case "PASTE_DESIGN_NODES": {
-      const artboard = state.items.find(
-        (item): item is ArtboardItem =>
-          item.kind === "artboard" && item.id === action.itemId
-      );
-      if (!artboard || action.nodes.length === 0) return state;
+      if (action.nodes.length === 0) return state;
 
       const parentKey =
         action.parentNodeId === null || action.parentNodeId === undefined
@@ -1200,8 +1257,6 @@ export function canvasReducer(
           action.nodes as TreeNode[]
         );
 
-      if (!tryPaste(artboard.pageTree)) return state;
-
       const historyAfterPaste = pushHistory(
         state.history,
         action.nodes.length === 1 ? "Pasted layer" : `Pasted ${action.nodes.length} layers`,
@@ -1211,6 +1266,38 @@ export function canvasReducer(
       );
 
       const pastedIds = action.nodes.map((n) => n.id);
+      const selectionAfterPaste = {
+        ...state.selection,
+        selectedNodeId: pastedIds[0],
+        selectedNodeIds: pastedIds,
+      };
+
+      const targetItem = state.items.find((i) => i.id === action.itemId);
+
+      // Frame / text items: single-item paste
+      if (targetItem && targetItem.kind !== "artboard") {
+        const tree = getNodeTree(targetItem);
+        if (!tree) return state;
+        const nextTree = tryPaste(tree);
+        if (!nextTree) return state;
+        return {
+          ...state,
+          items: state.items.map((item) =>
+            item.id === action.itemId ? withUpdatedTree(item, nextTree as DesignNode) : item
+          ),
+          selection: selectionAfterPaste,
+          history: historyAfterPaste,
+          updatedAt: now(),
+        };
+      }
+
+      // Artboards: validate on source then sync across site
+      const artboard = state.items.find(
+        (item): item is ArtboardItem =>
+          item.kind === "artboard" && item.id === action.itemId
+      );
+      if (!artboard) return state;
+      if (!tryPaste(artboard.pageTree)) return state;
 
       return {
         ...state,
@@ -1219,32 +1306,25 @@ export function canvasReducer(
           const nextTree = tryPaste(item.pageTree);
           return nextTree ? { ...item, pageTree: nextTree } : item;
         }),
-        selection: {
-          ...state.selection,
-          selectedNodeId: pastedIds[0],
-          selectedNodeIds: pastedIds,
-        },
+        selection: selectionAfterPaste,
         history: historyAfterPaste,
         updatedAt: now(),
       };
     }
 
     case "DUPLICATE_SECTION": {
-      const artboard = state.items.find(
-        (item): item is ArtboardItem =>
-          item.kind === "artboard" && item.id === action.itemId
-      );
-      if (!artboard) return state;
+      // Resolve the source tree (works for artboards, frames, and text items)
+      const dupSourceItem = state.items.find((i) => i.id === action.itemId);
+      if (!dupSourceItem) return state;
+      const dupSourceTree = getNodeTree(dupSourceItem);
+      if (!dupSourceTree) return state;
 
       // When multi-select is active, duplicate all normalized selected nodes
       const idsToDuplicate = state.selection.selectedNodeIds.length > 1
-        ? normalizeSelection(
-            state.selection.selectedNodeIds,
-            artboard.pageTree as DesignNode
-          )
+        ? normalizeSelection(state.selection.selectedNodeIds, dupSourceTree)
         : [action.nodeId];
 
-      const children = artboard.pageTree.children ?? [];
+      const children = dupSourceTree.children ?? [];
       const clones: Array<{ sourceId: string; clone: TreeNode }> = [];
 
       for (const id of idsToDuplicate) {
@@ -1297,6 +1377,27 @@ export function canvasReducer(
 
       const cloneIds = clones.map((c) => c.clone.id);
 
+      // Frame / text items: single-item duplicate
+      if (dupSourceItem.kind !== "artboard") {
+        return {
+          ...state,
+          items: state.items.map((item) =>
+            item.id === action.itemId
+              ? withUpdatedTree(item, insertClones(dupSourceTree) as DesignNode)
+              : item
+          ),
+          selection: {
+            ...state.selection,
+            selectedNodeId: cloneIds[0],
+            selectedNodeIds: cloneIds,
+          },
+          history: historyAfterDup,
+          updatedAt: now(),
+        };
+      }
+
+      // Artboards: sync across site
+      const artboard = dupSourceItem as ArtboardItem;
       return {
         ...state,
         items: state.items.map((item) => {
@@ -1314,18 +1415,14 @@ export function canvasReducer(
     }
 
     case "DELETE_SECTION": {
-      const artboard = state.items.find(
-        (item): item is ArtboardItem =>
-          item.kind === "artboard" && item.id === action.itemId
-      );
-      if (!artboard) return state;
+      const delSourceItem = state.items.find((i) => i.id === action.itemId);
+      if (!delSourceItem) return state;
+      const delSourceTree = getNodeTree(delSourceItem);
+      if (!delSourceTree) return state;
 
       // When multi-select is active, delete all normalized selected nodes
       const idsToDelete = state.selection.selectedNodeIds.length > 1
-        ? normalizeSelection(
-            state.selection.selectedNodeIds,
-            artboard.pageTree as DesignNode
-          )
+        ? normalizeSelection(state.selection.selectedNodeIds, delSourceTree)
         : [action.nodeId];
 
       const deleteSet = new Set(idsToDelete);
@@ -1345,17 +1442,36 @@ export function canvasReducer(
         state.components
       );
 
+      const selectionAfterDel = {
+        ...state.selection,
+        selectedNodeId: null,
+        selectedNodeIds: [],
+      };
+
+      // Frame / text items: single-item delete
+      if (delSourceItem.kind !== "artboard") {
+        return {
+          ...state,
+          items: state.items.map((item) =>
+            item.id === action.itemId
+              ? withUpdatedTree(item, removeSections(delSourceTree) as DesignNode)
+              : item
+          ),
+          selection: selectionAfterDel,
+          history: historyAfterDel,
+          updatedAt: now(),
+        };
+      }
+
+      // Artboards: sync across site
+      const artboard = delSourceItem as ArtboardItem;
       return {
         ...state,
         items: state.items.map((item) => {
           if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
           return { ...item, pageTree: removeSections(item.pageTree) };
         }),
-        selection: {
-          ...state.selection,
-          selectedNodeId: null,
-          selectedNodeIds: [],
-        },
+        selection: selectionAfterDel,
         history: historyAfterDel,
         updatedAt: now(),
       };

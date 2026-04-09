@@ -135,5 +135,41 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
     css.mixBlendMode = style.blendMode;
   }
 
+  if (style.clipPath) {
+    const cp = style.clipPath;
+    let clipValue: string | undefined;
+
+    switch (cp.type) {
+      case "circle": {
+        const c = cp.circle ?? { radius: 50, cx: 50, cy: 50 };
+        clipValue = `circle(${c.radius}% at ${c.cx}% ${c.cy}%)`;
+        break;
+      }
+      case "ellipse": {
+        const e = cp.ellipse ?? { rx: 50, ry: 50, cx: 50, cy: 50 };
+        clipValue = `ellipse(${e.rx}% ${e.ry}% at ${e.cx}% ${e.cy}%)`;
+        break;
+      }
+      case "inset": {
+        const i = cp.inset ?? { top: 0, right: 0, bottom: 0, left: 0 };
+        const round = i.borderRadius ? ` round ${i.borderRadius}px` : "";
+        clipValue = `inset(${i.top}% ${i.right}% ${i.bottom}% ${i.left}%${round})`;
+        break;
+      }
+      case "polygon": {
+        const pts = cp.polygon;
+        if (pts && pts.length >= 3) {
+          clipValue = `polygon(${pts.map((p) => `${p.x}% ${p.y}%`).join(", ")})`;
+        }
+        break;
+      }
+    }
+
+    if (clipValue) {
+      css.clipPath = clipValue;
+      (css as Record<string, unknown>)["WebkitClipPath"] = clipValue;
+    }
+  }
+
   return css;
 }

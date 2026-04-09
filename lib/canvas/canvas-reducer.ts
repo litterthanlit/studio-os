@@ -567,31 +567,6 @@ export function reparentNodeInTree(
   return rebuildTree(tree);
 }
 
-function updateArtboardsForSite(
-  items: CanvasItem[],
-  itemId: string,
-  updater: (pageTree: TreeNode) => TreeNode
-): CanvasItem[] | null {
-  const sourceArtboard = items.find(
-    (item): item is ArtboardItem =>
-      item.kind === "artboard" && item.id === itemId
-  );
-
-  if (!sourceArtboard) return null;
-
-  return items.map((item) => {
-    if (item.kind !== "artboard" || item.siteId !== sourceArtboard.siteId) {
-      return item;
-    }
-
-    const nextPageTree = updater(item.pageTree);
-    if (nextPageTree === item.pageTree) return item;
-    return {
-      ...item,
-      pageTree: nextPageTree,
-    };
-  });
-}
 
 /**
  * Determine the active breakpoint from the currently active artboard.
@@ -1179,13 +1154,18 @@ export function canvasReducer(
           };
         });
 
-      // Artboards: sync across all artboards in the site (desktop/tablet/mobile)
+      // Artboards: update only the active artboard (one artboard per site)
       const targetItem = state.items.find((i) => i.id === action.itemId);
       if (targetItem?.kind === "artboard") {
-        const nextItems = updateArtboardsForSite(state.items, action.itemId, treeUpdater);
+        const nextItems = state.items.map((item) => {
+          if (item.id !== action.itemId || item.kind !== "artboard") return item;
+          const nextPageTree = treeUpdater(item.pageTree);
+          if (nextPageTree === item.pageTree) return item;
+          return { ...item, pageTree: nextPageTree };
+        });
         return {
           ...state,
-          items: nextItems ?? state.items,
+          items: nextItems,
           updatedAt: now(),
         };
       }
@@ -1228,11 +1208,15 @@ export function canvasReducer(
         state.components
       );
 
-      // Artboards: sync across all artboards in the site
+      // Artboards: update only the active artboard (one artboard per site)
       const targetItem = state.items.find((i) => i.id === action.itemId);
       if (targetItem?.kind === "artboard") {
-        const nextItems = updateArtboardsForSite(state.items, action.itemId, treeUpdater);
-        if (!nextItems) return state;
+        const nextItems = state.items.map((item) => {
+          if (item.id !== action.itemId || item.kind !== "artboard") return item;
+          const nextPageTree = treeUpdater(item.pageTree);
+          if (nextPageTree === item.pageTree) return item;
+          return { ...item, pageTree: nextPageTree };
+        });
         return {
           ...state,
           items: nextItems,
@@ -1247,23 +1231,24 @@ export function canvasReducer(
     }
 
     case "UPDATE_TEXT_CONTENT_SITE": {
-      const nextItems = updateArtboardsForSite(
-        state.items,
-        action.itemId,
-        (pageTree) =>
-          updateNodeInTree(pageTree, action.nodeId, (node) => {
-            if (!isTextNodeType(node.type)) return node;
-            return {
-              ...node,
-              content: {
-                ...node.content,
-                text: action.text,
-              },
-            };
-          })
-      );
+      const nextItems = state.items.map((item) => {
+        if (item.id !== action.itemId || item.kind !== "artboard") return item;
+        const nextPageTree = updateNodeInTree(item.pageTree, action.nodeId, (node) => {
+          if (!isTextNodeType(node.type)) return node;
+          return {
+            ...node,
+            content: {
+              ...node.content,
+              text: action.text,
+            },
+          };
+        });
+        if (nextPageTree === item.pageTree) return item;
+        return { ...item, pageTree: nextPageTree };
+      });
 
-      if (!nextItems) return state;
+      const changed = nextItems !== state.items && nextItems.some((item, i) => item !== state.items[i]);
+      if (!changed) return state;
 
       return {
         ...state,
@@ -1274,32 +1259,33 @@ export function canvasReducer(
 
     case "UPDATE_TEXT_STYLE_SITE": {
       const breakpoint = getActiveBreakpoint(state);
-      const nextItems = updateArtboardsForSite(
-        state.items,
-        action.itemId,
-        (pageTree) =>
-          updateNodeInTree(pageTree, action.nodeId, (node) => {
-            if (!isTextNodeType(node.type)) return node;
-            if (breakpoint === "desktop") {
-              return {
-                ...node,
-                style: { ...node.style, ...action.style },
-              };
-            }
+      const nextItems = state.items.map((item) => {
+        if (item.id !== action.itemId || item.kind !== "artboard") return item;
+        const nextPageTree = updateNodeInTree(item.pageTree, action.nodeId, (node) => {
+          if (!isTextNodeType(node.type)) return node;
+          if (breakpoint === "desktop") {
             return {
               ...node,
-              responsiveOverrides: {
-                ...node.responsiveOverrides,
-                [breakpoint]: {
-                  ...node.responsiveOverrides?.[breakpoint],
-                  ...action.style,
-                },
-              },
+              style: { ...node.style, ...action.style },
             };
-          })
-      );
+          }
+          return {
+            ...node,
+            responsiveOverrides: {
+              ...node.responsiveOverrides,
+              [breakpoint]: {
+                ...node.responsiveOverrides?.[breakpoint],
+                ...action.style,
+              },
+            },
+          };
+        });
+        if (nextPageTree === item.pageTree) return item;
+        return { ...item, pageTree: nextPageTree };
+      });
 
-      if (!nextItems) return state;
+      const changed = nextItems.some((item, i) => item !== state.items[i]);
+      if (!changed) return state;
 
       return {
         ...state,
@@ -1581,7 +1567,7 @@ export function canvasReducer(
         };
       }
 
-      // Artboards: validate on source then sync across site
+      // Artboards: validate on source then update only the target item
       const artboard = state.items.find(
         (item): item is ArtboardItem =>
           item.kind === "artboard" && item.id === action.itemId
@@ -1592,8 +1578,8 @@ export function canvasReducer(
       return {
         ...state,
         items: state.items.map((item) => {
-          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
-          const nextTree = tryPaste(item.pageTree);
+          if (item.id !== action.itemId) return item;
+          const nextTree = tryPaste((item as ArtboardItem).pageTree);
           return nextTree ? { ...item, pageTree: nextTree } : item;
         }),
         selection: selectionAfterPaste,
@@ -1686,13 +1672,12 @@ export function canvasReducer(
         };
       }
 
-      // Artboards: sync across site
-      const artboard = dupSourceItem as ArtboardItem;
+      // Artboards: update only the target item
       return {
         ...state,
         items: state.items.map((item) => {
-          if (item.kind !== "artboard" || item.siteId !== artboard.siteId) return item;
-          return { ...item, pageTree: insertClones(item.pageTree) };
+          if (item.id !== action.itemId) return item;
+          return { ...item, pageTree: insertClones((item as ArtboardItem).pageTree) };
         }),
         selection: {
           ...state.selection,
@@ -1789,8 +1774,9 @@ export function canvasReducer(
     case "RESET_NODE_STYLE_OVERRIDE": {
       const { nodeId, property, breakpoint: bp } = action;
 
-      const nextItems = updateArtboardsForSite(state.items, action.itemId, (pageTree) =>
-        updateNodeInTree(pageTree, nodeId, (node) => {
+      const nextItems = state.items.map((item) => {
+        if (item.id !== action.itemId || item.kind !== "artboard") return item;
+        const nextPageTree = updateNodeInTree(item.pageTree, nodeId, (node) => {
           const overridesForBp = node.responsiveOverrides?.[bp];
           if (!overridesForBp) return node;
 
@@ -1809,10 +1795,13 @@ export function canvasReducer(
             ...node,
             responsiveOverrides: Object.keys(nextOverrides).length > 0 ? nextOverrides : undefined,
           };
-        })
-      );
+        });
+        if (nextPageTree === item.pageTree) return item;
+        return { ...item, pageTree: nextPageTree };
+      });
 
-      if (!nextItems) return state;
+      const changed = nextItems.some((item, i) => item !== state.items[i]);
+      if (!changed) return state;
 
       const historyAfterReset = pushHistory(
         state.history,
@@ -1833,17 +1822,21 @@ export function canvasReducer(
     case "TOGGLE_NODE_HIDDEN": {
       const { nodeId, breakpoint: bp } = action;
 
-      const nextItems = updateArtboardsForSite(state.items, action.itemId, (pageTree) =>
-        updateNodeInTree(pageTree, nodeId, (node) => ({
+      const nextItems = state.items.map((item) => {
+        if (item.id !== action.itemId || item.kind !== "artboard") return item;
+        const nextPageTree = updateNodeInTree(item.pageTree, nodeId, (node) => ({
           ...node,
           hidden: {
             ...node.hidden,
             [bp]: !(node.hidden?.[bp] ?? false),
           },
-        }))
-      );
+        }));
+        if (nextPageTree === item.pageTree) return item;
+        return { ...item, pageTree: nextPageTree };
+      });
 
-      if (!nextItems) return state;
+      const changed = nextItems.some((item, i) => item !== state.items[i]);
+      if (!changed) return state;
 
       const historyAfterToggle = pushHistory(
         state.history,
@@ -2647,14 +2640,14 @@ export function canvasReducer(
         return { ...n, componentRef: ref };
       });
 
-      const nextItems = updateArtboardsForSite(stateH.items, itemId, (pageTree) => {
-        if (pageTree === artboard.pageTree) return newTree;
-        return pageTree;
+      const nextItems = stateH.items.map((item) => {
+        if (item.id !== itemId) return item;
+        return { ...item, pageTree: newTree };
       });
 
       return {
         ...stateH,
-        items: nextItems ?? stateH.items,
+        items: nextItems,
         updatedAt: now(),
       };
     }
@@ -2738,14 +2731,14 @@ export function canvasReducer(
         componentRef: { ...n.componentRef!, overrides: newOverrides },
       }));
 
-      const nextItems = updateArtboardsForSite(state.items, itemId, (pageTree) => {
-        if (pageTree === artboard.pageTree) return newTree;
-        return pageTree;
+      const nextItems = state.items.map((item) => {
+        if (item.id !== itemId) return item;
+        return { ...item, pageTree: newTree };
       });
 
       return {
         ...state,
-        items: nextItems ?? state.items,
+        items: nextItems,
         updatedAt: now(),
       };
     }
@@ -2796,12 +2789,10 @@ export function canvasReducer(
         })) as DesignNode;
       }
 
-      const nextItems = updateArtboardsForSite(state.items, itemId, (pageTree) => {
-        if (pageTree === artboard.pageTree) return tree;
-        return pageTree;
+      const nextItems = state.items.map((item) => {
+        if (item.id !== itemId) return item;
+        return { ...item, pageTree: tree };
       });
-
-      if (!nextItems) return state;
 
       const historyAfterBatch = pushHistory(
         state.history,
@@ -2867,14 +2858,14 @@ export function canvasReducer(
         componentRef: { ...n.componentRef!, overrides: newOverrides },
       }));
 
-      const nextItems = updateArtboardsForSite(stateH.items, itemId, (pageTree) => {
-        if (pageTree === artboard.pageTree) return newTree;
-        return pageTree;
+      const nextItems = stateH.items.map((item) => {
+        if (item.id !== itemId) return item;
+        return { ...item, pageTree: newTree };
       });
 
       return {
         ...stateH,
-        items: nextItems ?? stateH.items,
+        items: nextItems,
         updatedAt: now(),
       };
     }
@@ -2883,16 +2874,19 @@ export function canvasReducer(
       const { itemId, nodeId } = action;
       const stateH = pushHistoryHelper(state, "Reset all overrides");
 
-      const nextItems = updateArtboardsForSite(stateH.items, itemId, (pageTree) =>
-        updateNodeInTree(pageTree as DesignNode, nodeId, (n) => ({
+      const nextItems = stateH.items.map((item) => {
+        if (item.id !== itemId || item.kind !== "artboard") return item;
+        const nextPageTree = updateNodeInTree(item.pageTree as DesignNode, nodeId, (n) => ({
           ...n,
           componentRef: n.componentRef ? { ...n.componentRef, overrides: {} } : n.componentRef,
-        }))
-      );
+        }));
+        if (nextPageTree === item.pageTree) return item;
+        return { ...item, pageTree: nextPageTree };
+      });
 
       return {
         ...stateH,
-        items: nextItems ?? stateH.items,
+        items: nextItems,
         updatedAt: now(),
       };
     }

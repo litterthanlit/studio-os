@@ -60,10 +60,13 @@ import type {
   CanvasItem,
   ReferenceItem,
   ArtboardItem,
+  FrameItem,
+  TextItem,
   PromptRun,
   PromptRunArtboard,
   Breakpoint,
 } from "@/lib/canvas/unified-canvas-state";
+import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { TasteProfile } from "@/types/taste-profile";
@@ -1836,7 +1839,32 @@ export function InspectorPanelV3({
     [items]
   );
 
-  const activeArtboard = singleSelected?.kind === "artboard" ? singleSelected : null;
+  // For canvas-level frame/text items, synthesize a minimal ArtboardItem so
+  // DesignNodeInspector can handle them without any changes to that component.
+  const activeArtboard: ArtboardItem | null = React.useMemo(() => {
+    if (singleSelected?.kind === "artboard") return singleSelected as ArtboardItem;
+    if (singleSelected?.kind === "frame" || singleSelected?.kind === "text") {
+      const item = singleSelected as FrameItem | TextItem;
+      const designNode = canvasItemToDesignNode(item);
+      return {
+        id: item.id,
+        kind: "artboard" as const,
+        x: item.x,
+        y: item.y,
+        width: item.width,
+        height: item.height,
+        zIndex: item.zIndex,
+        locked: item.locked,
+        siteId: item.id,
+        breakpoint: "desktop" as const,
+        name: item.name,
+        pageTree: designNode,
+        compiledCode: null,
+      } as ArtboardItem;
+    }
+    return null;
+  }, [singleSelected]);
+
   const isV6Tree = activeArtboard ? isDesignNodeTree(activeArtboard.pageTree) : false;
 
   const selectedNode: PageNode | null =
@@ -1849,14 +1877,26 @@ export function InspectorPanelV3({
       ? findDesignNodeById(activeArtboard.pageTree as unknown as DesignNode, selection.selectedNodeId)
       : null;
 
-  // Get all selected DesignNodes for multi-select support
+  // Get all selected DesignNodes for multi-select support.
+  // For canvas-level frame/text items with no inner node selected, show the item root.
   const selectedDesignNodes: DesignNode[] = React.useMemo(() => {
     if (!activeArtboard || !isV6Tree) return [];
     const tree = activeArtboard.pageTree as unknown as DesignNode;
-    return selection.selectedNodeIds
-      .map((id) => findDesignNodeById(tree, id))
-      .filter((n): n is DesignNode => n !== null);
-  }, [activeArtboard, isV6Tree, selection.selectedNodeIds]);
+    // If an inner node is selected, resolve it; otherwise show the root node itself.
+    if (selection.selectedNodeIds.length > 0) {
+      const resolved = selection.selectedNodeIds
+        .map((id) => findDesignNodeById(tree, id))
+        .filter((n): n is DesignNode => n !== null);
+      if (resolved.length > 0) return resolved;
+    }
+    // No inner selection — show the item root node (frame/text canvas items)
+    const isCanvasFrameOrText =
+      singleSelected?.kind === "frame" || singleSelected?.kind === "text";
+    if (isCanvasFrameOrText && !selection.selectedNodeId) {
+      return [tree];
+    }
+    return [];
+  }, [activeArtboard, isV6Tree, selection.selectedNodeIds, selection.selectedNodeId, singleSelected]);
 
   const isNodeInspector = Boolean((selectedNode || selectedDesignNode) && activeArtboard);
 

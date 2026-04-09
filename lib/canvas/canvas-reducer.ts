@@ -56,7 +56,7 @@ import {
   type AlignDirection,
   type DistributeAxis,
 } from "./multi-select-helpers";
-import { getNodeTree, withUpdatedTree } from "./canvas-item-conversion";
+import { getNodeTree, withUpdatedTree, canvasItemToDesignNode, designNodeToCanvasItem } from "./canvas-item-conversion";
 
 // ─── Action Types ────────────────────────────────────────────────────────────
 
@@ -164,6 +164,10 @@ export type CanvasAction =
   // Canvas-level creation tools
   | { type: "ADD_FRAME"; x: number; y: number; width: number; height: number }
   | { type: "ADD_TEXT"; x: number; y: number; width: number; height: number; mode: "click" | "drag" }
+  | { type: "ADD_ARTBOARD"; x: number; y: number; breakpoint: Breakpoint; name?: string; siteId?: string }
+  | { type: "CONVERT_TO_ARTBOARD"; itemId: string; breakpoint: Breakpoint }
+  | { type: "REPARENT_TO_ARTBOARD"; itemId: string; artboardId: string; parentNodeId: string; index: number }
+  | { type: "REPARENT_TO_CANVAS"; artboardId: string; nodeId: string }
 
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
@@ -932,6 +936,201 @@ export function canvasReducer(
           ...state.selection,
           selectedItemIds: [id],
           activeItemId: id,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "ADD_ARTBOARD": {
+      const { x, y, breakpoint, name, siteId } = action;
+      const id = uid("artboard");
+      const artboardSiteId = siteId || uid("site");
+      const widths: Record<string, number> = { desktop: 1440, tablet: 768, mobile: 375 };
+      const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
+
+      const newArtboard: ArtboardItem = {
+        id,
+        kind: "artboard",
+        x,
+        y,
+        width: widths[breakpoint] || 1440,
+        height: 900,
+        zIndex: maxZ + 1,
+        locked: false,
+        siteId: artboardSiteId,
+        breakpoint,
+        name: name || `${breakpoint.charAt(0).toUpperCase() + breakpoint.slice(1)} Artboard`,
+        pageTree: {
+          id: `root-${uid("frame")}`,
+          type: "frame" as const,
+          name: "Root",
+          style: {
+            width: widths[breakpoint] || 1440,
+            height: 900,
+            display: "flex" as const,
+            flexDirection: "column" as const,
+            background: "#FFFFFF",
+          },
+          children: [],
+        },
+      };
+
+      return {
+        ...state,
+        items: [...state.items, newArtboard],
+        selection: {
+          ...state.selection,
+          selectedItemIds: [id],
+          activeItemId: id,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "CONVERT_TO_ARTBOARD": {
+      const { itemId, breakpoint } = action;
+      const item = state.items.find((i) => i.id === itemId);
+      if (!item || item.kind !== "frame") return state;
+
+      const frameItem = item as FrameItem;
+      const artboardSiteId = uid("site");
+      const tree = canvasItemToDesignNode(frameItem);
+
+      const newArtboard: ArtboardItem = {
+        id: uid("artboard"),
+        kind: "artboard",
+        x: frameItem.x,
+        y: frameItem.y,
+        width: frameItem.width,
+        height: frameItem.height,
+        zIndex: frameItem.zIndex,
+        locked: frameItem.locked,
+        siteId: artboardSiteId,
+        breakpoint,
+        name: frameItem.name || "Artboard",
+        pageTree: tree,
+      };
+
+      return {
+        ...state,
+        items: state.items
+          .filter((i) => i.id !== itemId)
+          .concat(newArtboard),
+        selection: {
+          ...state.selection,
+          selectedItemIds: [newArtboard.id],
+          activeItemId: newArtboard.id,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "REPARENT_TO_ARTBOARD": {
+      const { itemId, artboardId, parentNodeId, index } = action;
+      const sourceItem = state.items.find((i) => i.id === itemId);
+      if (!sourceItem || (sourceItem.kind !== "frame" && sourceItem.kind !== "text")) return state;
+
+      const artboard = state.items.find((i) => i.id === artboardId);
+      if (!artboard || artboard.kind !== "artboard") return state;
+
+      const node = canvasItemToDesignNode(sourceItem as FrameItem | TextItem);
+
+      // Recalculate position: canvas-world → artboard-local
+      node.style = {
+        ...node.style,
+        position: "absolute",
+        x: Math.round(sourceItem.x - artboard.x),
+        y: Math.round(sourceItem.y - artboard.y),
+      };
+
+      // Insert node into artboard tree
+      const tree = getNodeTree(artboard);
+      if (!tree) return state;
+
+      const insertIntoTree = (root: DesignNode, targetId: string, child: DesignNode, idx: number): DesignNode => {
+        if (root.id === targetId) {
+          const children = [...(root.children || [])];
+          if (idx < 0 || idx >= children.length) {
+            children.push(child);
+          } else {
+            children.splice(idx, 0, child);
+          }
+          return { ...root, children };
+        }
+        if (!root.children) return root;
+        return {
+          ...root,
+          children: root.children.map((c) => insertIntoTree(c, targetId, child, idx)),
+        };
+      };
+
+      const updatedTree = insertIntoTree(tree, parentNodeId, node, index);
+
+      return {
+        ...state,
+        items: state.items
+          .filter((i) => i.id !== itemId)
+          .map((i) => (i.id === artboardId ? withUpdatedTree(i, updatedTree) : i)),
+        selection: {
+          ...state.selection,
+          selectedItemIds: [artboardId],
+          activeItemId: artboardId,
+          selectedNodeId: node.id,
+          selectedNodeIds: [node.id],
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "REPARENT_TO_CANVAS": {
+      const { artboardId, nodeId } = action;
+      const artboard = state.items.find((i) => i.id === artboardId);
+      if (!artboard || artboard.kind !== "artboard") return state;
+
+      const tree = getNodeTree(artboard);
+      if (!tree) return state;
+
+      // Find the node to extract
+      const node = findDesignNodeById(tree, nodeId);
+      if (!node) return state;
+
+      // Calculate canvas-world position
+      const localX = typeof node.style.x === "number" ? node.style.x : 0;
+      const localY = typeof node.style.y === "number" ? node.style.y : 0;
+      const canvasX = artboard.x + localX;
+      const canvasY = artboard.y + localY;
+
+      // Remove node from artboard tree
+      const removeFromTree = (root: DesignNode, targetId: string): DesignNode => {
+        if (!root.children) return root;
+        return {
+          ...root,
+          children: root.children
+            .filter((c) => c.id !== targetId)
+            .map((c) => removeFromTree(c, targetId)),
+        };
+      };
+
+      const updatedTree = removeFromTree(tree, nodeId);
+      const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
+      const canvasItem = designNodeToCanvasItem(node, canvasX, canvasY, maxZ + 1);
+
+      return {
+        ...state,
+        items: [
+          ...state.items.map((i) => (i.id === artboardId ? withUpdatedTree(i, updatedTree) : i)),
+          canvasItem,
+        ],
+        selection: {
+          ...state.selection,
+          selectedItemIds: [canvasItem.id],
+          activeItemId: canvasItem.id,
           selectedNodeId: null,
           selectedNodeIds: [],
         },

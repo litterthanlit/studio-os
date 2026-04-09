@@ -409,6 +409,46 @@ ${tasteSection}${accentMapping4A}
 }
 \`\`\`
 
+## Responsive Overrides (mobile)
+
+Each node MAY include a \`responsiveOverrides\` object with a \`mobile\` key containing style properties that should differ on mobile (375px viewport). Only include properties that ACTUALLY DIFFER from the desktop (base) styles. If a node looks identical at 375px, omit responsiveOverrides entirely.
+
+Common mobile overrides:
+- fontSize: reduce by ~30-40% (e.g. desktop 48 → mobile 28)
+- flexDirection: "column" for horizontal layouts that should stack vertically on mobile
+- padding: compress by ~40-50% (e.g. "64px 80px" → "32px 20px")
+- gap: reduce proportionally
+- width: change fixed widths to "fill" for full-width mobile
+- gridTemplateColumns: simplify multi-column grids to "1fr"
+
+To hide a node on mobile, use the separate \`hidden\` field: \`"hidden": { "mobile": true }\`
+
+Example:
+\`\`\`json
+{
+  "id": "hero-section",
+  "type": "frame",
+  "name": "Hero",
+  "style": {
+    "flexDirection": "row",
+    "padding": "80px 120px",
+    "gap": "60px",
+    "fontSize": 56
+  },
+  "responsiveOverrides": {
+    "mobile": {
+      "flexDirection": "column",
+      "padding": "40px 20px",
+      "gap": "24px",
+      "fontSize": 32
+    }
+  },
+  "children": [...]
+}
+\`\`\`
+
+Keep overrides SPARSE. A typical page should have responsiveOverrides on 30-50% of nodes, not every node. Only nodes whose layout or typography needs to change at mobile width should have overrides.
+
 ## Sizing Model
 
 Every node has a sizing mode for each axis:

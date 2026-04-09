@@ -223,6 +223,17 @@ export function validateAndNormalizeDesignTree(
         }
       }
 
+      if (style.blendMode) {
+        const validModes = new Set([
+          "normal", "multiply", "screen", "overlay", "darken", "lighten",
+          "color-dodge", "color-burn", "hard-light", "soft-light",
+          "difference", "exclusion", "hue", "saturation", "color", "luminosity",
+        ]);
+        if (!validModes.has(style.blendMode as string)) {
+          delete style.blendMode;
+        }
+      }
+
       n.style = style;
     }
 

@@ -44,6 +44,7 @@ import {
   cloneNodesForPaste,
   setMemoryDesignClip,
 } from "@/lib/canvas/design-clipboard";
+import { computeDesignPasteTarget } from "@/lib/canvas/design-paste-target";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { TextInlineToolbar } from "./TextInlineToolbar";
@@ -127,6 +128,30 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const loadingArtboards = React.useMemo(() => createLoadingArtboards(items), [items]);
   const hasArtboards = items.some((item) => item.kind === "artboard");
 
+  React.useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+      body: JSON.stringify({
+        sessionId: "f3006b",
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        hypothesisId: "H9-canvas-mount",
+        runId: "initial-pass",
+        location: "UnifiedCanvasView:mount",
+        message: "canvas view mounted",
+        data: {
+          projectId,
+          itemCount: items.length,
+          hasArtboards,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Welcome overlay for first-time users
   const { visible: welcomeVisible, dismiss: dismissWelcome, show: showWelcome } = useWelcomeOverlay();
 
@@ -137,10 +162,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // Track selected text node and show toolbar when appropriate
   React.useEffect(() => {
-    const activeArtboardId = state.selection.activeArtboardId;
+    const activeItemId = state.selection.activeItemId;
     const selectedNodeId = state.selection.selectedNodeId;
 
-    if (!activeArtboardId || !selectedNodeId) {
+    if (!activeItemId || !selectedNodeId) {
       setShowTextToolbar(false);
       setTextToolbarAnchor(null);
       setSelectedTextNode(null);
@@ -148,7 +173,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     }
 
     const activeArtboard = items.find(
-      (i) => i.kind === "artboard" && i.id === activeArtboardId
+      (i) => i.kind === "artboard" && i.id === activeItemId
     ) as Extract<CanvasItem, { kind: "artboard" }> | undefined;
     if (!activeArtboard) {
       setShowTextToolbar(false);
@@ -190,7 +215,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       setTextToolbarAnchor(null);
       setSelectedTextNode(null);
     }
-  }, [state.selection.activeArtboardId, state.selection.selectedNodeId, items]);
+  }, [state.selection.activeItemId, state.selection.selectedNodeId, items]);
 
   const { effectiveTheme, preference, cyclePreference } = useEditorTheme();
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
@@ -202,6 +227,29 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const [activeTool, setActiveTool] = React.useState("select");
   const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
     React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+      body: JSON.stringify({
+        sessionId: "f3006b",
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        hypothesisId: "H10-tool-state",
+        runId: "initial-pass",
+        location: "UnifiedCanvasView:activeTool",
+        message: "active tool changed",
+        data: {
+          projectId,
+          activeTool,
+          activeItemId: state.selection.activeItemId ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [activeTool, projectId, state.selection.activeItemId]);
 
   const openPromptWithInspector = React.useCallback(() => {
     setShowInspector(true);
@@ -411,7 +459,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // ── Zoom-to-selection: zoom to selected item or selected node ────────
 
   const zoomToSelection = React.useCallback(() => {
-    const { selectedItemIds, activeArtboardId, selectedNodeId } = state.selection;
+    const { selectedItemIds, activeItemId, selectedNodeId } = state.selection;
 
     // Try selected canvas item first
     const selectedItemId = selectedItemIds[0];
@@ -434,7 +482,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     }
 
     // Try selected design node via DOM bounds
-    if (activeArtboardId && selectedNodeId) {
+    if (activeItemId && selectedNodeId) {
       const nodeEl = document.querySelector(`[data-node-id="${selectedNodeId}"]`) as HTMLElement | null;
       if (nodeEl && containerRef.current) {
         const container = containerRef.current;
@@ -526,6 +574,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     [activeTool, spaceHeldRef, isPanningRef, screenToCanvas]
   );
 
+  // Keep a ref in sync so mouseUp can read latest value without state updater
+  const dragSelectionRef = React.useRef(dragSelection);
+  dragSelectionRef.current = dragSelection;
+
   React.useEffect(() => {
     if (!dragSelection) return;
 
@@ -537,50 +589,49 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     };
 
     const handleMouseUp = () => {
-      setDragSelection((current) => {
-        if (!current) return null;
+      // Read from ref (always latest) — do NOT dispatch inside a state updater
+      // as that triggers "Cannot update component while rendering another" errors.
+      const current = dragSelectionRef.current;
+      setDragSelection(null);
 
-        const dx = Math.abs(current.currentX - current.startX);
-        const dy = Math.abs(current.currentY - current.startY);
+      if (!current) return;
 
-        // If the drag was tiny (< 5px in both directions), treat as a click — deselect handled by handleCanvasClick
-        if (dx < 5 && dy < 5) {
-          return null;
-        }
+      const dx = Math.abs(current.currentX - current.startX);
+      const dy = Math.abs(current.currentY - current.startY);
 
-        // Mark that a drag selection just completed so we suppress the click handler
-        didDragSelectRef.current = true;
-        requestAnimationFrame(() => {
-          didDragSelectRef.current = false;
-        });
+      // If the drag was tiny (< 5px in both directions), treat as a click — deselect handled by handleCanvasClick
+      if (dx < 5 && dy < 5) return;
 
-        // Calculate bounding box
-        const selBox = {
-          x: Math.min(current.startX, current.currentX),
-          y: Math.min(current.startY, current.currentY),
-          w: dx,
-          h: dy,
-        };
-
-        // Find all items whose bounds intersect with the selection rectangle
-        const intersecting = items.filter((item) => {
-          return (
-            selBox.x < item.x + item.width &&
-            selBox.x + selBox.w > item.x &&
-            selBox.y < item.y + item.height &&
-            selBox.y + selBox.h > item.y
-          );
-        });
-
-        // Select first intersecting item (multi-select not yet implemented)
-        if (intersecting.length > 0) {
-          dispatch({ type: "SELECT_ITEM", itemId: intersecting[0].id });
-        } else {
-          dispatch({ type: "DESELECT_ALL" });
-        }
-
-        return null;
+      // Mark that a drag selection just completed so we suppress the click handler
+      didDragSelectRef.current = true;
+      requestAnimationFrame(() => {
+        didDragSelectRef.current = false;
       });
+
+      // Calculate bounding box
+      const selBox = {
+        x: Math.min(current.startX, current.currentX),
+        y: Math.min(current.startY, current.currentY),
+        w: dx,
+        h: dy,
+      };
+
+      // Find all items whose bounds intersect with the selection rectangle
+      const intersecting = items.filter((item) => {
+        return (
+          selBox.x < item.x + item.width &&
+          selBox.x + selBox.w > item.x &&
+          selBox.y < item.y + item.height &&
+          selBox.y + selBox.h > item.y
+        );
+      });
+
+      // Select first intersecting item (multi-select not yet implemented)
+      if (intersecting.length > 0) {
+        dispatch({ type: "SELECT_ITEM", itemId: intersecting[0].id });
+      } else {
+        dispatch({ type: "DESELECT_ALL" });
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -660,20 +711,28 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       if (
         parsedNodes &&
         parsedNodes.length > 0 &&
-        state.selection.activeArtboardId
+        state.selection.activeItemId
       ) {
         const ab = items.find(
           (i): i is ArtboardItem =>
-            i.kind === "artboard" && i.id === state.selection.activeArtboardId
+            i.kind === "artboard" && i.id === state.selection.activeItemId
         );
         if (ab && isDesignNodeTree(ab.pageTree)) {
           e.preventDefault();
           setMemoryDesignClip(parsedNodes);
+          const pasteTarget = computeDesignPasteTarget(
+            ab.pageTree as DesignNode,
+            state.selection.selectedNodeId
+          );
           dispatch({
             type: "PASTE_DESIGN_NODES",
-            artboardId: state.selection.activeArtboardId,
+            itemId: state.selection.activeItemId,
             nodes: cloneNodesForPaste(parsedNodes),
-            insertAfterId: state.selection.selectedNodeId ?? undefined,
+            insertAfterId:
+              pasteTarget.insertAfterId === undefined
+                ? undefined
+                : pasteTarget.insertAfterId,
+            parentNodeId: pasteTarget.parentNodeId,
           });
           return;
         }
@@ -726,16 +785,16 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [containerRef, dispatch, items, items.length, viewport, state.selection.activeArtboardId, state.selection.selectedNodeId]);
+  }, [containerRef, dispatch, items, items.length, viewport, state.selection.activeItemId, state.selection.selectedNodeId]);
 
   // ── Click on empty canvas → deselect ───────────────────────────────
 
   const activeArtboard = React.useMemo((): ArtboardItem | null => {
-    const id = state.selection.activeArtboardId;
+    const id = state.selection.activeItemId;
     if (!id) return null;
     const item = items.find((i) => i.kind === "artboard" && i.id === id);
     return item ? (item as ArtboardItem) : null;
-  }, [state.selection.activeArtboardId, items]);
+  }, [state.selection.activeItemId, items]);
 
   const contextBreakpointLabel = React.useMemo(() => {
     if (!activeArtboard) return "";
@@ -800,7 +859,39 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       }}
       onClick={handleCanvasClick}
       onMouseDown={handleDragSelectDown}
-      onPointerDownCapture={handlePointerDown}
+      onPointerDownCapture={(e) => {
+        // Diagnostic: log ALL pointer events reaching the canvas surface
+        if (activeTool === "frame" || activeTool === "text") {
+          const target = e.target as HTMLElement;
+          const nodeId = target.closest?.("[data-node-id]")?.getAttribute("data-node-id") ?? null;
+          const canvasItemId = target.closest?.("[data-canvas-item-id]")?.getAttribute("data-canvas-item-id") ?? null;
+          const isSurface = !!(target as HTMLElement).dataset?.canvasSurface;
+          fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+            body: JSON.stringify({
+              sessionId: "f3006b",
+              id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              hypothesisId: "H8-canvas-surface-capture",
+              runId: "fix-pass",
+              location: "UnifiedCanvasView:onPointerDownCapture",
+              message: "canvas surface capture: pointer event with draw tool",
+              data: {
+                activeTool,
+                clientX: e.clientX,
+                clientY: e.clientY,
+                targetTag: target.tagName,
+                targetClass: target.className?.slice?.(0, 80),
+                nodeId,
+                canvasItemId,
+                isSurface,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+        }
+        handlePointerDown(e);
+      }}
       onAuxClick={(e) => { if (e.button === 1) e.preventDefault(); }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -928,8 +1019,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       {/* Floating prompt panel — Prompt tool (K); not gated on inspector visibility */}
       {activeTool === "prompt" && (() => {
-        const activeArtboard = state.selection.activeArtboardId
-          ? items.find((i) => i.kind === "artboard" && i.id === state.selection.activeArtboardId) ?? null
+        const activeArtboard = state.selection.activeItemId
+          ? items.find((i) => i.kind === "artboard" && i.id === state.selection.activeItemId) ?? null
           : null;
         const isV6 = activeArtboard ? isDesignNodeTree(activeArtboard.pageTree) : false;
         const selectedNode = activeArtboard && state.selection.selectedNodeId
@@ -997,10 +1088,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       <WelcomeOverlay visible={welcomeVisible} onDismiss={dismissWelcome} />
 
       {/* Text inline toolbar for selected text nodes */}
-      {showTextToolbar && selectedTextNode && state.selection.activeArtboardId && (
+      {showTextToolbar && selectedTextNode && state.selection.activeItemId && (
         <TextInlineToolbar
           node={selectedTextNode}
-          artboardId={state.selection.activeArtboardId}
+          itemId={state.selection.activeItemId}
           zoom={viewport.zoom}
           onDismiss={() => {
             setShowTextToolbar(false);

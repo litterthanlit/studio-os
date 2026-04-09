@@ -9,7 +9,7 @@ import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
 
 type TextInlineToolbarProps = {
   node: DesignNode;
-  artboardId: string;
+  itemId: string;
   zoom: number;
   onDismiss: () => void;
   anchorEl: HTMLElement | null;
@@ -19,7 +19,7 @@ const FONT_SIZES = [12, 14, 16, 18, 20, 24, 30, 36, 48, 72];
 
 export function TextInlineToolbar({
   node,
-  artboardId,
+  itemId,
   zoom,
   onDismiss,
   anchorEl,
@@ -160,7 +160,7 @@ export function TextInlineToolbar({
     dispatch({ type: "PUSH_HISTORY", description });
     dispatch({
       type: "UPDATE_NODE_STYLE",
-      artboardId,
+      itemId,
       nodeId: node.id,
       style: patch as Record<string, unknown>,
     });

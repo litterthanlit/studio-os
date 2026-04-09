@@ -46,7 +46,7 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
   const [renamingId, setRenamingId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
 
-  const artboardId = state.selection.activeArtboardId;
+  const itemId = state.selection.activeItemId;
 
   const staticPrimitiveTemplates = React.useMemo(() => {
     return getTemplateList()
@@ -90,19 +90,19 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
   // --- Insert handlers ---
 
   function handleInsertMaster(masterId: string) {
-    if (!artboardId) return;
-    dispatch({ type: "INSERT_INSTANCE", artboardId, masterId });
+    if (!itemId) return;
+    dispatch({ type: "INSERT_INSTANCE", itemId, masterId });
     onClose();
   }
 
   function handleLegacyInsert(savedComponent: DesignComponent) {
-    if (!artboardId) return;
+    if (!itemId) return;
     const cloned = cloneDesignNode(savedComponent.node);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dispatch({ type: "INSERT_SECTION", artboardId, section: cloned as any });
+    dispatch({ type: "INSERT_SECTION", itemId, section: cloned as any });
     dispatch({
       type: "CREATE_MASTER",
-      artboardId,
+      itemId,
       nodeId: cloned.id,
       name: savedComponent.name,
       category: savedComponent.category,
@@ -112,12 +112,12 @@ export function ComponentGalleryPanel({ isOpen, onClose }: ComponentGalleryPanel
 
   /** DesignNode section templates from design-component-library (e.g. Primitives) — insert only, no master promotion. */
   function handleInsertDesignTemplate(templateId: string) {
-    if (!artboardId) return;
+    if (!itemId) return;
     const comp = createTemplateById(templateId);
     if (!comp) return;
     const cloned = cloneDesignNode(comp.node);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dispatch({ type: "INSERT_SECTION", artboardId, section: cloned as any });
+    dispatch({ type: "INSERT_SECTION", itemId, section: cloned as any });
     onClose();
   }
 

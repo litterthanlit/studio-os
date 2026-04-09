@@ -19,7 +19,7 @@ type NodeFormatToolbarProps = {
 
 export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatToolbarProps) {
   const { state, dispatch } = useCanvas();
-  const artboardId = state.selection.activeArtboardId;
+  const itemId = state.selection.activeItemId;
   const toolbarRef = React.useRef<HTMLDivElement>(null);
   const [colorEl, setColorEl] = React.useState<HTMLButtonElement | null>(null);
   const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
@@ -62,11 +62,11 @@ export function NodeFormatToolbar({ node, anchorRef, onAIClick }: NodeFormatTool
   }, [anchorRef]);
 
   function updateNodeStyle(patch: Record<string, unknown>, description: string) {
-    if (!artboardId) return;
+    if (!itemId) return;
     dispatch({ type: "PUSH_HISTORY", description });
     dispatch({
       type: "UPDATE_TEXT_STYLE_SITE",
-      artboardId,
+      itemId,
       nodeId: node.id,
       style: patch as Partial<PageNodeStyle>,
     });

@@ -113,7 +113,7 @@ type ComposeDocumentViewV6Props = {
   onPushHistory?: (description: string) => void;
   interactive?: boolean;
   /** Artboard ID — needed for drag-to-reposition dispatch */
-  artboardId?: string | null;
+  itemId?: string | null;
   /** Current canvas zoom — needed for zoom-aware drag */
   zoom?: number;
   /** Right-click context menu handler for DesignNodes */
@@ -133,7 +133,7 @@ type ComposeDocumentViewV6Props = {
 };
 
 type InlineTextEditEventDetail = {
-  artboardId: string;
+  itemId: string;
   nodeId: string;
 };
 
@@ -1016,7 +1016,7 @@ export function ComposeDocumentViewV6({
   onUpdateNodeStyle,
   onPushHistory,
   interactive = false,
-  artboardId = null,
+  itemId = null,
   zoom = 1,
   onContextMenu,
   onInsertSection,
@@ -1376,7 +1376,7 @@ export function ComposeDocumentViewV6({
     tree,
     selectedNodeId,
     selectedNodeIds,
-    artboardId,
+    itemId,
     zoom,
     interactive,
     canvasTool,
@@ -1582,14 +1582,14 @@ export function ComposeDocumentViewV6({
     spaceHeldRef,
     isInteractingRef,
     existingSelection: selectedNodeIds,
-    artboardId: artboardId ?? null,
+    itemId: itemId ?? null,
     onSetSelectedNodes: rubberBandHandleSetNodes,
     onDeselectAll: rubberBandHandleDeselectAll,
   });
 
   useCanvasReparentAltDrag({
     tree,
-    artboardId,
+    itemId,
     selectedNodeIds,
     interactive: interactive ?? false,
     containerRef,
@@ -1844,12 +1844,12 @@ export function ComposeDocumentViewV6({
   // Listen for keyboard-initiated Enter-to-edit and route through the
   // normal V6 edit path so history/edit state stays coherent.
   React.useEffect(() => {
-    if (!interactive || !artboardId) return;
+    if (!interactive || !itemId) return;
 
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<InlineTextEditEventDetail>).detail;
       if (!detail) return;
-      if (detail.artboardId !== artboardId || detail.nodeId !== selectedNodeId) return;
+      if (detail.itemId !== itemId || detail.nodeId !== selectedNodeId) return;
       handleStartEdit(detail.nodeId);
     };
 
@@ -1863,7 +1863,7 @@ export function ComposeDocumentViewV6({
         handler as EventListener
       );
     };
-  }, [interactive, artboardId, selectedNodeId, handleStartEdit]);
+  }, [interactive, itemId, selectedNodeId, handleStartEdit]);
 
   // ── Double-click to drill into children (Framer-style) ────────────
   const handleDoubleClick = React.useCallback(

@@ -1267,13 +1267,13 @@ export function updateNodeStyleValue(
 
 export function updateArtboardTree(
   document: ComposeDocument,
-  artboardId: string,
+  itemId: string,
   updater: (tree: PageNode) => PageNode
 ): ComposeDocument {
   return {
     ...document,
     artboards: document.artboards.map((artboard) =>
-      artboard.id === artboardId
+      artboard.id === itemId
         ? { ...artboard, pageTree: updater(artboard.pageTree) }
         : artboard
     ),

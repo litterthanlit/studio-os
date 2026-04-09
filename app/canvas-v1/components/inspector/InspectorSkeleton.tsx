@@ -225,7 +225,7 @@ export function InspectorSkeleton({
   function resetOverride(property: keyof PageNodeStyle) {
     dispatch({
       type: "RESET_NODE_STYLE_OVERRIDE",
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: node.id,
       property,
       breakpoint: bp,
@@ -243,7 +243,7 @@ export function InspectorSkeleton({
   function updateStyle(key: string, value: unknown) {
     dispatch({
       type: dispatchType,
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: node.id,
       style: { [key]: value } as Partial<PageNodeStyle>,
     });
@@ -257,7 +257,7 @@ export function InspectorSkeleton({
     dispatch({ type: "PUSH_HISTORY", description });
     dispatch({
       type: dispatchType,
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: node.id,
       style: stylePatch,
     });
@@ -316,7 +316,7 @@ export function InspectorSkeleton({
               dispatch({ type: "PUSH_HISTORY", description: "Changed direction" });
               dispatch({
                 type: "UPDATE_NODE_STYLE",
-                artboardId: artboard.id,
+                itemId: artboard.id,
                 nodeId: node.id,
                 style: { direction: v as "row" | "column" },
               });
@@ -336,7 +336,7 @@ export function InspectorSkeleton({
                 dispatch({ type: "PUSH_HISTORY", description: "Changed alignment" });
                 dispatch({
                   type: "UPDATE_NODE_STYLE",
-                  artboardId: artboard.id,
+                  itemId: artboard.id,
                   nodeId: node.id,
                   style: { align: v as PageNodeStyle["align"] },
                 });
@@ -362,7 +362,7 @@ export function InspectorSkeleton({
                 dispatch({ type: "PUSH_HISTORY", description: "Changed justify" });
                 dispatch({
                   type: "UPDATE_NODE_STYLE",
-                  artboardId: artboard.id,
+                  itemId: artboard.id,
                   nodeId: node.id,
                   style: { justify: v as PageNodeStyle["justify"] },
                 });
@@ -404,7 +404,7 @@ export function InspectorSkeleton({
         <SectionRule label="SPACING" />
         <div className="space-y-1.5 px-4 py-2">
           <SpacingDiagram
-            artboardId={artboard.id}
+            itemId={artboard.id}
             nodeId={node.id}
             nodeType={node.type}
             style={style}
@@ -770,7 +770,7 @@ export function InspectorSkeleton({
               onChange={() =>
                 dispatch({
                   type: "TOGGLE_NODE_HIDDEN",
-                  artboardId: artboard.id,
+                  itemId: artboard.id,
                   nodeId: node.id,
                   breakpoint: "mobile",
                 })

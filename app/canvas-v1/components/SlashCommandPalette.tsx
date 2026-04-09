@@ -22,7 +22,7 @@ export function SlashCommandPalette({
   onDismiss,
 }: SlashCommandPaletteProps) {
   const { state, dispatch } = useCanvas();
-  const artboardId = state.selection.activeArtboardId;
+  const itemId = state.selection.activeItemId;
   const menuRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [query, setQuery] = React.useState("");
@@ -104,9 +104,9 @@ export function SlashCommandPalette({
 
   function handleSelect(index: number) {
     if (index < filtered.length) {
-      if (!artboardId) return;
+      if (!itemId) return;
       const template = filtered[index];
-      dispatch({ type: "INSERT_SECTION", artboardId, index: insertAtIndex, section: template.createNodes() });
+      dispatch({ type: "INSERT_SECTION", itemId, index: insertAtIndex, section: template.createNodes() });
     } else {
       // Browse All
       onOpenFullLibrary(insertAtIndex);

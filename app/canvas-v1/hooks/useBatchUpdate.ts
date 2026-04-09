@@ -23,13 +23,13 @@ interface UseBatchUpdateResult {
 /**
  * Hook that abstracts single vs batch dispatch logic.
  *
- * @param artboardId - The ID of the active artboard
+ * @param itemId - The ID of the active artboard
  * @param nodeIds - Array of node IDs to update (1 for single, >1 for batch)
  * @param dispatch - The canvas dispatch function
  * @returns Object with update functions and batch flag
  */
 export function useBatchUpdate(
-  artboardId: string,
+  itemId: string,
   nodeIds: string[],
   dispatch: React.Dispatch<CanvasAction>
 ): UseBatchUpdateResult {
@@ -42,20 +42,20 @@ export function useBatchUpdate(
       if (isBatch) {
         dispatch({
           type: "UPDATE_NODE_STYLE_BATCH",
-          artboardId,
+          itemId,
           nodeIds,
           style,
         });
       } else {
         dispatch({
           type: "UPDATE_NODE_STYLE",
-          artboardId,
+          itemId,
           nodeId: nodeIds[0],
           style,
         });
       }
     },
-    [artboardId, nodeIds, isBatch, dispatch]
+    [itemId, nodeIds, isBatch, dispatch]
   );
 
   const updateInstanceOverride = useCallback(
@@ -64,13 +64,13 @@ export function useBatchUpdate(
       // since each instance has its own override map
       dispatch({
         type: "UPDATE_INSTANCE_OVERRIDE",
-        artboardId,
+        itemId,
         instanceId,
         masterNodeId,
         override,
       });
     },
-    [artboardId, dispatch]
+    [itemId, dispatch]
   );
 
   return {

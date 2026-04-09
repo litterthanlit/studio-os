@@ -212,7 +212,7 @@ function InstanceContextMenu({
 // ─── Recursive DesignNode Tree Node ─────────────────────────────────────────
 
 function DesignTreeNode({
-  node, depth, selectedNodeId, selectedNodeIds, artboardId, parentId, index,
+  node, depth, selectedNodeId, selectedNodeIds, itemId, parentId, index,
   onSelectNode, onContextMenu, dispatch,
   draggedId, dropTarget, isValidDrop, onDragPointerDown,
   sourceTree, components,
@@ -220,11 +220,11 @@ function DesignTreeNode({
   getNodeDepth,
 }: {
   node: DesignNode; depth: number; selectedNodeId: string | null;
-  selectedNodeIds: string[]; artboardId: string;
+  selectedNodeIds: string[]; itemId: string;
   parentId: string; index: number;
-  onSelectNode: (artboardId: string, nodeId: string) => void;
-  onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
-  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
+  onSelectNode: (itemId: string, nodeId: string) => void;
+  onContextMenu?: (node: DesignNode, itemId: string, event: React.MouseEvent) => void;
+  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; itemId: string; nodeId: string }>;
   draggedId: string | null;
   dropTarget: DropTarget | null;
   isValidDrop: boolean;
@@ -307,9 +307,9 @@ function DesignTreeNode({
           // Don't fire click if we were just dragging
           if (draggedId) return;
           if (e.shiftKey) {
-            dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId, nodeId: node.id });
+            dispatch({ type: "TOGGLE_NODE_SELECTION", itemId, nodeId: node.id });
           } else {
-            onSelectNode(artboardId, node.id);
+            onSelectNode(itemId, node.id);
           }
         }}
         onPointerDown={(e) => {
@@ -317,7 +317,7 @@ function DesignTreeNode({
           if (isInsideInstance) return;
           onDragPointerDown(e, node.id, parentId);
         }}
-        onContextMenu={(e) => onContextMenu?.(node, artboardId, e)}
+        onContextMenu={(e) => onContextMenu?.(node, itemId, e)}
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isPrimary
@@ -379,7 +379,7 @@ function DesignTreeNode({
         <DesignTreeNode
           key={child.id} node={child} depth={depth + 1}
           selectedNodeId={selectedNodeId} selectedNodeIds={selectedNodeIds}
-          artboardId={artboardId} parentId={node.id} index={childIdx}
+          itemId={itemId} parentId={node.id} index={childIdx}
           onSelectNode={onSelectNode} onContextMenu={onContextMenu} dispatch={dispatch}
           draggedId={draggedId} dropTarget={dropTarget} isValidDrop={isValidDrop} onDragPointerDown={onDragPointerDown}
           sourceTree={sourceTree} components={components}
@@ -413,10 +413,10 @@ function BreakpointIcon({ bp }: { bp: string }) {
 // ─── Recursive Tree Node ─────────────────────────────────────────────────────
 
 function TreeNode({
-  node, depth, selectedNodeId, artboardId, onSelectNode,
+  node, depth, selectedNodeId, itemId, onSelectNode,
 }: {
   node: PageNode; depth: number; selectedNodeId: string | null;
-  artboardId: string; onSelectNode: (artboardId: string, nodeId: string) => void;
+  itemId: string; onSelectNode: (itemId: string, nodeId: string) => void;
 }) {
   const hasChildren = node.children && node.children.length > 0;
   const [expanded, setExpanded] = React.useState(depth < 2);
@@ -426,7 +426,7 @@ function TreeNode({
     <>
       <button
         type="button"
-        onClick={() => onSelectNode(artboardId, node.id)}
+        onClick={() => onSelectNode(itemId, node.id)}
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isSelected
@@ -447,7 +447,7 @@ function TreeNode({
         <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">{formatLabel(node)}</span>
       </button>
       {expanded && hasChildren && node.children!.map((child) => (
-        <TreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} artboardId={artboardId} onSelectNode={onSelectNode} />
+        <TreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} itemId={itemId} onSelectNode={onSelectNode} />
       ))}
     </>
   );
@@ -498,9 +498,9 @@ function ArtboardDesignTree({
   masterEditDirty: boolean;
   selectedNodeId: string | null;
   selectedNodeIds: string[];
-  onSelectNode: (artboardId: string, nodeId: string) => void;
-  onContextMenu?: (node: DesignNode, artboardId: string, event: React.MouseEvent) => void;
-  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; artboardId: string; nodeId: string }>;
+  onSelectNode: (itemId: string, nodeId: string) => void;
+  onContextMenu?: (node: DesignNode, itemId: string, event: React.MouseEvent) => void;
+  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; itemId: string; nodeId: string }>;
   draggedId: string | null;
   dropTarget: DropTarget | null;
   isValidDrop: boolean;
@@ -525,7 +525,7 @@ function ArtboardDesignTree({
           depth={2}
           selectedNodeId={selectedNodeId}
           selectedNodeIds={selectedNodeIds}
-          artboardId={artboard.id}
+          itemId={artboard.id}
           parentId={resolvedTree.id}
           index={childIdx}
           onSelectNode={onSelectNode}
@@ -560,11 +560,11 @@ export function LayersPanelV3() {
   
   // ── Active artboard for ancestor lookup ─────────────────────────────────────
   const activeArtboard = React.useMemo(() => {
-    if (!selection.activeArtboardId) return null;
+    if (!selection.activeItemId) return null;
     return items.find((i): i is ArtboardItem => 
-      i.kind === "artboard" && i.id === selection.activeArtboardId
+      i.kind === "artboard" && i.id === selection.activeItemId
     ) || null;
-  }, [items, selection.activeArtboardId]);
+  }, [items, selection.activeItemId]);
 
   // ── Auto-expand ancestors and scroll to selected node ───────────────────────
   React.useEffect(() => {
@@ -628,33 +628,33 @@ export function LayersPanelV3() {
     dispatch({ type: "SELECT_ITEM", itemId });
   };
 
-  const handleSelectNode = (artboardId: string, nodeId: string) => {
-    dispatch({ type: "SELECT_NODE", artboardId, nodeId });
+  const handleSelectNode = (itemId: string, nodeId: string) => {
+    dispatch({ type: "SELECT_NODE", itemId, nodeId });
   };
 
   // ── DesignNode context menu ──
   const [dnContextMenu, setDnContextMenu] = React.useState<{
     node: DesignNode;
-    artboardId: string;
+    itemId: string;
     position: { x: number; y: number };
   } | null>(null);
 
   // ── Instance context menu ──
   const [instanceContextMenu, setInstanceContextMenu] = React.useState<{
     node: DesignNode;
-    artboardId: string;
+    itemId: string;
     position: { x: number; y: number };
     isInstanceRoot: boolean;
   } | null>(null);
 
   const handleDesignNodeContextMenu = React.useCallback(
-    (node: DesignNode, artboardId: string, event: React.MouseEvent) => {
+    (node: DesignNode, itemId: string, event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      dispatch({ type: "SELECT_NODE", artboardId, nodeId: node.id });
+      dispatch({ type: "SELECT_NODE", itemId, nodeId: node.id });
 
       // Route to instance context menu for instance roots and children
-      const artboard = artboards.find((a) => a.id === artboardId);
+      const artboard = artboards.find((a) => a.id === itemId);
       const sourceTree = artboard && isDesignNodeTree(artboard.pageTree)
         ? (artboard.pageTree as DesignNode)
         : null;
@@ -676,12 +676,12 @@ export function LayersPanelV3() {
       if (isInstanceRootForMenu || (isInsideInst && !isResolvedInstanceRoot)) {
         setInstanceContextMenu({
           node,
-          artboardId,
+          itemId,
           position: { x: event.clientX, y: event.clientY },
           isInstanceRoot: isInstanceRootForMenu,
         });
       } else {
-        setDnContextMenu({ node, artboardId, position: { x: event.clientX, y: event.clientY } });
+        setDnContextMenu({ node, itemId, position: { x: event.clientX, y: event.clientY } });
       }
     },
     [dispatch, artboards, components]
@@ -714,20 +714,20 @@ export function LayersPanelV3() {
   // ── Drag reorder hook ──
   const dragHook = useLayersDragReorder({
     onReparent: React.useCallback((nodeId: string, sourceParentId: string | undefined, targetParentId: string | undefined, targetIndex: number) => {
-      const activeArtboardId = selection.activeArtboardId;
-      if (!activeArtboardId) return;
+      const activeItemId = selection.activeItemId;
+      if (!activeItemId) return;
       dispatch({
         type: "REPARENT_NODE",
-        artboardId: activeArtboardId,
+        itemId: activeItemId,
         nodeId,
         sourceParentId,
         targetParentId,
         targetIndex,
       });
-    }, [selection.activeArtboardId, dispatch]),
+    }, [selection.activeItemId, dispatch]),
     selectedNodeIds: selection.selectedNodeIds,
-    onCollapseToSingle: React.useCallback((artboardId: string, nodeId: string) => {
-      dispatch({ type: "SELECT_NODE", artboardId, nodeId });
+    onCollapseToSingle: React.useCallback((itemId: string, nodeId: string) => {
+      dispatch({ type: "SELECT_NODE", itemId, nodeId });
     }, [dispatch]),
     getNodeType,
     getRootChildCount,
@@ -841,8 +841,8 @@ export function LayersPanelV3() {
                           artboard={artboard}
                           components={state.components}
                           masterEditDirty={masterEditDirty}
-                          selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
-                          selectedNodeIds={selection.activeArtboardId === artboard.id ? selection.selectedNodeIds : []}
+                          selectedNodeId={selection.activeItemId === artboard.id ? selection.selectedNodeId : null}
+                          selectedNodeIds={selection.activeItemId === artboard.id ? selection.selectedNodeIds : []}
                           onSelectNode={handleSelectNode}
                           onContextMenu={handleDesignNodeContextMenu}
                           dispatch={dispatch}
@@ -860,8 +860,8 @@ export function LayersPanelV3() {
                           key={child.id}
                           node={child}
                           depth={2}
-                          selectedNodeId={selection.activeArtboardId === artboard.id ? selection.selectedNodeId : null}
-                          artboardId={artboard.id}
+                          selectedNodeId={selection.activeItemId === artboard.id ? selection.selectedNodeId : null}
+                          itemId={artboard.id}
                           onSelectNode={handleSelectNode}
                         />
                       ))
@@ -935,7 +935,7 @@ export function LayersPanelV3() {
 
       {/* DesignNode context menu */}
       {dnContextMenu && (() => {
-        const artboard = artboards.find((a) => a.id === dnContextMenu.artboardId);
+        const artboard = artboards.find((a) => a.id === dnContextMenu.itemId);
         if (!artboard || !isDesignNodeTree(artboard.pageTree)) return null;
         const tree = artboard.pageTree as DesignNode;
         const parent = findDesignNodeParent(tree, dnContextMenu.node.id);
@@ -954,41 +954,41 @@ export function LayersPanelV3() {
             isFirst={idx === 0}
             isLast={idx === siblings.length - 1}
             isHidden={Boolean(dnContextMenu.node.hidden?.[bp])}
-            onDuplicate={() => { dispatch({ type: "DUPLICATE_SECTION", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
-            onDelete={() => { dispatch({ type: "DELETE_SECTION", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onDuplicate={() => { dispatch({ type: "DUPLICATE_SECTION", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onDelete={() => { dispatch({ type: "DELETE_SECTION", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
             onMoveUp={() => {
               if (idx > 0 && parent) {
-                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx - 1, parentNodeId: parent.id });
+                dispatch({ type: "REORDER_NODE", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id, newIndex: idx - 1, parentNodeId: parent.id });
               } else if (idx > 0) {
-                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx - 1 });
+                dispatch({ type: "REORDER_NODE", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id, newIndex: idx - 1 });
               }
               setDnContextMenu(null);
             }}
             onMoveDown={() => {
               if (idx < siblings.length - 1 && parent) {
-                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx + 1, parentNodeId: parent.id });
+                dispatch({ type: "REORDER_NODE", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id, newIndex: idx + 1, parentNodeId: parent.id });
               } else if (idx < siblings.length - 1) {
-                dispatch({ type: "REORDER_NODE", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, newIndex: idx + 1 });
+                dispatch({ type: "REORDER_NODE", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id, newIndex: idx + 1 });
               }
               setDnContextMenu(null);
             }}
-            onToggleVisibility={() => { dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id, breakpoint: bp }); setDnContextMenu(null); }}
+            onToggleVisibility={() => { dispatch({ type: "TOGGLE_NODE_HIDDEN", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id, breakpoint: bp }); setDnContextMenu(null); }}
             onSaveToLibrary={isNonRootFrame ? (name: string) => {
               dispatch({
                 type: "CREATE_MASTER",
-                artboardId: dnContextMenu.artboardId,
+                itemId: dnContextMenu.itemId,
                 nodeId: dnContextMenu.node.id,
                 name: name || dnContextMenu.node.name || "Component",
                 category: "Custom",
               });
               setDnContextMenu(null);
             } : undefined}
-            onGroup={() => { dispatch({ type: "GROUP_NODES", artboardId: dnContextMenu.artboardId }); setDnContextMenu(null); }}
-            onUngroup={() => { dispatch({ type: "UNGROUP_NODES", artboardId: dnContextMenu.artboardId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
+            onGroup={() => { dispatch({ type: "GROUP_NODES", itemId: dnContextMenu.itemId }); setDnContextMenu(null); }}
+            onUngroup={() => { dispatch({ type: "UNGROUP_NODES", itemId: dnContextMenu.itemId, nodeId: dnContextMenu.node.id }); setDnContextMenu(null); }}
             isGroupNode={Boolean(dnContextMenu.node.isGroup)}
             multiSelectCount={selection.selectedNodeIds.length}
             onDismiss={() => setDnContextMenu(null)}
-            onSelectNode={(nodeId) => { dispatch({ type: "SELECT_NODE", artboardId: dnContextMenu.artboardId, nodeId }); setDnContextMenu(null); }}
+            onSelectNode={(nodeId) => { dispatch({ type: "SELECT_NODE", itemId: dnContextMenu.itemId, nodeId }); setDnContextMenu(null); }}
           />
         );
       })()}
@@ -1001,7 +1001,7 @@ export function LayersPanelV3() {
           isInstanceRoot={instanceContextMenu.isInstanceRoot}
           onEditMaster={() => {
             const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
-            const ab = artboards.find((a) => a.id === instanceContextMenu.artboardId);
+            const ab = artboards.find((a) => a.id === instanceContextMenu.itemId);
             if (!ab || !isDesignNodeTree(ab.pageTree)) return;
             const st = ab.pageTree as DesignNode;
             const inst = findDesignNodeById(st, instanceSourceId);
@@ -1010,7 +1010,7 @@ export function LayersPanelV3() {
             if (isBuiltinMasterId(masterId)) {
               dispatch({
                 type: "PROMOTE_BUILTIN_TO_USER",
-                artboardId: instanceContextMenu.artboardId,
+                itemId: instanceContextMenu.itemId,
                 instanceNodeId: instanceSourceId,
               });
             } else {
@@ -1019,7 +1019,7 @@ export function LayersPanelV3() {
                 type: "ENTER_MASTER_EDIT",
                 masterId,
                 returnTo: {
-                  artboardId: instanceContextMenu.artboardId,
+                  itemId: instanceContextMenu.itemId,
                   instanceRootSourceId: instanceSourceId,
                   preferredNodeId: selection.selectedNodeId,
                 },
@@ -1030,7 +1030,7 @@ export function LayersPanelV3() {
             const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
             dispatch({
               type: "DETACH_INSTANCE",
-              artboardId: instanceContextMenu.artboardId,
+              itemId: instanceContextMenu.itemId,
               nodeId: instanceSourceId,
             });
           }}
@@ -1038,7 +1038,7 @@ export function LayersPanelV3() {
             const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
             dispatch({
               type: "RESET_ALL_OVERRIDES",
-              artboardId: instanceContextMenu.artboardId,
+              itemId: instanceContextMenu.itemId,
               nodeId: instanceSourceId,
             });
           }}
@@ -1046,7 +1046,7 @@ export function LayersPanelV3() {
             const instanceSourceId = getInstanceRootSourceId(instanceContextMenu.node.id);
             dispatch({
               type: "DELETE_SECTION",
-              artboardId: instanceContextMenu.artboardId,
+              itemId: instanceContextMenu.itemId,
               nodeId: instanceSourceId,
             });
             setInstanceContextMenu(null);
@@ -1055,7 +1055,7 @@ export function LayersPanelV3() {
             const [instanceId, masterNodeId] = splitCompositeId(instanceContextMenu.node.id);
             dispatch({
               type: "RESET_INSTANCE_OVERRIDE_FIELD",
-              artboardId: instanceContextMenu.artboardId,
+              itemId: instanceContextMenu.itemId,
               instanceId,
               masterNodeId,
               category: "all",

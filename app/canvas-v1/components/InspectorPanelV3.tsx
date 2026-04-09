@@ -546,7 +546,7 @@ function NodeInspector({
   }
 
   function resetOverride(property: keyof PageNodeStyle) {
-    dispatch({ type: "RESET_NODE_STYLE_OVERRIDE", artboardId: artboard.id, nodeId: node.id, property, breakpoint: bp });
+    dispatch({ type: "RESET_NODE_STYLE_OVERRIDE", itemId: artboard.id, nodeId: node.id, property, breakpoint: bp });
   }
 
   // Debounced history push — visual updates fire instantly, history commits after 400ms/blur
@@ -558,7 +558,7 @@ function NodeInspector({
   function updateContent(key: string, value: string) {
     dispatch({
       type: "UPDATE_NODE",
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: node.id,
       changes: { content: { ...content, [key]: value } },
     });
@@ -568,7 +568,7 @@ function NodeInspector({
   function updateStyle(key: string, value: unknown) {
     dispatch({
       type: isTextNode ? "UPDATE_TEXT_STYLE_SITE" : "UPDATE_NODE_STYLE",
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: node.id,
       style: { [key]: value } as Partial<PageNodeStyle>,
     });
@@ -582,7 +582,7 @@ function NodeInspector({
     dispatch({ type: "PUSH_HISTORY", description });
     dispatch({
       type: isTextNode ? "UPDATE_TEXT_STYLE_SITE" : "UPDATE_NODE_STYLE",
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: node.id,
       style: stylePatch,
     });
@@ -847,7 +847,7 @@ function NodeInspector({
               ]}
               onChange={(v) => {
                 dispatch({ type: "PUSH_HISTORY", description: "Changed direction" });
-                dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { direction: v as "row" | "column" } });
+                dispatch({ type: "UPDATE_NODE_STYLE", itemId: artboard.id, nodeId: node.id, style: { direction: v as "row" | "column" } });
               }}
             />
 
@@ -857,7 +857,7 @@ function NodeInspector({
                 value={style.align || "left"}
                 onChange={(v) => {
                   dispatch({ type: "PUSH_HISTORY", description: "Changed alignment" });
-                  dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { align: v as PageNodeStyle["align"] } });
+                  dispatch({ type: "UPDATE_NODE_STYLE", itemId: artboard.id, nodeId: node.id, style: { align: v as PageNodeStyle["align"] } });
                 }}
                 options={[
                   { value: "left", icon: <AlignLeft size={14} />, title: "Start" },
@@ -873,7 +873,7 @@ function NodeInspector({
                 value={style.justify || "start"}
                 onChange={(v) => {
                   dispatch({ type: "PUSH_HISTORY", description: "Changed justify" });
-                  dispatch({ type: "UPDATE_NODE_STYLE", artboardId: artboard.id, nodeId: node.id, style: { justify: v as PageNodeStyle["justify"] } });
+                  dispatch({ type: "UPDATE_NODE_STYLE", itemId: artboard.id, nodeId: node.id, style: { justify: v as PageNodeStyle["justify"] } });
                 }}
                 options={[
                   { value: "start", icon: <AlignStartVertical size={14} />, title: "Start" },
@@ -901,7 +901,7 @@ function NodeInspector({
 
           <InspectorCollapsible label="Spacing">
             <SpacingDiagram
-              artboardId={artboard.id}
+              itemId={artboard.id}
               nodeId={node.id}
               nodeType={node.type}
               style={style}
@@ -960,7 +960,7 @@ function NodeInspector({
               type="checkbox"
               checked={node.hidden?.mobile ?? false}
               onChange={() =>
-                dispatch({ type: "TOGGLE_NODE_HIDDEN", artboardId: artboard.id, nodeId: node.id, breakpoint: "mobile" })
+                dispatch({ type: "TOGGLE_NODE_HIDDEN", itemId: artboard.id, nodeId: node.id, breakpoint: "mobile" })
               }
               className="accent-[#4B57DB] w-3.5 h-3.5 cursor-pointer"
             />

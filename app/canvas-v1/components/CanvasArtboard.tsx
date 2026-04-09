@@ -15,7 +15,7 @@ import { GenerationAnimation } from "./GenerationAnimation";
 type CanvasArtboardProps = {
   item: ArtboardItem;
   tokens: DesignSystemTokens | null;
-  /** Editor tool: select | hand | marquee | frame | prompt */
+  /** Editor tool: select | hand | marquee | frame | text | prompt */
   activeTool?: string;
   isDragging?: boolean;
   isGenerating?: boolean;
@@ -32,7 +32,10 @@ type CanvasArtboardProps = {
 export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onOpenComponentGallery, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
-  const isActiveArtboard = state.selection.activeArtboardId === item.id;
+  const isActiveArtboard = state.selection.activeItemId === item.id;
+  /** V6 renderer is driven by tree shape, not tokens — sample / pre-analysis projects have DesignNode trees but null tokens. */
+  const usesV6Renderer = isDesignNodeTree(item.pageTree);
+  const rendererMode = usesV6Renderer ? "v6" : tokens ? "legacy" : "no-tokens";
 
   const breakpointWidth = BREAKPOINT_WIDTHS[item.breakpoint];
   const label = `${item.breakpoint.toUpperCase()} · ${breakpointWidth}PX`;
@@ -47,6 +50,32 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
   const [warmBg, setWarmBg] = React.useState(false);
   const prevIsGeneratingRef = React.useRef(isGenerating);
   const isTemplateFallback = generationResult === "template-fallback";
+
+  React.useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+      body: JSON.stringify({
+        sessionId: "f3006b",
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        hypothesisId: "H11-artboard-renderer",
+        runId: "initial-pass",
+        location: "CanvasArtboard:mount",
+        message: "artboard mounted",
+        data: {
+          itemId: item.id,
+          rendererMode,
+          usesV6Renderer,
+          hasTokens: Boolean(tokens),
+          breakpoint: item.breakpoint,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Detect isGenerating flipping from true→false (generation complete)
   React.useEffect(() => {
@@ -92,7 +121,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
   const handleNodeSelect = React.useCallback(
     (nodeId: string | null) => {
       if (nodeId) {
-        dispatch({ type: "SELECT_NODE", artboardId: item.id, nodeId });
+        dispatch({ type: "SELECT_NODE", itemId: item.id, nodeId });
       } else {
         dispatch({ type: "SELECT_ITEM", itemId: item.id });
       }
@@ -104,7 +133,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
     (nodeId: string, newIndex: number) => {
       dispatch({
         type: "REORDER_NODE",
-        artboardId: item.id,
+        itemId: item.id,
         nodeId,
         newIndex,
       });
@@ -117,7 +146,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
       if (key === "text") {
         dispatch({
           type: "UPDATE_TEXT_CONTENT_SITE",
-          artboardId: item.id,
+          itemId: item.id,
           nodeId,
           text: value,
         });
@@ -126,7 +155,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
 
       dispatch({
         type: "UPDATE_NODE",
-        artboardId: item.id,
+        itemId: item.id,
         nodeId,
         changes: {
           content: {
@@ -143,7 +172,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
     (nodeId: string, style: Record<string, unknown>) => {
       dispatch({
         type: "UPDATE_NODE_STYLE",
-        artboardId: item.id,
+        itemId: item.id,
         nodeId,
         style: style as import("@/lib/canvas/compose").PageNodeStyle,
       });
@@ -152,8 +181,36 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
   );
 
   const handleInsertSectionV6 = React.useCallback(
-    (index: number, section: DesignNode) => {
-      dispatch({ type: "INSERT_SECTION", artboardId: item.id, index, section });
+    (index: number, section: DesignNode, parentNodeId?: string | null) => {
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+        body: JSON.stringify({
+          sessionId: "f3006b",
+          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          hypothesisId: "H3-insert-dispatch",
+          runId: "initial-pass",
+          location: "CanvasArtboard:handleInsertSectionV6",
+          message: "dispatching INSERT_SECTION from artboard",
+          data: {
+            itemId: item.id,
+            index,
+            parentNodeId: parentNodeId ?? null,
+            sectionId: section.id,
+            sectionType: section.type,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      dispatch({
+        type: "INSERT_SECTION",
+        itemId: item.id,
+        index,
+        section,
+        parentNodeId: parentNodeId ?? undefined,
+      });
     },
     [dispatch, item.id]
   );
@@ -173,10 +230,10 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
           .map((canvasItem) => canvasItem.id);
 
         dispatch({ type: "PUSH_HISTORY", description: "Replaced image" });
-        syncedArtboardIds.forEach((artboardId) => {
+        syncedArtboardIds.forEach((itemId) => {
           dispatch({
             type: "UPDATE_NODE",
-            artboardId,
+            itemId,
             nodeId,
             changes: {
               content: {
@@ -204,7 +261,12 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
         width: breakpointWidth,
         zIndex: item.zIndex,
       }}
-      onPointerDown={(e) => onPointerDown?.(e, item.id, item.x, item.y)}
+      onPointerDown={(e) => {
+        // When frame/text draw tool is active, don't start artboard drag —
+        // let the event bubble to V6's mergedPointerDown handler instead.
+        if (activeTool === "frame" || activeTool === "text") return;
+        onPointerDown?.(e, item.id, item.x, item.y);
+      }}
     >
       {/* Artboard header */}
       <div className="mb-2 font-mono text-[10px] uppercase tracking-[1px] text-[var(--text-muted)]">
@@ -283,7 +345,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
                   : "none",
               }}
             >
-              {tokens && isDesignNodeTree(item.pageTree) ? (
+              {isDesignNodeTree(item.pageTree) ? (
                 <ComposeDocumentViewV6
                   tree={item.pageTree as import("@/lib/canvas/design-node").DesignNode}
                   components={state.components}
@@ -292,15 +354,15 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
                   selectedNodeIds={isActiveArtboard ? state.selection.selectedNodeIds : []}
                   onSelectNode={handleNodeSelect}
                   onToggleNodeSelection={(nodeId) => {
-                    dispatch({ type: "TOGGLE_NODE_SELECTION", artboardId: item.id, nodeId });
+                    dispatch({ type: "TOGGLE_NODE_SELECTION", itemId: item.id, nodeId });
                   }}
                   onSetSelectedNodes={(nodeIds) => {
-                    dispatch({ type: "SET_SELECTED_NODES", artboardId: item.id, nodeIds });
+                    dispatch({ type: "SET_SELECTED_NODES", itemId: item.id, nodeIds });
                   }}
                   onUpdateContent={handleNodeContentUpdate}
                   onUpdateNodeStyle={handleNodeStyleUpdate}
                   onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
-                  artboardId={item.id}
+                  itemId={item.id}
                   zoom={state.viewport.zoom}
                   canvasTool={activeTool}
                   onInsertSection={handleInsertSectionV6}

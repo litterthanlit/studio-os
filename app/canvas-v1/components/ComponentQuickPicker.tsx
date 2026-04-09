@@ -30,7 +30,7 @@ type ComponentQuickPickerProps = {
   anchorRect: DOMRect;
   onBrowseAll: () => void;
   onDismiss: () => void;
-  /** @deprecated Pass artboardId instead; kept for backward compat. If provided, legacy INSERT_SECTION path is used. */
+  /** @deprecated Pass itemId instead; kept for backward compat. If provided, legacy INSERT_SECTION path is used. */
   onInsert?: (node: import("@/lib/canvas/design-node").DesignNode) => void;
 };
 
@@ -55,7 +55,7 @@ export function ComponentQuickPicker({
     []
   );
 
-  const artboardId = state.selection.activeArtboardId;
+  const itemId = state.selection.activeItemId;
 
   // Position below anchor, centered
   const left = Math.max(8, anchorRect.left + anchorRect.width / 2 - 110);
@@ -94,39 +94,39 @@ export function ComponentQuickPicker({
   }, [onDismiss]);
 
   function handleMasterClick(masterId: string) {
-    if (artboardId) {
-      dispatch({ type: "INSERT_INSTANCE", artboardId, masterId });
+    if (itemId) {
+      dispatch({ type: "INSERT_INSTANCE", itemId, masterId });
       onDismiss();
     }
   }
 
   function handlePrimitiveTemplateClick(templateId: string) {
-    if (!artboardId) return;
+    if (!itemId) return;
     const comp = createTemplateById(templateId);
     if (!comp) return;
     const cloned = cloneDesignNode(comp.node);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dispatch({ type: "INSERT_SECTION", artboardId, section: cloned as any });
+    dispatch({ type: "INSERT_SECTION", itemId, section: cloned as any });
     onDismiss();
   }
 
   const primitiveTemplates = getTemplateList().filter((t) => t.category === "Primitives");
 
   function handleLegacyClick(component: DesignComponent) {
-    if (artboardId) {
+    if (itemId) {
       const cloned = cloneDesignNode(component.node);
       // Legacy path: insert node + promote to master
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dispatch({ type: "INSERT_SECTION", artboardId, section: cloned as any });
+      dispatch({ type: "INSERT_SECTION", itemId, section: cloned as any });
       dispatch({
         type: "CREATE_MASTER",
-        artboardId,
+        itemId,
         nodeId: cloned.id,
         name: component.name,
         category: component.category,
       });
     } else if (onInsert) {
-      // Fallback if no artboardId
+      // Fallback if no itemId
       onInsert(cloneDesignNode(component.node));
     }
     onDismiss();

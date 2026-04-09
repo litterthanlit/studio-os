@@ -14,20 +14,42 @@ function isUnderSubtree(root: DesignNode, subtreeRootId: string, queryId: string
   return walk(start);
 }
 
+function findDropTargetFrameId(
+  tree: DesignNode,
+  clientX: number,
+  clientY: number,
+  dragNodeId: string
+): string | null {
+  const elements = document.elementsFromPoint(clientX, clientY);
+  for (const domEl of elements) {
+    const he = domEl as HTMLElement;
+    const id = he.closest("[data-node-id]")?.getAttribute("data-node-id");
+    if (!id || id === dragNodeId) continue;
+    const node = findDesignNodeById(tree, id);
+    if (!node) continue;
+    if (node.type !== "frame" && !node.isGroup) continue;
+    if (isUnderSubtree(tree, dragNodeId, id)) continue;
+    return id;
+  }
+  return null;
+}
+
 type Opts = {
   tree: DesignNode;
-  artboardId: string | null;
+  itemId: string | null;
   selectedNodeIds: string[];
   interactive: boolean;
   containerRef: React.RefObject<HTMLElement | null>;
 };
+
+const DROP_RING = "inset 0 0 0 2px rgba(209, 228, 252, 0.5)";
 
 /**
  * Alt (Option) + drag from a selected node, release over a frame/group to reparent (append as last child).
  */
 export function useCanvasReparentAltDrag({
   tree,
-  artboardId,
+  itemId,
   selectedNodeIds,
   interactive,
   containerRef,
@@ -36,52 +58,58 @@ export function useCanvasReparentAltDrag({
   const dispatch = canvasCtx?.dispatch ?? null;
 
   useEffect(() => {
-    if (!interactive || !artboardId || !dispatch) return;
+    if (!interactive || !itemId || !dispatch) return;
     const el = containerRef.current;
     if (!el) return;
 
     let draggingId: string | null = null;
+    let highlightEl: HTMLElement | null = null;
+    let capturedPointerId: number | null = null;
 
-    const onPointerDown = (e: PointerEvent) => {
-      if (!e.altKey || e.button !== 0) return;
-      const nodeEl = (e.target as HTMLElement).closest("[data-node-id]");
-      const nid = nodeEl?.getAttribute("data-node-id");
-      if (!nid || !selectedNodeIds.includes(nid)) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      draggingId = nid;
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch {
-        /* noop */
+    const clearHighlight = () => {
+      if (highlightEl) {
+        highlightEl.style.boxShadow = "";
+        highlightEl = null;
       }
     };
 
-    const onPointerUp = (e: PointerEvent) => {
+    const updateHighlight = (clientX: number, clientY: number) => {
+      if (!draggingId) return;
+      clearHighlight();
+      const tid = findDropTargetFrameId(tree, clientX, clientY, draggingId);
+      if (!tid) return;
+      const wrap = el.querySelector(`[data-node-id="${tid}"]`) as HTMLElement | null;
+      if (wrap) {
+        wrap.style.boxShadow = DROP_RING;
+        highlightEl = wrap;
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!draggingId) return;
+      updateHighlight(e.clientX, e.clientY);
+    };
+
+    const finishDrag = (e: PointerEvent) => {
       if (!draggingId) return;
       const dragNodeId = draggingId;
       draggingId = null;
-      try {
-        el.releasePointerCapture(e.pointerId);
-      } catch {
-        /* noop */
+      clearHighlight();
+
+      document.removeEventListener("pointermove", onPointerMove, true);
+      document.removeEventListener("pointerup", finishDrag, true);
+      document.removeEventListener("pointercancel", finishDrag, true);
+
+      if (capturedPointerId !== null) {
+        try {
+          el.releasePointerCapture(capturedPointerId);
+        } catch {
+          /* noop */
+        }
+        capturedPointerId = null;
       }
 
-      const elements = document.elementsFromPoint(e.clientX, e.clientY);
-      let targetFrameId: string | null = null;
-      for (const domEl of elements) {
-        const he = domEl as HTMLElement;
-        const id = he.closest("[data-node-id]")?.getAttribute("data-node-id");
-        if (!id || id === dragNodeId) continue;
-        const node = findDesignNodeById(tree, id);
-        if (!node) continue;
-        if (node.type !== "frame" && !node.isGroup) continue;
-        if (isUnderSubtree(tree, dragNodeId, id)) continue;
-        targetFrameId = id;
-        break;
-      }
-
+      const targetFrameId = findDropTargetFrameId(tree, e.clientX, e.clientY, dragNodeId);
       if (!targetFrameId) return;
 
       const parent = findDesignNodeParent(tree, dragNodeId);
@@ -94,7 +122,7 @@ export function useCanvasReparentAltDrag({
 
       dispatch({
         type: "REPARENT_NODE",
-        artboardId,
+        itemId,
         nodeId: dragNodeId,
         sourceParentId,
         targetParentId: targetFrameId,
@@ -102,11 +130,34 @@ export function useCanvasReparentAltDrag({
       });
     };
 
-    el.addEventListener("pointerdown", onPointerDown, true);
-    el.addEventListener("pointerup", onPointerUp, true);
-    return () => {
-      el.removeEventListener("pointerdown", onPointerDown, true);
-      el.removeEventListener("pointerup", onPointerUp, true);
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.altKey || e.button !== 0) return;
+      const nodeEl = (e.target as HTMLElement).closest("[data-node-id]");
+      const nid = nodeEl?.getAttribute("data-node-id");
+      if (!nid || !selectedNodeIds.includes(nid)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      draggingId = nid;
+      capturedPointerId = e.pointerId;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* noop */
+      }
+
+      document.addEventListener("pointermove", onPointerMove, true);
+      document.addEventListener("pointerup", finishDrag, true);
+      document.addEventListener("pointercancel", finishDrag, true);
     };
-  }, [tree, artboardId, selectedNodeIds, interactive, dispatch, containerRef]);
+
+    el.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      clearHighlight();
+      document.removeEventListener("pointermove", onPointerMove, true);
+      document.removeEventListener("pointerup", finishDrag, true);
+      document.removeEventListener("pointercancel", finishDrag, true);
+      el.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [tree, itemId, selectedNodeIds, interactive, dispatch, containerRef]);
 }

@@ -131,7 +131,7 @@ export default function TestV6Page() {
           onUpdateNodeStyle={handleUpdateStyle}
           onPushHistory={pushHistory}
           interactive
-          artboardId="test-artboard"
+          itemId="test-artboard"
           zoom={1}
         />
       </div>

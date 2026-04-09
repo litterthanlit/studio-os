@@ -503,7 +503,7 @@ export function DesignNodeInspector({
     if (isInstanceChild) {
       dispatch({
         type: "RESET_INSTANCE_OVERRIDE_FIELD",
-        artboardId: artboard.id,
+        itemId: artboard.id,
         instanceId: instanceContext!.instanceId,
         masterNodeId: instanceContext!.masterNodeId,
         category: "style",
@@ -513,7 +513,7 @@ export function DesignNodeInspector({
     }
     dispatch({
       type: "RESET_NODE_STYLE_OVERRIDE",
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: primaryNode.id,
       breakpoint,
       property,
@@ -637,7 +637,7 @@ export function DesignNodeInspector({
       // Promote built-in to user master, then enter edit mode
       dispatch({
         type: "PROMOTE_BUILTIN_TO_USER",
-        artboardId: artboard.id,
+        itemId: artboard.id,
         instanceNodeId: instanceRootContext.instanceNode.id,
       });
     } else {
@@ -645,7 +645,7 @@ export function DesignNodeInspector({
         type: "ENTER_MASTER_EDIT",
         masterId,
         returnTo: {
-          artboardId: artboard.id,
+          itemId: artboard.id,
           instanceRootSourceId: instanceRootContext.instanceNode.id,
           preferredNodeId: canvasState.selection.selectedNodeId,
         },
@@ -662,7 +662,7 @@ export function DesignNodeInspector({
         ? instanceContext!.instanceId
         : null;
     if (!nodeId) return;
-    dispatch({ type: "DETACH_INSTANCE", artboardId: artboard.id, nodeId });
+    dispatch({ type: "DETACH_INSTANCE", itemId: artboard.id, nodeId });
   }
 
   function handleAcceptUpdate() {
@@ -696,7 +696,7 @@ export function DesignNodeInspector({
     // Update the instance node with bumped masterVersion and cleaned overrides
     dispatch({
       type: "UPDATE_NODE",
-      artboardId: artboard.id,
+      itemId: artboard.id,
       nodeId: instanceRootContext.instanceNode.id,
       changes: {
         componentRef: {
@@ -714,13 +714,13 @@ export function DesignNodeInspector({
     if (isInstanceRoot) {
       dispatch({
         type: "RESET_ALL_OVERRIDES",
-        artboardId: artboard.id,
+        itemId: artboard.id,
         nodeId: instanceRootContext!.instanceNode.id,
       });
     } else if (isInstanceChild) {
       dispatch({
         type: "RESET_INSTANCE_OVERRIDE_FIELD",
-        artboardId: artboard.id,
+        itemId: artboard.id,
         instanceId: instanceContext!.instanceId,
         masterNodeId: instanceContext!.masterNodeId,
         category: "all",
@@ -797,7 +797,7 @@ export function DesignNodeInspector({
                 const v = e.target.value;
                 dispatch({
                   type: "SET_INSTANCE_PRESET",
-                  artboardId: artboard.id,
+                  itemId: artboard.id,
                   instanceNodeId: instanceRootContext.instanceNode.id,
                   presetId: v === "" ? null : v,
                 });

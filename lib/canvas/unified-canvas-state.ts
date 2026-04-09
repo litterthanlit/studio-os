@@ -35,7 +35,7 @@ export type AIPreviewSession = {
 
 /** Where to restore canvas selection after commit/cancel master edit (Track 9). */
 export type MasterEditReturnTarget = {
-  artboardId: string;
+  itemId: string;
   instanceRootSourceId: string;
   preferredNodeId: string | null;
 };
@@ -56,7 +56,7 @@ export type UnifiedCanvasState = {
   components: ComponentMaster[];  // NEW — Track 3
   selection: {
     selectedItemIds: string[];
-    activeArtboardId: string | null;
+    activeItemId: string | null;
     selectedNodeId: string | null;
     selectedNodeIds: string[];
   };
@@ -138,7 +138,7 @@ export type PromptRunArtboard = Pick<
 
 export type ExportArtifact = {
   siteId: string;
-  artboardId: string;
+  itemId: string;
   name: string;
   code: string;
   updatedAt: string;
@@ -231,7 +231,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     viewport: { pan: { x: 0, y: 0 }, zoom: 0.5 },
     items: [],
     components: [],
-    selection: { selectedItemIds: [], activeArtboardId: null, selectedNodeId: null, selectedNodeIds: [] },
+    selection: { selectedItemIds: [], activeItemId: null, selectedNodeId: null, selectedNodeIds: [] },
     prompt: {
       value: "",
       siteType: "auto",
@@ -576,7 +576,7 @@ export function migrateToV3(projectId: string): UnifiedCanvasState {
       const artboard = state.items.find((item): item is ArtboardItem => item.kind === "artboard");
       state.exportArtifact = {
         siteId: artboard?.siteId ?? "",
-        artboardId: artboard?.id ?? "",
+        itemId: artboard?.id ?? "",
         name: legacyExport.name,
         code: legacyExport.code,
         updatedAt: legacyExport.updatedAt || new Date().toISOString(),

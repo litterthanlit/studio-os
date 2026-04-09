@@ -34,7 +34,7 @@ export function SectionLibraryPanel({
     ? SECTION_TEMPLATES.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
     : SECTION_TEMPLATES;
 
-  const artboardId = state.selection.activeArtboardId;
+  const itemId = state.selection.activeItemId;
 
   // Escape to close
   React.useEffect(() => {
@@ -46,11 +46,11 @@ export function SectionLibraryPanel({
   }, [onClose]);
 
   function handleInsert(templateId: string) {
-    if (!artboardId) return;
+    if (!itemId) return;
     const template = SECTION_TEMPLATES.find((t) => t.id === templateId);
     if (!template) return;
     const section = template.createNodes();
-    dispatch({ type: "INSERT_SECTION", artboardId, index: insertAtIndex, section });
+    dispatch({ type: "INSERT_SECTION", itemId, index: insertAtIndex, section });
     onClose();
   }
 

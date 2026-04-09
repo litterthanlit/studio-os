@@ -56,7 +56,7 @@ type UseRubberBandSelectionOpts = {
   spaceHeldRef: React.RefObject<boolean>;
   isInteractingRef: React.RefObject<boolean>;
   existingSelection: string[];
-  artboardId: string | null;
+  itemId: string | null;
   onSetSelectedNodes: (nodeIds: string[]) => void;
   onDeselectAll: () => void;
 };
@@ -125,7 +125,7 @@ export function useRubberBandSelection(
     spaceHeldRef: spaceHeld,
     isInteractingRef: isInteracting,
     existingSelection,
-    // artboardId reserved for future active-artboard scoping
+    // itemId reserved for future active-artboard scoping
     onSetSelectedNodes,
     onDeselectAll,
   } = opts;

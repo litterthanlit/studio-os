@@ -93,12 +93,12 @@ type RenderContext = {
 };
 
 type InlineTextEditEventDetail = {
-  artboardId: string;
+  itemId: string;
   nodeId: string;
 };
 
 type FlashNodeOutlinesEventDetail = {
-  artboardId: string;
+  itemId: string;
   nodeIds: string[];
 };
 
@@ -408,9 +408,9 @@ function SectionSelectionControls({
   dragging?: boolean;
 }) {
   const { state, dispatch } = useCanvas();
-  const artboardId = state.selection.activeArtboardId;
+  const itemId = state.selection.activeItemId;
 
-  if (!artboardId) return null;
+  if (!itemId) return null;
 
   return (
     <SectionActionRail
@@ -425,7 +425,7 @@ function SectionSelectionControls({
         if (sectionIndex <= 0) return;
         dispatch({
           type: "REORDER_NODE",
-          artboardId,
+          itemId,
           nodeId: node.id,
           newIndex: sectionIndex - 1,
         });
@@ -434,16 +434,16 @@ function SectionSelectionControls({
         if (sectionIndex >= sectionCount - 1) return;
         dispatch({
           type: "REORDER_NODE",
-          artboardId,
+          itemId,
           nodeId: node.id,
           newIndex: sectionIndex + 1,
         });
       }}
       onDuplicate={() => {
-        dispatch({ type: "DUPLICATE_SECTION", artboardId, nodeId: node.id });
+        dispatch({ type: "DUPLICATE_SECTION", itemId, nodeId: node.id });
       }}
       onDelete={() => {
-        dispatch({ type: "DELETE_SECTION", artboardId, nodeId: node.id });
+        dispatch({ type: "DELETE_SECTION", itemId, nodeId: node.id });
       }}
       onAI={() => onFocusPromptWithPrefill?.(getAIPrefill(node))}
     />
@@ -473,7 +473,7 @@ function Selectable({
   const { onOpenContextMenu, onDismissContextMenu } = React.useContext(
     ContextMenuControllerContext
   );
-  const activeArtboardId = canvasState.selection.activeArtboardId;
+  const activeItemId = canvasState.selection.activeItemId;
   const selected = interactive && node.id === selectedNodeId;
   const [hovered, setHovered] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
@@ -712,7 +712,7 @@ function Selectable({
     const handleInlineTextEdit = (event: Event) => {
       const detail = (event as CustomEvent<InlineTextEditEventDetail>).detail;
       if (!detail) return;
-      if (detail.nodeId !== node.id || detail.artboardId !== activeArtboardId) return;
+      if (detail.nodeId !== node.id || detail.itemId !== activeItemId) return;
       handleInlineTextEditRequest();
     };
 
@@ -728,7 +728,7 @@ function Selectable({
       clearPendingSync();
     };
   }, [
-    activeArtboardId,
+    activeItemId,
     clearPendingSync,
     handleInlineTextEditRequest,
     interactive,
@@ -742,7 +742,7 @@ function Selectable({
     const handleOutlineFlash = (event: Event) => {
       const detail = (event as CustomEvent<FlashNodeOutlinesEventDetail>).detail;
       if (!detail) return;
-      if (detail.artboardId !== activeArtboardId || !detail.nodeIds.includes(node.id)) {
+      if (detail.itemId !== activeItemId || !detail.nodeIds.includes(node.id)) {
         return;
       }
 
@@ -772,7 +772,7 @@ function Selectable({
         flashTimerRef.current = null;
       }
     };
-  }, [activeArtboardId, interactive, node.id]);
+  }, [activeItemId, interactive, node.id]);
 
   const targetIsTextEditingSurface = (target: EventTarget | null) =>
     target instanceof HTMLElement &&
@@ -1549,7 +1549,7 @@ export function ComposeDocumentView({
   );
   const canReorderSections =
     interactive && Boolean(onReorderSection) && topLevelSectionIds.length > 1;
-  const activeArtboardId = canvasState.selection.activeArtboardId;
+  const activeItemId = canvasState.selection.activeItemId;
   const contextMenuMeta = React.useMemo(
     () =>
       contextMenuState
@@ -1725,20 +1725,20 @@ export function ComposeDocumentView({
 
   const handleEditText = React.useCallback(
     (nodeId: string) => {
-      if (!activeArtboardId || typeof window === "undefined") return;
+      if (!activeItemId || typeof window === "undefined") return;
 
       window.dispatchEvent(
         new CustomEvent<InlineTextEditEventDetail>(ENTER_TEXT_EDIT_MODE_EVENT, {
-          detail: { artboardId: activeArtboardId, nodeId },
+          detail: { itemId: activeItemId, nodeId },
         })
       );
     },
-    [activeArtboardId]
+    [activeItemId]
   );
 
   const handleDuplicateNode = React.useCallback(
     (nodeId: string) => {
-      if (!activeArtboardId) return;
+      if (!activeItemId) return;
 
       const metadata = getNodePathMetadata(pageTree, nodeId);
       if (!metadata) return;
@@ -1747,7 +1747,7 @@ export function ComposeDocumentView({
       if (index === -1) return;
 
       if (node.type === "section" && parent?.id === pageTree.id) {
-        dispatch({ type: "DUPLICATE_SECTION", artboardId: activeArtboardId, nodeId });
+        dispatch({ type: "DUPLICATE_SECTION", itemId: activeItemId, nodeId });
         return;
       }
 
@@ -1758,7 +1758,7 @@ export function ComposeDocumentView({
       nextChildren.splice(index + 1, 0, duplicate);
       const sourceArtboard = canvasState.items.find(
         (item): item is typeof canvasState.items[number] & { kind: "artboard"; siteId: string } =>
-          item.kind === "artboard" && item.id === activeArtboardId
+          item.kind === "artboard" && item.id === activeItemId
       );
       const syncedArtboardIds = sourceArtboard
         ? canvasState.items
@@ -1767,25 +1767,25 @@ export function ComposeDocumentView({
                 item.kind === "artboard" && item.siteId === sourceArtboard.siteId
             )
             .map((item) => item.id)
-        : [activeArtboardId];
+        : [activeItemId];
 
       dispatch({ type: "PUSH_HISTORY", description: "Duplicated element" });
-      syncedArtboardIds.forEach((artboardId) => {
+      syncedArtboardIds.forEach((itemId) => {
         dispatch({
           type: "UPDATE_NODE",
-          artboardId,
+          itemId,
           nodeId: parent.id,
           changes: { children: nextChildren },
         });
       });
-      dispatch({ type: "SELECT_NODE", artboardId: activeArtboardId, nodeId: duplicate.id });
+      dispatch({ type: "SELECT_NODE", itemId: activeItemId, nodeId: duplicate.id });
     },
-    [activeArtboardId, canvasState.items, dispatch, pageTree]
+    [activeItemId, canvasState.items, dispatch, pageTree]
   );
 
   const handleDeleteNode = React.useCallback(
     (nodeId: string) => {
-      if (!activeArtboardId) return;
+      if (!activeItemId) return;
 
       const metadata = getNodePathMetadata(pageTree, nodeId);
       if (!metadata) return;
@@ -1793,14 +1793,14 @@ export function ComposeDocumentView({
       const { node, parent, siblings } = metadata;
 
       if (node.type === "section" && parent?.id === pageTree.id) {
-        dispatch({ type: "DELETE_SECTION", artboardId: activeArtboardId, nodeId });
+        dispatch({ type: "DELETE_SECTION", itemId: activeItemId, nodeId });
         return;
       }
 
       if (!parent?.children) return;
       const sourceArtboard = canvasState.items.find(
         (item): item is typeof canvasState.items[number] & { kind: "artboard"; siteId: string } =>
-          item.kind === "artboard" && item.id === activeArtboardId
+          item.kind === "artboard" && item.id === activeItemId
       );
       const syncedArtboardIds = sourceArtboard
         ? canvasState.items
@@ -1809,27 +1809,27 @@ export function ComposeDocumentView({
                 item.kind === "artboard" && item.siteId === sourceArtboard.siteId
             )
             .map((item) => item.id)
-        : [activeArtboardId];
+        : [activeItemId];
 
       dispatch({ type: "PUSH_HISTORY", description: "Removed element" });
-      syncedArtboardIds.forEach((artboardId) => {
+      syncedArtboardIds.forEach((itemId) => {
         dispatch({
           type: "UPDATE_NODE",
-          artboardId,
+          itemId,
           nodeId: parent.id,
           changes: {
             children: siblings.filter((child) => child.id !== nodeId),
           },
         });
       });
-      dispatch({ type: "SELECT_NODE", artboardId: activeArtboardId, nodeId: parent.id });
+      dispatch({ type: "SELECT_NODE", itemId: activeItemId, nodeId: parent.id });
     },
-    [activeArtboardId, canvasState.items, dispatch, pageTree]
+    [activeItemId, canvasState.items, dispatch, pageTree]
   );
 
   const handleMoveNode = React.useCallback(
     (nodeId: string, direction: "up" | "down") => {
-      if (!activeArtboardId) return;
+      if (!activeItemId) return;
 
       const metadata = getNodePathMetadata(pageTree, nodeId);
       if (!metadata) return;
@@ -1842,14 +1842,14 @@ export function ComposeDocumentView({
 
       dispatch({
         type: "REORDER_NODE",
-        artboardId: activeArtboardId,
+        itemId: activeItemId,
         nodeId,
         newIndex,
         parentNodeId:
           parent && parent.id !== pageTree.id ? parent.id : undefined,
       });
     },
-    [activeArtboardId, dispatch, pageTree]
+    [activeItemId, dispatch, pageTree]
   );
 
   const handleReplaceImage = React.useCallback((nodeId: string) => {

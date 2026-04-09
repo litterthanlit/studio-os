@@ -63,14 +63,14 @@ function ActionButton({
 export function MultiSelectActionBar() {
   const { state, dispatch } = useCanvas();
   const { selection, items } = state;
-  const { selectedNodeIds, activeArtboardId } = selection;
+  const { selectedNodeIds, activeItemId } = selection;
 
   // Find the active artboard + tree
   const activeArtboard = React.useMemo(() => {
-    if (!activeArtboardId) return null;
-    const item = items.find((i) => i.id === activeArtboardId);
+    if (!activeItemId) return null;
+    const item = items.find((i) => i.id === activeItemId);
     return item?.kind === "artboard" ? (item as ArtboardItem) : null;
-  }, [items, activeArtboardId]);
+  }, [items, activeItemId]);
 
   const tree: DesignNode | null = React.useMemo(() => {
     if (!activeArtboard || !isDesignNodeTree(activeArtboard.pageTree)) return null;
@@ -105,29 +105,29 @@ export function MultiSelectActionBar() {
 
   const handleAlign = React.useCallback(
     (direction: AlignDirection) => {
-      if (!activeArtboardId) return;
-      dispatch({ type: "ALIGN_NODES", artboardId: activeArtboardId, direction });
+      if (!activeItemId) return;
+      dispatch({ type: "ALIGN_NODES", itemId: activeItemId, direction });
     },
-    [dispatch, activeArtboardId]
+    [dispatch, activeItemId]
   );
 
   const handleDistribute = React.useCallback(
     (axis: DistributeAxis) => {
-      if (!activeArtboardId) return;
-      dispatch({ type: "DISTRIBUTE_NODES", artboardId: activeArtboardId, axis });
+      if (!activeItemId) return;
+      dispatch({ type: "DISTRIBUTE_NODES", itemId: activeItemId, axis });
     },
-    [dispatch, activeArtboardId]
+    [dispatch, activeItemId]
   );
 
   const handleGroup = React.useCallback(() => {
-    if (!activeArtboardId) return;
-    dispatch({ type: "GROUP_NODES", artboardId: activeArtboardId });
-  }, [dispatch, activeArtboardId]);
+    if (!activeItemId) return;
+    dispatch({ type: "GROUP_NODES", itemId: activeItemId });
+  }, [dispatch, activeItemId]);
 
   const handleUngroup = React.useCallback(() => {
-    if (!activeArtboardId || !selection.selectedNodeId) return;
-    dispatch({ type: "UNGROUP_NODES", artboardId: activeArtboardId, nodeId: selection.selectedNodeId });
-  }, [dispatch, activeArtboardId, selection.selectedNodeId]);
+    if (!activeItemId || !selection.selectedNodeId) return;
+    dispatch({ type: "UNGROUP_NODES", itemId: activeItemId, nodeId: selection.selectedNodeId });
+  }, [dispatch, activeItemId, selection.selectedNodeId]);
 
   // Don't render if not in multi-select
   if (selectedNodeIds.length < 2) return null;

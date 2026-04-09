@@ -23,6 +23,7 @@ import {
   getMemoryDesignClip,
   cloneNodesForPaste,
 } from "@/lib/canvas/design-clipboard";
+import { computeDesignPasteTarget } from "@/lib/canvas/design-paste-target";
 import { normalizeSelection, allSameParent } from "@/lib/canvas/multi-select-helpers";
 import {
   findNodeById as findDesignNodeByIdFromNested,
@@ -34,12 +35,12 @@ export const ENTER_TEXT_EDIT_MODE_EVENT = "studio:enter-edit-mode";
 export const FLASH_NODE_OUTLINES_EVENT = "studio:flash-node-outlines";
 
 type InlineTextEditEventDetail = {
-  artboardId: string;
+  itemId: string;
   nodeId: string;
 };
 
 type FlashNodeOutlinesEventDetail = {
-  artboardId: string;
+  itemId: string;
   nodeIds: string[];
 };
 
@@ -86,31 +87,30 @@ export function useCanvasKeyboard({
   zoomToSelection,
 }: KeyboardOptions) {
   useEffect(() => {
-    const getActiveArtboard = () =>
-      state.selection.activeArtboardId
-        ? state.items.find(
-            (item): item is ArtboardItem =>
-              item.kind === "artboard" && item.id === state.selection.activeArtboardId
-          ) ?? null
+    const getActiveItem = () =>
+      state.selection.activeItemId
+        ? (state.items.find(
+            (item) => item.id === state.selection.activeItemId
+          ) as ArtboardItem | undefined) ?? null
         : null;
 
     const getSelectedNodeMetadata = () => {
-      const activeArtboard = getActiveArtboard();
+      const activeItem = getActiveItem();
       const selectedNodeId = state.selection.selectedNodeId;
-      if (!activeArtboard || !selectedNodeId) return null;
+      if (!activeItem || !selectedNodeId) return null;
 
-      const path = findNodePath(activeArtboard.pageTree, selectedNodeId);
+      const path = findNodePath(activeItem.pageTree, selectedNodeId);
       if (!path) return null;
 
       const node = path[path.length - 1];
       const parent = path[path.length - 2] ?? null;
-      const siblings = parent?.children ?? [activeArtboard.pageTree];
+      const siblings = parent?.children ?? [activeItem.pageTree];
       const index = siblings.findIndex((child) => child.id === selectedNodeId);
 
       if (index === -1) return null;
 
       return {
-        activeArtboard,
+        activeItem,
         node,
         parent,
         siblings,
@@ -145,19 +145,19 @@ export function useCanvasKeyboard({
       dispatch({ type: "PUSH_HISTORY", description: "Pasted style" });
       dispatch({
         type: "UPDATE_NODE_STYLE",
-        artboardId: metadata.activeArtboard.id,
+        itemId: metadata.activeItem.id,
         nodeId: metadata.node.id,
         style: copiedStyleClipboard,
       });
     };
 
-    const flashTopLevelSections = (artboardId: string, nodeIds: string[]) => {
+    const flashTopLevelSections = (itemId: string, nodeIds: string[]) => {
       if (typeof window === "undefined" || nodeIds.length === 0) return;
 
       window.dispatchEvent(
         new CustomEvent<FlashNodeOutlinesEventDetail>(FLASH_NODE_OUTLINES_EVENT, {
           detail: {
-            artboardId,
+            itemId,
             nodeIds,
           },
         })
@@ -213,8 +213,8 @@ export function useCanvasKeyboard({
       // Cmd+D — Duplicate selected section node or canvas items
       if (isMeta && (e.key === "d" || e.key === "D")) {
         e.preventDefault();
-        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
-          dispatch({ type: "DUPLICATE_SECTION", artboardId: state.selection.activeArtboardId, nodeId: state.selection.selectedNodeId });
+        if (state.selection.selectedNodeId && state.selection.activeItemId) {
+          dispatch({ type: "DUPLICATE_SECTION", itemId: state.selection.activeItemId, nodeId: state.selection.selectedNodeId });
         } else {
           for (const itemId of state.selection.selectedItemIds) {
             dispatch({ type: "PUSH_HISTORY", description: "Duplicated item" });
@@ -226,13 +226,13 @@ export function useCanvasKeyboard({
 
       // Cmd+C — Copy selected DesignNode subtrees (V6)
       if (isMeta && (e.key === "c" || e.key === "C") && !e.shiftKey && !e.altKey) {
-        const activeArtboard = getActiveArtboard();
+        const activeItem = getActiveItem();
         if (
-          activeArtboard &&
-          isDesignNodeTree(activeArtboard.pageTree) &&
+          activeItem &&
+          isDesignNodeTree(activeItem.pageTree) &&
           state.selection.selectedNodeIds.length > 0
         ) {
-          const tree = activeArtboard.pageTree as DesignNode;
+          const tree = activeItem.pageTree as DesignNode;
           const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
           const nodes: DesignNode[] = [];
           for (const id of normalized) {
@@ -251,20 +251,29 @@ export function useCanvasKeyboard({
       // Cmd+V — Paste DesignNodes from memory (same-session); paste event handles clipboard text
       if (isMeta && (e.key === "v" || e.key === "V") && !e.shiftKey && !e.altKey) {
         const mem = getMemoryDesignClip();
-        const activeArtboard = getActiveArtboard();
+        const activeItem = getActiveItem();
         if (
           mem &&
           mem.length > 0 &&
-          state.selection.activeArtboardId &&
-          activeArtboard &&
-          isDesignNodeTree(activeArtboard.pageTree)
+          state.selection.activeItemId &&
+          activeItem &&
+          isDesignNodeTree(activeItem.pageTree)
         ) {
           e.preventDefault();
+          const tree = activeItem.pageTree as DesignNode;
+          const pasteTarget = computeDesignPasteTarget(
+            tree,
+            state.selection.selectedNodeId
+          );
           dispatch({
             type: "PASTE_DESIGN_NODES",
-            artboardId: state.selection.activeArtboardId,
+            itemId: state.selection.activeItemId,
             nodes: cloneNodesForPaste(mem),
-            insertAfterId: state.selection.selectedNodeId ?? undefined,
+            insertAfterId:
+              pasteTarget.insertAfterId === undefined
+                ? undefined
+                : pasteTarget.insertAfterId,
+            parentNodeId: pasteTarget.parentNodeId,
           });
           return;
         }
@@ -273,10 +282,10 @@ export function useCanvasKeyboard({
       // Cmd+Shift+G — Ungroup selected node (must come before Cmd+G to avoid false match)
       if ((e.metaKey || e.ctrlKey) && (e.key === "G" || (e.key === "g" && e.shiftKey))) {
         e.preventDefault();
-        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+        if (state.selection.selectedNodeId && state.selection.activeItemId) {
           dispatch({
             type: "UNGROUP_NODES",
-            artboardId: state.selection.activeArtboardId,
+            itemId: state.selection.activeItemId,
             nodeId: state.selection.selectedNodeId,
           });
         }
@@ -286,8 +295,8 @@ export function useCanvasKeyboard({
       // Cmd+G — Group selected nodes
       if ((e.metaKey || e.ctrlKey) && e.key === "g" && !e.shiftKey) {
         e.preventDefault();
-        if (state.selection.selectedNodeIds.length >= 2 && state.selection.activeArtboardId) {
-          dispatch({ type: "GROUP_NODES", artboardId: state.selection.activeArtboardId });
+        if (state.selection.selectedNodeIds.length >= 2 && state.selection.activeItemId) {
+          dispatch({ type: "GROUP_NODES", itemId: state.selection.activeItemId });
         }
         return;
       }
@@ -308,8 +317,8 @@ export function useCanvasKeyboard({
       if (isMeta && (e.key === "[" || e.key === "]" || e.key === "{" || e.key === "}")) {
         e.preventDefault();
 
-        const activeArtboard = getActiveArtboard();
-        if (!activeArtboard) return;
+        const activeItem = getActiveItem();
+        if (!activeItem) return;
 
         const isForward = e.key === "]" || e.key === "}";
         const isExtreme = e.shiftKey || e.key === "{" || e.key === "}";
@@ -317,10 +326,10 @@ export function useCanvasKeyboard({
         // Multi-select z-order (DesignNode trees only)
         if (
           state.selection.selectedNodeIds.length > 1 &&
-          state.selection.activeArtboardId &&
-          isDesignNodeTree(activeArtboard.pageTree)
+          state.selection.activeItemId &&
+          isDesignNodeTree(activeItem.pageTree)
         ) {
-          const tree = activeArtboard.pageTree as DesignNode;
+          const tree = activeItem.pageTree as DesignNode;
           const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
           if (normalized.length === 0) return;
 
@@ -347,7 +356,7 @@ export function useCanvasKeyboard({
               for (const entry of sorted) {
                 dispatch({
                   type: "REORDER_NODE",
-                  artboardId: activeArtboard.id,
+                  itemId: activeItem.id,
                   nodeId: entry.id,
                   newIndex: siblings.length - 1,
                   parentNodeId,
@@ -359,7 +368,7 @@ export function useCanvasKeyboard({
               for (const entry of sorted) {
                 dispatch({
                   type: "REORDER_NODE",
-                  artboardId: activeArtboard.id,
+                  itemId: activeItem.id,
                   nodeId: entry.id,
                   newIndex: 0,
                   parentNodeId,
@@ -376,7 +385,7 @@ export function useCanvasKeyboard({
                 if (newIndex >= siblings.length) continue;
                 dispatch({
                   type: "REORDER_NODE",
-                  artboardId: activeArtboard.id,
+                  itemId: activeItem.id,
                   nodeId: entry.id,
                   newIndex,
                   parentNodeId,
@@ -390,7 +399,7 @@ export function useCanvasKeyboard({
                 if (newIndex < 0) continue;
                 dispatch({
                   type: "REORDER_NODE",
-                  artboardId: activeArtboard.id,
+                  itemId: activeItem.id,
                   nodeId: entry.id,
                   newIndex,
                   parentNodeId,
@@ -411,11 +420,11 @@ export function useCanvasKeyboard({
           if (newIndex === metadata.index) return;
           dispatch({
             type: "REORDER_NODE",
-            artboardId: metadata.activeArtboard.id,
+            itemId: metadata.activeItem.id,
             nodeId: metadata.node.id,
             newIndex,
             parentNodeId:
-              metadata.parent && metadata.parent.id !== metadata.activeArtboard.pageTree.id
+              metadata.parent && metadata.parent.id !== metadata.activeItem.pageTree.id
                 ? metadata.parent.id
                 : undefined,
           });
@@ -426,11 +435,11 @@ export function useCanvasKeyboard({
           if (newIndex < 0 || newIndex >= metadata.siblings.length) return;
           dispatch({
             type: "REORDER_NODE",
-            artboardId: metadata.activeArtboard.id,
+            itemId: metadata.activeItem.id,
             nodeId: metadata.node.id,
             newIndex,
             parentNodeId:
-              metadata.parent && metadata.parent.id !== metadata.activeArtboard.pageTree.id
+              metadata.parent && metadata.parent.id !== metadata.activeItem.pageTree.id
                 ? metadata.parent.id
                 : undefined,
           });
@@ -442,14 +451,14 @@ export function useCanvasKeyboard({
       if (isMeta && (e.key === "a" || e.key === "A")) {
         e.preventDefault();
 
-        const activeArtboard = getActiveArtboard();
-        if (activeArtboard) {
-          const children = activeArtboard.pageTree.children ?? [];
+        const activeItem = getActiveItem();
+        if (activeItem) {
+          const children = activeItem.pageTree.children ?? [];
           const childIds = children.map((c) => c.id);
           if (childIds.length > 0) {
             dispatch({
               type: "SET_SELECTED_NODES",
-              artboardId: activeArtboard.id,
+              itemId: activeItem.id,
               nodeIds: childIds,
             });
           }
@@ -465,9 +474,9 @@ export function useCanvasKeyboard({
 
       // Delete / Backspace — Remove selected section node or canvas items
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+        if (state.selection.selectedNodeId && state.selection.activeItemId) {
           e.preventDefault();
-          dispatch({ type: "DELETE_SECTION", artboardId: state.selection.activeArtboardId, nodeId: state.selection.selectedNodeId });
+          dispatch({ type: "DELETE_SECTION", itemId: state.selection.activeItemId, nodeId: state.selection.selectedNodeId });
         } else if (state.selection.selectedItemIds.length > 0) {
           e.preventDefault();
           dispatch({ type: "PUSH_HISTORY", description: "Deleted items" });
@@ -491,10 +500,10 @@ export function useCanvasKeyboard({
           return;
         }
 
-        if (state.selection.selectedNodeId && state.selection.activeArtboardId) {
+        if (state.selection.selectedNodeId && state.selection.activeItemId) {
           const artboard = state.items.find(
             (item): item is ArtboardItem =>
-              item.kind === "artboard" && item.id === state.selection.activeArtboardId
+              item.kind === "artboard" && item.id === state.selection.activeItemId
           );
           if (artboard) {
             if (isDesignNodeTree(artboard.pageTree)) {
@@ -505,7 +514,7 @@ export function useCanvasKeyboard({
               if (parent && parent.id !== artboard.pageTree.id) {
                 dispatch({
                   type: "SELECT_NODE",
-                  artboardId: state.selection.activeArtboardId,
+                  itemId: state.selection.activeItemId,
                   nodeId: parent.id,
                 });
                 return;
@@ -519,7 +528,7 @@ export function useCanvasKeyboard({
                 // Walk up to parent node
                 dispatch({
                   type: "SELECT_NODE",
-                  artboardId: state.selection.activeArtboardId,
+                  itemId: state.selection.activeItemId,
                   nodeId: parent.id,
                 });
                 return;
@@ -534,7 +543,7 @@ export function useCanvasKeyboard({
       }
 
       // Tab / Shift+Tab — Navigate between siblings at the same tree level
-      if (e.key === "Tab" && state.selection.selectedNodeId && state.selection.activeArtboardId) {
+      if (e.key === "Tab" && state.selection.selectedNodeId && state.selection.activeItemId) {
         e.preventDefault();
         const metadata = getSelectedNodeMetadata();
         if (!metadata || metadata.siblings.length <= 1) return;
@@ -548,7 +557,7 @@ export function useCanvasKeyboard({
 
         dispatch({
           type: "SELECT_NODE",
-          artboardId: metadata.activeArtboard.id,
+          itemId: metadata.activeItem.id,
           nodeId: metadata.siblings[nextIndex].id,
         });
         return;
@@ -557,18 +566,18 @@ export function useCanvasKeyboard({
       // Cmd+[ - Previous sibling
       if (isMeta && e.key === "[") {
         e.preventDefault();
-        const activeArtboard = getActiveArtboard();
-        if (state.selection.selectedNodeId && activeArtboard?.pageTree) {
+        const activeItem = getActiveItem();
+        if (state.selection.selectedNodeId && activeItem?.pageTree) {
           const parent = getParent(
             { id: state.selection.selectedNodeId } as DesignNode,
-            activeArtboard.pageTree as DesignNode
+            activeItem.pageTree as DesignNode
           );
           if (parent) {
             const prevSiblingId = cycleSiblingSelection(state.selection.selectedNodeId, parent, "previous");
             if (prevSiblingId) {
               dispatch({
                 type: "SELECT_NODE",
-                artboardId: activeArtboard.id,
+                itemId: activeItem.id,
                 nodeId: prevSiblingId,
               });
             }
@@ -580,18 +589,18 @@ export function useCanvasKeyboard({
       // Cmd+] - Next sibling
       if (isMeta && e.key === "]") {
         e.preventDefault();
-        const activeArtboard = getActiveArtboard();
-        if (state.selection.selectedNodeId && activeArtboard?.pageTree) {
+        const activeItem = getActiveItem();
+        if (state.selection.selectedNodeId && activeItem?.pageTree) {
           const parent = getParent(
             { id: state.selection.selectedNodeId } as DesignNode,
-            activeArtboard.pageTree as DesignNode
+            activeItem.pageTree as DesignNode
           );
           if (parent) {
             const nextSiblingId = cycleSiblingSelection(state.selection.selectedNodeId, parent, "next");
             if (nextSiblingId) {
               dispatch({
                 type: "SELECT_NODE",
-                artboardId: activeArtboard.id,
+                itemId: activeItem.id,
                 nodeId: nextSiblingId,
               });
             }
@@ -603,12 +612,12 @@ export function useCanvasKeyboard({
       // Shift+Escape - Jump to root artboard
       if (e.shiftKey && e.key === "Escape") {
         e.preventDefault();
-        const activeArtboard = getActiveArtboard();
-        if (activeArtboard?.pageTree) {
+        const activeItem = getActiveItem();
+        if (activeItem?.pageTree) {
           dispatch({
             type: "SELECT_NODE",
-            artboardId: activeArtboard.id,
-            nodeId: activeArtboard.pageTree.id,
+            itemId: activeItem.id,
+            nodeId: activeItem.pageTree.id,
           });
         }
         return;
@@ -617,14 +626,14 @@ export function useCanvasKeyboard({
       // Cmd+Enter - Enter frame (drill into group, select first child)
       if (isMeta && e.key === "Enter") {
         e.preventDefault();
-        const activeArtboard = getActiveArtboard();
-        if (state.selection.selectedNodeId && activeArtboard?.pageTree) {
-          const rootNode = activeArtboard.pageTree as DesignNode;
+        const activeItem = getActiveItem();
+        if (state.selection.selectedNodeId && activeItem?.pageTree) {
+          const rootNode = activeItem.pageTree as DesignNode;
           const node = findDesignNodeByIdFromNested(rootNode, state.selection.selectedNodeId);
           if (node?.children && node.children.length > 0) {
             dispatch({
               type: "SELECT_NODE",
-              artboardId: activeArtboard.id,
+              itemId: activeItem.id,
               nodeId: node.children[0].id,
             });
           }
@@ -634,12 +643,12 @@ export function useCanvasKeyboard({
 
       // Cmd+Arrow navigation (parent/first child/previous sibling/next sibling)
       if (isMeta && (e.key.startsWith("Arrow") || ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))) {
-        const activeArtboard = getActiveArtboard();
-        if (!state.selection.selectedNodeId || !activeArtboard?.pageTree) {
+        const activeItem = getActiveItem();
+        if (!state.selection.selectedNodeId || !activeItem?.pageTree) {
           return;
         }
 
-        const rootNode = activeArtboard.pageTree as DesignNode;
+        const rootNode = activeItem.pageTree as DesignNode;
         const selectedNodeId = state.selection.selectedNodeId;
 
         switch (e.key) {
@@ -651,7 +660,7 @@ export function useCanvasKeyboard({
               if (parent && parent.id !== rootNode.id) {
                 dispatch({
                   type: "SELECT_NODE",
-                  artboardId: activeArtboard.id,
+                  itemId: activeItem.id,
                   nodeId: parent.id,
                 });
               }
@@ -666,7 +675,7 @@ export function useCanvasKeyboard({
               if (node?.children && node.children.length > 0) {
                 dispatch({
                   type: "SELECT_NODE",
-                  artboardId: activeArtboard.id,
+                  itemId: activeItem.id,
                   nodeId: node.children[0].id,
                 });
               }
@@ -683,7 +692,7 @@ export function useCanvasKeyboard({
                 if (prevSiblingId) {
                   dispatch({
                     type: "SELECT_NODE",
-                    artboardId: activeArtboard.id,
+                    itemId: activeItem.id,
                     nodeId: prevSiblingId,
                   });
                 }
@@ -701,7 +710,7 @@ export function useCanvasKeyboard({
                 if (nextSiblingId) {
                   dispatch({
                     type: "SELECT_NODE",
-                    artboardId: activeArtboard.id,
+                    itemId: activeItem.id,
                     nodeId: nextSiblingId,
                   });
                 }
@@ -714,10 +723,10 @@ export function useCanvasKeyboard({
 
       // Cmd+B / Cmd+I / Cmd+U — Toggle bold/italic/underline formatting for text nodes
       if (isMeta && (e.key === "b" || e.key === "B" || e.key === "i" || e.key === "I" || e.key === "u" || e.key === "U")) {
-        const activeArtboard = getActiveArtboard();
-        if (state.selection.selectedNodeId && activeArtboard?.pageTree && isDesignNodeTree(activeArtboard.pageTree)) {
+        const activeItem = getActiveItem();
+        if (state.selection.selectedNodeId && activeItem?.pageTree && isDesignNodeTree(activeItem.pageTree)) {
           const node = findDesignNodeById(
-            activeArtboard.pageTree as DesignNode,
+            activeItem.pageTree as DesignNode,
             state.selection.selectedNodeId
           );
           if (node && node.type === "text") {
@@ -731,7 +740,7 @@ export function useCanvasKeyboard({
               dispatch({ type: "PUSH_HISTORY", description: "Applied bold" });
               dispatch({
                 type: "UPDATE_NODE_STYLE",
-                artboardId: activeArtboard.id,
+                itemId: activeItem.id,
                 nodeId: node.id,
                 style: { fontWeight: newWeight } as Record<string, unknown>,
               });
@@ -742,7 +751,7 @@ export function useCanvasKeyboard({
               dispatch({ type: "PUSH_HISTORY", description: "Applied italic" });
               dispatch({
                 type: "UPDATE_NODE_STYLE",
-                artboardId: activeArtboard.id,
+                itemId: activeItem.id,
                 nodeId: node.id,
                 style: { fontStyle: newStyle } as Record<string, unknown>,
               });
@@ -753,7 +762,7 @@ export function useCanvasKeyboard({
               dispatch({ type: "PUSH_HISTORY", description: "Applied underline" });
               dispatch({
                 type: "UPDATE_NODE_STYLE",
-                artboardId: activeArtboard.id,
+                itemId: activeItem.id,
                 nodeId: node.id,
                 style: { textDecoration: newDecoration } as Record<string, unknown>,
               });
@@ -768,13 +777,13 @@ export function useCanvasKeyboard({
         if (e.key === "Enter") {
           if (hasBlockingPopoverOpen()) return;
 
-          const activeArtboard = getActiveArtboard();
-          if (!activeArtboard) return;
+          const activeItem = getActiveItem();
+          if (!activeItem) return;
 
           if (state.selection.selectedNodeId) {
-            if (isDesignNodeTree(activeArtboard.pageTree)) {
+            if (isDesignNodeTree(activeItem.pageTree)) {
               const selectedNode = findDesignNodeById(
-                activeArtboard.pageTree,
+                activeItem.pageTree,
                 state.selection.selectedNodeId
               );
 
@@ -788,7 +797,7 @@ export function useCanvasKeyboard({
                     ENTER_TEXT_EDIT_MODE_EVENT,
                     {
                       detail: {
-                        artboardId: activeArtboard.id,
+                        itemId: activeItem.id,
                         nodeId: selectedNode.id,
                       },
                     }
@@ -798,7 +807,7 @@ export function useCanvasKeyboard({
               }
             } else {
               const selectedNode = findNodeById(
-                activeArtboard.pageTree,
+                activeItem.pageTree,
                 state.selection.selectedNodeId
               );
 
@@ -814,7 +823,7 @@ export function useCanvasKeyboard({
                     ENTER_TEXT_EDIT_MODE_EVENT,
                     {
                       detail: {
-                        artboardId: activeArtboard.id,
+                        itemId: activeItem.id,
                         nodeId: selectedNode.id,
                       },
                     }
@@ -834,6 +843,7 @@ export function useCanvasKeyboard({
             m: "marquee", M: "marquee",
             k: "prompt", K: "prompt",
             f: "frame", F: "frame",
+            t: "text", T: "text",
           };
           const tool = toolMap[e.key];
           if (tool) {

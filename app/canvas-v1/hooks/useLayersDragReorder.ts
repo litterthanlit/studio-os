@@ -7,7 +7,7 @@ import * as React from "react";
 export type UseLayersDragReorderOptions = {
   onReparent: (nodeId: string, sourceParentId: string | undefined, targetParentId: string | undefined, targetIndex: number) => void;
   selectedNodeIds: string[];
-  onCollapseToSingle?: (artboardId: string, nodeId: string) => void;
+  onCollapseToSingle?: (itemId: string, nodeId: string) => void;
   // Helper to get node type for valid parent checking
   getNodeType?: (nodeId: string) => { type: string; isGroup?: boolean } | null;
   // Helper to get root children count for root-level drop index calculation

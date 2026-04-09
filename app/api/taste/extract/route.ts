@@ -12,6 +12,7 @@ type CachedTasteProfile = {
 type TasteExtractBody = {
   projectId?: string;
   referenceUrls?: string[];
+  referenceWeights?: Record<string, string>;
   existingTokens?: unknown;
   prompt?: string;
 };
@@ -663,6 +664,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as TasteExtractBody;
     const projectId = body.projectId?.trim();
     const referenceUrls = (body.referenceUrls ?? []).filter(Boolean);
+    const referenceWeights = body.referenceWeights ?? {};
     const existingTokens = body.existingTokens ?? null;
     const userPrompt = body.prompt?.trim() || undefined;
 
@@ -728,6 +730,15 @@ export async function POST(req: NextRequest) {
     const promptHints = detectPromptArchetypeHints(userPrompt);
     const scorerHints = inferArchetypeHintsFromScores(scoredImages);
 
+    // Build weight context for the model
+    let weightContext = "";
+    if (referenceWeights && Object.keys(referenceWeights).length > 0) {
+      const primaryCount = Object.values(referenceWeights).filter((w) => w === "primary").length;
+      if (primaryCount > 0) {
+        weightContext = `\n\nIMPORTANT — Reference Weighting:\nThe designer has starred ${primaryCount} reference(s) as primary inspiration. These starred references should dominate your taste analysis — weight their palette, typography, spacing, and layout signals 2x more heavily than unstarred references. If starred and unstarred references conflict on a dimension (e.g., different palettes), prefer the starred reference's signal.\n`;
+      }
+    }
+
     const systemPrompt = buildSystemPrompt();
 
     const userMessageText = `Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
@@ -744,7 +755,7 @@ ${scorerHints}
 ${promptHints}
 
 ${existingTokenSummary ? `Existing token summary:\n${JSON.stringify(existingTokenSummary)}` : "No existing tokens."}
-
+${weightContext}
 Return compact JSON only. Do not pretty-print. Fill every field, but keep strings tight and specific.`;
 
     // ── Debug logging ──────────────────────────────────────────────

@@ -18,6 +18,8 @@ import {
   Plus,
   Minus,
   Maximize2,
+  Link2,
+  Unlink2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -36,7 +38,7 @@ import { BreakpointBadge } from "./BreakpointBadge";
 import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
-import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect, GradientValue } from "@/lib/canvas/design-node";
+import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect, GradientValue, TransformValue } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
 import type { NodeOverride } from "@/lib/canvas/design-node";
 import { findMaster, getInstanceBaseTree, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
@@ -343,7 +345,10 @@ export function DesignNodeInspector({
   
   // Use batch update hook for unified single/multi-select handling
   const batchUpdate = useBatchUpdate(artboard.id, nodeIds, dispatch);
-  
+
+  // Transform scale lock state
+  const [scaleLocked, setScaleLocked] = React.useState(true);
+
   // For single-select, use the node's style directly; for multi-select, use primary node style
   const style = primaryNode.style;
   const sections = isMultiSelect ? classifyMultiSelect(nodes) : classifyDesignNode(primaryNode);
@@ -708,6 +713,29 @@ export function DesignNodeInspector({
     }
   }
 
+  // ── Transform helpers ──
+  const updateTransform = (changes: Partial<TransformValue>) => {
+    const existing = primaryNode.style.transform ?? {};
+    const merged = { ...existing, ...changes };
+    // If scale is being updated, merge with existing scale
+    if (changes.scale) {
+      merged.scale = { ...(existing.scale ?? { x: 1, y: 1 }), ...changes.scale };
+    }
+    // Clean up: remove defaults
+    if (merged.rotate === 0) delete merged.rotate;
+    if (merged.scale?.x === 1 && merged.scale?.y === 1) delete merged.scale;
+    updateStyle({ transform: Object.keys(merged).length > 0 ? merged : undefined });
+  };
+
+  const updateTransformOrigin = (x: number, y: number) => {
+    // Default is center (50,50) — remove if resetting to default
+    if (x === 50 && y === 50) {
+      updateStyle({ transformOrigin: undefined });
+    } else {
+      updateStyle({ transformOrigin: { x, y } });
+    }
+  };
+
   // ── Position mode ──
   const isBreakout = style.position === "absolute";
 
@@ -978,6 +1006,112 @@ export function DesignNodeInspector({
                     —
                   </button>
                 )}
+              </div>
+            </InspectorFieldRow>
+          </div>
+        </section>
+      )}
+
+      {/* ── TRANSFORM ────────────────────────────────────────────────── */}
+      {sections.showSize && (
+        <section className="space-y-3">
+          <SectionRule label="TRANSFORM" />
+          <div className="px-4 space-y-2">
+            {/* Rotate */}
+            <InspectorFieldRow label="Rotate">
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={style.transform?.rotate ?? 0}
+                  onChange={(e) => updateTransform({ rotate: Number(e.target.value) || 0 })}
+                  onBlur={() => history.flush()}
+                  className="w-16 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+                />
+                <span className="text-[11px] text-[#6B6B6B]">deg</span>
+              </div>
+            </InspectorFieldRow>
+
+            {/* Scale X / Y */}
+            <InspectorFieldRow label="Scale">
+              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
+                  <span className="text-[11px] text-[#6B6B6B]">X</span>
+                  <input
+                    type="number"
+                    step={0.01}
+                    value={style.transform?.scale?.x ?? 1}
+                    onChange={(e) => {
+                      const val = Number(e.target.value) || 1;
+                      if (scaleLocked) {
+                        updateTransform({ scale: { x: val, y: val } });
+                      } else {
+                        updateTransform({ scale: { x: val, y: style.transform?.scale?.y ?? 1 } });
+                      }
+                    }}
+                    onBlur={() => history.flush()}
+                    className="w-14 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setScaleLocked(!scaleLocked)}
+                  className={cn(
+                    "p-0.5 rounded-[2px] transition-colors",
+                    scaleLocked
+                      ? "text-[#4B57DB] hover:bg-[#EDF1FE]"
+                      : "text-[#A0A0A0] hover:text-[#6B6B6B]"
+                  )}
+                  title={scaleLocked ? "Unlock scale" : "Lock scale"}
+                >
+                  {scaleLocked ? <Link2 size={14} strokeWidth={1.5} /> : <Unlink2 size={14} strokeWidth={1.5} />}
+                </button>
+                <div className="flex items-center gap-0.5">
+                  <span className="text-[11px] text-[#6B6B6B]">Y</span>
+                  <input
+                    type="number"
+                    step={0.01}
+                    value={style.transform?.scale?.y ?? 1}
+                    onChange={(e) => {
+                      const val = Number(e.target.value) || 1;
+                      if (scaleLocked) {
+                        updateTransform({ scale: { x: val, y: val } });
+                      } else {
+                        updateTransform({ scale: { x: style.transform?.scale?.x ?? 1, y: val } });
+                      }
+                    }}
+                    onBlur={() => history.flush()}
+                    className="w-14 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+                  />
+                </div>
+              </div>
+            </InspectorFieldRow>
+
+            {/* Transform Origin — 3x3 grid */}
+            <InspectorFieldRow label="Origin">
+              <div className="inline-grid grid-cols-3 gap-[6px] p-1 border border-[#E5E5E0] rounded-[4px] bg-white">
+                {[
+                  [0, 0], [50, 0], [100, 0],
+                  [0, 50], [50, 50], [100, 50],
+                  [0, 100], [50, 100], [100, 100],
+                ].map(([ox, oy]) => {
+                  const currentX = style.transformOrigin?.x ?? 50;
+                  const currentY = style.transformOrigin?.y ?? 50;
+                  const isActive = currentX === ox && currentY === oy;
+                  return (
+                    <button
+                      key={`${ox}-${oy}`}
+                      type="button"
+                      onClick={() => updateTransformOrigin(ox, oy)}
+                      className={cn(
+                        "w-[8px] h-[8px] rounded-full transition-colors",
+                        isActive
+                          ? "bg-[#4B57DB]"
+                          : "bg-[#D0D0D0] hover:bg-[#6B6B6B]"
+                      )}
+                      title={`Origin ${ox}% ${oy}%`}
+                    />
+                  );
+                })}
               </div>
             </InspectorFieldRow>
           </div>

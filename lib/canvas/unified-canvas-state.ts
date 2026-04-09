@@ -65,10 +65,11 @@ export type MasterEditSession = {
 };
 
 export type UnifiedCanvasState = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   viewport: { pan: { x: number; y: number }; zoom: number };
   items: CanvasItem[];
   components: ComponentMaster[];  // NEW — Track 3
+  activeBreakpoint: Breakpoint;
   selection: {
     selectedItemIds: string[];
     activeItemId: string | null;
@@ -268,10 +269,11 @@ function artboardHeight(breakpoint: Breakpoint): number {
 
 export function createEmptyCanvas(): UnifiedCanvasState {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     viewport: { pan: { x: 0, y: 0 }, zoom: 0.5 },
     items: [],
     components: [],
+    activeBreakpoint: "desktop",
     selection: { selectedItemIds: [], activeItemId: null, selectedNodeId: null, selectedNodeIds: [] },
     prompt: {
       value: "",
@@ -496,19 +498,21 @@ export function migrateToV3(projectId: string): UnifiedCanvasState {
   const state = createEmptyCanvas();
   let zIndex = 0;
 
-  // Step 1: Check for existing V3 state in localStorage
+  // Step 1: Check for existing V3/V4 state in localStorage
   try {
     const raw = typeof window !== "undefined"
       ? window.localStorage.getItem(`studio-os:canvas-v3:${projectId}`)
       : null;
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.schemaVersion === 3 && Array.isArray(parsed.items)) {
-        return parsed as UnifiedCanvasState;
+      if (parsed && (parsed.schemaVersion === 3 || parsed.schemaVersion === 4) && Array.isArray(parsed.items)) {
+        const migrated = parsed as UnifiedCanvasState;
+        migrated.activeBreakpoint ??= "desktop";
+        return { ...migrated, schemaVersion: 4 };
       }
     }
   } catch {
-    // Malformed V3 data — fall through to legacy migration
+    // Malformed V3/V4 data — fall through to legacy migration
   }
 
   const projectState = getProjectState(projectId);
@@ -741,11 +745,13 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
     const raw = window.localStorage.getItem(`${CANVAS_V3_PREFIX}${projectId}`);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.schemaVersion === 3 && Array.isArray(parsed.items)) {
+      if (parsed && (parsed.schemaVersion === 3 || parsed.schemaVersion === 4) && Array.isArray(parsed.items)) {
         const loadedState = parsed as UnifiedCanvasState;
         loadedState.components ??= [];
         return {
           ...loadedState,
+          schemaVersion: 4,
+          activeBreakpoint: loadedState.activeBreakpoint ?? "desktop",
           selection: {
             ...loadedState.selection,
             selectedNodeIds: loadedState.selection.selectedNodeIds ?? [],

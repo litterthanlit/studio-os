@@ -181,7 +181,10 @@ export type CanvasAction =
   // Variant comparison (1+1 derivation)
   | { type: "SET_VARIANT_PREVIEW"; itemId: string; variants: VariantPreviewVariant[] }
   | { type: "SET_ACTIVE_VARIANT"; index: number }
-  | { type: "PICK_VARIANT"; variantIndex: number };
+  | { type: "PICK_VARIANT"; variantIndex: number }
+
+  // Responsive editing
+  | { type: "SET_ACTIVE_BREAKPOINT"; breakpoint: Breakpoint };
 
 // ─── Reducer State (extends UnifiedCanvasState with in-memory history) ───────
 
@@ -3256,6 +3259,14 @@ export function canvasReducer(
           return { ...item, pageTree: chosen.tree };
         }),
         variantPreview: null,
+        updatedAt: now(),
+      };
+    }
+
+    case "SET_ACTIVE_BREAKPOINT": {
+      return {
+        ...state,
+        activeBreakpoint: action.breakpoint,
         updatedAt: now(),
       };
     }

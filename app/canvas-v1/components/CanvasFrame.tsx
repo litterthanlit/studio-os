@@ -138,7 +138,6 @@ export function CanvasFrame({ item, zoom, isDragging, onPointerDown }: CanvasFra
         style={{
           width: item.width,
           height: item.height,
-          background: "#FFFFFF",
         }}
         onClick={(e) => {
           e.stopPropagation();

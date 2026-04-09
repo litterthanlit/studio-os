@@ -8,7 +8,7 @@
 
 import { useEffect } from "react";
 import type { CanvasAction } from "@/lib/canvas/canvas-reducer";
-import type { ArtboardItem, UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
+import type { ArtboardItem, CanvasItem, UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
 import {
   isDesignNodeTree,
   findNodeById,
@@ -26,6 +26,7 @@ import {
 import {
   canvasItemToDesignNode,
   designNodeToCanvasItem,
+  getNodeTree,
   isEditableItem,
 } from "@/lib/canvas/canvas-item-conversion";
 import type { FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
@@ -105,11 +106,11 @@ export function useCanvasKeyboard({
   setClipboard,
 }: KeyboardOptions) {
   useEffect(() => {
-    const getActiveItem = () =>
+    const getActiveItem = (): CanvasItem | null =>
       state.selection.activeItemId
-        ? (state.items.find(
+        ? state.items.find(
             (item) => item.id === state.selection.activeItemId
-          ) as ArtboardItem | undefined) ?? null
+          ) ?? null
         : null;
 
     const getSelectedNodeMetadata = () => {
@@ -117,18 +118,22 @@ export function useCanvasKeyboard({
       const selectedNodeId = state.selection.selectedNodeId;
       if (!activeItem || !selectedNodeId) return null;
 
-      const path = findNodePath(activeItem.pageTree, selectedNodeId);
+      const activeTree = getNodeTree(activeItem);
+      if (!activeTree) return null;
+
+      const path = findNodePath(activeTree, selectedNodeId);
       if (!path) return null;
 
       const node = path[path.length - 1];
       const parent = path[path.length - 2] ?? null;
-      const siblings = parent?.children ?? [activeItem.pageTree];
+      const siblings = parent?.children ?? [activeTree];
       const index = siblings.findIndex((child) => child.id === selectedNodeId);
 
       if (index === -1) return null;
 
       return {
         activeItem,
+        activeTree,
         node,
         parent,
         siblings,
@@ -262,12 +267,13 @@ export function useCanvasKeyboard({
         }
 
         const activeItem = getActiveItem();
+        const activeItemTree = activeItem ? getNodeTree(activeItem) : null;
         if (
           activeItem &&
-          isDesignNodeTree(activeItem.pageTree) &&
+          activeItemTree &&
           state.selection.selectedNodeIds.length > 0
         ) {
-          const tree = activeItem.pageTree as DesignNode;
+          const tree = activeItemTree;
           const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
           const nodes: DesignNode[] = [];
           for (const id of normalized) {
@@ -315,8 +321,9 @@ export function useCanvasKeyboard({
         // Node inside active artboard
         if (state.selection.activeItemId && state.selection.selectedNodeId) {
           const activeItem = getActiveItem();
-          if (activeItem && isDesignNodeTree(activeItem.pageTree)) {
-            const tree = activeItem.pageTree as DesignNode;
+          const cutTree = activeItem ? getNodeTree(activeItem) : null;
+          if (activeItem && cutTree) {
+            const tree = cutTree;
             const node = findDesignNodeById(tree, state.selection.selectedNodeId);
             if (node) {
               setClipboard?.({
@@ -338,14 +345,15 @@ export function useCanvasKeyboard({
       if (isMeta && (e.key === "v" || e.key === "V") && !e.shiftKey && !e.altKey) {
         const mem = getMemoryDesignClip();
         const activeItem = getActiveItem();
+        const pasteTree = activeItem ? getNodeTree(activeItem) : null;
 
         // Cross-context paste: use clipboard state if no same-session memory clip in an artboard
-        if (clipboardState && !(mem && mem.length > 0 && state.selection.activeItemId && activeItem && isDesignNodeTree(activeItem.pageTree))) {
+        if (clipboardState && !(mem && mem.length > 0 && state.selection.activeItemId && activeItem && pasteTree)) {
           const cloned = cloneDesignNode(clipboardState.node);
 
           // Case 1: Active editable item — paste into its tree
-          if (state.selection.activeItemId && activeItem && isEditableItem(activeItem) && isDesignNodeTree(activeItem.pageTree)) {
-            const tree = activeItem.pageTree as DesignNode;
+          if (state.selection.activeItemId && activeItem && isEditableItem(activeItem) && pasteTree) {
+            const tree = pasteTree;
             const pasteTarget = computeDesignPasteTarget(tree, state.selection.selectedNodeId);
             e.preventDefault();
             dispatch({
@@ -373,10 +381,10 @@ export function useCanvasKeyboard({
           mem.length > 0 &&
           state.selection.activeItemId &&
           activeItem &&
-          isDesignNodeTree(activeItem.pageTree)
+          pasteTree
         ) {
           e.preventDefault();
-          const tree = activeItem.pageTree as DesignNode;
+          const tree = pasteTree;
           const pasteTarget = computeDesignPasteTarget(
             tree,
             state.selection.selectedNodeId
@@ -435,6 +443,7 @@ export function useCanvasKeyboard({
 
         const activeItem = getActiveItem();
         if (!activeItem) return;
+        const reorderTree = getNodeTree(activeItem);
 
         const isForward = e.key === "]" || e.key === "}";
         const isExtreme = e.shiftKey || e.key === "{" || e.key === "}";
@@ -443,9 +452,9 @@ export function useCanvasKeyboard({
         if (
           state.selection.selectedNodeIds.length > 1 &&
           state.selection.activeItemId &&
-          isDesignNodeTree(activeItem.pageTree)
+          reorderTree
         ) {
-          const tree = activeItem.pageTree as DesignNode;
+          const tree = reorderTree;
           const normalized = normalizeSelection(state.selection.selectedNodeIds, tree);
           if (normalized.length === 0) return;
 
@@ -540,7 +549,7 @@ export function useCanvasKeyboard({
             nodeId: metadata.node.id,
             newIndex,
             parentNodeId:
-              metadata.parent && metadata.parent.id !== metadata.activeItem.pageTree.id
+              metadata.parent && metadata.parent.id !== metadata.activeTree.id
                 ? metadata.parent.id
                 : undefined,
           });
@@ -555,7 +564,7 @@ export function useCanvasKeyboard({
             nodeId: metadata.node.id,
             newIndex,
             parentNodeId:
-              metadata.parent && metadata.parent.id !== metadata.activeItem.pageTree.id
+              metadata.parent && metadata.parent.id !== metadata.activeTree.id
                 ? metadata.parent.id
                 : undefined,
           });
@@ -569,7 +578,8 @@ export function useCanvasKeyboard({
 
         const activeItem = getActiveItem();
         if (activeItem) {
-          const children = activeItem.pageTree.children ?? [];
+          const selectAllTree = getNodeTree(activeItem);
+          const children = selectAllTree?.children ?? [];
           const childIds = children.map((c) => c.id);
           if (childIds.length > 0) {
             dispatch({
@@ -683,10 +693,11 @@ export function useCanvasKeyboard({
       if (isMeta && e.key === "[") {
         e.preventDefault();
         const activeItem = getActiveItem();
-        if (state.selection.selectedNodeId && activeItem?.pageTree) {
+        const prevSibTree = activeItem ? getNodeTree(activeItem) : null;
+        if (state.selection.selectedNodeId && prevSibTree) {
           const parent = getParent(
             { id: state.selection.selectedNodeId } as DesignNode,
-            activeItem.pageTree as DesignNode
+            prevSibTree
           );
           if (parent) {
             const prevSiblingId = cycleSiblingSelection(state.selection.selectedNodeId, parent, "previous");
@@ -706,10 +717,11 @@ export function useCanvasKeyboard({
       if (isMeta && e.key === "]") {
         e.preventDefault();
         const activeItem = getActiveItem();
-        if (state.selection.selectedNodeId && activeItem?.pageTree) {
+        const nextSibTree = activeItem ? getNodeTree(activeItem) : null;
+        if (state.selection.selectedNodeId && nextSibTree) {
           const parent = getParent(
             { id: state.selection.selectedNodeId } as DesignNode,
-            activeItem.pageTree as DesignNode
+            nextSibTree
           );
           if (parent) {
             const nextSiblingId = cycleSiblingSelection(state.selection.selectedNodeId, parent, "next");
@@ -729,11 +741,12 @@ export function useCanvasKeyboard({
       if (e.shiftKey && e.key === "Escape") {
         e.preventDefault();
         const activeItem = getActiveItem();
-        if (activeItem?.pageTree) {
+        const jumpRootTree = activeItem ? getNodeTree(activeItem) : null;
+        if (jumpRootTree) {
           dispatch({
             type: "SELECT_NODE",
-            itemId: activeItem.id,
-            nodeId: activeItem.pageTree.id,
+            itemId: activeItem!.id,
+            nodeId: jumpRootTree.id,
           });
         }
         return;
@@ -743,8 +756,9 @@ export function useCanvasKeyboard({
       if (isMeta && e.key === "Enter") {
         e.preventDefault();
         const activeItem = getActiveItem();
-        if (state.selection.selectedNodeId && activeItem?.pageTree) {
-          const rootNode = activeItem.pageTree as DesignNode;
+        const enterFrameTree = activeItem ? getNodeTree(activeItem) : null;
+        if (state.selection.selectedNodeId && enterFrameTree) {
+          const rootNode = enterFrameTree;
           const node = findDesignNodeByIdFromNested(rootNode, state.selection.selectedNodeId);
           if (node?.children && node.children.length > 0) {
             dispatch({
@@ -760,11 +774,12 @@ export function useCanvasKeyboard({
       // Cmd+Arrow navigation (parent/first child/previous sibling/next sibling)
       if (isMeta && (e.key.startsWith("Arrow") || ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))) {
         const activeItem = getActiveItem();
-        if (!state.selection.selectedNodeId || !activeItem?.pageTree) {
+        const arrowNavTree = activeItem ? getNodeTree(activeItem) : null;
+        if (!state.selection.selectedNodeId || !arrowNavTree) {
           return;
         }
 
-        const rootNode = activeItem.pageTree as DesignNode;
+        const rootNode = arrowNavTree;
         const selectedNodeId = state.selection.selectedNodeId;
 
         switch (e.key) {
@@ -840,9 +855,10 @@ export function useCanvasKeyboard({
       // Cmd+B / Cmd+I / Cmd+U — Toggle bold/italic/underline formatting for text nodes
       if (isMeta && (e.key === "b" || e.key === "B" || e.key === "i" || e.key === "I" || e.key === "u" || e.key === "U")) {
         const activeItem = getActiveItem();
-        if (state.selection.selectedNodeId && activeItem?.pageTree && isDesignNodeTree(activeItem.pageTree)) {
+        const formatTree = activeItem ? getNodeTree(activeItem) : null;
+        if (state.selection.selectedNodeId && formatTree) {
           const node = findDesignNodeById(
-            activeItem.pageTree as DesignNode,
+            formatTree,
             state.selection.selectedNodeId
           );
           if (node && node.type === "text") {
@@ -895,11 +911,12 @@ export function useCanvasKeyboard({
 
           const activeItem = getActiveItem();
           if (!activeItem) return;
+          const enterEditTree = getNodeTree(activeItem);
 
           if (state.selection.selectedNodeId) {
-            if (isDesignNodeTree(activeItem.pageTree)) {
+            if (enterEditTree) {
               const selectedNode = findDesignNodeById(
-                activeItem.pageTree,
+                enterEditTree,
                 state.selection.selectedNodeId
               );
 
@@ -921,9 +938,9 @@ export function useCanvasKeyboard({
                 );
                 return;
               }
-            } else {
+            } else if (activeItem.kind === "artboard") {
               const selectedNode = findNodeById(
-                activeItem.pageTree,
+                (activeItem as ArtboardItem).pageTree,
                 state.selection.selectedNodeId
               );
 

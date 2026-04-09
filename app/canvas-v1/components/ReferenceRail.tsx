@@ -34,6 +34,17 @@ export function ReferenceRail({ references }: ReferenceRailProps) {
     );
   }
 
+  const primaryCount = references.filter((r) => r.weight === "primary").length;
+  const mutedCount = references.filter((r) => r.weight === "muted").length;
+  const activeCount = references.length - mutedCount;
+
+  const countLabel =
+    primaryCount > 0
+      ? `${activeCount} ${activeCount === 1 ? "Reference" : "References"} (${primaryCount} starred)`
+      : mutedCount > 0
+        ? `${activeCount} active, ${mutedCount} muted`
+        : `${references.length} ${references.length === 1 ? "Reference" : "References"}`;
+
   const visible = references.slice(0, MAX_THUMBNAILS);
   const overflowCount = Math.max(0, references.length - MAX_THUMBNAILS);
 
@@ -41,7 +52,7 @@ export function ReferenceRail({ references }: ReferenceRailProps) {
     <div className="px-3 py-2">
       {/* Mono-kicker header */}
       <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#8A8A8A] block mb-1.5">
-        {references.length} {references.length === 1 ? "Reference" : "References"}
+        {countLabel}
       </span>
 
       {/* Scrollable thumbnail row */}

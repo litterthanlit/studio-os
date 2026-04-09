@@ -79,6 +79,7 @@ export type AllowedStyleOverride = Pick<DesignNodeStyle,
   | "padding"
   | "coverImage" | "coverSize" | "coverPosition"
   | "transform" | "transformOrigin"
+  | "blendMode"
 >;
 
 export const ALLOWED_STYLE_FIELDS = new Set<string>([
@@ -90,6 +91,7 @@ export const ALLOWED_STYLE_FIELDS = new Set<string>([
   "padding",
   "coverImage", "coverSize", "coverPosition",
   "transform", "transformOrigin",
+  "blendMode",
 ]);
 
 export type NodeOverride = {
@@ -199,6 +201,7 @@ export type DesignNodeStyle = {
   effects?: EffectEntry[];   // Ordered Figma-like effects stack
   objectFit?: "cover" | "contain" | "fill";
   maxWidth?: number | string; // number=px, string=CSS value
+  blendMode?: "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
 };
 
 // ── Helpers ──

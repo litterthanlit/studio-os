@@ -20,6 +20,7 @@ import {
   Maximize2,
   Link2,
   Unlink2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -38,7 +39,7 @@ import { BreakpointBadge } from "./BreakpointBadge";
 import { SpacingDiagram } from "./SpacingDiagram";
 import { getFontsByCategory } from "@/lib/canvas/font-library";
 import type { ArtboardItem } from "@/lib/canvas/unified-canvas-state";
-import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect, GradientValue, TransformValue } from "@/lib/canvas/design-node";
+import type { BlurEffect, DesignNode, DesignNodeStyle, Breakpoint, EffectEntry, EffectType, ShadowEffect, GradientValue, TransformValue, ClipPathValue } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById, ALLOWED_STYLE_FIELDS } from "@/lib/canvas/design-node";
 import type { NodeOverride } from "@/lib/canvas/design-node";
 import { findMaster, getInstanceBaseTree, splitCompositeId, filterAllowedOverrides } from "@/lib/canvas/component-resolver";
@@ -181,6 +182,18 @@ function getSizingMode(value: number | "hug" | "fill" | undefined): SizingMode {
   if (typeof value === "number") return "fixed";
   return "hug";
 }
+
+// ── Polygon presets ─────────────────────────────────────────────────────────
+
+const POLYGON_PRESETS: Record<string, Array<{ x: number; y: number }>> = {
+  triangle: [{ x: 50, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+  diamond: [{ x: 50, y: 0 }, { x: 100, y: 50 }, { x: 50, y: 100 }, { x: 0, y: 50 }],
+  pentagon: [{ x: 50, y: 0 }, { x: 100, y: 38 }, { x: 81, y: 100 }, { x: 19, y: 100 }, { x: 0, y: 38 }],
+  hexagon: [{ x: 50, y: 0 }, { x: 100, y: 25 }, { x: 100, y: 75 }, { x: 50, y: 100 }, { x: 0, y: 75 }, { x: 0, y: 25 }],
+  star: [{ x: 50, y: 0 }, { x: 61, y: 35 }, { x: 98, y: 35 }, { x: 68, y: 57 }, { x: 79, y: 91 }, { x: 50, y: 70 }, { x: 21, y: 91 }, { x: 32, y: 57 }, { x: 2, y: 35 }, { x: 39, y: 35 }],
+  arrow: [{ x: 50, y: 0 }, { x: 100, y: 50 }, { x: 75, y: 50 }, { x: 75, y: 100 }, { x: 25, y: 100 }, { x: 25, y: 50 }, { x: 0, y: 50 }],
+  chevron: [{ x: 0, y: 0 }, { x: 50, y: 50 }, { x: 100, y: 0 }, { x: 100, y: 30 }, { x: 50, y: 80 }, { x: 0, y: 30 }],
+};
 
 function createDefaultEffect(type: EffectType): EffectEntry {
   const id = `fx-${Math.random().toString(36).slice(2, 8)}`;
@@ -348,6 +361,9 @@ export function DesignNodeInspector({
 
   // Transform scale lock state
   const [scaleLocked, setScaleLocked] = React.useState(true);
+
+  // Inset clip mask uniform lock state
+  const [insetLinked, setInsetLinked] = React.useState(true);
 
   // For single-select, use the node's style directly; for multi-select, use primary node style
   const style = primaryNode.style;
@@ -1859,6 +1875,351 @@ export function DesignNodeInspector({
                 </optgroup>
               </select>
             </div>
+
+            {/* ── Clip Mask ─────────────────────────────────────────── */}
+            <SectionRule label="CLIP MASK" />
+
+            {/* Type picker */}
+            <InspectorSegmentedSmall
+              value={primaryNode.style.clipPath?.type ?? "none"}
+              options={[
+                { value: "none", label: "None" },
+                { value: "circle", label: "Circle" },
+                { value: "ellipse", label: "Ellipse" },
+                { value: "inset", label: "Inset" },
+                { value: "polygon", label: "Poly" },
+              ]}
+              onChange={(val) => {
+                if (val === "none") {
+                  updateStyle({ clipPath: undefined });
+                } else {
+                  const existing = primaryNode.style.clipPath;
+                  const base: ClipPathValue = {
+                    type: val as ClipPathValue["type"],
+                    // Preserve all sub-objects so switching back restores data
+                    circle: existing?.circle ?? { radius: 50, cx: 50, cy: 50 },
+                    ellipse: existing?.ellipse ?? { rx: 50, ry: 50, cx: 50, cy: 50 },
+                    inset: existing?.inset ?? { top: 0, right: 0, bottom: 0, left: 0, borderRadius: 0 },
+                    polygon: existing?.polygon ?? POLYGON_PRESETS.triangle,
+                  };
+                  updateStyle({ clipPath: base });
+                }
+                history.flush();
+              }}
+            />
+
+            {/* Circle controls */}
+            {primaryNode.style.clipPath?.type === "circle" && (() => {
+              const c = primaryNode.style.clipPath.circle ?? { radius: 50, cx: 50, cy: 50 };
+              const updateClipCircle = (patch: Partial<typeof c>) => {
+                const existing = primaryNode.style.clipPath!;
+                updateStyle({ clipPath: { ...existing, circle: { ...c, ...patch } } });
+              };
+              return (
+                <div className="space-y-1.5 mt-1">
+                  <InspectorFieldRow label="Radius">
+                    <div className="relative">
+                      <input
+                        type="number" min={0} max={100} step={1}
+                        value={c.radius}
+                        onChange={(e) => updateClipCircle({ radius: Number(e.target.value) || 0 })}
+                        onBlur={() => history.flush()}
+                        className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                    </div>
+                  </InspectorFieldRow>
+                  <div className="flex gap-2">
+                    <InspectorFieldRow label="CX" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={c.cx}
+                          onChange={(e) => updateClipCircle({ cx: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                    <InspectorFieldRow label="CY" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={c.cy}
+                          onChange={(e) => updateClipCircle({ cy: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Ellipse controls */}
+            {primaryNode.style.clipPath?.type === "ellipse" && (() => {
+              const el = primaryNode.style.clipPath.ellipse ?? { rx: 50, ry: 50, cx: 50, cy: 50 };
+              const updateClipEllipse = (patch: Partial<typeof el>) => {
+                const existing = primaryNode.style.clipPath!;
+                updateStyle({ clipPath: { ...existing, ellipse: { ...el, ...patch } } });
+              };
+              return (
+                <div className="space-y-1.5 mt-1">
+                  <div className="flex gap-2">
+                    <InspectorFieldRow label="RX" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={el.rx}
+                          onChange={(e) => updateClipEllipse({ rx: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                    <InspectorFieldRow label="RY" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={el.ry}
+                          onChange={(e) => updateClipEllipse({ ry: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                  </div>
+                  <div className="flex gap-2">
+                    <InspectorFieldRow label="CX" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={el.cx}
+                          onChange={(e) => updateClipEllipse({ cx: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                    <InspectorFieldRow label="CY" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={el.cy}
+                          onChange={(e) => updateClipEllipse({ cy: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Inset controls */}
+            {primaryNode.style.clipPath?.type === "inset" && (() => {
+              const ins = primaryNode.style.clipPath.inset ?? { top: 0, right: 0, bottom: 0, left: 0, borderRadius: 0 };
+              const updateClipInset = (patch: Partial<typeof ins>) => {
+                const existing = primaryNode.style.clipPath!;
+                if (insetLinked && ("top" in patch || "right" in patch || "bottom" in patch || "left" in patch)) {
+                  const uniformVal = patch.top ?? patch.right ?? patch.bottom ?? patch.left ?? 0;
+                  updateStyle({ clipPath: { ...existing, inset: { ...ins, top: uniformVal, right: uniformVal, bottom: uniformVal, left: uniformVal, borderRadius: ins.borderRadius } } });
+                } else {
+                  updateStyle({ clipPath: { ...existing, inset: { ...ins, ...patch } } });
+                }
+              };
+              return (
+                <div className="space-y-1.5 mt-1">
+                  <div className="flex items-center gap-1">
+                    <div className="flex gap-2 flex-1">
+                      <InspectorFieldRow label="T" className="flex-1">
+                        <div className="relative">
+                          <input
+                            type="number" min={0} max={100} step={1}
+                            value={ins.top}
+                            onChange={(e) => updateClipInset({ top: Number(e.target.value) || 0 })}
+                            onBlur={() => history.flush()}
+                            className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                        </div>
+                      </InspectorFieldRow>
+                      <InspectorFieldRow label="R" className="flex-1">
+                        <div className="relative">
+                          <input
+                            type="number" min={0} max={100} step={1}
+                            value={ins.right}
+                            onChange={(e) => updateClipInset({ right: Number(e.target.value) || 0 })}
+                            onBlur={() => history.flush()}
+                            className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                        </div>
+                      </InspectorFieldRow>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setInsetLinked(!insetLinked)}
+                      className={cn(
+                        "p-0.5 rounded-[2px] transition-colors",
+                        insetLinked
+                          ? "text-[#4B57DB] hover:bg-[#EDF1FE]"
+                          : "text-[#A0A0A0] hover:text-[#6B6B6B]"
+                      )}
+                      title={insetLinked ? "Unlock sides" : "Lock sides"}
+                    >
+                      {insetLinked ? <Link2 size={14} strokeWidth={1.5} /> : <Unlink2 size={14} strokeWidth={1.5} />}
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <InspectorFieldRow label="B" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={ins.bottom}
+                          onChange={(e) => updateClipInset({ bottom: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                    <InspectorFieldRow label="L" className="flex-1">
+                      <div className="relative">
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          value={ins.left}
+                          onChange={(e) => updateClipInset({ left: Number(e.target.value) || 0 })}
+                          onBlur={() => history.flush()}
+                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
+                      </div>
+                    </InspectorFieldRow>
+                  </div>
+                  <InspectorFieldRow label="Radius">
+                    <div className="relative">
+                      <input
+                        type="number" min={0} step={1}
+                        value={ins.borderRadius ?? 0}
+                        onChange={(e) => updateClipInset({ borderRadius: Number(e.target.value) || 0 })}
+                        onBlur={() => history.flush()}
+                        className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-7"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">px</span>
+                    </div>
+                  </InspectorFieldRow>
+                </div>
+              );
+            })()}
+
+            {/* Polygon controls */}
+            {primaryNode.style.clipPath?.type === "polygon" && (() => {
+              const points = primaryNode.style.clipPath.polygon ?? POLYGON_PRESETS.triangle;
+              const updateClipPolygon = (nextPoints: Array<{ x: number; y: number }>) => {
+                const existing = primaryNode.style.clipPath!;
+                updateStyle({ clipPath: { ...existing, polygon: nextPoints } });
+              };
+              return (
+                <div className="space-y-1.5 mt-1">
+                  {/* Presets dropdown */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[#6B6B6B] w-14">Preset</span>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const preset = POLYGON_PRESETS[e.target.value];
+                        if (preset) {
+                          updateClipPolygon([...preset.map((p) => ({ ...p }))]);
+                          history.flush();
+                        }
+                      }}
+                      className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+                    >
+                      <option value="" disabled>Choose preset...</option>
+                      <option value="triangle">Triangle</option>
+                      <option value="diamond">Diamond</option>
+                      <option value="pentagon">Pentagon</option>
+                      <option value="hexagon">Hexagon</option>
+                      <option value="star">Star</option>
+                      <option value="arrow">Arrow</option>
+                      <option value="chevron">Chevron</option>
+                    </select>
+                  </div>
+
+                  {/* Point list */}
+                  <div className="space-y-1">
+                    {points.map((pt, idx) => (
+                      <div key={idx} className="flex items-center gap-1">
+                        <span className="text-[10px] font-mono text-[#A0A0A0] w-4 text-right">{idx + 1}</span>
+                        <div className="flex gap-1 flex-1">
+                          <div className="relative flex-1">
+                            <input
+                              type="number" min={0} max={100} step={1}
+                              value={pt.x}
+                              onChange={(e) => {
+                                const next = points.map((p, i) => i === idx ? { ...p, x: Number(e.target.value) || 0 } : p);
+                                updateClipPolygon(next);
+                              }}
+                              onBlur={() => history.flush()}
+                              className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">X</span>
+                          </div>
+                          <div className="relative flex-1">
+                            <input
+                              type="number" min={0} max={100} step={1}
+                              value={pt.y}
+                              onChange={(e) => {
+                                const next = points.map((p, i) => i === idx ? { ...p, y: Number(e.target.value) || 0 } : p);
+                                updateClipPolygon(next);
+                              }}
+                              onBlur={() => history.flush()}
+                              className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">Y</span>
+                          </div>
+                        </div>
+                        {points.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateClipPolygon(points.filter((_, i) => i !== idx));
+                              history.flush();
+                            }}
+                            className="p-0.5 text-[#A0A0A0] hover:text-red-500 transition-colors"
+                            title="Remove point"
+                          >
+                            <X size={12} strokeWidth={1.5} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add point button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateClipPolygon([...points, { x: 50, y: 50 }]);
+                      history.flush();
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-[#6B6B6B] hover:text-[#4B57DB] transition-colors"
+                  >
+                    <Plus size={12} strokeWidth={1.5} />
+                    <span>Add point</span>
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </section>
       )}

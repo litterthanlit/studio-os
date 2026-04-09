@@ -9,7 +9,7 @@
  */
 
 import * as React from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
@@ -32,6 +32,9 @@ import type { PageNode } from "@/lib/canvas/compose";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { SiteType } from "@/lib/canvas/templates";
 import { isHintSeen, markHintSeen } from "./OnboardingHint";
+import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
+import { buildSectionContext } from "@/lib/canvas/section-context-builder";
+import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 
 // ─── Helpers (copied from InspectorPanelV3) ─────────────────────────────────
 
@@ -318,6 +321,19 @@ export function PromptComposerV2({
     }
   );
 
+  // Detect if the selected node is a root-level section (direct child of page root)
+  const selectedSection = React.useMemo(() => {
+    if (!selection.activeItemId || !selection.selectedNodeId) return null;
+    const item = items.find((i) => i.id === selection.activeItemId);
+    if (!item) return null;
+    const tree = getNodeTree(item);
+    if (!tree?.children) return null;
+    const isDirectChild = tree.children.some((c) => c.id === selection.selectedNodeId);
+    if (!isDirectChild) return null;
+    const node = tree.children.find((c) => c.id === selection.selectedNodeId);
+    return node ? { id: node.id, name: node.name || "Section", itemId: item.id } : null;
+  }, [selection.activeItemId, selection.selectedNodeId, items]);
+
   // Persist fidelityMode changes to project state
   const handleFidelityChange = React.useCallback(
     (mode: FidelityMode) => {
@@ -431,6 +447,80 @@ export function PromptComposerV2({
     }
 
     setError(null);
+
+    // ── Section regeneration mode ──────────────────────────────────────
+    // When a root-level section is selected, route to section regen instead of full-page.
+    if (selectedSection) {
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        isGenerating: true,
+        agentSteps: [`Regenerating section: ${selectedSection.name}...`],
+        generationResult: null,
+      });
+
+      try {
+        const item = items.find((i) => i.id === selectedSection.itemId);
+        if (!item) throw new Error("Section item not found");
+        const tree = getNodeTree(item);
+        if (!tree?.children) throw new Error("No node tree found");
+
+        const context = buildSectionContext(tree.children, selectedSection.id);
+        const tokens = projectId ? (getProjectState(projectId).canvas?.designTokens ?? {}) : {};
+
+        dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
+
+        const sectionPrompt = buildDesignTreeSectionPrompt(
+          tokens as any,
+          context.targetName,
+          { above: context.above, below: context.below },
+          {
+            intent: "more-like-this",
+            direction: prompt.value.trim(),
+            tasteProfile,
+            fidelityMode,
+          }
+        );
+
+        const res = await fetch("/api/canvas/generate-component", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: sectionPrompt,
+            tokens,
+            regenerationIntent: "more-like-this",
+            useDesignNode: true,
+            mode: "single",
+          }),
+        });
+
+        if (!res.ok) throw new Error("Section regeneration failed");
+        const data = await res.json();
+
+        const variant = data.variants?.[0];
+        if (!variant?.pageTree) throw new Error("No section generated");
+
+        let sectionTree = variant.pageTree;
+        if (sectionTree.type === "frame" && sectionTree.children?.length === 1 && sectionTree.name === "Root") {
+          sectionTree = sectionTree.children[0];
+        }
+
+        dispatch({
+          type: "REPLACE_SECTION",
+          itemId: selectedSection.itemId,
+          nodeId: selectedSection.id,
+          replacement: sectionTree,
+        });
+
+        dispatch({ type: "SET_PROMPT_STATUS", generationResult: "success" });
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Section regeneration failed";
+        setError(errMsg);
+        dispatch({ type: "SET_PROMPT_STATUS", generationResult: "error" });
+      } finally {
+        dispatch({ type: "SET_PROMPT_STATUS", isGenerating: false, agentSteps: [] });
+      }
+      return;
+    }
 
     // Snapshot pre-edit state for preview/reject flow
     dispatch({
@@ -670,7 +760,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {
@@ -737,6 +827,26 @@ export function PromptComposerV2({
           Prompt
         </span>
       </div>
+
+      {/* Section regeneration indicator */}
+      {selectedSection && (
+        <div
+          className="shrink-0"
+          style={{
+            padding: "6px 12px",
+            fontSize: 11,
+            fontFamily: "var(--font-geist-mono)",
+            color: "#4B57DB",
+            borderBottom: "1px solid rgba(75, 87, 219, 0.2)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <RefreshCw size={12} strokeWidth={1.5} />
+          Regenerating: {selectedSection.name}
+        </div>
+      )}
 
       {/* Scrollable area: history + chips */}
       <div className="flex-1 overflow-y-auto px-3 min-h-0">

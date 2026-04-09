@@ -445,8 +445,14 @@ Do NOT set width/height to fixed numbers on section-level frames unless creating
 - secondary: ${tokens.colors.secondary}
 - border: ${tokens.colors.border}
 - headingFont: ${tokens.typography.fontFamily}
-- shadow.sm: ${tokens.shadows.sm}
-- shadow.md: ${tokens.shadows.md}
+
+## Shadow Effects
+
+effects: [{ type: "dropShadow"|"innerShadow", x, y, blur, spread, color, enabled }]
+Structured shadow effects. Most elements need 0 or 1 shadow effect.
+Use subtle drop shadows for card elevation: { type: "dropShadow", x: 0, y: 2, blur: 8, spread: 0, color: "rgba(0,0,0,0.08)", enabled: true }
+Use inner shadows rarely — only for pressed/recessed effects.
+Do not stack more than 2 shadow effects on a single element unless the brief explicitly calls for complex depth.
 
 ## Rules
 
@@ -460,7 +466,7 @@ Do NOT set width/height to fixed numbers on section-level frames unless creating
 8. gridTemplate MUST be one of the allowed patterns (see schema).
 9. Choose 4-7 sections based on the brief. The page should feel like ONE DESIGNED ARTIFACT.
 10. coverScrim is OPTIONAL. Only add it when placing light text over a light photo. Omit for dark photos or when no text overlays the image.
-11. Prefer effects[] over legacy shadow/blur fields. Keep effects compact and purposeful (0-2 entries for most nodes).
+11. Use effects[] for all shadows — do NOT use legacy "shadow" string fields. Keep effects compact and purposeful (0-2 entries for most nodes).
 
 ## Output
 Return ONLY valid JSON. No markdown fences. No explanation. Just the root DesignNode object starting with {.`;

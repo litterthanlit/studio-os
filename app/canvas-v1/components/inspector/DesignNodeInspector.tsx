@@ -49,7 +49,7 @@ import {
   isResolvedInstanceSubtreeRoot,
 } from "@/lib/canvas/component-override-utils";
 import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
-import { isDesignNodeTree } from "@/lib/canvas/compose";
+import { isDesignNodeTree, BREAKPOINT_WIDTHS } from "@/lib/canvas/compose";
 import { useBatchUpdate } from "@/app/canvas-v1/hooks/useBatchUpdate";
 import { normalizeLegacyEffects } from "@/lib/canvas/design-effects";
 import {
@@ -482,7 +482,7 @@ export function DesignNodeInspector({
     isInsideInstance && !ALLOWED_STYLE_FIELDS.has(field);
 
   // ── Breakpoint override helpers ──
-  const breakpoint: Breakpoint = artboard.breakpoint;
+  const breakpoint: Breakpoint = canvasState.activeBreakpoint ?? "desktop";
   const isNonDesktop = breakpoint !== "desktop";
   const overrides = primaryNode.responsiveOverrides?.[breakpoint];
 
@@ -836,7 +836,7 @@ export function DesignNodeInspector({
 
       {isNonDesktop && (
         <div className="px-4">
-          <BreakpointBadge breakpoint={breakpoint} width={artboard.width} />
+          <BreakpointBadge breakpoint={breakpoint} width={BREAKPOINT_WIDTHS[breakpoint]} />
         </div>
       )}
 

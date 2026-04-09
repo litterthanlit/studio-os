@@ -234,6 +234,52 @@ export function validateAndNormalizeDesignTree(
         }
       }
 
+      if (style.clipPath) {
+        const cp = style.clipPath as Record<string, unknown>;
+        const validTypes = new Set(["circle", "ellipse", "inset", "polygon"]);
+        if (!validTypes.has(cp.type as string)) {
+          delete style.clipPath;
+        } else {
+          const clamp = (v: unknown, min: number, max: number, def: number) =>
+            typeof v === "number" ? Math.max(min, Math.min(max, v)) : def;
+
+          if (cp.type === "circle" && cp.circle) {
+            const c = cp.circle as Record<string, unknown>;
+            c.radius = clamp(c.radius, 0, 100, 50);
+            c.cx = clamp(c.cx, 0, 100, 50);
+            c.cy = clamp(c.cy, 0, 100, 50);
+          }
+          if (cp.type === "ellipse" && cp.ellipse) {
+            const e = cp.ellipse as Record<string, unknown>;
+            e.rx = clamp(e.rx, 0, 100, 50);
+            e.ry = clamp(e.ry, 0, 100, 50);
+            e.cx = clamp(e.cx, 0, 100, 50);
+            e.cy = clamp(e.cy, 0, 100, 50);
+          }
+          if (cp.type === "inset" && cp.inset) {
+            const i = cp.inset as Record<string, unknown>;
+            i.top = clamp(i.top, 0, 100, 0);
+            i.right = clamp(i.right, 0, 100, 0);
+            i.bottom = clamp(i.bottom, 0, 100, 0);
+            i.left = clamp(i.left, 0, 100, 0);
+            if (i.borderRadius !== undefined) {
+              i.borderRadius = clamp(i.borderRadius, 0, 999, 0);
+            }
+          }
+          if (cp.type === "polygon") {
+            const pts = cp.polygon;
+            if (!Array.isArray(pts) || pts.length < 3) {
+              delete style.clipPath;
+            } else {
+              cp.polygon = pts.map((p: Record<string, unknown>) => ({
+                x: clamp(p.x, 0, 100, 50),
+                y: clamp(p.y, 0, 100, 50),
+              }));
+            }
+          }
+        }
+      }
+
       n.style = style;
     }
 

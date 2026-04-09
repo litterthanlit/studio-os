@@ -53,6 +53,7 @@ import {
 import { computeDesignPasteTarget } from "@/lib/canvas/design-paste-target";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
 import type { DesignNode } from "@/lib/canvas/design-node";
+import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import { TextInlineToolbar } from "./TextInlineToolbar";
 import { MasterEditOverlay } from "./MasterEditOverlay";
 
@@ -343,6 +344,17 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
 
+  // Drop target artboard — set when dragging a frame/text item over an artboard
+  const [dropTargetArtboardId, setDropTargetArtboardId] = React.useState<string | null>(null);
+
+  // Keep a ref so the pointerup closure (captured inside useDrag) can read the latest value
+  const dropTargetArtboardIdRef = React.useRef<string | null>(null);
+  dropTargetArtboardIdRef.current = dropTargetArtboardId;
+
+  // Keep a ref to state.items so drag-end closures always have current item data
+  const itemsRef = React.useRef(items);
+  itemsRef.current = items;
+
   // Auto-extract colors/fonts/tags from references
   const { isAnalyzing } = useReferenceExtractor(items, dispatch);
 
@@ -350,6 +362,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     zoom: viewport.zoom,
     onDragStart: (itemId) => {
       setDraggingId(itemId);
+      setDropTargetArtboardId(null);
       // FIX: Push history BEFORE the drag starts so undo restores the pre-drag position.
       // Previously this was in onDragEnd which captured the already-moved state.
       dispatch({ type: "PUSH_HISTORY", description: "Moved item" });
@@ -359,9 +372,59 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     },
     onDragMove: (itemId, newPos) => {
       dispatch({ type: "MOVE_ITEM", itemId, x: newPos.x, y: newPos.y });
+
+      // Detect artboard overlap for frame/text items
+      const currentItems = itemsRef.current;
+      const draggedItem = currentItems.find((i) => i.id === itemId);
+      if (draggedItem && (draggedItem.kind === "frame" || draggedItem.kind === "text")) {
+        // Use newPos (the live drag position) for center calculation
+        const dragCenterX = newPos.x + draggedItem.width / 2;
+        const dragCenterY = newPos.y + draggedItem.height / 2;
+
+        const targetArtboard = currentItems.find(
+          (i) =>
+            i.kind === "artboard" &&
+            dragCenterX >= i.x &&
+            dragCenterX <= i.x + i.width &&
+            dragCenterY >= i.y &&
+            dragCenterY <= i.y + i.height
+        );
+
+        setDropTargetArtboardId(targetArtboard?.id ?? null);
+      } else {
+        setDropTargetArtboardId(null);
+      }
     },
     onDragEnd: (itemId, finalPos) => {
+      const dropTarget = dropTargetArtboardIdRef.current;
+
+      if (dropTarget) {
+        const draggedItem = itemsRef.current.find((i) => i.id === itemId);
+        const artboard = itemsRef.current.find((i) => i.id === dropTarget);
+
+        if (
+          draggedItem &&
+          (draggedItem.kind === "frame" || draggedItem.kind === "text") &&
+          artboard
+        ) {
+          const tree = getNodeTree(artboard);
+          if (tree) {
+            dispatch({
+              type: "REPARENT_TO_ARTBOARD",
+              itemId: draggedItem.id,
+              artboardId: dropTarget,
+              parentNodeId: tree.id,
+              index: -1, // append
+            });
+            setDropTargetArtboardId(null);
+            setDraggingId(null);
+            return;
+          }
+        }
+      }
+
       dispatch({ type: "MOVE_ITEM", itemId, x: finalPos.x, y: finalPos.y });
+      setDropTargetArtboardId(null);
       setDraggingId(null);
     },
   });
@@ -1044,6 +1107,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   key={item.id}
                   item={item as FrameItem}
                   zoom={viewport.zoom}
+                  isDragging={draggingId === item.id}
+                  onPointerDown={dragHandlers.onPointerDown}
                 />
               );
             case "text":
@@ -1052,6 +1117,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   key={item.id}
                   item={item as TextItem}
                   zoom={viewport.zoom}
+                  isDragging={draggingId === item.id}
+                  onPointerDown={dragHandlers.onPointerDown}
                 />
               );
             default:
@@ -1072,6 +1139,28 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               onRetry={handleRetryGeneration}
             />
           ))}
+
+        {/* Drop target artboard highlight — shown while dragging a frame/text over an artboard */}
+        {dropTargetArtboardId && (() => {
+          const target = state.items.find((i) => i.id === dropTargetArtboardId);
+          if (!target) return null;
+          return (
+            <div
+              style={{
+                position: "absolute",
+                left: target.x,
+                top: target.y,
+                width: target.width,
+                height: target.height,
+                border: "2px solid #4B57DB",
+                backgroundColor: "rgba(209, 228, 252, 0.2)",
+                pointerEvents: "none",
+                borderRadius: 4,
+                zIndex: 999999,
+              }}
+            />
+          );
+        })()}
 
         {/* Drag selection rectangle */}
         {dragSelection && (

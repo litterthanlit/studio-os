@@ -11,9 +11,11 @@ import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
 type CanvasFrameProps = {
   item: FrameItem;
   zoom: number;
+  isDragging?: boolean;
+  onPointerDown?: (e: React.PointerEvent, itemId: string, itemX: number, itemY: number) => void;
 };
 
-export function CanvasFrame({ item, zoom }: CanvasFrameProps) {
+export function CanvasFrame({ item, zoom, isDragging, onPointerDown }: CanvasFrameProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActive = state.selection.activeItemId === item.id;
@@ -102,9 +104,16 @@ export function CanvasFrame({ item, zoom }: CanvasFrameProps) {
         top: item.y,
         width: item.width,
         zIndex: item.zIndex,
+        opacity: isDragging ? 0.6 : 1,
+        cursor: isDragging ? "grabbing" : undefined,
       }}
       onPointerDown={(e) => {
-        // Only handle direct clicks on the frame wrapper, not on child nodes
+        // Initiate drag if handler is provided
+        if (onPointerDown) {
+          onPointerDown(e, item.id, item.x, item.y);
+          return;
+        }
+        // Fallback: only handle direct clicks on the frame wrapper, not on child nodes
         if (!(e.target as HTMLElement).dataset.canvasItemId) return;
         dispatch({ type: "SELECT_ITEM", itemId: item.id });
       }}

@@ -11,9 +11,11 @@ import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
 type CanvasTextProps = {
   item: TextItem;
   zoom: number;
+  isDragging?: boolean;
+  onPointerDown?: (e: React.PointerEvent, itemId: string, itemX: number, itemY: number) => void;
 };
 
-export function CanvasText({ item, zoom }: CanvasTextProps) {
+export function CanvasText({ item, zoom, isDragging, onPointerDown }: CanvasTextProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActive = state.selection.activeItemId === item.id;
@@ -95,7 +97,13 @@ export function CanvasText({ item, zoom }: CanvasTextProps) {
         height: computedHeight,
         minHeight: computedHeight ? undefined : 20,
         zIndex: item.zIndex,
-        cursor: "text",
+        opacity: isDragging ? 0.6 : 1,
+        cursor: isDragging ? "grabbing" : "text",
+      }}
+      onPointerDown={(e) => {
+        if (onPointerDown) {
+          onPointerDown(e, item.id, item.x, item.y);
+        }
       }}
       onClick={(e) => {
         e.stopPropagation();

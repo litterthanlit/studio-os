@@ -58,6 +58,16 @@ export type GradientValue = {
   interpolation?: "srgb" | "oklch";        // default "srgb"
 };
 
+// === Clip Path Types (V6 Phase 2F) ===
+
+export type ClipPathValue = {
+  type: "circle" | "ellipse" | "inset" | "polygon";
+  circle?: { radius: number; cx: number; cy: number };           // all values as %
+  ellipse?: { rx: number; ry: number; cx: number; cy: number };  // all values as %
+  inset?: { top: number; right: number; bottom: number; left: number; borderRadius?: number };  // % except borderRadius in px
+  polygon?: Array<{ x: number; y: number }>;                     // each point as %
+};
+
 // === Transform Types (V6 Phase 2B) ===
 
 export type TransformValue = {
@@ -80,6 +90,7 @@ export type AllowedStyleOverride = Pick<DesignNodeStyle,
   | "coverImage" | "coverSize" | "coverPosition"
   | "transform" | "transformOrigin"
   | "blendMode"
+  | "clipPath"
 >;
 
 export const ALLOWED_STYLE_FIELDS = new Set<string>([
@@ -92,6 +103,7 @@ export const ALLOWED_STYLE_FIELDS = new Set<string>([
   "coverImage", "coverSize", "coverPosition",
   "transform", "transformOrigin",
   "blendMode",
+  "clipPath",
 ]);
 
 export type NodeOverride = {
@@ -202,6 +214,7 @@ export type DesignNodeStyle = {
   objectFit?: "cover" | "contain" | "fill";
   maxWidth?: number | string; // number=px, string=CSS value
   blendMode?: "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
+  clipPath?: ClipPathValue;
 };
 
 // ── Helpers ──

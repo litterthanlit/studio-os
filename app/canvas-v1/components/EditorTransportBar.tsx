@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
+import { Breakpoint } from "@/lib/canvas/unified-canvas-state";
 import { StudioButton } from "@/components/ui/studio-button";
 
 const TOOLS: Array<{
@@ -51,7 +52,8 @@ export function EditorTransportBar({
   onZoomToFit,
   onGenerate,
 }: EditorTransportBarProps) {
-  const { dispatch, canUndo, canRedo } = useCanvas();
+  const { state, dispatch, canUndo, canRedo } = useCanvas();
+  const activeBreakpoint = state.activeBreakpoint ?? "desktop";
   const [editingZoom, setEditingZoom] = React.useState(false);
   const [zoomInput, setZoomInput] = React.useState("");
   const displayPercent = Math.round(zoom * 100);
@@ -101,6 +103,33 @@ export function EditorTransportBar({
         >
           <Redo2 size={17} strokeWidth={1.5} />
         </button>
+      </div>
+
+      {/* Breakpoint switcher */}
+      <div className="w-px h-5 bg-border-subtle mx-0.5" />
+      <div className="flex flex-col items-center gap-0.5">
+        <span
+          className="text-[9px] uppercase tracking-[0.1em] text-text-muted select-none"
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        >
+          Breakpoint
+        </span>
+        <div className="flex h-[22px] rounded-[2px] border border-border-control overflow-hidden">
+          {(["desktop", "mobile"] as Breakpoint[]).map((bp) => (
+            <button
+              key={bp}
+              type="button"
+              onClick={() => dispatch({ type: "SET_ACTIVE_BREAKPOINT", breakpoint: bp })}
+              className={`px-2 text-[10px] font-medium transition-colors ${
+                activeBreakpoint === bp
+                  ? "bg-[#4B57DB] text-white"
+                  : "bg-card-bg text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {bp === "desktop" ? "Desktop" : "Mobile"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center gap-2.5 pl-0.5">

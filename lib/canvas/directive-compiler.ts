@@ -491,6 +491,47 @@ export function compileTasteToDirectives(
     });
   }
 
+  // ── User overrides — hard constraints regardless of fidelity mode ──
+  if (taste.userOverrides) {
+    const ov = taste.userOverrides;
+
+    if (ov.headingFont) {
+      const existing = result.hard.findIndex(d => d.dimension === "headingFont");
+      const override: Directive = { dimension: "headingFont", rule: `Heading font MUST be: ${ov.headingFont}`, value: ov.headingFont, source: "user-override" };
+      if (existing >= 0) result.hard[existing] = override;
+      else result.hard.push(override);
+    }
+
+    if (ov.bodyFont) {
+      const existing = result.hard.findIndex(d => d.dimension === "bodyFont");
+      const override: Directive = { dimension: "bodyFont", rule: `Body font MUST be: ${ov.bodyFont}`, value: ov.bodyFont, source: "user-override" };
+      if (existing >= 0) result.hard[existing] = override;
+      else result.hard.push(override);
+    }
+
+    if (ov.density) {
+      const existing = result.hard.findIndex(d => d.dimension === "density");
+      const override: Directive = { dimension: "density", rule: `density: ${ov.density}`, value: ov.density, source: "user-override" };
+      if (existing >= 0) result.hard[existing] = override;
+      else result.hard.push(override);
+    }
+
+    if (ov.removeFromAvoid && ov.removeFromAvoid.length > 0) {
+      result.avoid = result.avoid.filter(d => !ov.removeFromAvoid!.includes(d.value as string));
+    }
+
+    if (ov.addToAvoid && ov.addToAvoid.length > 0) {
+      for (const item of ov.addToAvoid) {
+        result.avoid.push({
+          dimension: "avoid",
+          rule: `Do NOT ${item}`,
+          value: item,
+          source: "user-override",
+        });
+      }
+    }
+  }
+
   return result;
 }
 

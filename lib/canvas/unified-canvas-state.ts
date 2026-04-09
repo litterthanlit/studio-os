@@ -8,6 +8,7 @@
 
 import type { PageNode } from "./compose";
 import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
+import type { TasteEdit } from "./taste-edit-tracker";
 
 // ─── Variant Preview ─────────────────────────────────────────────────────────
 
@@ -88,6 +89,10 @@ export type UnifiedCanvasState = {
   masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing
   exportArtifact: ExportArtifact | null;
   variantPreview: VariantPreviewState | null;
+  /** Snapshot of the generated DesignNode trees keyed by artboard/item ID. Session-transient — NOT persisted. */
+  generatedTreeSnapshot?: Record<string, DesignNode>;
+  /** Taste edits detected at generation boundary, pending user confirmation. Session-transient — NOT persisted. */
+  pendingTasteEdits?: TasteEdit[];
   updatedAt: string;
 };
 
@@ -281,6 +286,8 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     masterEditSession: null,
     exportArtifact: null,
     variantPreview: null,
+    generatedTreeSnapshot: undefined,
+    pendingTasteEdits: undefined,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -674,6 +681,9 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
     masterEditSession: null,
     // Variant preview is transient — never persist
     variantPreview: null,
+    // Taste feedback loop — session-transient, never persist
+    generatedTreeSnapshot: undefined,
+    pendingTasteEdits: undefined,
   };
 
   try {
@@ -750,6 +760,8 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
           aiPreview: null,
           masterEditSession: null,
           variantPreview: null,
+          generatedTreeSnapshot: undefined,
+          pendingTasteEdits: undefined,
         };
       }
     }

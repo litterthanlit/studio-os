@@ -63,6 +63,18 @@ export type TasteProfile = {
   // Constraints
   avoid: string[];
 
+  // User overrides — applied as hard constraints, populated by the taste feedback loop
+  userOverrides?: {
+    headingFont?: string;
+    bodyFont?: string;
+    palette?: string[];
+    density?: "spacious" | "balanced" | "dense";
+    removeFromAvoid?: string[];
+    addToAvoid?: string[];
+    ctaStyle?: string;
+    spacing?: { sectionPadding?: number };
+  };
+
   // Metadata
   confidence: number;
   referenceCount: number;

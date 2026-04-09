@@ -174,6 +174,10 @@ export type CanvasAction =
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState }
 
+  // Taste feedback loop
+  | { type: "SET_GENERATED_SNAPSHOT"; snapshots: Record<string, import("./design-node").DesignNode> }
+  | { type: "SET_PENDING_TASTE_EDITS"; edits: import("./taste-edit-tracker").TasteEdit[] }
+
   // Variant comparison (1+1 derivation)
   | { type: "SET_VARIANT_PREVIEW"; itemId: string; variants: VariantPreviewVariant[] }
   | { type: "SET_ACTIVE_VARIANT"; index: number }
@@ -2495,6 +2499,21 @@ export function canvasReducer(
         history: historyAfterPush,
         updatedAt: now(),
       };
+    }
+
+    // ── Taste Feedback Loop ───────────────────────────────────────────
+
+    case "SET_GENERATED_SNAPSHOT": {
+      return {
+        ...state,
+        generatedTreeSnapshot: action.snapshots,
+        pendingTasteEdits: [], // Clear pending edits on new generation
+        updatedAt: now(),
+      };
+    }
+
+    case "SET_PENDING_TASTE_EDITS": {
+      return { ...state, pendingTasteEdits: action.edits };
     }
 
     // ── Component System (Track 3) ─────────────────────────────────────

@@ -17,6 +17,9 @@ import { SITE_TYPE_OPTIONS } from "@/lib/canvas/templates";
 import { getProjectState, upsertProjectState } from "@/lib/project-store";
 import { TasteCard } from "./TasteCard";
 import { ReferenceRail } from "./ReferenceRail";
+import { TasteFeedbackDialog } from "./TasteFeedbackDialog";
+import { detectTasteEdits } from "@/lib/canvas/taste-edit-tracker";
+import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import { getArtboardStartX, getGenerationStage, getGenerationStageLabel } from "@/lib/canvas/unified-canvas-state";
 import type {
@@ -33,6 +36,7 @@ import type { TasteProfile } from "@/types/taste-profile";
 import type { SiteType } from "@/lib/canvas/templates";
 import { isHintSeen, markHintSeen } from "./OnboardingHint";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
+import { isDesignNodeTree } from "@/lib/canvas/compose";
 import { buildSectionContext } from "@/lib/canvas/section-context-builder";
 import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 
@@ -370,6 +374,45 @@ export function PromptComposerV2({
     });
   }, [referenceItems]);
 
+  // Taste feedback loop state
+  const [showTasteFeedback, setShowTasteFeedback] = React.useState(false);
+
+  const applyTasteOverrides = React.useCallback(
+    (edits: TasteEdit[]) => {
+      if (!tasteProfile) return;
+
+      const overrides: NonNullable<typeof tasteProfile.userOverrides> = { ...tasteProfile.userOverrides };
+
+      for (const edit of edits) {
+        switch (edit.dimension) {
+          case "headingFont":
+            overrides.headingFont = edit.after as string;
+            break;
+          case "bodyFont":
+            overrides.bodyFont = edit.after as string;
+            break;
+          case "density": {
+            const spacing = edit.after as number;
+            overrides.density = spacing < 48 ? "dense" : spacing > 72 ? "spacious" : "balanced";
+            break;
+          }
+          case "palette":
+            // Palette diff captured — store new color list as override palette
+            break;
+        }
+      }
+
+      const updatedProfile = { ...tasteProfile, userOverrides: overrides };
+      setTasteProfile(updatedProfile);
+      if (projectId) {
+        upsertProjectState(projectId, { canvas: { tasteProfile: updatedProfile } });
+      }
+
+      dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
+    },
+    [tasteProfile, projectId, dispatch]
+  );
+
   const [isRefreshingTaste, setIsRefreshingTaste] = React.useState(false);
   const [refreshError, setRefreshError] = React.useState(false);
 
@@ -438,6 +481,9 @@ export function PromptComposerV2({
     }
   }, [prompt.history.length]);
 
+  // Guard: skip taste edit detection when continuing after dialog confirmation
+  const skipTasteCheckRef = React.useRef(false);
+
   // ── Generation pipeline ────────────────────────────────────────────
 
   const handleGenerate = React.useCallback(async () => {
@@ -447,6 +493,29 @@ export function PromptComposerV2({
     }
 
     setError(null);
+
+    // ── Taste feedback detection ───────────────────────────────────────
+    // Only check on full-page generation (not section regen), and only when
+    // we have a snapshot from a previous generation to compare against.
+    if (!skipTasteCheckRef.current && !selectedSection && state.generatedTreeSnapshot) {
+      const allEdits: TasteEdit[] = [];
+      for (const [itemId, snapshot] of Object.entries(state.generatedTreeSnapshot)) {
+        const item = items.find((i) => i.id === itemId);
+        if (!item) continue;
+        const currentTree = getNodeTree(item);
+        if (!currentTree) continue;
+        const edits = detectTasteEdits(currentTree, snapshot);
+        allEdits.push(...edits);
+      }
+
+      if (allEdits.length > 0) {
+        dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: allEdits });
+        setShowTasteFeedback(true);
+        return; // Wait for user to respond to dialog
+      }
+    }
+    // Reset the guard for next invocation
+    skipTasteCheckRef.current = false;
 
     // ── Section regeneration mode ──────────────────────────────────────
     // When a root-level section is selected, route to section regen instead of full-page.
@@ -738,6 +807,17 @@ export function PromptComposerV2({
 
       dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
 
+      // After REPLACE_SITE, snapshot the generated trees for taste feedback tracking
+      const snapshots: Record<string, DesignNode> = {};
+      for (const artboard of artboards) {
+        if (isDesignNodeTree(artboard.pageTree)) {
+          snapshots[artboard.id] = structuredClone(artboard.pageTree as DesignNode);
+        }
+      }
+      if (Object.keys(snapshots).length > 0) {
+        dispatch({ type: "SET_GENERATED_SNAPSHOT", snapshots });
+      }
+
       // ── Variant carousel: set up Base + Pushed preview (V6 DesignNode only) ──
       // The route returns 3 variants (safe=base, creative=pushed, alternative=restructured).
       // We show Base + Pushed on the desktop artboard via the carousel.
@@ -794,7 +874,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items, state.generatedTreeSnapshot]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {
@@ -855,6 +935,28 @@ export function PromptComposerV2({
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* Taste Feedback Dialog */}
+      {showTasteFeedback && state.pendingTasteEdits && state.pendingTasteEdits.length > 0 && (
+        <TasteFeedbackDialog
+          edits={state.pendingTasteEdits}
+          onApplyAll={() => {
+            applyTasteOverrides(state.pendingTasteEdits!);
+            setShowTasteFeedback(false);
+            skipTasteCheckRef.current = true;
+            handleGenerate();
+          }}
+          onSkip={() => {
+            setShowTasteFeedback(false);
+            dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
+            skipTasteCheckRef.current = true;
+            handleGenerate();
+          }}
+          onDismiss={() => {
+            setShowTasteFeedback(false);
+          }}
+        />
+      )}
+
       {/* Header */}
       <div className="shrink-0 px-3 pt-3 pb-1">
         <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0] dark:text-[#666666]">

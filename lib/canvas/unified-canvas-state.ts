@@ -91,11 +91,12 @@ export type ReferenceItem = BaseCanvasItem & {
   kind: "reference";
   imageUrl: string;
   title?: string;
-  source?: "upload" | "arena" | "pinterest" | "url";
+  source?: "upload" | "arena" | "pinterest" | "url" | "generated";
   sourceUrl?: string;
   annotation?: string;
   extracted?: { colors: string[]; fonts: string[]; tags: string[] };
   isStyleRef?: boolean;
+  weight?: "primary" | "default" | "muted";
 };
 
 export type ArtboardItem = BaseCanvasItem & {

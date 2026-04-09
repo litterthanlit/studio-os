@@ -4,7 +4,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {
   Copy, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Type, Bookmark,
-  Group, Ungroup, ArrowUp, ArrowRight, ArrowLeft, Home, RefreshCw,
+  Group, Ungroup, ArrowUp, ArrowRight, ArrowLeft, Home, RefreshCw, ImagePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DesignNode, Breakpoint } from "@/lib/canvas/design-node";
@@ -33,6 +33,7 @@ type DesignNodeContextMenuProps = {
   onSelectNode?: (nodeId: string) => void;
   onRegenerateSimilar?: () => void;
   onRegenerateDifferent?: () => void;
+  onUseAsReference?: () => void;
   onDismiss: () => void;
 };
 
@@ -102,6 +103,7 @@ export function DesignNodeContextMenu({
   onSelectNode,
   onRegenerateSimilar,
   onRegenerateDifferent,
+  onUseAsReference,
   onDismiss,
 }: DesignNodeContextMenuProps) {
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -280,6 +282,15 @@ export function DesignNodeContextMenu({
             />
           )}
         </>
+      )}
+
+      {/* Use as Reference (root-level frame sections only) */}
+      {isRootChild && node.type === "frame" && onUseAsReference && (
+        <MenuItem
+          icon={<ImagePlus {...iconProps} />}
+          label="Use as Reference"
+          onClick={() => { onUseAsReference(); onDismiss(); }}
+        />
       )}
 
       {/* Save to Library (non-root frames only) */}

@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
     "geist": "^1.7.0",
+    "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
     "lucide-react": "^0.574.0",
     "nanoid": "^5.1.6",

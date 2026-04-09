@@ -131,6 +131,9 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   if (style.transformOrigin) {
     css.transformOrigin = `${style.transformOrigin.x}% ${style.transformOrigin.y}%`;
   }
+  if (style.blendMode && style.blendMode !== "normal") {
+    css.mixBlendMode = style.blendMode;
+  }
 
   return css;
 }

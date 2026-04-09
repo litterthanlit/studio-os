@@ -18,6 +18,8 @@ const VALID_GRID_PATTERNS = [
   /^[1-4]fr(\s+[1-4]fr){1,2}$/,         // "2fr 1fr", "1fr 2fr", "3fr 2fr", "2fr 1fr 1fr", etc.
 ];
 
+const VALID_BREAKPOINTS = new Set<string>(["desktop", "mobile"]);
+
 function isValidGrid(template: string): boolean {
   const normalized = template.trim();
   return VALID_GRID_PATTERNS.some((p) => p.test(normalized));
@@ -85,6 +87,162 @@ function sanitizeEffects(rawEffects: unknown): unknown[] | undefined {
   return sanitized.length > 0 ? sanitized : undefined;
 }
 
+/**
+ * Validates and normalizes a single style object in-place (mutates the copy).
+ * Used for both base styles and responsive override styles.
+ */
+function normalizeStyle(
+  rawStyle: Record<string, unknown>,
+  nodeName: string
+): Record<string, unknown> {
+  const style = { ...rawStyle };
+
+  // Validate and normalize grid template
+  if (typeof style.gridTemplate === "string") {
+    const normalized = normalizeGrid(style.gridTemplate as string);
+    if (isValidGrid(normalized)) {
+      style.gridTemplate = normalized;
+    } else {
+      console.warn(
+        `[V6-VALIDATE] Invalid gridTemplate "${style.gridTemplate}" on node "${nodeName}" — falling back to flex`
+      );
+      delete style.gridTemplate;
+      delete style.display;
+    }
+  }
+
+  // Ensure position is valid
+  if (style.position && style.position !== "relative" && style.position !== "absolute") {
+    delete style.position;
+  }
+
+  // Ensure display is valid
+  if (style.display && style.display !== "flex" && style.display !== "grid") {
+    delete style.display;
+  }
+
+  const effects = sanitizeEffects(style.effects);
+  if (effects) style.effects = effects;
+  else delete style.effects;
+
+  if (style.gradient) {
+    const g = style.gradient as Record<string, unknown>;
+    if (g.type !== "linear" && g.type !== "radial") {
+      delete style.gradient;
+    } else if (!Array.isArray(g.stops) || (g.stops as unknown[]).length < 2) {
+      delete style.gradient;
+    } else {
+      g.stops = (g.stops as Array<Record<string, unknown>>).map((stop) => ({
+        color: typeof stop.color === "string" ? stop.color : "#000000",
+        position: Math.max(0, Math.min(100, typeof stop.position === "number" ? stop.position : 0)),
+      }));
+      if (g.interpolation && g.interpolation !== "srgb" && g.interpolation !== "oklch") {
+        g.interpolation = "srgb";
+      }
+      if (g.type === "linear" && typeof g.angle === "number") {
+        g.angle = ((g.angle % 360) + 360) % 360;
+      }
+      if (g.type === "radial" && g.position && typeof g.position === "object") {
+        const pos = g.position as Record<string, unknown>;
+        pos.x = Math.max(0, Math.min(100, typeof pos.x === "number" ? pos.x : 50));
+        pos.y = Math.max(0, Math.min(100, typeof pos.y === "number" ? pos.y : 50));
+      }
+    }
+  }
+
+  if (style.transform) {
+    const t = style.transform as Record<string, unknown>;
+    if (t.rotate !== undefined && typeof t.rotate !== "number") {
+      delete t.rotate;
+    }
+    if (typeof t.rotate === "number") {
+      t.rotate = ((t.rotate % 360) + 360) % 360;
+      if (t.rotate === 0) delete t.rotate;
+    }
+    if (t.scale) {
+      const sc = t.scale as Record<string, unknown>;
+      if (typeof sc.x !== "number" || typeof sc.y !== "number") {
+        delete t.scale;
+      } else {
+        sc.x = Math.max(0.01, Math.min(10, sc.x as number));
+        sc.y = Math.max(0.01, Math.min(10, sc.y as number));
+      }
+    }
+    if (!t.rotate && !t.scale) {
+      delete style.transform;
+    }
+  }
+
+  if (style.transformOrigin) {
+    const o = style.transformOrigin as Record<string, unknown>;
+    if (typeof o.x !== "number" || typeof o.y !== "number") {
+      delete style.transformOrigin;
+    } else {
+      o.x = Math.max(0, Math.min(100, o.x as number));
+      o.y = Math.max(0, Math.min(100, o.y as number));
+    }
+  }
+
+  if (style.blendMode) {
+    const validModes = new Set([
+      "normal", "multiply", "screen", "overlay", "darken", "lighten",
+      "color-dodge", "color-burn", "hard-light", "soft-light",
+      "difference", "exclusion", "hue", "saturation", "color", "luminosity",
+    ]);
+    if (!validModes.has(style.blendMode as string)) {
+      delete style.blendMode;
+    }
+  }
+
+  if (style.clipPath) {
+    const cp = style.clipPath as Record<string, unknown>;
+    const validTypes = new Set(["circle", "ellipse", "inset", "polygon"]);
+    if (!validTypes.has(cp.type as string)) {
+      delete style.clipPath;
+    } else {
+      const clamp = (v: unknown, min: number, max: number, def: number) =>
+        typeof v === "number" ? Math.max(min, Math.min(max, v)) : def;
+
+      if (cp.type === "circle" && cp.circle) {
+        const c = cp.circle as Record<string, unknown>;
+        c.radius = clamp(c.radius, 0, 100, 50);
+        c.cx = clamp(c.cx, 0, 100, 50);
+        c.cy = clamp(c.cy, 0, 100, 50);
+      }
+      if (cp.type === "ellipse" && cp.ellipse) {
+        const e = cp.ellipse as Record<string, unknown>;
+        e.rx = clamp(e.rx, 0, 100, 50);
+        e.ry = clamp(e.ry, 0, 100, 50);
+        e.cx = clamp(e.cx, 0, 100, 50);
+        e.cy = clamp(e.cy, 0, 100, 50);
+      }
+      if (cp.type === "inset" && cp.inset) {
+        const i = cp.inset as Record<string, unknown>;
+        i.top = clamp(i.top, 0, 100, 0);
+        i.right = clamp(i.right, 0, 100, 0);
+        i.bottom = clamp(i.bottom, 0, 100, 0);
+        i.left = clamp(i.left, 0, 100, 0);
+        if (i.borderRadius !== undefined) {
+          i.borderRadius = clamp(i.borderRadius, 0, 999, 0);
+        }
+      }
+      if (cp.type === "polygon") {
+        const pts = cp.polygon;
+        if (!Array.isArray(pts) || pts.length < 3) {
+          delete style.clipPath;
+        } else {
+          cp.polygon = pts.map((p: Record<string, unknown>) => ({
+            x: clamp(p.x, 0, 100, 50),
+            y: clamp(p.y, 0, 100, 50),
+          }));
+        }
+      }
+    }
+  }
+
+  return style;
+}
+
 export function validateAndNormalizeDesignTree(
   raw: unknown
 ): { ok: true; tree: DesignNode } | { ok: false; reason: string } {
@@ -128,164 +286,78 @@ export function validateAndNormalizeDesignTree(
     seenIds.add(id);
     n.id = id;
 
-    // Normalize style
+    // Normalize base style
     if (n.style && typeof n.style === "object") {
-      const style = { ...(n.style as Record<string, unknown>) };
-
-      // Validate and normalize grid template
-      if (typeof style.gridTemplate === "string") {
-        const normalized = normalizeGrid(style.gridTemplate as string);
-        if (isValidGrid(normalized)) {
-          style.gridTemplate = normalized;
-        } else {
-          // Invalid grid → fall back to flex column
-          console.warn(
-            `[V6-VALIDATE] Invalid gridTemplate "${style.gridTemplate}" on node "${n.name}" — falling back to flex`
-          );
-          delete style.gridTemplate;
-          delete style.display; // let it default to flex
-        }
-      }
-
-      // Ensure position is valid
-      if (style.position && style.position !== "relative" && style.position !== "absolute") {
-        delete style.position;
-      }
-
-      // Ensure display is valid
-      if (style.display && style.display !== "flex" && style.display !== "grid") {
-        delete style.display;
-      }
-
-      const effects = sanitizeEffects(style.effects);
-      if (effects) style.effects = effects;
-      else delete style.effects;
-
-      if (style.gradient) {
-        const g = style.gradient as Record<string, unknown>;
-        // Validate type
-        if (g.type !== "linear" && g.type !== "radial") {
-          delete style.gradient;
-        } else if (!Array.isArray(g.stops) || (g.stops as unknown[]).length < 2) {
-          delete style.gradient;
-        } else {
-          // Clamp stop positions to 0-100
-          g.stops = (g.stops as Array<Record<string, unknown>>).map((stop) => ({
-            color: typeof stop.color === "string" ? stop.color : "#000000",
-            position: Math.max(0, Math.min(100, typeof stop.position === "number" ? stop.position : 0)),
-          }));
-          // Validate interpolation
-          if (g.interpolation && g.interpolation !== "srgb" && g.interpolation !== "oklch") {
-            g.interpolation = "srgb";
-          }
-          // Clamp angle for linear
-          if (g.type === "linear" && typeof g.angle === "number") {
-            g.angle = ((g.angle % 360) + 360) % 360;
-          }
-          // Validate radial position
-          if (g.type === "radial" && g.position && typeof g.position === "object") {
-            const pos = g.position as Record<string, unknown>;
-            pos.x = Math.max(0, Math.min(100, typeof pos.x === "number" ? pos.x : 50));
-            pos.y = Math.max(0, Math.min(100, typeof pos.y === "number" ? pos.y : 50));
-          }
-        }
-      }
-
-      if (style.transform) {
-        const t = style.transform as Record<string, unknown>;
-        if (t.rotate !== undefined && typeof t.rotate !== "number") {
-          delete t.rotate;
-        }
-        if (typeof t.rotate === "number") {
-          t.rotate = ((t.rotate % 360) + 360) % 360;
-          if (t.rotate === 0) delete t.rotate;
-        }
-        if (t.scale) {
-          const sc = t.scale as Record<string, unknown>;
-          if (typeof sc.x !== "number" || typeof sc.y !== "number") {
-            delete t.scale;
-          } else {
-            sc.x = Math.max(0.01, Math.min(10, sc.x as number));
-            sc.y = Math.max(0.01, Math.min(10, sc.y as number));
-          }
-        }
-        if (!t.rotate && !t.scale) {
-          delete style.transform;
-        }
-      }
-      if (style.transformOrigin) {
-        const o = style.transformOrigin as Record<string, unknown>;
-        if (typeof o.x !== "number" || typeof o.y !== "number") {
-          delete style.transformOrigin;
-        } else {
-          o.x = Math.max(0, Math.min(100, o.x as number));
-          o.y = Math.max(0, Math.min(100, o.y as number));
-        }
-      }
-
-      if (style.blendMode) {
-        const validModes = new Set([
-          "normal", "multiply", "screen", "overlay", "darken", "lighten",
-          "color-dodge", "color-burn", "hard-light", "soft-light",
-          "difference", "exclusion", "hue", "saturation", "color", "luminosity",
-        ]);
-        if (!validModes.has(style.blendMode as string)) {
-          delete style.blendMode;
-        }
-      }
-
-      if (style.clipPath) {
-        const cp = style.clipPath as Record<string, unknown>;
-        const validTypes = new Set(["circle", "ellipse", "inset", "polygon"]);
-        if (!validTypes.has(cp.type as string)) {
-          delete style.clipPath;
-        } else {
-          const clamp = (v: unknown, min: number, max: number, def: number) =>
-            typeof v === "number" ? Math.max(min, Math.min(max, v)) : def;
-
-          if (cp.type === "circle" && cp.circle) {
-            const c = cp.circle as Record<string, unknown>;
-            c.radius = clamp(c.radius, 0, 100, 50);
-            c.cx = clamp(c.cx, 0, 100, 50);
-            c.cy = clamp(c.cy, 0, 100, 50);
-          }
-          if (cp.type === "ellipse" && cp.ellipse) {
-            const e = cp.ellipse as Record<string, unknown>;
-            e.rx = clamp(e.rx, 0, 100, 50);
-            e.ry = clamp(e.ry, 0, 100, 50);
-            e.cx = clamp(e.cx, 0, 100, 50);
-            e.cy = clamp(e.cy, 0, 100, 50);
-          }
-          if (cp.type === "inset" && cp.inset) {
-            const i = cp.inset as Record<string, unknown>;
-            i.top = clamp(i.top, 0, 100, 0);
-            i.right = clamp(i.right, 0, 100, 0);
-            i.bottom = clamp(i.bottom, 0, 100, 0);
-            i.left = clamp(i.left, 0, 100, 0);
-            if (i.borderRadius !== undefined) {
-              i.borderRadius = clamp(i.borderRadius, 0, 999, 0);
-            }
-          }
-          if (cp.type === "polygon") {
-            const pts = cp.polygon;
-            if (!Array.isArray(pts) || pts.length < 3) {
-              delete style.clipPath;
-            } else {
-              cp.polygon = pts.map((p: Record<string, unknown>) => ({
-                x: clamp(p.x, 0, 100, 50),
-                y: clamp(p.y, 0, 100, 50),
-              }));
-            }
-          }
-        }
-      }
-
-      n.style = style;
+      n.style = normalizeStyle(n.style as Record<string, unknown>, n.name as string);
     }
 
     // Ensure style exists (DesignNode requires it)
     if (!n.style || typeof n.style !== "object") {
       n.style = {};
+    }
+
+    // Validate and normalize responsiveOverrides
+    if (n.responsiveOverrides !== undefined) {
+      if (!n.responsiveOverrides || typeof n.responsiveOverrides !== "object" || Array.isArray(n.responsiveOverrides)) {
+        // Not a valid object — drop entirely
+        delete n.responsiveOverrides;
+      } else {
+        const overrides = n.responsiveOverrides as Record<string, unknown>;
+        for (const bp of Object.keys(overrides)) {
+          if (!VALID_BREAKPOINTS.has(bp)) {
+            // Unknown breakpoint — drop it
+            delete overrides[bp];
+            continue;
+          }
+          const overrideVal = overrides[bp];
+          if (!overrideVal || typeof overrideVal !== "object" || Array.isArray(overrideVal)) {
+            // Not a valid style object — drop
+            delete overrides[bp];
+            continue;
+          }
+          // Normalize the override style with the same rules as the base
+          let normalized = normalizeStyle(overrideVal as Record<string, unknown>, n.name as string);
+          // Remove properties whose value is identical to the base style (keep overrides sparse)
+          const baseStyle = n.style as Record<string, unknown>;
+          for (const prop of Object.keys(normalized)) {
+            if (JSON.stringify(normalized[prop]) === JSON.stringify(baseStyle[prop])) {
+              const { [prop]: _removed, ...rest } = normalized;
+              normalized = rest;
+            }
+          }
+          if (Object.keys(normalized).length === 0) {
+            // Override has nothing meaningful left — drop it
+            delete overrides[bp];
+          } else {
+            overrides[bp] = normalized;
+          }
+        }
+        // If no breakpoints remain, remove the field entirely
+        if (Object.keys(overrides).length === 0) {
+          delete n.responsiveOverrides;
+        } else {
+          n.responsiveOverrides = overrides;
+        }
+      }
+    }
+
+    // Validate hidden breakpoint keys
+    if (n.hidden !== undefined) {
+      if (!n.hidden || typeof n.hidden !== "object" || Array.isArray(n.hidden)) {
+        delete n.hidden;
+      } else {
+        const hidden = n.hidden as Record<string, unknown>;
+        for (const bp of Object.keys(hidden)) {
+          if (!VALID_BREAKPOINTS.has(bp)) {
+            delete hidden[bp];
+          }
+        }
+        if (Object.keys(hidden).length === 0) {
+          delete n.hidden;
+        } else {
+          n.hidden = hidden;
+        }
+      }
     }
 
     // Recursively normalize children

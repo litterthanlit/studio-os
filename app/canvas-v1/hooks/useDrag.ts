@@ -6,6 +6,8 @@ type DragCallbacks = {
   onDragStart: (itemId: string, startPos: { x: number; y: number }) => void;
   onDragMove: (itemId: string, newPos: { x: number; y: number }) => void;
   onDragEnd: (itemId: string, finalPos: { x: number; y: number }) => void;
+  /** Called when the user presses Escape mid-drag. The item is snapped back to its start position. */
+  onDragCancel?: (itemId: string, originalPos: { x: number; y: number }) => void;
   zoom: number;
 };
 
@@ -22,7 +24,7 @@ type DragHandlers = {
  * The hook manages move/up listeners on `window` during active drag.
  */
 export function useDrag(options: DragCallbacks): DragHandlers {
-  const { onDragStart, onDragMove, onDragEnd, zoom } = options;
+  const { onDragStart, onDragMove, onDragEnd, onDragCancel, zoom } = options;
 
   const draggingRef = useRef<{
     itemId: string;
@@ -39,6 +41,30 @@ export function useDrag(options: DragCallbacks): DragHandlers {
       // Don't start drag if clicking inside an input/textarea
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+        body: JSON.stringify({
+          sessionId: "f3006b",
+          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          hypothesisId: "H7-item-drag-handler",
+          runId: "initial-pass",
+          location: "useDrag:onPointerDown",
+          message: "canvas item drag handler activated",
+          data: {
+            itemId,
+            itemX,
+            itemY,
+            tag,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
 
       e.stopPropagation();
       e.preventDefault();
@@ -98,12 +124,29 @@ export function useDrag(options: DragCallbacks): DragHandlers {
         draggingRef.current = null;
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", handlePointerUp);
+        window.removeEventListener("keydown", handleEscapeCancel);
+      };
+
+      const handleEscapeCancel = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key !== "Escape") return;
+        const drag = draggingRef.current;
+        if (!drag) return;
+
+        // Snap item back to its original position
+        onDragMove(drag.itemId, { x: drag.startItemX, y: drag.startItemY });
+        onDragCancel?.(drag.itemId, { x: drag.startItemX, y: drag.startItemY });
+
+        draggingRef.current = null;
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+        window.removeEventListener("keydown", handleEscapeCancel);
       };
 
       window.addEventListener("pointermove", handlePointerMove);
       window.addEventListener("pointerup", handlePointerUp);
+      window.addEventListener("keydown", handleEscapeCancel);
     },
-    [onDragStart, onDragMove, onDragEnd, zoom]
+    [onDragStart, onDragMove, onDragEnd, onDragCancel, zoom]
   );
 
   return { onPointerDown: handlePointerDown };

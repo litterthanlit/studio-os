@@ -371,6 +371,7 @@ export function useCanvasKeyboard({
           const offsetY = (clipboardState.canvasY ?? 100) + 20;
           const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
           const newItem = designNodeToCanvasItem(cloned, offsetX, offsetY, maxZ + 1);
+          dispatch({ type: "PUSH_HISTORY", description: "Pasted item" });
           dispatch({ type: "ADD_ITEM", item: newItem });
           e.preventDefault();
           return;

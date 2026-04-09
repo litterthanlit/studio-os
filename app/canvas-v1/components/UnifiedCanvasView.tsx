@@ -395,6 +395,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         setDropTargetArtboardId(null);
       }
     },
+    onDragCancel: (_itemId) => {
+      setDropTargetArtboardId(null);
+      setDraggingId(null);
+    },
     onDragEnd: (itemId, finalPos) => {
       const dropTarget = dropTargetArtboardIdRef.current;
 
@@ -563,7 +567,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // ── Zoom-to-fit: center all artboards in viewport ──────────────────
 
   const zoomToFit = React.useCallback(() => {
-    const artboards = items.filter((i) => i.kind === "artboard");
+    const artboards = items.filter((i) => i.kind === "artboard" || i.kind === "frame" || i.kind === "text");
     if (artboards.length === 0) return;
 
     const PADDING = 64;

@@ -9,7 +9,7 @@ import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
-  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond, X,
+  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond, X, Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -18,7 +18,8 @@ import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById } from "@/lib/canvas/design-node";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
-import type { ArtboardItem, ReferenceItem, NoteItem } from "@/lib/canvas/unified-canvas-state";
+import type { ArtboardItem, ReferenceItem, NoteItem, FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
+import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
 import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/useLayersDragReorder";
 import { resolveTree, isInstanceChild, findMaster, splitCompositeId, computeComponentsResolveEpoch } from "@/lib/canvas/component-resolver";
 import { isBuiltinMasterId } from "@/lib/canvas/component-builtins";
@@ -546,6 +547,79 @@ function ArtboardDesignTree({
   );
 }
 
+// ─── Canvas Item Design Tree (for FrameItems with children) ─────────────────
+
+function CanvasItemDesignTree({
+  item,
+  components,
+  selectedNodeId,
+  selectedNodeIds,
+  onSelectNode,
+  onContextMenu,
+  dispatch,
+  draggedId,
+  dropTarget,
+  isValidDrop,
+  onDragPointerDown,
+  expandedNodeIds,
+  onToggleExpanded,
+  getNodeDepth,
+  masterEditDirty,
+}: {
+  item: FrameItem;
+  components: ComponentMaster[];
+  masterEditDirty: boolean;
+  selectedNodeId: string | null;
+  selectedNodeIds: string[];
+  onSelectNode: (itemId: string, nodeId: string) => void;
+  onContextMenu?: (node: DesignNode, itemId: string, event: React.MouseEvent) => void;
+  dispatch: React.Dispatch<{ type: "TOGGLE_NODE_SELECTION"; itemId: string; nodeId: string }>;
+  draggedId: string | null;
+  dropTarget: DropTarget | null;
+  isValidDrop: boolean;
+  onDragPointerDown: (e: React.PointerEvent, nodeId: string, parentId: string) => void;
+  expandedNodeIds: Set<string>;
+  onToggleExpanded: (nodeId: string) => void;
+  getNodeDepth: (nodeId: string) => number;
+}) {
+  const sourceTree = canvasItemToDesignNode(item);
+  const componentsEpoch = computeComponentsResolveEpoch(components);
+  const resolvedTree = React.useMemo(
+    () => resolveTree(sourceTree, components),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    masterEditDirty ? [sourceTree, components] : [sourceTree, componentsEpoch]
+  );
+
+  return (
+    <>
+      {resolvedTree.children?.map((child, childIdx) => (
+        <DesignTreeNode
+          key={child.id}
+          node={child}
+          depth={2}
+          selectedNodeId={selectedNodeId}
+          selectedNodeIds={selectedNodeIds}
+          itemId={item.id}
+          parentId={resolvedTree.id}
+          index={childIdx}
+          onSelectNode={onSelectNode}
+          onContextMenu={onContextMenu}
+          dispatch={dispatch}
+          draggedId={draggedId}
+          dropTarget={dropTarget}
+          isValidDrop={isValidDrop}
+          onDragPointerDown={onDragPointerDown}
+          sourceTree={sourceTree}
+          components={components}
+          expandedNodeIds={expandedNodeIds}
+          onToggleExpanded={onToggleExpanded}
+          getNodeDepth={getNodeDepth}
+        />
+      ))}
+    </>
+  );
+}
+
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
 export function LayersPanelV3() {
@@ -618,6 +692,9 @@ export function LayersPanelV3() {
   const artboards = items.filter((i): i is ArtboardItem => i.kind === "artboard");
   const references = items.filter((i): i is ReferenceItem => i.kind === "reference");
   const notes = items.filter((i): i is NoteItem => i.kind === "note");
+  const canvasDesignItems = items.filter(
+    (i): i is FrameItem | TextItem => i.kind === "frame" || i.kind === "text"
+  );
 
   // Fixed breakpoint order
   const orderedArtboards = ["desktop", "mobile"]
@@ -653,11 +730,17 @@ export function LayersPanelV3() {
       event.stopPropagation();
       dispatch({ type: "SELECT_NODE", itemId, nodeId: node.id });
 
-      // Route to instance context menu for instance roots and children
+      // Route to instance context menu for instance roots and children.
+      // Resolve the source tree from either an artboard or a canvas FrameItem.
       const artboard = artboards.find((a) => a.id === itemId);
-      const sourceTree = artboard && isDesignNodeTree(artboard.pageTree)
+      const canvasFrameItem = canvasDesignItems.find(
+        (ci): ci is FrameItem => ci.kind === "frame" && ci.id === itemId
+      );
+      const sourceTree: DesignNode | null = artboard && isDesignNodeTree(artboard.pageTree)
         ? (artboard.pageTree as DesignNode)
-        : null;
+        : canvasFrameItem
+          ? canvasItemToDesignNode(canvasFrameItem)
+          : null;
       const isInsideInst = isInstanceChild(node.id);
       const sourceNodeId = isInsideInst ? splitCompositeId(node.id)[0] : node.id;
       const sourceNode = sourceTree ? findDesignNodeById(sourceTree, sourceNodeId) : null;
@@ -684,7 +767,7 @@ export function LayersPanelV3() {
         setDnContextMenu({ node, itemId, position: { x: event.clientX, y: event.clientY } });
       }
     },
-    [dispatch, artboards, components]
+    [dispatch, artboards, canvasDesignItems, components]
   );
 
   // ── Scroll container ref for auto-scroll during drag ──
@@ -814,6 +897,54 @@ export function LayersPanelV3() {
         onPointerCancel={dragHook.handlePointerCancel}
       >
         <div className="pt-3 pb-2">
+          {/* Canvas group — loose frame/text items on the canvas surface */}
+          {canvasDesignItems.length > 0 && (
+            <Group label="Canvas" count={canvasDesignItems.length} defaultOpen>
+              {canvasDesignItems.map((item) => (
+                <div key={item.id}>
+                  <button
+                    onClick={() => handleSelectItem(item.id)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors",
+                      selection.selectedItemIds.includes(item.id)
+                        ? "bg-[#D1E4FC]/50 text-[#4B57DB] dark:bg-[#222244]/50"
+                        : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
+                    )}
+                    style={{ height: 28, paddingLeft: 24 }}
+                  >
+                    {item.kind === "frame"
+                      ? <Square size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" />
+                      : <Type size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" />
+                    }
+                    <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">
+                      {item.name || (item.kind === "frame" ? "Frame" : "Text")}
+                    </span>
+                  </button>
+                  {/* Children tree for FrameItems */}
+                  {item.kind === "frame" && (item as FrameItem).children.length > 0 && (
+                    <CanvasItemDesignTree
+                      item={item as FrameItem}
+                      components={state.components}
+                      masterEditDirty={masterEditDirty}
+                      selectedNodeId={selection.activeItemId === item.id ? selection.selectedNodeId : null}
+                      selectedNodeIds={selection.activeItemId === item.id ? selection.selectedNodeIds : []}
+                      onSelectNode={handleSelectNode}
+                      onContextMenu={handleDesignNodeContextMenu}
+                      dispatch={dispatch}
+                      draggedId={draggedId}
+                      dropTarget={dropTarget}
+                      isValidDrop={isValidDrop}
+                      onDragPointerDown={dragHook.handlePointerDown}
+                      expandedNodeIds={expandedNodeIds}
+                      onToggleExpanded={handleToggleExpanded}
+                      getNodeDepth={getNodeDepth}
+                    />
+                  )}
+                </div>
+              ))}
+            </Group>
+          )}
+
           {/* Site group */}
           {orderedArtboards.length > 0 && (
             <Group label="Site" defaultOpen>
@@ -936,12 +1067,19 @@ export function LayersPanelV3() {
       {/* DesignNode context menu */}
       {dnContextMenu && (() => {
         const artboard = artboards.find((a) => a.id === dnContextMenu.itemId);
-        if (!artboard || !isDesignNodeTree(artboard.pageTree)) return null;
-        const tree = artboard.pageTree as DesignNode;
+        const canvasFrameForMenu = canvasDesignItems.find(
+          (ci): ci is FrameItem => ci.kind === "frame" && ci.id === dnContextMenu.itemId
+        );
+        const tree: DesignNode | null = artboard && isDesignNodeTree(artboard.pageTree)
+          ? (artboard.pageTree as DesignNode)
+          : canvasFrameForMenu
+            ? canvasItemToDesignNode(canvasFrameForMenu)
+            : null;
+        if (!tree) return null;
         const parent = findDesignNodeParent(tree, dnContextMenu.node.id);
         const siblings = parent?.children ?? tree.children ?? [];
         const idx = siblings.findIndex((c) => c.id === dnContextMenu.node.id);
-        const bp = artboard.breakpoint;
+        const bp = artboard?.breakpoint ?? "desktop";
         const isNonRootFrame = dnContextMenu.node.type === "frame" && dnContextMenu.node.id !== tree.id;
 
         return (

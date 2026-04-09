@@ -342,6 +342,18 @@ export function PromptComposerV2({
     );
   }, [items, selection.selectedItemIds]);
 
+  // Weight-filtered and sorted references: muted excluded, primary first
+  const weightedReferenceItems = React.useMemo(() => {
+    const active = referenceItems.filter(
+      (ref) => (ref.weight || "default") !== "muted"
+    );
+    return active.sort((a, b) => {
+      const wa = a.weight === "primary" ? 0 : 1;
+      const wb = b.weight === "primary" ? 0 : 1;
+      return wa - wb;
+    });
+  }, [referenceItems]);
+
   const [isRefreshingTaste, setIsRefreshingTaste] = React.useState(false);
   const [refreshError, setRefreshError] = React.useState(false);
 
@@ -356,9 +368,14 @@ export function PromptComposerV2({
     setIsRefreshingTaste(true);
     setRefreshError(false);
     try {
-      const imageUrls = referenceItems
+      const imageUrls = weightedReferenceItems
         .map((r) => r.imageUrl)
         .filter(Boolean);
+
+      const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
+        acc[ref.imageUrl] = ref.weight || "default";
+        return acc;
+      }, {});
 
       const res = await fetch("/api/taste/extract", {
         method: "POST",
@@ -366,6 +383,7 @@ export function PromptComposerV2({
         body: JSON.stringify({
           projectId,
           referenceUrls: imageUrls,
+          referenceWeights,
           prompt: prompt.value?.trim() || undefined,
         }),
       });
@@ -383,7 +401,7 @@ export function PromptComposerV2({
     } finally {
       setIsRefreshingTaste(false);
     }
-  }, [isRefreshingTaste, usableRefCount, referenceItems, projectId, prompt.value]);
+  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value]);
 
   const hasArtboards = items.some((i) => i.kind === "artboard");
   const chips = getSuggestionChips(selectedNode, hasArtboards);
@@ -429,7 +447,7 @@ export function PromptComposerV2({
     });
 
     try {
-      const imageUrls = referenceItems.slice(0, 6).map((ref) => ref.imageUrl);
+      const imageUrls = weightedReferenceItems.slice(0, 6).map((ref) => ref.imageUrl);
       let tokens = buildFallbackTokens(projectTokens);
 
       // Keep generation working in local/demo environments by falling back to
@@ -504,12 +522,18 @@ export function PromptComposerV2({
           agentSteps: ["Analyzing references...", "Extracting taste profile..."],
         });
         try {
+          const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
+            acc[ref.imageUrl] = ref.weight || "default";
+            return acc;
+          }, {});
+
           const tasteRes = await fetch("/api/taste/extract", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               projectId,
               referenceUrls: imageUrls,
+              referenceWeights,
               existingTokens: tokens,
               prompt: prompt.value?.trim() || undefined,
             }),
@@ -646,7 +670,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {

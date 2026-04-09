@@ -33,13 +33,27 @@ export type IconName =
   | "zap"
   | "moon"
   | "sun"
+  // ── Editor actions (canvas / inspector) ──
+  | "layers"
+  | "copy"
+  | "trash"
+  | "link"
+  | "lock"
+  | "export"
+  // ── In-app tools & chrome (review: /icon-review) ──
+  | "cursor"
+  | "hand"
+  | "frame"
+  | "chat"
+  | "components"
   // ── Structural (frameless, always bare) ──
   | "chevron-down"
   | "chevron-right"
   | "chevron-left"
   | "plus"
   | "close"
-  | "external";
+  | "external"
+  | "grip-vertical";
 
 export interface IconProps {
   name: IconName;
@@ -65,6 +79,28 @@ const STRUCTURAL = new Set<IconName>([
   "plus",
   "close",
   "external",
+  "grip-vertical",
+  "cursor",
+  "hand",
+  "frame",
+  // Thin outline set (no artboard frame) — matches minimal menu icon language
+  "home",
+  "layers",
+  "settings",
+  "chat",
+  "components",
+]);
+
+/** Slightly lighter stroke — reads closer to reference UI (thin, even lines). */
+const THIN_STROKE = new Set<IconName>([
+  "cursor",
+  "hand",
+  "frame",
+  "chat",
+  "components",
+  "layers",
+  "settings",
+  "home",
 ]);
 
 // ─── Icon Content Registry ────────────────────────────────────────────────────
@@ -74,11 +110,9 @@ function renderContent(name: IconName): React.ReactNode {
     // ── Navigation ─────────────────────────────────────────────────────────
 
     case "home":
+      // Wireframe — single roof + shell + door (outline only)
       return (
-        <>
-          <path d="M4 10l8-7 8 7v10a1 1 0 01-1 1H5a1 1 0 01-1-1z" />
-          <path d="M9 21V12h6v9" opacity="0.5" />
-        </>
+        <path d="M12 4.5L4.5 11H6v8.5h4.5v-5h7v5H18V11h1.5L12 4.5z" />
       );
 
     case "brief":
@@ -196,13 +230,11 @@ function renderContent(name: IconName): React.ReactNode {
       );
 
     case "settings":
+      // Simple 6-tooth gear (outline + hub ring)
       return (
         <>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 5v2" />
-          <path d="M12 17v2" />
-          <path d="M5 12h2" />
-          <path d="M17 12h2" />
+          <circle cx="12" cy="12" r="2.5" />
+          <path d="M12 5v1.75M12 17.25V19M5 12h1.75M17.25 12H19M7.1 7.1l1.2 1.2M15.7 15.7l1.2 1.2M16.9 7.1l-1.2 1.2M7.1 16.9l1.2-1.2" />
         </>
       );
 
@@ -297,6 +329,107 @@ function renderContent(name: IconName): React.ReactNode {
         </>
       );
 
+    // ── Editor actions ───────────────────────────────────────────────────
+
+    case "layers":
+      // Three offset sheets — stroke only
+      return (
+        <>
+          <rect x="4.5" y="14" width="15" height="6" rx="1" />
+          <rect x="5.5" y="9" width="13" height="6" rx="1" />
+          <rect x="6.5" y="4" width="11" height="6" rx="1" />
+        </>
+      );
+
+    case "copy":
+      return (
+        <>
+          <rect x="8" y="5" width="11" height="13" rx="1.5" opacity="0.4" />
+          <rect x="5" y="8" width="11" height="13" rx="1.5" />
+          <line x1="8" y1="11.5" x2="13" y2="11.5" opacity="0.45" />
+          <line x1="8" y1="14.5" x2="15" y2="14.5" opacity="0.45" />
+        </>
+      );
+
+    case "trash":
+      return (
+        <>
+          <path d="M9 5h6" />
+          <path d="M10 5V4a1 1 0 011-1h2a1 1 0 011 1v1" />
+          <path d="M6 8h12l-1 13H7L6 8z" />
+          <line x1="10" y1="11.5" x2="10" y2="17" opacity="0.45" />
+          <line x1="14" y1="11.5" x2="14" y2="17" opacity="0.45" />
+        </>
+      );
+
+    case "link":
+      return (
+        <>
+          <path d="M8.5 12.5a2.5 2.5 0 010-3.5l1.2-1.2a2.5 2.5 0 013.54 3.54l-.7.7" />
+          <path d="M15.5 11.5a2.5 2.5 0 010 3.5l-1.2 1.2a2.5 2.5 0 01-3.54-3.54l.7-.7" />
+          <path d="M10.5 13.5l3-3" />
+        </>
+      );
+
+    case "lock":
+      return (
+        <>
+          <rect x="7.5" y="11" width="9" height="8" rx="1.25" />
+          <path d="M7.5 11V9a4.5 4.5 0 019 0v2" />
+          <circle cx="12" cy="14.5" r="1.25" fill="currentColor" stroke="none" opacity="0.45" />
+        </>
+      );
+
+    case "export":
+      return (
+        <>
+          <path d="M12 5v8" />
+          <path d="M8.5 9L12 5.5l3.5 3.5" />
+          <rect x="5" y="17.5" width="14" height="3.5" rx="1" opacity="0.45" />
+        </>
+      );
+
+    case "cursor":
+      // Outline only — same geometry as the solid pointer you preferred
+      return <path fill="none" d="M5 4l6.5 16 2.3-6.8 6.8-2.3L5 4z" />;
+
+    case "hand":
+      // Minimal open-hand outline (single stroke)
+      return (
+        <path
+          fill="none"
+          d="M8.5 10.5V8a1.5 1.5 0 013 0v5M11.5 9V6.5a1.5 1.5 0 013 0v6.5M14.5 9V7a1.5 1.5 0 013 0v6M17.5 10v6M7 12c-.6 0-1 .4-1 1v1.5a5 5 0 005 5h3.5a4 4 0 003.4-1.9L20 15.5"
+        />
+      );
+
+    case "frame":
+      // Crop-style corner brackets (thin L’s)
+      return (
+        <>
+          <path d="M8 8V5H5M16 8V5h3M16 16v3h3M8 16v3H5" />
+        </>
+      );
+
+    case "chat":
+      // Rounded bubble + tail; two text lines (reference-style simplicity)
+      return (
+        <>
+          <path d="M6 7.5h11a2 2 0 012 2v5a2 2 0 01-2 2h-4l-3.5 2.8V16.5H6a2 2 0 01-2-2v-5a2 2 0 012-2z" />
+          <path d="M9 11h7M9 13.5h5" opacity="0.55" />
+        </>
+      );
+
+    case "components":
+      // 2×2 grid of cells (outline)
+      return (
+        <>
+          <rect x="4.5" y="4.5" width="6.5" height="6.5" rx="0.75" />
+          <rect x="13" y="4.5" width="6.5" height="6.5" rx="0.75" />
+          <rect x="4.5" y="13" width="6.5" height="6.5" rx="0.75" />
+          <rect x="13" y="13" width="6.5" height="6.5" rx="0.75" />
+        </>
+      );
+
     // ── Structural ─────────────────────────────────────────────────────────
 
     case "chevron-down":
@@ -328,6 +461,18 @@ function renderContent(name: IconName): React.ReactNode {
         </>
       );
 
+    case "grip-vertical":
+      return (
+        <>
+          <circle cx="9" cy="7" r="1.25" fill="currentColor" stroke="none" />
+          <circle cx="15" cy="7" r="1.25" fill="currentColor" stroke="none" />
+          <circle cx="9" cy="12" r="1.25" fill="currentColor" stroke="none" />
+          <circle cx="15" cy="12" r="1.25" fill="currentColor" stroke="none" />
+          <circle cx="9" cy="17" r="1.25" fill="currentColor" stroke="none" />
+          <circle cx="15" cy="17" r="1.25" fill="currentColor" stroke="none" />
+        </>
+      );
+
     default:
       return null;
   }
@@ -339,13 +484,14 @@ export function Icon({ name, className, bare }: IconProps) {
   const isStructural = STRUCTURAL.has(name);
   const isSelfFramed = SELF_FRAMED.has(name);
   const showFrame = !bare && !isStructural && !isSelfFramed;
+  const strokeW = THIN_STROKE.has(name) ? 1.125 : 1.5;
 
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth={strokeW}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cn("h-5 w-5 shrink-0", className)}
@@ -405,6 +551,21 @@ export const ZapIcon      = makeIcon("zap");
 export const MoonIcon     = makeIcon("moon");
 export const SunIcon      = makeIcon("sun");
 
+// Editor actions
+export const LayersIcon   = makeIcon("layers");
+export const CopyIcon     = makeIcon("copy");
+export const TrashIcon    = makeIcon("trash");
+export const LinkIcon     = makeIcon("link");
+export const LockIcon     = makeIcon("lock");
+export const ExportIcon   = makeIcon("export");
+
+// In-app tools & chrome
+export const CursorIcon     = makeIcon("cursor");
+export const HandIcon       = makeIcon("hand");
+export const FrameIcon      = makeIcon("frame");
+export const ChatIcon       = makeIcon("chat");
+export const ComponentsIcon = makeIcon("components");
+
 // Structural (always bare)
 export const ChevronDownIcon  = makeIcon("chevron-down",  true);
 export const ChevronRightIcon = makeIcon("chevron-right", true);
@@ -412,3 +573,4 @@ export const ChevronLeftIcon  = makeIcon("chevron-left",  true);
 export const PlusIcon         = makeIcon("plus",          true);
 export const CloseIcon        = makeIcon("close",         true);
 export const ExternalIcon     = makeIcon("external",      true);
+export const GripVerticalIcon = makeIcon("grip-vertical", true);

@@ -598,12 +598,7 @@ function updateArtboardsForSite(
  * Falls back to "desktop" when no artboard is active.
  */
 function getActiveBreakpoint(state: UnifiedCanvasState): Breakpoint {
-  if (!state.selection.activeItemId) return "desktop";
-  const artboard = state.items.find(
-    (item): item is ArtboardItem =>
-      item.kind === "artboard" && item.id === state.selection.activeItemId
-  );
-  return artboard?.breakpoint ?? "desktop";
+  return state.activeBreakpoint ?? "desktop";
 }
 
 /**

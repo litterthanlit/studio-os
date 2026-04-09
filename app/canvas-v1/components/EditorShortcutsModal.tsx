@@ -5,14 +5,15 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ROWS: { keys: string; action: string }[] = [
-  { keys: "V / H / M / F / K", action: "Select / Hand / Marquee / Frame / Prompt tools" },
+  { keys: "V / H / M / F / T / K", action: "Select / Hand / Marquee / Frame / Text / Prompt tools" },
   { keys: "Space + drag", action: "Pan canvas" },
   { keys: "⌘ 0 / ⌘ 1", action: "Zoom to fit / selection" },
   { keys: "⇧ + Click", action: "Add to selection (multi-select)" },
   { keys: "Marquee (M)", action: "Drag to box-select; ⇧ adds to selection" },
-  { keys: "Frame (F)", action: "Drag on empty canvas to draw a new frame" },
-  { keys: "⌥ drag", action: "Drag selected layer onto another frame to reparent (canvas)" },
-  { keys: "⌘C / ⌘V", action: "Copy / paste DesignNode layers (V6); paste syncs across artboards in site" },
+  { keys: "Frame (F)", action: "Drag on a frame background to draw a nested frame (absolute)" },
+  { keys: "Text (T)", action: "Click or drag on a frame background to place a text layer" },
+  { keys: "⌥ drag", action: "Drag selected layer onto another frame to reparent (drop ring while moving)" },
+  { keys: "⌘C / ⌘V", action: "Copy / paste V6 layers; paste into selection (container or sibling); syncs across artboards" },
   { keys: "⌘ + Click", action: "Cycle nested selection depth" },
   { keys: "⌘ ⇧ + Click", action: "Cycle siblings at depth" },
   { keys: "⌘ [ / ]", action: "Previous / next sibling" },

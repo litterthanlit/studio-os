@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * EditorTransportBar — single bottom pill: tools (cursor / hand / marquee / prompt),
+ * EditorTransportBar — single bottom pill: tools (cursor / hand / marquee / frame / text / prompt),
  * zoom, optional Generate, undo/redo. Replaces separate ToolPalette + BottomBarV3.
  */
 
@@ -14,6 +14,7 @@ import {
   Undo2,
   Redo2,
   LayoutTemplate,
+  Type,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -29,6 +30,7 @@ const TOOLS: Array<{
   { id: "hand", label: "Hand", shortcut: "H", icon: Hand },
   { id: "marquee", label: "Marquee", shortcut: "M", icon: BoxSelect },
   { id: "frame", label: "Frame", shortcut: "F", icon: LayoutTemplate },
+  { id: "text", label: "Text", shortcut: "T", icon: Type },
   { id: "prompt", label: "Prompt / chat", shortcut: "K", icon: MessageCircle },
 ];
 

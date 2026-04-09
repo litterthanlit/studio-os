@@ -141,6 +141,30 @@ export function LayoutHandlesOverlay({
         centerY: oy + r.centerY / z,
       }));
 
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+        body: JSON.stringify({
+          sessionId: "f3006b",
+          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          hypothesisId: "H5-gap-measure",
+          runId: "initial-pass",
+          location: "LayoutHandlesOverlay:measureGapRects",
+          message: "measured selected layout container for gap handles",
+          data: {
+            selectedNodeId,
+            display: selectedNode.style.display ?? null,
+            flexDirection: selectedNode.style.flexDirection ?? null,
+            treeChildCount: treeChildren.length,
+            domChildCount: finalChildren.length,
+            gapRectCount: transformed.length,
+            firstGap: transformed[0] ?? null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       setGapRects(transformed);
     };
 
@@ -363,6 +387,35 @@ export function LayoutHandlesOverlay({
   // Padding handles show on ANY selected frame
   const showPaddingHandles = !!selectedNodeId;
   const showGapHandles = isLayoutContainer && gapRects.length > 0;
+
+  React.useEffect(() => {
+    if (!selectedNodeId || !selectedNode) return;
+    // #region agent log
+    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+      body: JSON.stringify({
+        sessionId: "f3006b",
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        hypothesisId: "H8-gap-eligibility",
+        runId: "initial-pass",
+        location: "LayoutHandlesOverlay:eligibility",
+        message: "evaluated selected node for layout handles",
+        data: {
+          selectedNodeId,
+          nodeType: selectedNode.type,
+          display: selectedNode.style.display ?? null,
+          flexDirection: selectedNode.style.flexDirection ?? null,
+          childCount: selectedNode.children?.length ?? 0,
+          isLayoutContainer: Boolean(isLayoutContainer),
+          showGapHandles,
+          showPaddingHandles,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [isLayoutContainer, selectedNode, selectedNodeId, showGapHandles, showPaddingHandles]);
   
   // Skip during SSR and if nothing to show
   if (!isMounted || (!showPaddingHandles && !showGapHandles)) {

@@ -4,16 +4,40 @@ import * as React from "react";
 
 export type FrameDrawRect = { x: number; y: number; width: number; height: number };
 
+export type FrameDrawCommitPayload = FrameDrawRect & {
+  startClientX: number;
+  startClientY: number;
+};
+
 type UseFrameDrawOpts = {
   containerRef: React.RefObject<HTMLElement | null>;
   zoom: number;
   interactive: boolean;
   canvasTool: string;
   spaceHeldRef: React.RefObject<boolean>;
-  onCommit: (rect: FrameDrawRect) => void;
+  onCommit: (payload: FrameDrawCommitPayload) => void;
 };
 
 const DRAG_THRESHOLD = 4;
+
+/**
+ * Block frame/text placement only on real UI chrome — not on design nodes.
+ * Insert parent is resolved at commit via `resolveInsertTargetForRawTree` / hit-test;
+ * blocking text/image/divider surfaces made dense pages (e.g. sample project) unusable.
+ */
+export function shouldBlockCanvasDrawToolStart(target: HTMLElement): boolean {
+  return getCanvasDrawToolBlockReason(target) != null;
+}
+
+/** Why pointer-down was ignored (for debug); null = allow draw/text tool start. */
+export function getCanvasDrawToolBlockReason(target: HTMLElement): string | null {
+  if (target.closest("[data-resize-handle]")) return "resize-handle";
+  if (target.closest("button")) return "button";
+  if (target.closest("input")) return "input";
+  if (target.closest("textarea")) return "textarea";
+  if (target.closest("[contenteditable='true']")) return "contenteditable";
+  return null;
+}
 
 export function useFrameDraw({
   containerRef,
@@ -66,17 +90,29 @@ export function useFrameDraw({
       if (spaceHeldRef.current) return;
 
       const target = e.target as HTMLElement;
-      if (
-        target.closest("[data-node-id]") ||
-        target.closest("[data-resize-handle]") ||
-        target.closest("[data-insertion-bar]") ||
-        target.closest("button") ||
-        target.closest("input") ||
-        target.closest("textarea") ||
-        target.closest("[contenteditable]")
-      ) {
-        return;
-      }
+      const blockReason = getCanvasDrawToolBlockReason(target);
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
+        body: JSON.stringify({
+          sessionId: "f3006b",
+          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          hypothesisId: "H1-frame-tool-start",
+          runId: "initial-pass",
+          location: "useFrameDraw:handlePointerDown",
+          message: blockReason ? "frame tool start blocked" : "frame tool start accepted",
+          data: {
+            blockReason,
+            pointerId: e.pointerId,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      if (blockReason) return;
 
       dragRef.current = {
         active: true,
@@ -159,7 +195,14 @@ export function useFrameDraw({
       const width = Math.abs(endX - startX);
       const height = Math.abs(endY - startY);
       if (width < 8 || height < 8) return;
-      onCommit({ x, y, width, height });
+      onCommit({
+        x,
+        y,
+        width,
+        height,
+        startClientX: startClientX,
+        startClientY: startClientY,
+      });
     },
     [canvasTool, containerRef, zoom, onCommit]
   );

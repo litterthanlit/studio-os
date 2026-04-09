@@ -95,8 +95,9 @@ export function useCanvasGestures(options: GestureCallbacks) {
         panStartRef.current = null;
 
         if (containerRef.current) {
-          const isGrab = spaceHeldRef.current || activeToolRef.current === "hand";
-          containerRef.current.style.cursor = isGrab ? "grab" : "default";
+          const tool = activeToolRef.current;
+          const isGrab = spaceHeldRef.current || tool === "hand";
+          containerRef.current.style.cursor = isGrab ? "grab" : (tool === "frame" || tool === "text") ? "crosshair" : "default";
         }
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
@@ -159,7 +160,8 @@ export function useCanvasGestures(options: GestureCallbacks) {
       if (e.code === "Space") {
         spaceHeldRef.current = false;
         if (!isPanningRef.current && containerRef.current) {
-          containerRef.current.style.cursor = activeToolRef.current === "hand" ? "grab" : "default";
+          const tool = activeToolRef.current;
+          containerRef.current.style.cursor = tool === "hand" ? "grab" : (tool === "frame" || tool === "text") ? "crosshair" : "default";
         }
       }
     };
@@ -178,6 +180,8 @@ export function useCanvasGestures(options: GestureCallbacks) {
     if (!containerRef.current) return;
     if (activeTool === "hand") {
       containerRef.current.style.cursor = "grab";
+    } else if (activeTool === "frame" || activeTool === "text") {
+      containerRef.current.style.cursor = "crosshair";
     } else if (!spaceHeldRef.current && !isPanningRef.current) {
       containerRef.current.style.cursor = "default";
     }

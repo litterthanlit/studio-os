@@ -7,7 +7,7 @@
  */
 
 import type { PageNode } from "./compose";
-import type { DesignNode, ComponentMaster } from "./design-node";
+import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
 import type { SiteType } from "./templates";
 import {
   listProjectReferences,
@@ -78,7 +78,7 @@ export type UnifiedCanvasState = {
 
 export type BaseCanvasItem = {
   id: string;
-  kind: "reference" | "artboard" | "note" | "arrow";
+  kind: "reference" | "artboard" | "note" | "arrow" | "frame" | "text";
   x: number;
   y: number;
   width: number;
@@ -118,7 +118,27 @@ export type ArrowItem = BaseCanvasItem & {
   color: string;
 };
 
-export type CanvasItem = ReferenceItem | ArtboardItem | NoteItem | ArrowItem;
+export type FrameItem = BaseCanvasItem & {
+  kind: "frame";
+  name: string;
+  style: DesignNodeStyle;
+  children: DesignNode[];
+  isGroup?: boolean;
+  responsiveOverrides?: Partial<Record<Breakpoint, Partial<DesignNodeStyle>>>;
+  hidden?: Partial<Record<Breakpoint, boolean>>;
+  componentRef?: ComponentInstanceRef;
+};
+
+export type TextItem = BaseCanvasItem & {
+  kind: "text";
+  name: string;
+  style: DesignNodeStyle;
+  content?: DesignNodeContent;
+  responsiveOverrides?: Partial<Record<Breakpoint, Partial<DesignNodeStyle>>>;
+  hidden?: Partial<Record<Breakpoint, boolean>>;
+};
+
+export type CanvasItem = ReferenceItem | ArtboardItem | NoteItem | ArrowItem | FrameItem | TextItem;
 
 export type PromptRun = {
   id: string;

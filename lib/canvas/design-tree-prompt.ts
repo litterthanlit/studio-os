@@ -565,3 +565,72 @@ Keep the palette and fonts but REARRANGE the layout:
 
 Return ONLY valid JSON. No markdown. Just the root object starting with {.`;
 }
+
+// ─── Section-Level Regeneration Prompt ──────────────────────────────────────
+
+export function buildDesignTreeSectionPrompt(
+  tokens: DesignSystemTokens,
+  sectionName: string,
+  siblingContext: { above: string; below: string },
+  options?: {
+    intent?: "more-like-this" | "different-approach";
+    direction?: string;
+    tasteProfile?: TasteProfile | null;
+    fidelityMode?: FidelityMode;
+  }
+): string {
+  const taste = options?.tasteProfile;
+  const fidelity = options?.fidelityMode || "balanced";
+
+  let directives = "";
+  if (taste) {
+    const compiled = compileTasteToDirectives(taste, fidelity);
+    directives = directivesToPromptText(compiled);
+  }
+
+  const intentBlock = options?.intent === "different-approach"
+    ? `IMPORTANT: The designer wants a COMPLETELY DIFFERENT approach for this section. Change the layout structure, composition, and visual pattern. Keep the same taste/palette but reimagine the section entirely.`
+    : `The designer wants a REFRESHED version of this section. Keep the general concept but improve the content, styling, and composition. Make it feel fresh, not identical.`;
+
+  const directionBlock = options?.direction
+    ? `\nDesigner's direction: "${options.direction}"`
+    : "";
+
+  return `You are regenerating a SINGLE SECTION of a website design.
+
+## Section to Regenerate
+Name: "${sectionName}"
+
+## Intent
+${intentBlock}${directionBlock}
+
+## Page Context
+This section sits between:
+- ABOVE: ${siblingContext.above}
+- BELOW: ${siblingContext.below}
+
+The regenerated section MUST complement its neighbors:
+- Do NOT duplicate the background color of adjacent sections
+- Do NOT repeat the same layout pattern as adjacent sections
+- Maintain visual flow and pacing across the page
+
+${directives ? `## Taste Directives\n${directives}\n` : ""}
+## Output Format
+Return a SINGLE DesignNode JSON object (type: "frame") representing ONLY this section.
+Do NOT return a full page tree. Return ONE section frame with its children.
+
+The section must follow the DesignNode schema:
+- Root: type "frame" with children
+- Valid child types: frame, text, image, button, divider
+- Style properties: position, display, flexDirection, gap, padding, background, foreground, fontSize, fontFamily, fontWeight, lineHeight, etc.
+- Use composition vocabulary: layering, asymmetry, pacing, contrast
+
+## Design Tokens
+${tokens ? JSON.stringify(tokens, null, 2) : "No tokens provided"}
+
+## Rules
+- COMPELLING, ORIGINAL copy — no lorem ipsum, no placeholder text
+- Every ID must be unique (use descriptive IDs like "hero-heading", "features-grid")
+- Return valid JSON only — no markdown, no code fences, no explanation
+`;
+}

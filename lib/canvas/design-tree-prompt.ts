@@ -370,6 +370,8 @@ ${tasteSection}${accentMapping4A}
     // Rotate is available but use it rarely. Most elements should not be rotated. Only use rotate when the brief explicitly asks for dynamic or playful composition. Default is 0. Subtle rotations (1-5deg) are more useful than dramatic ones. Use scale sparingly — prefer explicit width/height for sizing.
     "transformOrigin": { "x": number, "y": number },
     // transformOrigin: x/y are percentages (default 50/50, center).
+    // blendMode: "normal"|"multiply"|"screen"|"overlay"|"darken"|"lighten"|"color-dodge"|"color-burn"|"hard-light"|"soft-light"|"difference"|"exclusion"|"hue"|"saturation"|"color"|"luminosity"
+    // Default is "normal" (no blending). Use sparingly: "multiply" for darkening overlays on images, "screen" for lightening/glow, "overlay" for contrast-enhancing texture layers. Do not use blend modes on text, buttons, or content that needs to be readable. Only use when the brief calls for textured, layered, or photographic composition.
     "coverImage": "photo:...",   // BACKGROUND PHOTO on frames — full-bleed <img> behind children
     "coverSize": "cover" | "contain",
     "coverPosition": string,     // e.g. "center", "center 30%"

@@ -1792,9 +1792,9 @@ export function DesignNodeInspector({
             )}
 
             {/* Opacity */}
-            <InspectorFieldRow 
+            <InspectorFieldRow
               label="Opacity"
-              hasOverride={hasOverride("opacity")} 
+              hasOverride={hasOverride("opacity")}
               onResetOverride={() => resetOverride("opacity")}
             >
               <div className="relative flex-1">
@@ -1824,6 +1824,41 @@ export function DesignNodeInspector({
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">%</span>
               </div>
             </InspectorFieldRow>
+
+            {/* Blend Mode */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[#6B6B6B] w-14">Blend</span>
+              <select
+                value={primaryNode.style.blendMode ?? "normal"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateStyle({ blendMode: val === "normal" ? undefined : (val as DesignNodeStyle["blendMode"]) });
+                  history.flush();
+                }}
+                className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+              >
+                <optgroup label="Common">
+                  <option value="normal">Normal</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="screen">Screen</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="darken">Darken</option>
+                  <option value="lighten">Lighten</option>
+                  <option value="soft-light">Soft Light</option>
+                </optgroup>
+                <optgroup label="More">
+                  <option value="color-dodge">Color Dodge</option>
+                  <option value="color-burn">Color Burn</option>
+                  <option value="hard-light">Hard Light</option>
+                  <option value="difference">Difference</option>
+                  <option value="exclusion">Exclusion</option>
+                  <option value="hue">Hue</option>
+                  <option value="saturation">Saturation</option>
+                  <option value="color">Color</option>
+                  <option value="luminosity">Luminosity</option>
+                </optgroup>
+              </select>
+            </div>
           </div>
         </section>
       )}

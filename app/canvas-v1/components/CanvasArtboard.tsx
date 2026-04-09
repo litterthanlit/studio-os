@@ -45,9 +45,10 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
   const usesV6Renderer = isDesignNodeTree(displayTree);
   const rendererMode = usesV6Renderer ? "v6" : tokens ? "legacy" : "no-tokens";
 
-  const breakpointWidth = BREAKPOINT_WIDTHS[item.breakpoint];
-  const label = `${item.breakpoint.toUpperCase()} · ${breakpointWidth}PX`;
-  const isDesktop = item.breakpoint === "desktop";
+  const activeBreakpoint = state.activeBreakpoint ?? "desktop";
+  const breakpointWidth = BREAKPOINT_WIDTHS[activeBreakpoint];
+  const label = `${activeBreakpoint.toUpperCase()} · ${breakpointWidth}PX`;
+  const isDesktop = activeBreakpoint === "desktop";
 
   // ── Handoff sequence state ─────────────────────────────────────────
   // Tracks the transition from animation → real content
@@ -267,6 +268,7 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
         left: item.x,
         top: item.y,
         width: breakpointWidth,
+        transition: "width 200ms ease-out",
         zIndex: item.zIndex,
       }}
       onPointerDown={(e) => {

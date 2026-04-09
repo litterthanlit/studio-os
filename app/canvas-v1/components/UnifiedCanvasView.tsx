@@ -18,6 +18,10 @@ import type { CanvasItem, ReferenceItem, ArtboardItem, FrameItem, TextItem } fro
 import { useDrag } from "../hooks/useDrag";
 import { useResize } from "../hooks/useResize";
 import { useCanvasGestures } from "../hooks/useCanvasGestures";
+import { useFrameDraw } from "../hooks/useFrameDraw";
+import type { FrameDrawCommitPayload } from "../hooks/useFrameDraw";
+import { useTextPlace } from "../hooks/useTextPlace";
+import type { TextPlaceCommitPayload } from "../hooks/useTextPlace";
 import { CanvasReference } from "./CanvasReference";
 import { CanvasArtboard } from "./CanvasArtboard";
 import { CanvasNote } from "./CanvasNote";
@@ -406,6 +410,72 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     },
   });
   const { containerRef, handlePointerDown, spaceHeldRef, isPanningRef } = gestureHandlers;
+
+  // ── Canvas-level draw tool commit handlers ─────────────────────────
+  //
+  // The hooks compute coords as (clientX - containerRect.left) / zoom.
+  // The container is the outer (pre-transform) div. Items live inside a child
+  // that has `transform: translate(pan.x, pan.y) scale(zoom)`. World coords are:
+  //   worldX = (clientX - containerRect.left - pan.x) / zoom
+  // So:  worldX = hookPayload.x - pan.x / zoom
+  //      worldY = hookPayload.y - pan.y / zoom
+
+  const handleCanvasFrameCommit = React.useCallback(
+    (payload: FrameDrawCommitPayload) => {
+      const { pan, zoom } = viewport;
+      const worldX = payload.x - pan.x / zoom;
+      const worldY = payload.y - pan.y / zoom;
+      const worldWidth = payload.width;
+      const worldHeight = payload.height;
+      dispatch({
+        type: "ADD_FRAME",
+        x: Math.round(worldX),
+        y: Math.round(worldY),
+        width: Math.max(24, Math.round(worldWidth)),
+        height: Math.max(24, Math.round(worldHeight)),
+      });
+      setActiveTool("select");
+    },
+    [viewport, dispatch],
+  );
+
+  const handleCanvasTextCommit = React.useCallback(
+    (payload: TextPlaceCommitPayload) => {
+      const { pan, zoom } = viewport;
+      const worldX = payload.x - pan.x / zoom;
+      const worldY = payload.y - pan.y / zoom;
+      const worldWidth = payload.width;
+      const worldHeight = payload.height;
+      dispatch({
+        type: "ADD_TEXT",
+        x: Math.round(worldX),
+        y: Math.round(worldY),
+        width: Math.max(24, Math.round(worldWidth)),
+        height: Math.max(20, Math.round(worldHeight)),
+        mode: payload.mode,
+      });
+      setActiveTool("select");
+    },
+    [viewport, dispatch],
+  );
+
+  const canvasFrameDraw = useFrameDraw({
+    containerRef,
+    zoom: viewport.zoom,
+    interactive: true,
+    canvasTool: activeTool,
+    spaceHeldRef,
+    onCommit: handleCanvasFrameCommit,
+  });
+
+  const canvasTextPlace = useTextPlace({
+    containerRef,
+    zoom: viewport.zoom,
+    interactive: true,
+    canvasTool: activeTool,
+    spaceHeldRef,
+    onCommit: handleCanvasTextCommit,
+  });
 
   // ── Screen-to-world coordinate conversion ─────────────────────────
 
@@ -861,38 +931,18 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       }}
       onClick={handleCanvasClick}
       onMouseDown={handleDragSelectDown}
-      onPointerDownCapture={(e) => {
-        // Diagnostic: log ALL pointer events reaching the canvas surface
-        if (activeTool === "frame" || activeTool === "text") {
-          const target = e.target as HTMLElement;
-          const nodeId = target.closest?.("[data-node-id]")?.getAttribute("data-node-id") ?? null;
-          const canvasItemId = target.closest?.("[data-canvas-item-id]")?.getAttribute("data-canvas-item-id") ?? null;
-          const isSurface = !!(target as HTMLElement).dataset?.canvasSurface;
-          fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-            body: JSON.stringify({
-              sessionId: "f3006b",
-              id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-              hypothesisId: "H8-canvas-surface-capture",
-              runId: "fix-pass",
-              location: "UnifiedCanvasView:onPointerDownCapture",
-              message: "canvas surface capture: pointer event with draw tool",
-              data: {
-                activeTool,
-                clientX: e.clientX,
-                clientY: e.clientY,
-                targetTag: target.tagName,
-                targetClass: target.className?.slice?.(0, 80),
-                nodeId,
-                canvasItemId,
-                isSurface,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-        }
+      onPointerDown={(e) => {
+        canvasFrameDraw.handlePointerDown(e);
+        canvasTextPlace.handlePointerDown(e);
         handlePointerDown(e);
+      }}
+      onPointerMove={(e) => {
+        canvasFrameDraw.handlePointerMove(e);
+        canvasTextPlace.handlePointerMove(e);
+      }}
+      onPointerUp={(e) => {
+        canvasFrameDraw.handlePointerUp(e);
+        canvasTextPlace.handlePointerUp(e);
       }}
       onAuxClick={(e) => { if (e.button === 1) e.preventDefault(); }}
       onDragOver={handleDragOver}
@@ -1027,6 +1077,38 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               top: Math.min(dragSelection.startY, dragSelection.currentY),
               width: Math.abs(dragSelection.currentX - dragSelection.startX),
               height: Math.abs(dragSelection.currentY - dragSelection.startY),
+            }}
+          />
+        )}
+
+        {/* Frame draw preview */}
+        {canvasFrameDraw.drawRect && (
+          <div
+            style={{
+              position: "absolute",
+              left: canvasFrameDraw.drawRect.x - viewport.pan.x / viewport.zoom,
+              top: canvasFrameDraw.drawRect.y - viewport.pan.y / viewport.zoom,
+              width: canvasFrameDraw.drawRect.width,
+              height: canvasFrameDraw.drawRect.height,
+              border: "1px dashed #4B57DB",
+              backgroundColor: "rgba(75, 87, 219, 0.05)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+
+        {/* Text place preview */}
+        {canvasTextPlace.drawRect && (
+          <div
+            style={{
+              position: "absolute",
+              left: canvasTextPlace.drawRect.x - viewport.pan.x / viewport.zoom,
+              top: canvasTextPlace.drawRect.y - viewport.pan.y / viewport.zoom,
+              width: canvasTextPlace.drawRect.width,
+              height: canvasTextPlace.drawRect.height,
+              border: "1px dashed #4B57DB",
+              backgroundColor: "rgba(75, 87, 219, 0.05)",
+              pointerEvents: "none",
             }}
           />
         )}

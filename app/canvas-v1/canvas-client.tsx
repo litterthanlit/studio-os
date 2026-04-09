@@ -24,7 +24,6 @@ import { BottomBar } from "./components/BottomBar";
 import { ComposeDocumentView } from "./components/ComposeDocumentView";
 import { buildIframeHTML } from "./components/ComponentPreview";
 import {
-  BREAKPOINT_ARTBOARD_LAYOUTS,
   BREAKPOINT_WIDTHS,
   compileSectionNodeToTSX,
   compilePageTreeToTSX,
@@ -3817,14 +3816,11 @@ export function CanvasPage({
     const baseDocument = createComposeDocument(targetVariant);
     const nextDocument = rehydrateComposeDocument(baseDocument, savedWorkspace);
 
-    // Auto-fit all 3 artboards into the visible viewport on first open
+    // Auto-fit the single desktop artboard into the visible viewport on first open
     let zoom = nextDocument.zoom;
     let pan = nextDocument.pan;
     if (!savedWorkspace) {
-      const totalSpan = BREAKPOINT_ARTBOARD_LAYOUTS.reduce(
-        (max, l) => Math.max(max, l.x + BREAKPOINT_WIDTHS[l.breakpoint]),
-        0
-      ); // = 2783
+      const totalSpan = BREAKPOINT_WIDTHS["desktop"]; // = 1440
       const usableWidth = typeof window !== "undefined"
         ? Math.max(600, window.innerWidth - 48 - 280) // sidebar + inspector
         : 800;

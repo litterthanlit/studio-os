@@ -165,16 +165,6 @@ export const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
 
 export const COMPOSE_ARTBOARD_GAP = 200;
 
-/** Fixed canvas positions for the two breakpoint artboards created from a single variant. */
-export const BREAKPOINT_ARTBOARD_LAYOUTS: Array<{
-  breakpoint: Breakpoint;
-  name: string;
-  x: number;
-}> = [
-  { breakpoint: "desktop", name: "Desktop 1440", x: 0 },
-  { breakpoint: "mobile",  name: "Mobile 375",   x: 1440 + 200 },
-];
-
 // ─── Artboard creation + fit-to-view ──────────────────────────────────────────
 
 export type ArtboardSpec = {
@@ -973,16 +963,18 @@ export function createVariantSet(
 }
 
 export function createComposeDocument(variant: GeneratedVariant): ComposeDocument {
-  const artboards = BREAKPOINT_ARTBOARD_LAYOUTS.map(({ breakpoint, name, x }) => ({
-    id: uid("artboard"),
-    variantId: variant.id,
-    breakpoint,
-    name,
-    x,
-    y: 0,
-    pageTree: structuredClone(variant.pageTree),
-    compiledCode: variant.compiledCode ?? null,
-  }));
+  const artboards = [
+    {
+      id: uid("artboard"),
+      variantId: variant.id,
+      breakpoint: "desktop" as Breakpoint,
+      name: "Desktop 1440",
+      x: 0,
+      y: 0,
+      pageTree: structuredClone(variant.pageTree),
+      compiledCode: variant.compiledCode ?? null,
+    },
+  ];
 
   return {
     artboards,
@@ -1026,7 +1018,7 @@ function sanitizeComposeDocument(value: unknown): ComposeDocument | null {
       if (artboard.breakpoint === "desktop" || artboard.breakpoint === "mobile") {
         return artboard;
       }
-      const inferred = BREAKPOINT_ARTBOARD_LAYOUTS.find((l) => l.name === artboard.name)?.breakpoint ?? "desktop";
+      const inferred: Breakpoint = artboard.name === "Mobile 375" ? "mobile" : "desktop";
       return { ...artboard, breakpoint: inferred };
     });
 

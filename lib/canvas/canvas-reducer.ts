@@ -29,6 +29,8 @@ import type {
   UnifiedCanvasState,
   CanvasItem,
   ArtboardItem,
+  FrameItem,
+  TextItem,
   PromptRun,
   MasterEditSession,
   MasterEditReturnTarget,
@@ -158,6 +160,10 @@ export type CanvasAction =
   | { type: "UPDATE_MASTER_NODE_STYLE"; masterId: string; nodeId: string; style: Partial<import("./design-node").DesignNodeStyle> }
   | { type: "COMMIT_MASTER_EDIT" }
   | { type: "CANCEL_MASTER_EDIT" }
+
+  // Canvas-level creation tools
+  | { type: "ADD_FRAME"; x: number; y: number; width: number; height: number }
+  | { type: "ADD_TEXT"; x: number; y: number; width: number; height: number; mode: "click" | "drag" }
 
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState };
@@ -853,6 +859,82 @@ export function canvasReducer(
             ? { ...item, zIndex: action.newZIndex }
             : item
         ),
+        updatedAt: now(),
+      };
+    }
+
+    // ── Canvas-Level Creation Tools ───────────────────────────────────────
+
+    case "ADD_FRAME": {
+      const { x, y, width, height } = action;
+      const id = uid("frame");
+      const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
+      const newFrame: FrameItem = {
+        id,
+        kind: "frame",
+        x,
+        y,
+        width,
+        height,
+        zIndex: maxZ + 1,
+        locked: false,
+        name: "Frame",
+        style: {
+          width,
+          height,
+          display: "flex",
+          flexDirection: "column",
+          padding: { top: 12, right: 12, bottom: 12, left: 12 },
+        },
+        children: [],
+      };
+      return {
+        ...state,
+        items: [...state.items, newFrame],
+        selection: {
+          ...state.selection,
+          selectedItemIds: [id],
+          activeItemId: id,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "ADD_TEXT": {
+      const { x, y, width, height, mode } = action;
+      const id = uid("text");
+      const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
+      const newText: TextItem = {
+        id,
+        kind: "text",
+        x,
+        y,
+        width,
+        height: mode === "click" ? 28 : height,
+        zIndex: maxZ + 1,
+        locked: false,
+        name: "Text",
+        style: {
+          width,
+          height: mode === "click" ? ("hug" as any) : height,
+          fontSize: 16,
+          lineHeight: 1.4,
+          foreground: "#1A1A1A",
+        },
+        content: { text: "Type something" },
+      };
+      return {
+        ...state,
+        items: [...state.items, newText],
+        selection: {
+          ...state.selection,
+          selectedItemIds: [id],
+          activeItemId: id,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        },
         updatedAt: now(),
       };
     }

@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-04-08T13:20:37.587Z",
+  "phase": "full-benchmark",
+  "version": "1.0",
+  "mode": "v6",
+  "useDesignNode": true,
+  "config": {
+    "fidelityMode": "balanced",
+    "tokens": "neutral-benchmark",
+    "scorer": "gemini-flash-realtime"
+  },
+  "summary": {
+    "setsRun": 1,
+    "setsScored": 1,
+    "averageDelta": {
+      "palette": 3,
+      "typography": 7,
+      "density": -1,
+      "structure": 2,
+      "overall": 3
+    }
+  },
+  "sets": [
+    {
+      "setId": "BS-01",
+      "name": "Editorial",
+      "category": "editorial",
+      "raw": {
+        "source": "ai",
+        "score": {
+          "palette": 6,
+          "typography": 2,
+          "density": 8,
+          "structure": 7,
+          "overall": 6,
+          "justification": "The design partially aligns with the palette, but the typography is off, and while the structure has editorial elements, the presence of a metric row in the CTA section and the overall symmetry detract from the 'editorial-brand' archetype.",
+          "mode": "realtime",
+          "timestamp": "2026-04-08T13:20:36.410Z"
+        }
+      },
+      "harnessed": {
+        "source": "ai",
+        "score": {
+          "palette": 9,
+          "typography": 9,
+          "density": 7,
+          "structure": 9,
+          "overall": 9,
+          "justification": "The design aligns very well with the editorial-brand archetype, utilizing the specified colors and fonts, and incorporating editorial structural elements like spreads and pullquotes, while avoiding listed 'avoid' items.",
+          "mode": "realtime",
+          "timestamp": "2026-04-08T13:20:37.584Z"
+        }
+      },
+      "delta": {
+        "palette": 3,
+        "typography": 7,
+        "density": -1,
+        "structure": 2,
+        "overall": 3
+      }
+    }
+  ]
+}

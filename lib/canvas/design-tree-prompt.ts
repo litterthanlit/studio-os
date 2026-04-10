@@ -278,6 +278,7 @@ export function buildDesignTreePrompt(
     variantMode?: VariantMode;
     tasteProfile?: TasteProfile | null;
     fidelityMode?: FidelityMode;
+    compositionBlueprint?: string;  // NEW: output from buildCompositionBlueprint()
   }
 ): string {
   const tasteProfile = options?.tasteProfile;
@@ -286,6 +287,9 @@ export function buildDesignTreePrompt(
     options?.fidelityMode ?? "balanced"
   );
   const tasteSection = directivesToPromptText(compiledDirectives);
+  const blueprintSection = options?.compositionBlueprint
+    ? `\n${options.compositionBlueprint}\n`
+    : "";
   const archetypeGrammar = getDesignArchetypeGrammar(tasteProfile?.archetypeMatch);
 
   const banDescriptions = getArchetypeBanDescriptions(tasteProfile?.archetypeMatch);
@@ -316,7 +320,7 @@ Frames are the building blocks. The page is a root frame whose children are sect
 Site name: ${siteName}
 ${archetypeGrammar}${banSection}
 
-${tasteSection}${accentMapping4A}
+${tasteSection}${blueprintSection}${accentMapping4A}
 ## DesignNode Schema
 
 \`\`\`

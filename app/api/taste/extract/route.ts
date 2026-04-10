@@ -15,6 +15,7 @@ type TasteExtractBody = {
   referenceWeights?: Record<string, string>;
   existingTokens?: unknown;
   prompt?: string;
+  compositionContext?: string;  // NEW: natural-language summary from composition analysis
 };
 
 const tasteCache = new Map<string, CachedTasteProfile>();
@@ -242,11 +243,16 @@ function stableStringify(value: unknown): string {
     .join(",")}}`;
 }
 
-function buildSignature(referenceUrls: string[], existingTokens?: unknown) {
+function buildSignature(
+  referenceUrls: string[],
+  existingTokens?: unknown,
+  compositionContext?: string
+) {
   return stableStringify({
     contextVersion: TASTE_CONTEXT_VERSION,
     referenceUrls: [...referenceUrls].sort(),
     existingTokens: existingTokens ?? null,
+    compositionContext: compositionContext ?? null,
   });
 }
 
@@ -667,6 +673,7 @@ export async function POST(req: NextRequest) {
     const referenceWeights = body.referenceWeights ?? {};
     const existingTokens = body.existingTokens ?? null;
     const userPrompt = body.prompt?.trim() || undefined;
+    const compositionContext = body.compositionContext;
 
     if (!projectId) {
       return NextResponse.json({ error: "projectId is required" }, { status: 400 });
@@ -675,7 +682,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "referenceUrls are required" }, { status: 400 });
     }
 
-    const signature = buildSignature(referenceUrls, existingTokens);
+    const signature = buildSignature(referenceUrls, existingTokens, compositionContext);
     const cached = tasteCache.get(projectId);
     console.log("[TASTE DEBUG] Cache check:", "project=" + projectId, "hit:", !!(cached && cached.signature === signature), "cacheExists:", !!cached, "sigMatch:", cached ? cached.signature === signature : "N/A");
     if (cached && cached.signature === signature) {
@@ -741,7 +748,11 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt();
 
-    const userMessageText = `Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
+    const compositionPrefix = compositionContext
+      ? `\n## Reference Composition Analysis\nThe following structural analysis was performed on the reference images:\n${compositionContext}\n\nUse this analysis to inform your archetype detection and layout bias decisions. If the analysis identifies a reference as editorial with full-bleed photography, that is strong evidence for editorial-brand archetype. If it identifies a SaaS screenshot with rounded components, that suggests premium-saas.\n\n`
+      : "";
+
+    const userMessageText = `${compositionPrefix}Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
 
 IMPORTANT: Base your archetype classification primarily on what you SEE in the images. The scored image summary below is from a generic quality scorer — its style/mood labels are NOT archetype classifications. Look at the actual images.
 

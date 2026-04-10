@@ -28,6 +28,8 @@ import type { DesignNode } from "@/lib/canvas/design-node";
 import { buildDesignTreePrompt, buildDesignPushedVariantPrompt, buildDesignRestructuredVariantPrompt } from "@/lib/canvas/design-tree-prompt";
 import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
 import { resolveDesignMediaUrls } from "@/lib/canvas/design-media-resolver";
+import type { CompositionAnalysis } from "@/types/composition-analysis";
+import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
 
 // ─── Truncated JSON Recovery ────────────────────────────────────────────────
 
@@ -286,6 +288,7 @@ export async function POST(req: NextRequest) {
       regenerationIntent,
       fidelityMode,
       useDesignNode,
+      compositionData,
     } = body as {
       prompt: string;
       tokens: DesignSystemTokens;
@@ -300,6 +303,11 @@ export async function POST(req: NextRequest) {
       regenerationIntent?: "more-like-this" | "different-approach";
       fidelityMode?: FidelityMode;
       useDesignNode?: boolean;
+      compositionData?: Array<{
+        analysis: CompositionAnalysis;
+        weight: "primary" | "default" | "muted";
+        referenceIndex: number;
+      }>;
     };
 
     console.log(`[GEN DEBUG] generate-component called: mode=${mode}, prompt="${prompt?.slice(0, 60)}...", tasteProfile=${tasteProfile ? "YES" : "NULL"}, referenceUrls=${referenceUrls?.length ?? 0}, OPENROUTER_API_KEY=${!!process.env.OPENROUTER_API_KEY}`);
@@ -327,10 +335,23 @@ export async function POST(req: NextRequest) {
       if (useDesignNode && process.env.OPENROUTER_API_KEY) {
         console.log(`[V6-GEN] Starting DesignNode generation for "${resolvedSiteName}"`);
 
+        // Build composition blueprint if composition data provided
+        let compositionBlueprint = "";
+        if (compositionData && compositionData.length > 0) {
+          compositionBlueprint = buildCompositionBlueprint({
+            compositions: compositionData,
+            fidelityMode: fidelityMode ?? "balanced",
+          });
+          if (compositionBlueprint) {
+            console.log("[COMPOSITION] Blueprint generated, length:", compositionBlueprint.length);
+          }
+        }
+
         const designPrompt = buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
           variantMode: "safe",
           tasteProfile: tasteProfile ?? null,
           fidelityMode: fidelityMode ?? "balanced",
+          compositionBlueprint,
         });
 
         console.log(`[V6-GEN] Prompt length: ${designPrompt.length} chars`);

@@ -39,6 +39,8 @@ import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 import { buildSectionContext } from "@/lib/canvas/section-context-builder";
 import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
+import { summarizeCompositionsForTaste } from "@/lib/canvas/composition-blueprint";
+import type { CompositionAnalysis } from "@/types/composition-analysis";
 
 // ─── Helpers (copied from InspectorPanelV3) ─────────────────────────────────
 
@@ -670,6 +672,55 @@ export function PromptComposerV2({
         upsertProjectState(projectId, { canvas: { designTokens: tokens } });
       }
 
+      // Step 2.5a: Analyze compositions for weighted references (cached per reference item)
+      const compositionData: Array<{
+        analysis: CompositionAnalysis;
+        weight: "primary" | "default" | "muted";
+        referenceIndex: number;
+      }> = [];
+
+      for (let i = 0; i < weightedReferenceItems.length && i < 6; i++) {
+        const ref = weightedReferenceItems[i];
+
+        // Use cached analysis if available
+        if (ref.compositionAnalysis) {
+          compositionData.push({
+            analysis: ref.compositionAnalysis,
+            weight: ref.weight ?? "default",
+            referenceIndex: i,
+          });
+          continue;
+        }
+
+        // Analyze uncached reference — fail open on any error
+        try {
+          const compRes = await fetch("/api/taste/analyze-composition", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: ref.imageUrl }),
+          });
+          if (compRes.ok) {
+            const analysis: CompositionAnalysis = await compRes.json();
+            // Cache on the reference item via dispatch
+            dispatch({
+              type: "UPDATE_ITEM",
+              itemId: ref.id,
+              changes: { compositionAnalysis: analysis } as Partial<ReferenceItem>,
+            });
+            compositionData.push({
+              analysis,
+              weight: ref.weight ?? "default",
+              referenceIndex: i,
+            });
+          }
+        } catch (compErr) {
+          console.warn("[COMPOSITION] Failed to analyze reference", ref.id, compErr);
+          // Continue without this reference's composition — fail open
+        }
+      }
+
+      const compositionContext = summarizeCompositionsForTaste(compositionData);
+
       // Step 2.5: Extract taste profile if we have references but no taste profile yet
       let resolvedTaste = tasteProfile;
       console.log("[TASTE DEBUG] tasteProfile source:", resolvedTaste ? "project-state (cached)" : "will-extract");
@@ -740,6 +791,8 @@ export function PromptComposerV2({
           tasteProfile: resolvedTaste,
           fidelityMode,
           useDesignNode: true,
+          compositionData: compositionData.length > 0 ? compositionData : undefined,
+          compositionContext: compositionContext || undefined,
         }),
       });
 

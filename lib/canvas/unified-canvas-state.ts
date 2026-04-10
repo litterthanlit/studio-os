@@ -9,6 +9,7 @@
 import type { PageNode } from "./compose";
 import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
 import type { TasteEdit } from "./taste-edit-tracker";
+import type { CompositionAnalysis } from "@/types/composition-analysis";
 
 // ─── Variant Preview ─────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ export type ReferenceItem = BaseCanvasItem & {
   extracted?: { colors: string[]; fonts: string[]; tags: string[] };
   isStyleRef?: boolean;
   weight?: "primary" | "default" | "muted";
+  compositionAnalysis?: CompositionAnalysis;  // cached composition data
 };
 
 export type ArtboardItem = BaseCanvasItem & {

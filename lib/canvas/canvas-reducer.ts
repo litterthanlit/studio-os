@@ -72,8 +72,8 @@ export type CanvasAction =
 
   // Artboard node editing
   | { type: "UPDATE_NODE"; itemId: string; nodeId: string; changes: Partial<PageNode> }
-  | { type: "UPDATE_NODE_STYLE"; itemId: string; nodeId: string; style: Partial<DesignNodeStyle> }
-  | { type: "UPDATE_NODE_STYLE_BATCH"; itemId: string; nodeIds: string[]; style: Partial<DesignNodeStyle> }
+  | { type: "UPDATE_NODE_STYLE"; itemId: string; nodeId: string; style: Partial<DesignNodeStyle>; source?: "user" | "generated" }
+  | { type: "UPDATE_NODE_STYLE_BATCH"; itemId: string; nodeIds: string[]; style: Partial<DesignNodeStyle>; source?: "user" | "generated" }
   | { type: "UPDATE_TEXT_CONTENT_SITE"; itemId: string; nodeId: string; text: string }
   | { type: "UPDATE_TEXT_STYLE_SITE"; itemId: string; nodeId: string; style: Partial<DesignNodeStyle> }
   | { type: "REORDER_NODE"; itemId: string; nodeId: string; newIndex: number; parentNodeId?: string }

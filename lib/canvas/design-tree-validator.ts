@@ -453,3 +453,14 @@ export function validateAndNormalizeDesignTree(
 
   return { ok: true, tree: normalized as DesignNode };
 }
+
+export function sanitizeUserStyle(style: Partial<DesignNodeStyle>): Partial<DesignNodeStyle> {
+  const sanitized = { ...style };
+  for (const [key, value] of Object.entries(sanitized)) {
+    if (typeof value === "string" && /(?:url\(|expression\(|javascript:)/i.test(value)) {
+      console.warn(`[VALIDATOR] Sanitized XSS attempt in ${key}`);
+      delete (sanitized as Record<string, unknown>)[key];
+    }
+  }
+  return sanitized;
+}

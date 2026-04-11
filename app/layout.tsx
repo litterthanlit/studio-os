@@ -46,10 +46,6 @@ export const metadata: Metadata = {
       "The all-in-one workspace built for creative professionals. Manage projects, assets, clients, and your entire studio — beautifully.",
     images: ["/og-image.png"],
   },
-  icons: {
-    icon: "/studio-os-mark.svg",
-    apple: "/studio-os-mark.svg",
-  },
 };
 
 export default function RootLayout({
@@ -67,7 +63,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Runtime stylesheet avoids build-time font fetches while keeping the V3.1 mono stack available everywhere. */}
-        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif:wght@400..700&display=swap" rel="stylesheet" />
         {/* Prevent flash of wrong theme — runs before React hydrates */}
         <script
           dangerouslySetInnerHTML={{

@@ -21,6 +21,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { LogoMark } from "@/components/marketing-v2/logo-mark";
+import { TasteMoodboardGallery } from "@/components/marketing-cursor/taste-moodboard-gallery";
 import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -48,8 +49,10 @@ function Nav() {
       <div className="pointer-events-auto border-b border-white/[0.05] bg-[#010206]/50 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-5 md:h-16 md:px-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <LogoMark className="brightness-0 invert" />
-            <span className="text-[14px] font-medium tracking-[-0.02em] text-[#FAFAFA] md:text-[15px]">studio OS</span>
+            <LogoMark />
+            <span className="font-['Noto_Serif'] text-[14px] font-medium tracking-[-0.02em] text-[#FAFAFA] md:text-[15px]">
+              studio OS
+            </span>
           </Link>
           <div className="flex items-center gap-1 md:gap-2">
             <nav className="hidden items-center md:flex md:gap-1">
@@ -731,7 +734,7 @@ function HarnessStepCard({
       </div>
       <div className="flex flex-1 flex-col px-5 pb-6 pt-5 md:px-6 md:pb-7 md:pt-6">
         <span className="mb-3 font-mono text-[10px] tracking-[1px] text-[#525252]">{step}</span>
-        <h3 className="mb-2 font-['Noto_Serif'] text-[20px] font-medium leading-snug tracking-tight text-[#1B283D] md:text-[22px]">
+        <h3 className="mb-2 font-['Noto_Serif'] text-[20px] font-normal leading-snug tracking-tight text-[#1B283D] md:text-[22px]">
           {title}
         </h3>
         <p className="text-[14px] font-medium leading-relaxed text-[#6B6B6B]">{body}</p>
@@ -741,24 +744,26 @@ function HarnessStepCard({
 }
 
 function TasteStrip() {
-  const chips = [
-    { label: "Spacing rhythm", v: "8 / 16 / 32" },
-    { label: "Type voice", v: "serif display" },
-    { label: "Palette", v: "neutral + accent" },
-  ];
   return (
-    <div className="flex flex-wrap gap-2">
-      {chips.map((c) => (
-        <div
-          key={c.label}
-          className="flex items-center gap-2 rounded-[4px] border border-[#D1E2F6] bg-[#FAFAFA] px-3 py-2"
-        >
-          <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#6B6B6B]">
-            {c.label}
-          </span>
-          <span className="text-[12px] font-medium text-[#1B283D]">{c.v}</span>
-        </div>
-      ))}
+    <div className="flex max-w-[420px] flex-wrap gap-2.5">
+      <div className="flex items-center gap-2 rounded-[6px] bg-white px-3.5 py-2 shadow-sm">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B]">
+          Spacing rhythm
+        </span>
+        <span className="text-[13px] font-semibold text-[#1B283D]">8 / 16 / 32</span>
+      </div>
+      <div className="flex items-center gap-2 rounded-[6px] bg-white px-3.5 py-2 shadow-sm">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B]">
+          Type voice
+        </span>
+        <span className="text-[13px] font-semibold text-[#1B283D]">serif display</span>
+      </div>
+      <div className="flex items-center gap-2 rounded-[6px] bg-white px-3.5 py-2 shadow-sm">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B6B]">
+          Palette
+        </span>
+        <span className="text-[13px] font-semibold text-[#1B283D]">neutral + accent</span>
+      </div>
     </div>
   );
 }
@@ -820,7 +825,7 @@ function EditorPitch() {
     <section id="editor" className="scroll-mt-24 border-b border-[#3A48B5]/10 bg-[#FAFAFA] py-20 md:py-28">
       <div className="mx-auto max-w-[1120px] px-5 md:px-10">
         <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#525252]">The editor</p>
-        <h2 className="mb-14 max-w-[640px] text-[clamp(1.75rem,3.5vw,2.75rem)] font-medium leading-[1.08] tracking-[-0.02em] text-[#1B283D]">
+        <h2 className="mb-14 max-w-[640px] font-['Noto_Serif'] text-[clamp(1.75rem,3.5vw,2.75rem)] font-normal leading-[1.08] tracking-[-0.02em] text-[#1B283D]">
           A real design tool.
           <br />
           <span className="text-[#6B6B6B]">Not a preview pane.</span>
@@ -849,7 +854,7 @@ function EditorPitch() {
               </div>
             </div>
             <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 text-[15px] font-medium text-[#1B283D]">Canvas feel</h3>
+              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Canvas feel</h3>
               <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
                 Hover outlines, frame labels, measurement guides, smooth zoom. It feels like the tools you already use.
               </p>
@@ -878,7 +883,7 @@ function EditorPitch() {
               </div>
             </div>
             <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 text-[15px] font-medium text-[#1B283D]">Precision inspector</h3>
+              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Precision inspector</h3>
               <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
                 Fixed / Fill / Hug sizing, typography, spacing, and fill — all in a two-column layout the model can read.
               </p>
@@ -903,7 +908,7 @@ function EditorPitch() {
               </div>
             </div>
             <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 text-[15px] font-medium text-[#1B283D]">Component hierarchy</h3>
+              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Component hierarchy</h3>
               <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
                 Clean tree structure, drag reorder, multi-select. See what was generated and restructure it.
               </p>
@@ -940,7 +945,7 @@ function EditorPitch() {
               </div>
             </div>
             <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 text-[15px] font-medium text-[#1B283D]">Layout semantics</h3>
+              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Layout semantics</h3>
               <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
                 Fill, Hug, and Fixed sizing — not just pixels. Generate with these constraints; edit with the same vocabulary.
               </p>
@@ -986,7 +991,7 @@ function PricingCard({
           Popular
         </span>
       ) : null}
-      <h3 className="font-['Noto_Serif'] text-[20px] font-medium text-[#1B283D]">{name}</h3>
+      <h3 className="font-['Noto_Serif'] text-[20px] font-normal text-[#1B283D]">{name}</h3>
       <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-[28px] font-semibold tracking-tight text-[#1B283D]">{price}</span>
         {priceDetail ? (
@@ -1012,7 +1017,7 @@ function PricingSection() {
     <section id="pricing" className="scroll-mt-24 border-t border-[#3A48B5]/10 bg-[#FAFAFA] py-20 md:py-28">
       <div className="mx-auto max-w-[1200px] px-5 md:px-10">
         <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#525252]">Pricing</p>
-        <h2 className="mb-4 max-w-[560px] font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-medium leading-tight tracking-tight text-[#1B283D]">
+        <h2 className="mb-4 max-w-[560px] font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-normal leading-tight tracking-tight text-[#1B283D]">
           Simple tiers. Ship when you’re ready.
         </h2>
         <p className="mb-12 max-w-[520px] text-[15px] font-medium leading-relaxed text-[#525252]">
@@ -1182,14 +1187,14 @@ export function CursorSite() {
               transition={{ duration: 0.55, ease }}
               className="w-full max-w-[56rem] text-left"
             >
-              <h1 className="mt-16 mb-6 max-w-[920px] font-['Noto_Serif'] text-[clamp(2.35rem,4.8vw,3.5rem)] font-medium leading-[1.05] tracking-[-0.035em] text-[#FAFAFA]">
+              <h1 className="mt-16 mb-6 max-w-[920px] font-['Noto_Serif'] text-[clamp(2.35rem,4.8vw,3.5rem)] font-normal leading-[1.05] tracking-[-0.035em] text-[#E8ECF5] [text-shadow:0_1px_20px_rgba(0,0,0,0.28)]">
                 Design with References,
                 <br />
-                <span className="bg-gradient-to-r from-[#E8EDFF] via-[#D1E2F6] to-[#9EACE8] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#D6DFF8] via-[#B4C2F2] to-[#7D8DDC] bg-clip-text text-transparent [text-shadow:none] drop-shadow-[0_1px_18px_rgba(75,87,219,0.18)]">
                   Now You Can.
                 </span>
               </h1>
-              <p className="mb-8 max-w-[480px] text-[15px] leading-[1.6] text-white/38 md:mb-10 md:text-[16px]">
+              <p className="mb-8 max-w-[480px] font-light text-[15px] leading-[1.6] text-white/38 md:mb-10 md:text-[16px]">
                 Purpose-built for design-led teams. Taste, canvas, and handoff — in one calm system.
               </p>
               <div className="flex flex-wrap items-center gap-3">
@@ -1235,7 +1240,7 @@ export function CursorSite() {
       <section id="harness" className="scroll-mt-24 border-b border-[#3A48B5]/8 bg-[#FAFAFA] py-20 md:py-28">
         <div className="mx-auto max-w-[1200px] px-5 md:px-10">
           <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#525252]">The loop</p>
-          <h2 className="mb-14 max-w-[520px] font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-medium leading-tight tracking-tight text-[#1B283D]">
+          <h2 className="mb-14 max-w-[520px] font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-normal leading-tight tracking-tight text-[#1B283D]">
             One pipeline from inspiration to shipped UI — without losing your eye.
           </h2>
           <div className="grid gap-6 md:grid-cols-3 md:gap-6 lg:gap-8">
@@ -1263,11 +1268,11 @@ export function CursorSite() {
 
       <EditorPitch />
 
-      <section id="taste" className="scroll-mt-24 bg-[#D1E2F6] py-20 md:py-28">
-        <div className="mx-auto grid max-w-[1200px] gap-12 px-5 md:grid-cols-2 md:items-center md:gap-16 md:px-10">
+      <section id="taste" className="scroll-mt-24 bg-[#E2E9F3] py-14 md:py-20">
+        <div className="mx-auto grid max-w-[1200px] gap-8 px-5 md:grid-cols-2 md:items-center md:gap-12 md:px-10">
           <div>
-            <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#525252]">Taste engine</p>
-            <h2 className="mb-5 font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-medium leading-tight tracking-tight text-[#1B283D]">
+            <p className="mb-4 text-[10px] font-bold uppercase tracking-[1.5px] text-[#525252]">Taste engine</p>
+            <h2 className="mb-5 font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-normal leading-tight tracking-tight text-[#1B283D]">
               Moodboard in,
               <br />
               <span className="text-[#6B6B6B]">constraints out.</span>
@@ -1278,19 +1283,9 @@ export function CursorSite() {
             </p>
             <TasteStrip />
           </div>
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-10%" }}
-            transition={{ duration: 0.5, ease }}
-            className="grid grid-cols-2 gap-3"
-          >
-            <div className="aspect-[4/5] rounded-[6px] bg-[#3A48B5]" />
-            <div className="mt-8 aspect-[4/5] rounded-[6px] bg-[#FAFAFA] ring-1 ring-[#3A48B5]/15" />
-            <div className="col-span-2 flex items-center justify-center rounded-[6px] border border-dashed border-[#3A48B5]/30 bg-[#FAFAFA] py-8 font-mono text-[11px] text-[#6B6B6B]">
-              + add references
-            </div>
-          </motion.div>
+          <div className="min-w-0">
+            <TasteMoodboardGallery />
+          </div>
         </div>
       </section>
 
@@ -1300,7 +1295,7 @@ export function CursorSite() {
         <div className="mx-auto grid max-w-[1200px] gap-12 px-5 md:grid-cols-2 md:items-center md:gap-16 md:px-10">
           <div>
             <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#D1E2F6]/70">Handoff</p>
-            <h2 className="mb-5 font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.5rem)] font-medium leading-tight text-[#FAFAFA]">
+            <h2 className="mb-5 font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.5rem)] font-normal leading-tight text-[#FAFAFA]">
               Real markup.
               <br />
               No lock-in.

@@ -1,0 +1,406 @@
+{
+  "testName": "Grammar Depth Gate Test",
+  "date": "2026-04-11T12:15:22.938Z",
+  "brief": "Design a landing page for a creative design studio that makes brand identities. The studio is called 'Atelier Forme' and they work with cultural institutions, fashion brands, and tech companies.",
+  "siteName": "Atelier Forme",
+  "mode": "single (base only)",
+  "deepGrammars": [
+    "premium-saas",
+    "editorial-brand",
+    "culture-brand",
+    "creative-portfolio"
+  ],
+  "shallowGrammars": [
+    "minimal-tech",
+    "experimental"
+  ],
+  "results": [
+    {
+      "archetype": "premium-saas",
+      "grammarDepth": "deep",
+      "success": true,
+      "variantCount": 3,
+      "variants": [
+        {
+          "name": "Variant A — Faithful",
+          "strategy": "safe",
+          "pageTreeSource": "ai",
+          "nodeCount": 114,
+          "sectionCount": 8,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Nav",
+            "Hero",
+            "Divider Row",
+            "Manifesto",
+            "Selected Work",
+            "Testimonials",
+            "Closing CTA",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant B — Pushed",
+          "strategy": "creative",
+          "pageTreeSource": "ai",
+          "nodeCount": 114,
+          "sectionCount": 8,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Nav",
+            "Hero",
+            "Divider Row",
+            "Manifesto",
+            "Selected Work",
+            "Testimonials",
+            "Closing CTA",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant C — Restructured",
+          "strategy": "alternative",
+          "pageTreeSource": "ai",
+          "nodeCount": 114,
+          "sectionCount": 8,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Nav",
+            "Hero",
+            "Divider Row",
+            "Manifesto",
+            "Selected Work",
+            "Testimonials",
+            "Closing CTA",
+            "Footer"
+          ]
+        }
+      ],
+      "durationMs": 230721
+    },
+    {
+      "archetype": "editorial-brand",
+      "grammarDepth": "deep",
+      "success": true,
+      "variantCount": 3,
+      "variants": [
+        {
+          "name": "Variant A — Faithful",
+          "strategy": "safe",
+          "pageTreeSource": "ai",
+          "nodeCount": 47,
+          "sectionCount": 8,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Studio Introduction Spread",
+            "Pullquote",
+            "Full-Bleed Photo Break",
+            "Selected Work Index",
+            "Contact CTA",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant B — Pushed",
+          "strategy": "creative",
+          "pageTreeSource": "ai",
+          "nodeCount": 47,
+          "sectionCount": 8,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Studio Introduction Spread",
+            "Pullquote",
+            "Full-Bleed Photo Break",
+            "Selected Work Index",
+            "Contact CTA",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant C — Restructured",
+          "strategy": "alternative",
+          "pageTreeSource": "ai",
+          "nodeCount": 53,
+          "sectionCount": 8,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero Split",
+            "Pullquote",
+            "Studio Introduction Spread",
+            "Full-Bleed Photo Break",
+            "Selected Work Index",
+            "Contact CTA",
+            "Footer"
+          ]
+        }
+      ],
+      "durationMs": 126930
+    },
+    {
+      "archetype": "culture-brand",
+      "grammarDepth": "deep",
+      "success": true,
+      "variantCount": 3,
+      "variants": [
+        {
+          "name": "Variant A — Faithful",
+          "strategy": "safe",
+          "pageTreeSource": "ai",
+          "nodeCount": 45,
+          "sectionCount": 9,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Editorial Photo Grid",
+            "Statement Section",
+            "Lookbook Sequence",
+            "Culture Block",
+            "Disciplines Grid",
+            "Bold CTA Section",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant B — Pushed",
+          "strategy": "creative",
+          "pageTreeSource": "ai",
+          "nodeCount": 45,
+          "sectionCount": 9,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Editorial Photo Grid",
+            "Statement Section",
+            "Lookbook Sequence",
+            "Culture Block",
+            "Disciplines Grid",
+            "Bold CTA Section",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant C — Restructured",
+          "strategy": "alternative",
+          "pageTreeSource": "ai",
+          "nodeCount": 45,
+          "sectionCount": 9,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Editorial Photo Grid",
+            "Statement Section",
+            "Lookbook Sequence",
+            "Culture Block",
+            "Disciplines Grid",
+            "Bold CTA Section",
+            "Footer"
+          ]
+        }
+      ],
+      "durationMs": 124412
+    },
+    {
+      "archetype": "creative-portfolio",
+      "grammarDepth": "deep",
+      "success": true,
+      "variantCount": 3,
+      "variants": [
+        {
+          "name": "Variant A — Faithful",
+          "strategy": "safe",
+          "pageTreeSource": "ai",
+          "nodeCount": 62,
+          "sectionCount": 9,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Project 1 Full Bleed",
+            "Project 2 Asymmetric",
+            "Project 3 Asymmetric Reversed",
+            "About",
+            "Selected Clients",
+            "Contact",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant B — Pushed",
+          "strategy": "creative",
+          "pageTreeSource": "ai",
+          "nodeCount": 62,
+          "sectionCount": 9,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Project 1 Full Bleed",
+            "Project 2 Asymmetric",
+            "Project 3 Asymmetric Reversed",
+            "About",
+            "Selected Clients",
+            "Contact",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant C — Restructured",
+          "strategy": "alternative",
+          "pageTreeSource": "ai",
+          "nodeCount": 71,
+          "sectionCount": 9,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "About",
+            "Project 2 Asymmetric",
+            "Project 1 Full Bleed",
+            "Project 3 Asymmetric",
+            "Selected Clients",
+            "Contact",
+            "Footer"
+          ]
+        }
+      ],
+      "durationMs": 133752
+    },
+    {
+      "archetype": "minimal-tech",
+      "grammarDepth": "shallow",
+      "success": true,
+      "variantCount": 3,
+      "variants": [
+        {
+          "name": "Variant A — Faithful",
+          "strategy": "safe",
+          "pageTreeSource": "ai",
+          "nodeCount": 70,
+          "sectionCount": 7,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Featured Work",
+            "Approach Section",
+            "Feature Deep Dive",
+            "CTA Section",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant B — Pushed",
+          "strategy": "creative",
+          "pageTreeSource": "ai",
+          "nodeCount": 70,
+          "sectionCount": 7,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Featured Work",
+            "Approach Section",
+            "Feature Deep Dive",
+            "CTA Section",
+            "Footer"
+          ]
+        },
+        {
+          "name": "Variant C — Restructured",
+          "strategy": "alternative",
+          "pageTreeSource": "ai",
+          "nodeCount": 77,
+          "sectionCount": 7,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero Split",
+            "Feature Deep Dive",
+            "Approach Section",
+            "Featured Work",
+            "CTA Section",
+            "Footer"
+          ]
+        }
+      ],
+      "durationMs": 179314
+    },
+    {
+      "archetype": "experimental",
+      "grammarDepth": "shallow",
+      "success": true,
+      "variantCount": 3,
+      "variants": [
+        {
+          "name": "Variant A — Faithful",
+          "strategy": "safe",
+          "pageTreeSource": "ai",
+          "nodeCount": 74,
+          "sectionCount": 7,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Manifesto Strip",
+            "Work Showcase",
+            "Process Section",
+            "Photo Break",
+            "Contact / Footer"
+          ]
+        },
+        {
+          "name": "Variant B — Pushed",
+          "strategy": "creative",
+          "pageTreeSource": "ai",
+          "nodeCount": 74,
+          "sectionCount": 7,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero",
+            "Manifesto Strip",
+            "Work Showcase",
+            "Process Section",
+            "Photo Break",
+            "Contact / Footer"
+          ]
+        },
+        {
+          "name": "Variant C — Restructured",
+          "strategy": "alternative",
+          "pageTreeSource": "ai",
+          "nodeCount": 70,
+          "sectionCount": 7,
+          "fidelityScore": null,
+          "sectionTypes": [
+            "Navigation",
+            "Hero Split",
+            "Photo Break Pullquote",
+            "Work Showcase",
+            "Manifesto Strip",
+            "Process Section",
+            "Contact Footer"
+          ]
+        }
+      ],
+      "durationMs": 184909
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "succeeded": 6,
+    "failed": 0,
+    "avgNodesDeep": 67,
+    "avgNodesShallow": 72,
+    "avgSectionsDeep": 9,
+    "avgSectionsShallow": 7
+  }
+}

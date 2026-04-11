@@ -1,0 +1,70 @@
+{
+  "testName": "Grammar Depth Gate Test",
+  "date": "2026-04-11T11:43:08.569Z",
+  "brief": "Design a landing page for a creative design studio that makes brand identities. The studio is called 'Atelier Forme' and they work with cultural institutions, fashion brands, and tech companies.",
+  "siteName": "Atelier Forme",
+  "mode": "single (base only)",
+  "deepGrammars": [
+    "premium-saas",
+    "editorial-brand",
+    "culture-brand",
+    "creative-portfolio"
+  ],
+  "shallowGrammars": [
+    "minimal-tech",
+    "experimental"
+  ],
+  "results": [
+    {
+      "archetype": "premium-saas",
+      "grammarDepth": "deep",
+      "success": false,
+      "error": "404: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/_10cac035._.css\" data",
+      "durationMs": 18
+    },
+    {
+      "archetype": "editorial-brand",
+      "grammarDepth": "deep",
+      "success": false,
+      "error": "404: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/_10cac035._.css\" data",
+      "durationMs": 13
+    },
+    {
+      "archetype": "culture-brand",
+      "grammarDepth": "deep",
+      "success": false,
+      "error": "404: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/_10cac035._.css\" data",
+      "durationMs": 15
+    },
+    {
+      "archetype": "creative-portfolio",
+      "grammarDepth": "deep",
+      "success": false,
+      "error": "404: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/_10cac035._.css\" data",
+      "durationMs": 15
+    },
+    {
+      "archetype": "minimal-tech",
+      "grammarDepth": "shallow",
+      "success": false,
+      "error": "404: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/_10cac035._.css\" data",
+      "durationMs": 17
+    },
+    {
+      "archetype": "experimental",
+      "grammarDepth": "shallow",
+      "success": false,
+      "error": "404: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/_10cac035._.css\" data",
+      "durationMs": 15
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "succeeded": 0,
+    "failed": 6,
+    "avgNodesDeep": 0,
+    "avgNodesShallow": 0,
+    "avgSectionsDeep": 0,
+    "avgSectionsShallow": 0
+  }
+}

@@ -133,6 +133,60 @@ function normalizeStyle(
     }
   }
 
+  // Validate borderRadius — accept number or 4-value string
+  const s = style;
+  const n = { name: nodeName, id: nodeName };
+  if (s.borderRadius != null) {
+    if (typeof s.borderRadius === "string") {
+      const str = s.borderRadius.trim();
+      const fourValues = str.split(/\s+/);
+      if (fourValues.length === 4) {
+        const validValue = /^\d+(?:\.\d+)?(%|px)?$/;
+        if (!fourValues.every((v) => validValue.test(v))) {
+          console.warn(`[VALIDATOR] Stripped borderRadius: "${s.borderRadius}" from node ${n.name || n.id}`);
+          delete s.borderRadius;
+        }
+      } else if (/^\d+(?:\.\d+)?(%|px)?$/.test(str)) {
+        if (!str.endsWith("%")) {
+          s.borderRadius = parseFloat(str);
+        }
+      } else {
+        console.warn(`[VALIDATOR] Stripped borderRadius: "${s.borderRadius}" from node ${n.name || n.id}`);
+        delete s.borderRadius;
+      }
+    }
+  }
+
+  // Validate gap — accept number or "rowGap colGap" string
+  if (s.gap != null) {
+    if (typeof s.gap === "string") {
+      const parts = s.gap.trim().split(/\s+/);
+      if (parts.length === 2) {
+        if (isNaN(Number(parts[0])) || isNaN(Number(parts[1]))) {
+          console.warn(`[VALIDATOR] Stripped gap: "${s.gap}" from node ${n.name || n.id}`);
+          delete s.gap;
+        }
+      } else {
+        const num = Number(s.gap);
+        if (!isNaN(num)) {
+          s.gap = num;
+        } else {
+          console.warn(`[VALIDATOR] Stripped gap: "${s.gap}" from node ${n.name || n.id}`);
+          delete s.gap;
+        }
+      }
+    }
+  }
+
+  // Validate overflow — enum validation
+  if (s.overflow) {
+    const validOverflow = new Set(["visible", "hidden", "auto", "scroll"]);
+    if (!validOverflow.has(s.overflow as string)) {
+      console.warn(`[VALIDATOR] Stripped overflow: "${s.overflow}" from node ${n.name || n.id}`);
+      delete s.overflow;
+    }
+  }
+
   // Ensure position is valid
   if (style.position && style.position !== "relative" && style.position !== "absolute") {
     delete style.position;

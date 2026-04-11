@@ -38,12 +38,25 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   if (style.display === "grid") {
     css.display = "grid";
     if (style.gridTemplate) css.gridTemplateColumns = style.gridTemplate;
+    if (style.gridTemplateRows) css.gridTemplateRows = style.gridTemplateRows;
   } else if (style.display === "flex" || style.flexDirection) {
     css.display = "flex";
     css.flexDirection = style.flexDirection || "column";
   }
 
-  if (style.gap != null) css.gap = style.gap;
+  if (style.gap != null) {
+    if (typeof style.gap === "string") {
+      const parts = String(style.gap).trim().split(/\s+/);
+      if (parts.length === 2) {
+        css.rowGap = Number(parts[0]);
+        css.columnGap = Number(parts[1]);
+      } else {
+        css.gap = style.gap;
+      }
+    } else {
+      css.gap = style.gap;
+    }
+  }
   if (style.alignItems) css.alignItems = style.alignItems;
   if (style.justifyContent) css.justifyContent = style.justifyContent;
   if (style.flexGrow != null) css.flexGrow = style.flexGrow;
@@ -92,7 +105,18 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
     css.borderWidth = style.borderWidth;
     css.borderStyle = "solid";
   }
-  if (style.borderRadius != null) css.borderRadius = style.borderRadius;
+  if (style.borderRadius != null) {
+    if (typeof style.borderRadius === "string") {
+      const parts = String(style.borderRadius).trim().split(/\s+/);
+      if (parts.length === 4) {
+        css.borderRadius = parts.map((v) => v.includes("%") ? v : `${v}px`).join(" ");
+      } else {
+        css.borderRadius = style.borderRadius;
+      }
+    } else {
+      css.borderRadius = style.borderRadius;
+    }
+  }
   if (style.opacity != null) css.opacity = style.opacity;
   const normalizedEffects = normalizeLegacyEffects(style);
   if (normalizedEffects && normalizedEffects.length > 0) {

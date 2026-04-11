@@ -122,38 +122,149 @@ SECTION COUNT: 3-5 focused sections. Less is more.
       return `
 ## SECTION GRAMMAR — CREATIVE PORTFOLIO
 
-USE these patterns:
-- Full-bleed project showcases (frame with coverImage, overlaid title text)
-- Asymmetric grid layouts ("3fr 2fr" or "2fr 1fr") for image + text pairs
-- Statement typography (fontSize 60-80, light weight, tight letterSpacing)
-- Personal hero (name, role, one strong image)
+You are generating a CREATIVE PORTFOLIO design — a designer's site where the site IS the work. NOT a SaaS landing page.
 
-DO NOT USE:
-- Uniform card grids
-- Corporate proof sections
-- Pricing or feature comparison tables
-- Generic SaaS CTAs
+DO NOT USE these SaaS patterns:
+- 3-column uniform card grids (icon + title + description)
+- Stats/metrics rows with big numbers
+- Logo bars / social proof strips
+- Pricing tables or tier comparisons
+- "How it works" numbered steps
+- FAQ accordions
+- Feature comparison sections
+- Testimonial cards with star ratings
+- Big colored CTA buttons
 
-SECTION COUNT: 4-6 sections with strong visual personality.
+USE INSTEAD: Statement typography hero, full-bleed project showcases, asymmetric grid layouts, text-link CTAs, vertical client lists, personal bio sections, dramatic whitespace.
+
+## PAGE-LEVEL COMPOSITION RULES — CREATIVE PORTFOLIO
+
+1. **WHITESPACE IS THE DESIGN**: Generous padding (120–200px vertical on major sections). Empty space is intentional, not missing content. Dramatic whitespace creates the premium, confident feel.
+
+2. **ASYMMETRIC GRIDS**: Never uniform columns. Use "3fr 2fr", "2fr 1fr", or custom proportions. The asymmetry communicates design sensibility — this person understands composition.
+
+3. **TYPOGRAPHY SCALE JUMPS**: Display headings at 64–140px (clamp). Body at 15–17px. The contrast between giant type and small body creates hierarchy through scale, not decoration.
+
+4. **PROJECT SHOWCASES, NOT CARDS**: Work shown at large scale — full-bleed or near-full-bleed. Each project gets visual room. Never a thumbnail grid. Each project is a frame with coverImage, overlaid title optional.
+
+5. **LIGHT MODE, NEUTRAL PALETTE**: Off-white backgrounds (#FAFAF8, #F5F5F0). Near-black text (#1A1A1A). Single muted accent for links/interactions only. Color restraint signals confidence.
+
+6. **UNDERSTATED NAVIGATION**: Hidden hamburger (creative statement) or minimal top bar (2–3 links max). Navigation is designed, not functional default. The way you open the menu should feel authored.
+
+7. **TEXT-LINK CTAs**: No big colored buttons. CTAs are underlined text links with arrows ("View project →", "Get in touch →"). The work sells itself — the CTA is quiet.
+
+8. **PERSONAL VOICE**: Copy is first-person, brief, specific. "I design identities for cultural institutions" not "We help brands tell their story." The bio section is a statement, not a resume.
+
+SECTION COUNT: 4–6 sections. Each one breathes.
+COPY TONE: Designer speaking directly — confident, specific, no corporate hedging.
+
+## CREATIVE-PORTFOLIO COMPOSITION RECIPES
+
+Build each major block as a **section frame** (direct child of the page root). Compose from these named recipes:
+
+1. **Minimal nav** — Frame row, justify space-between, padding 20–24px horizontal, 16–20px vertical. Logo: text node, 14–16px, fontWeight 500–600, no uppercase. Right side: 2–3 text links (14px, foreground muted at 50–60% opacity, gap 24–32px) OR single hamburger trigger (text "Menu" 14px or icon frame 24x24). No background, no border. Feels invisible.
+
+2. **Statement hero** — Full-width frame, padding 140–200px vertical, 48–80px horizontal. Single display text node: fontSize clamp(64px, 10vw, 140px), fontWeight 300–500, lineHeight 1.0–1.1, letterSpacing -0.02 to -0.04. Left-aligned (never centered for portfolio). One line or two max. Below (40–48px gap): brief descriptor text, 16–18px, foreground at 50% opacity, maxWidth 480px. No buttons in hero. Maybe a subtle scroll indicator (text "Scroll" 11px, opacity 0.3, absolute bottom).
+
+3. **Project showcase — full bleed** — Frame with coverImage (project photography or mockup), height 500–700px, coverSize cover. Optional overlaid title: text node at bottom-left, 20–28px, fontWeight 500, foreground #FFFFFF (if dark image) with subtle text-shadow or scrim. Optional category text above title: 11px uppercase tracked, opacity 0.5. No borders, no radius, no cards.
+
+4. **Project showcase — asymmetric** — Frame with display grid, gridTemplate "3fr 2fr" or "2fr 1fr". Larger side: project image (image node, objectFit cover, height 400–560px). Smaller side: column frame with project title (24–36px, fontWeight 500), year/category (12px, foreground muted), brief description (15px, lineHeight 1.6, foreground at 60% opacity), and text-link CTA ("View project →" 14px, underline). Gap 48–80px. Asymmetry alternates: odd rows image-left, even rows image-right.
+
+5. **About / bio section** — Frame column, padding 100–160px vertical, max-width 720px (narrow — reads like a letter, not a brochure). Kicker: 11px uppercase tracked, foreground muted. Headline: 32–48px, fontWeight 400, lineHeight 1.3. Body: 16–17px, lineHeight 1.7, foreground at 70% opacity. 3–5 sentences max. First person. Specific. Optional: text-link "Get in touch →" below at same body size.
+
+6. **Selected clients / collaborators** — Frame column, padding 80–120px vertical. Kicker: 11px uppercase tracked, foreground muted ("Selected Clients" or "Collaborations"). Below: column of text nodes, each 20–24px, fontWeight 400, with subtle top border (1px, 10% opacity) and padding 16–20px vertical. Company names as a vertical list, not a logo grid. Understated, not boastful.
+
+7. **Contact / closing** — Frame column, centered or left-aligned, padding 120–200px vertical. One text node: 32–56px, fontWeight 300–400, lineHeight 1.3 ("Let's work together" or specific invite). Below: email as text-link (16px, underline, accent color). Maybe location text (14px, muted). No contact form. No "Send Message" button. Just the email — designers know what to do with it.
+
+8. **Minimal footer** — Frame row or column, padding 20–24px. Copyright (12px, opacity 0.3) + 2–3 social/contact links as text (12px, opacity 0.3). Optional subtle top border. Almost invisible — the content above is the ending, not the footer.
+
+## COMPLETE CREATIVE-PORTFOLIO COMPOSITION EXAMPLE
+
+This is a complete portfolio homepage as a DesignNode tree. Study the composition — how whitespace creates confidence, how asymmetric grids show design sensibility, how typography scale jumps create hierarchy, how text-links replace buttons.
+
+[{"id":"page-root","type":"frame","name":"Portfolio Homepage","style":{"width":"fill","display":"flex","flexDirection":"column","background":"#FAFAF8","foreground":"#1A1A1A"},"children":[{"id":"nav-01","type":"frame","name":"Navigation","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"center","padding":{"top":20,"right":48,"bottom":20,"left":48}},"children":[{"id":"nav-name","type":"text","name":"Name","style":{"fontSize":15,"fontWeight":500},"content":{"text":"Elena Morisot"}},{"id":"nav-links","type":"frame","name":"Links","style":{"display":"flex","flexDirection":"row","gap":28},"children":[{"id":"nav-l1","type":"text","name":"Link","style":{"fontSize":14,"foreground":"#999999"},"content":{"text":"Work"}},{"id":"nav-l2","type":"text","name":"Link","style":{"fontSize":14,"foreground":"#999999"},"content":{"text":"About"}},{"id":"nav-l3","type":"text","name":"Link","style":{"fontSize":14,"foreground":"#999999"},"content":{"text":"Contact"}}]}]},{"id":"hero-01","type":"frame","name":"Hero","style":{"width":"fill","display":"flex","flexDirection":"column","padding":{"top":160,"right":48,"bottom":160,"left":48}},"children":[{"id":"hero-title","type":"text","name":"Title","style":{"fontSize":96,"fontWeight":300,"lineHeight":1.05,"letterSpacing":-0.03,"maxWidth":"85%"},"content":{"text":"Designing identities\\nfor cultural institutions"}},{"id":"hero-desc","type":"text","name":"Description","style":{"fontSize":17,"foreground":"#888888","maxWidth":460,"lineHeight":1.6,"marginTop":40},"content":{"text":"Art director and brand designer based in Paris. Currently at Studio Fnt, previously Pentagram."}}]},{"id":"project-01","type":"frame","name":"Project 1","style":{"width":"fill","height":600,"coverImage":"photo:museum exhibition space, minimal white walls, large scale typography on wall, visitors in background, architectural photography","coverSize":"cover","coverPosition":"center","display":"flex","flexDirection":"column","justifyContent":"flex-end","padding":{"top":0,"right":48,"bottom":40,"left":48}},"children":[{"id":"p1-cat","type":"text","name":"Category","style":{"fontSize":11,"letterSpacing":0.12,"foreground":"rgba(255,255,255,0.5)"},"content":{"text":"IDENTITY"}},{"id":"p1-title","type":"text","name":"Title","style":{"fontSize":24,"fontWeight":500,"foreground":"#FFFFFF"},"content":{"text":"Fondation Maeght — Visual System"}}]},{"id":"project-02","type":"frame","name":"Project 2","style":{"width":"fill","display":"grid","gridTemplate":"3fr 2fr","gap":48,"padding":{"top":100,"right":48,"bottom":100,"left":48},"alignItems":"center"},"children":[{"id":"p2-img","type":"image","name":"Photo","style":{"width":"fill","height":480,"objectFit":"cover"},"content":{"src":"photo:book cover design mockup, hardcover on marble surface, editorial typography, overhead shot, natural light","alt":"Book design"}},{"id":"p2-text","type":"frame","name":"Text","style":{"display":"flex","flexDirection":"column","gap":12},"children":[{"id":"p2-cat","type":"text","name":"Category","style":{"fontSize":11,"letterSpacing":0.12,"foreground":"#999999"},"content":{"text":"EDITORIAL"}},{"id":"p2-title","type":"text","name":"Title","style":{"fontSize":28,"fontWeight":500,"lineHeight":1.2},"content":{"text":"Type Specimens\\nfor Colophon Foundry"}},{"id":"p2-desc","type":"text","name":"Description","style":{"fontSize":15,"lineHeight":1.6,"foreground":"#888888","maxWidth":360},"content":{"text":"A series of twelve type specimens exploring the relationship between letterform and material surface."}},{"id":"p2-link","type":"text","name":"CTA","style":{"fontSize":14,"fontWeight":500,"foreground":"#1A1A1A","textDecoration":"underline","marginTop":8},"content":{"text":"View project →"}}]}]},{"id":"project-03","type":"frame","name":"Project 3","style":{"width":"fill","display":"grid","gridTemplate":"2fr 3fr","gap":48,"padding":{"top":100,"right":48,"bottom":100,"left":48},"alignItems":"center"},"children":[{"id":"p3-text","type":"frame","name":"Text","style":{"display":"flex","flexDirection":"column","gap":12},"children":[{"id":"p3-cat","type":"text","name":"Category","style":{"fontSize":11,"letterSpacing":0.12,"foreground":"#999999"},"content":{"text":"BRANDING"}},{"id":"p3-title","type":"text","name":"Title","style":{"fontSize":28,"fontWeight":500,"lineHeight":1.2},"content":{"text":"Galerie Perrotin\\nSeasonal Campaign"}},{"id":"p3-desc","type":"text","name":"Description","style":{"fontSize":15,"lineHeight":1.6,"foreground":"#888888","maxWidth":360},"content":{"text":"Seasonal identity system for one of Paris's leading contemporary art galleries. Photography-led, typographically restrained."}},{"id":"p3-link","type":"text","name":"CTA","style":{"fontSize":14,"fontWeight":500,"foreground":"#1A1A1A","textDecoration":"underline","marginTop":8},"content":{"text":"View project →"}}]},{"id":"p3-img","type":"image","name":"Photo","style":{"width":"fill","height":480,"objectFit":"cover"},"content":{"src":"photo:gallery poster on concrete wall, bold sans-serif typography, torn edges, street photography style","alt":"Gallery campaign"}}]},{"id":"about-01","type":"frame","name":"About","style":{"width":"fill","display":"flex","flexDirection":"column","padding":{"top":120,"right":48,"bottom":120,"left":48},"maxWidth":720},"children":[{"id":"about-kicker","type":"text","name":"Kicker","style":{"fontSize":11,"letterSpacing":0.12,"foreground":"#999999"},"content":{"text":"ABOUT"}},{"id":"about-title","type":"text","name":"Title","style":{"fontSize":36,"fontWeight":400,"lineHeight":1.3,"marginTop":16},"content":{"text":"I believe identity design is architecture for attention."}},{"id":"about-body","type":"text","name":"Body","style":{"fontSize":16,"lineHeight":1.7,"foreground":"#777777","marginTop":20},"content":{"text":"For the past eight years I've worked with museums, publishers, and cultural organizations to build visual systems that hold meaning over time. I care about typography, material, and the space between things."}},{"id":"about-link","type":"text","name":"CTA","style":{"fontSize":15,"fontWeight":500,"foreground":"#1A1A1A","textDecoration":"underline","marginTop":24},"content":{"text":"Get in touch →"}}]},{"id":"clients-01","type":"frame","name":"Clients","style":{"width":"fill","display":"flex","flexDirection":"column","padding":{"top":80,"right":48,"bottom":80,"left":48}},"children":[{"id":"clients-kicker","type":"text","name":"Kicker","style":{"fontSize":11,"letterSpacing":0.12,"foreground":"#999999","padding":{"top":0,"right":0,"bottom":20,"left":0}},"content":{"text":"SELECTED CLIENTS"}},{"id":"cl-0","type":"frame","name":"Client 1","style":{"display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"baseline","padding":{"top":16,"right":0,"bottom":16,"left":0},"borderColor":"#EFEFEC","borderWidth":1},"children":[{"id":"cl-0-name","type":"text","name":"Name","style":{"fontSize":20,"fontWeight":400},"content":{"text":"Fondation Maeght"}},{"id":"cl-0-type","type":"text","name":"Type","style":{"fontSize":13,"foreground":"#999999"},"content":{"text":"Identity, Editorial"}}]},{"id":"cl-1","type":"frame","name":"Client 2","style":{"display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"baseline","padding":{"top":16,"right":0,"bottom":16,"left":0},"borderColor":"#EFEFEC","borderWidth":1},"children":[{"id":"cl-1-name","type":"text","name":"Name","style":{"fontSize":20,"fontWeight":400},"content":{"text":"Colophon Foundry"}},{"id":"cl-1-type","type":"text","name":"Type","style":{"fontSize":13,"foreground":"#999999"},"content":{"text":"Editorial, Type Specimens"}}]},{"id":"cl-2","type":"frame","name":"Client 3","style":{"display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"baseline","padding":{"top":16,"right":0,"bottom":16,"left":0},"borderColor":"#EFEFEC","borderWidth":1},"children":[{"id":"cl-2-name","type":"text","name":"Name","style":{"fontSize":20,"fontWeight":400},"content":{"text":"Galerie Perrotin"}},{"id":"cl-2-type","type":"text","name":"Type","style":{"fontSize":13,"foreground":"#999999"},"content":{"text":"Branding, Campaign"}}]}]},{"id":"contact-01","type":"frame","name":"Contact","style":{"width":"fill","display":"flex","flexDirection":"column","padding":{"top":140,"right":48,"bottom":140,"left":48}},"children":[{"id":"contact-title","type":"text","name":"Title","style":{"fontSize":48,"fontWeight":300,"lineHeight":1.2},"content":{"text":"Have a project in mind?"}},{"id":"contact-email","type":"text","name":"Email","style":{"fontSize":17,"fontWeight":500,"foreground":"#1A1A1A","textDecoration":"underline","marginTop":20},"content":{"text":"elena@morisot.design →"}},{"id":"contact-loc","type":"text","name":"Location","style":{"fontSize":14,"foreground":"#999999","marginTop":8},"content":{"text":"Paris, France"}}]},{"id":"footer-01","type":"frame","name":"Footer","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-between","padding":{"top":20,"right":48,"bottom":20,"left":48},"borderColor":"#EFEFEC","borderWidth":1},"children":[{"id":"f-copy","type":"text","name":"Copyright","style":{"fontSize":12,"foreground":"#BBBBBB"},"content":{"text":"© 2026 Elena Morisot"}},{"id":"f-social","type":"frame","name":"Social","style":{"display":"flex","flexDirection":"row","gap":20},"children":[{"id":"f-s1","type":"text","name":"Link","style":{"fontSize":12,"foreground":"#BBBBBB"},"content":{"text":"Instagram"}},{"id":"f-s2","type":"text","name":"Link","style":{"fontSize":12,"foreground":"#BBBBBB"},"content":{"text":"Are.na"}},{"id":"f-s3","type":"text","name":"Link","style":{"fontSize":12,"foreground":"#BBBBBB"},"content":{"text":"Read.cv"}}]}]}]}]
+
+Adapt this composition to match the brief and taste profile:
+- Replace all text with original portfolio copy — first person, specific, no hedging
+- Replace all photo descriptions with the designer's actual work domain
+- Adjust colors to match taste palette (keep light + neutral bias)
+- Project showcases alternate: full-bleed → asymmetric left → asymmetric right
+- You may add or remove one project showcase, but keep asymmetric grid rhythm
+- About section is non-negotiable — every portfolio needs a voice
+- Clients section: use names relevant to the brief's domain, listed vertically
+- Never use card grids for projects. Each project breathes individually.
 `;
 
     case "culture-brand":
       return `
 ## SECTION GRAMMAR — CULTURE BRAND
 
-USE these patterns:
-- Warm, photography-led hero (lifestyle/community coverImage)
-- Story-driven sections (narrative flow)
-- Community/people sections with real photography (image nodes)
-- Rounded borders, warm earthy backgrounds
+You are generating a CULTURE BRAND design — a cultural artifact, NOT a SaaS landing page.
 
-DO NOT USE:
-- Clinical product screenshots
-- Dense feature grids
-- Technical/developer sections
-- Dark mode or monochrome
+DO NOT USE these SaaS patterns:
+- 3-column uniform card grids (icon + title + description)
+- Stats/metrics rows with big numbers
+- Logo bars / social proof strips
+- Pricing tables or tier comparisons
+- "How it works" numbered steps
+- FAQ accordions
+- Feature comparison sections
+- Testimonial cards with star ratings
 
-SECTION COUNT: 5-7 sections with warm, human pacing.
+USE INSTEAD: Full-bleed editorial photography, display-scale type as graphic element, transparent navigation, bold sharp CTAs, statement sections, lookbook sequences, community blocks.
+
+## PAGE-LEVEL COMPOSITION RULES — CULTURE BRAND
+
+1. **PHOTOGRAPHY LEADS**: Every major section anchored by editorial photography. Full-bleed or near-full-bleed. Images are lifestyle/community — never product-on-white. Use coverImage on section frames. Raw treatment, no filters.
+
+2. **TYPOGRAPHY AS GRAPHIC ELEMENT**: Headings are display-scale (80px+), often uppercase or tracked. Typography competes with photography for attention — intentionally. This tension IS the brand feel.
+
+3. **DARK + WARM**: Near-black backgrounds (#0F0F0F–#1A1A1A), warm-tinted neutrals for text (#E8E4DF, #D4CFC8), single pop accent for CTAs only. Never clinical white. Never blue-tinted dark.
+
+4. **SECTION RHYTHM**: Full-bleed photo → contained text → full-bleed photo → statement. Never two contained sections adjacent. Photography creates the breathing room, not whitespace.
+
+5. **MINIMAL NAVIGATION**: Transparent overlay or hidden hamburger. Nav does not compete with the hero. Logo + menu trigger + maybe one CTA. No mega-menus, no multi-level dropdowns.
+
+6. **CTA TREATMENT**: Bold, high-contrast, sharp corners (0–2px radius). CTAs are confident — "Shop Now", "Enter", "See Collection". Never "Learn More" or "Get Started". Culture brands don't explain — they invite.
+
+7. **NO SAAS PATTERNS**: No feature grids, no pricing tables, no testimonial cards, no logo bars, no stats rows, no FAQ sections. If it looks like B2B software, it's wrong.
+
+SECTION COUNT: 5–7 sections. Fewer, larger, more impactful.
+COPY TONE: Brand voice — terse, confident, culturally aware. Not marketing copy.
+
+## CULTURE-BRAND COMPOSITION RECIPES
+
+Build each major block as a **section frame** (direct child of the page root). Compose from these named recipes:
+
+1. **Transparent nav** — Absolute-positioned frame over hero. Logo left (text, 14–16px, fontWeight 700, uppercase, letterSpacing 0.08–0.12). Right side: 1–2 text links (13px, foreground rgba(255,255,255,0.6)) + optional CTA button (sharp, high contrast). No background until scroll. Height 56–64px, padding horizontal 32–48px.
+
+2. **Full-bleed photo hero** — Frame with coverImage (editorial lifestyle/fashion photography), height 680–800px, coverSize cover, coverScrim "linear-gradient(transparent 40%, rgba(0,0,0,0.6))". Display type overlaid: fontSize 72–120px (clamp), fontWeight 700–900, uppercase, letterSpacing -0.02 to 0.06, foreground #FFFFFF, positioned bottom-left (padding 48–64px) or centered. Kicker above: 11–12px uppercase tracked (0.12em) at 50% opacity. One bold CTA below headline: sharp corners, high contrast fill.
+
+3. **Editorial photo grid** — Frame with display grid, gridTemplate "2fr 1fr" or "1fr 1fr". Two large editorial images side by side or stacked, no gap or 2–4px gap. Images use coverImage on child frames, height 400–560px. Optional overlaid text on one image (collection name, 24–36px). Raw treatment, no borders, no radius.
+
+4. **Statement section** — Full-width frame, background dark (#0F0F0F or brand accent), padding 100–160px vertical, 48–80px horizontal. Single large text node: 36–56px, fontWeight 300–400, lineHeight 1.3–1.5, foreground near-white. The statement is brand philosophy, not product description. Max one sentence. Optional small attribution below (12px, 40% opacity).
+
+5. **Lookbook / collection** — Frame column, gap 0. Series of 3–5 full-bleed coverImage frames, each 400–600px height. No text overlay on most — just photography. Maybe one has a small caption (12px, bottom-right, 40% opacity). This section IS the content. Let photography speak.
+
+6. **Community / culture block** — Grid section "1fr 1fr" or "3fr 2fr". One side: editorial photo (coverImage frame, 400–500px height). Other side: column frame with kicker (11px uppercase tracked), headline (28–40px), body text (15–16px, lineHeight 1.7, foreground at 70% opacity), and optional text-link CTA ("Read the story →"). Warm, human, first-person voice.
+
+7. **Bold CTA section** — Full-width frame, background accent or near-black (#0F0F0F), centered column. Headline 40–64px uppercase or display weight. Single button: sharp corners (0–2px), filled, high contrast (e.g., #EDEDED on #0F0F0F or inverse). Padding 100–140px vertical. Nothing else — no subtext, no secondary action. Confident.
+
+8. **Minimal footer** — Frame row, justify space-between, padding 24–32px horizontal, 20–24px vertical. Left: copyright text (12px, 40% opacity). Right: 2–3 text links (12–13px, 40% opacity) with 16–24px gap. Optional top border (1px, rgba(255,255,255,0.1)). No newsletter signup, no sitemap, no social icons as squares.
+
+## COMPLETE CULTURE-BRAND COMPOSITION EXAMPLE
+
+This is a complete culture-brand homepage as a DesignNode tree. Study the composition — how photography leads, how display type creates tension, how dark + warm backgrounds set mood, how sections are fewer but larger.
+
+[{"id":"page-root","type":"frame","name":"Culture Brand Homepage","style":{"width":"fill","display":"flex","flexDirection":"column","background":"#0F0F0F","foreground":"#E8E4DF"},"children":[{"id":"nav-01","type":"frame","name":"Navigation","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"center","padding":{"top":20,"right":48,"bottom":20,"left":48},"position":"absolute","foreground":"#FFFFFF","opacity":0.9},"children":[{"id":"nav-logo","type":"text","name":"Logo","style":{"fontSize":15,"fontWeight":700,"letterSpacing":0.1},"content":{"text":"MAISON"}},{"id":"nav-right","type":"frame","name":"Nav Right","style":{"display":"flex","flexDirection":"row","alignItems":"center","gap":24},"children":[{"id":"nav-link","type":"text","name":"Link","style":{"fontSize":13,"foreground":"rgba(255,255,255,0.5)"},"content":{"text":"Archive"}},{"id":"nav-cta","type":"button","name":"CTA","style":{"fontSize":13,"fontWeight":600,"background":"#EDEDED","foreground":"#0F0F0F","borderRadius":2,"borderWidth":0,"padding":{"top":8,"right":16,"bottom":8,"left":16}},"content":{"text":"Shop"}}]}]},{"id":"hero-01","type":"frame","name":"Hero","style":{"width":"fill","height":740,"coverImage":"photo:fashion editorial, two models walking on empty street, golden hour side lighting, grainy film texture, full frame","coverSize":"cover","coverPosition":"center 35%","coverScrim":"linear-gradient(transparent 50%, rgba(0,0,0,0.55))","display":"flex","flexDirection":"column","justifyContent":"flex-end","padding":{"top":0,"right":48,"bottom":64,"left":48},"foreground":"#FFFFFF"},"children":[{"id":"hero-kicker","type":"text","name":"Kicker","style":{"fontSize":11,"letterSpacing":0.12,"opacity":0.5},"content":{"text":"SS26 COLLECTION"}},{"id":"hero-title","type":"text","name":"Title","style":{"fontSize":88,"fontWeight":800,"letterSpacing":-0.02,"lineHeight":0.95,"maxWidth":"80%"},"content":{"text":"WALKING NOWHERE"}},{"id":"hero-btn","type":"button","name":"CTA","style":{"fontSize":14,"fontWeight":600,"background":"#EDEDED","foreground":"#0F0F0F","borderRadius":2,"borderWidth":0,"padding":{"top":12,"right":28,"bottom":12,"left":28},"marginTop":24},"content":{"text":"Enter the Collection"}}]},{"id":"grid-01","type":"frame","name":"Photo Grid","style":{"width":"fill","display":"grid","gridTemplate":"1fr 1fr","gap":4},"children":[{"id":"grid-img-1","type":"frame","name":"Photo 1","style":{"height":520,"coverImage":"photo:fashion model in concrete interior, natural light from left, neutral tones, editorial pose","coverSize":"cover"},"children":[]},{"id":"grid-img-2","type":"frame","name":"Photo 2","style":{"height":520,"coverImage":"photo:close-up of hands adjusting jacket collar, soft focus background, warm skin tones, film grain","coverSize":"cover"},"children":[]}]},{"id":"statement-01","type":"frame","name":"Statement","style":{"width":"fill","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center","padding":{"top":120,"right":80,"bottom":120,"left":80},"background":"#0F0F0F"},"children":[{"id":"statement-text","type":"text","name":"Quote","style":{"fontSize":42,"fontWeight":300,"lineHeight":1.4,"textAlign":"center","maxWidth":780,"foreground":"#E8E4DF"},"content":{"text":"Clothes are not about being seen. They are about how you move through the world when no one is watching."}},{"id":"statement-attr","type":"text","name":"Attribution","style":{"fontSize":12,"opacity":0.35,"textAlign":"center","marginTop":24},"content":{"text":"Maison, Spring 2026"}}]},{"id":"lookbook-01","type":"frame","name":"Lookbook","style":{"width":"fill","display":"flex","flexDirection":"column","gap":0},"children":[{"id":"look-1","type":"frame","name":"Look 1","style":{"width":"fill","height":560,"coverImage":"photo:fashion editorial, model leaning against raw concrete wall, oversized coat, desaturated tones, full body","coverSize":"cover","coverPosition":"center"},"children":[]},{"id":"look-2","type":"frame","name":"Look 2","style":{"width":"fill","height":480,"coverImage":"photo:fashion editorial, model walking in empty gallery space, high ceilings, natural light, minimal styling","coverSize":"cover","coverPosition":"center 40%"},"children":[]},{"id":"look-3","type":"frame","name":"Look 3","style":{"width":"fill","height":520,"coverImage":"photo:close-up of woven textile texture, natural fibers, warm tones, shallow depth of field","coverSize":"cover"},"children":[]}]},{"id":"culture-01","type":"frame","name":"Culture Block","style":{"width":"fill","display":"grid","gridTemplate":"3fr 2fr","gap":0,"alignItems":"center"},"children":[{"id":"culture-img","type":"frame","name":"Photo","style":{"height":480,"coverImage":"photo:behind the scenes fashion studio, designer pinning fabric on mannequin, warm overhead light, documentary style","coverSize":"cover"},"children":[]},{"id":"culture-text","type":"frame","name":"Text","style":{"display":"flex","flexDirection":"column","gap":16,"padding":{"top":64,"right":64,"bottom":64,"left":48}},"children":[{"id":"culture-kicker","type":"text","name":"Kicker","style":{"fontSize":11,"letterSpacing":0.12,"foreground":"rgba(232,228,223,0.4)"},"content":{"text":"THE STUDIO"}},{"id":"culture-title","type":"text","name":"Title","style":{"fontSize":32,"fontWeight":400,"lineHeight":1.2},"content":{"text":"Made by Hand, Worn Without Ceremony"}},{"id":"culture-body","type":"text","name":"Body","style":{"fontSize":15,"lineHeight":1.7,"foreground":"rgba(232,228,223,0.6)","maxWidth":380},"content":{"text":"Every piece begins as a conversation between material and maker. We work slowly, in a studio that values silence over speed."}}]}]},{"id":"cta-01","type":"frame","name":"CTA","style":{"width":"fill","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center","padding":{"top":120,"right":48,"bottom":120,"left":48},"background":"#0F0F0F"},"children":[{"id":"cta-headline","type":"text","name":"Headline","style":{"fontSize":48,"fontWeight":700,"letterSpacing":0.04,"textAlign":"center"},"content":{"text":"ENTER THE ARCHIVE"}},{"id":"cta-btn","type":"button","name":"CTA","style":{"fontSize":14,"fontWeight":600,"background":"#EDEDED","foreground":"#0F0F0F","borderRadius":2,"borderWidth":0,"padding":{"top":12,"right":28,"bottom":12,"left":28},"marginTop":32},"content":{"text":"Shop Collection"}}]},{"id":"footer-01","type":"frame","name":"Footer","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"center","padding":{"top":20,"right":48,"bottom":20,"left":48},"borderColor":"rgba(255,255,255,0.08)","borderWidth":1},"children":[{"id":"f-copy","type":"text","name":"Copyright","style":{"fontSize":12,"opacity":0.3},"content":{"text":"© 2026 Maison"}},{"id":"f-links","type":"frame","name":"Links","style":{"display":"flex","flexDirection":"row","gap":20},"children":[{"id":"f-l1","type":"text","name":"Link","style":{"fontSize":12,"opacity":0.3},"content":{"text":"Instagram"}},{"id":"f-l2","type":"text","name":"Link","style":{"fontSize":12,"opacity":0.3},"content":{"text":"Contact"}},{"id":"f-l3","type":"text","name":"Link","style":{"fontSize":12,"opacity":0.3},"content":{"text":"Privacy"}}]}]}]}]
+
+Adapt this composition to match the brief and taste profile:
+- Replace all text with original brand copy — terse, confident, culturally aware
+- Replace all photo descriptions with brief-relevant editorial photography
+- Adjust colors to match taste palette (keep dark + warm bias)
+- You may add or remove one section, but keep the photography-led rhythm
+- Statement section is non-negotiable — every culture brand needs a voice moment
+- If the brief is a specific brand/product, the lookbook becomes that product's editorial
 `;
 
     case "experimental":

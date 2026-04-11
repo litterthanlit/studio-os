@@ -1633,6 +1633,26 @@ export function DesignNodeInspector({
               />
             </InspectorFieldRow>
 
+            {/* Object Fit (image nodes only) */}
+            {primaryNode.type === "image" && (
+              <InspectorFieldRow
+                label="Fit"
+                hasOverride={hasOverride("objectFit")}
+                onResetOverride={() => resetOverride("objectFit")}
+              >
+                <InspectorSegmented
+                  value={style.objectFit ?? "cover"}
+                  options={[
+                    { value: "cover", label: "Cover" },
+                    { value: "contain", label: "Contain" },
+                    { value: "fill", label: "Fill" },
+                    { value: "none", label: "None" },
+                  ]}
+                  onChange={(v) => applyImmediate({ objectFit: v as "cover" | "contain" | "fill" }, `Set object fit ${v}`)}
+                />
+              </InspectorFieldRow>
+            )}
+
             {/* Cover Image (frame only) */}
             {primaryNode.type === "frame" && (
               <div className="pt-2">
@@ -1699,6 +1719,48 @@ export function DesignNodeInspector({
                         />
                       </InspectorFieldRow>
                     </div>
+
+                    {/* Scrim controls */}
+                    {style.coverImage && style.coverImage !== "https://" && (
+                      <InspectorFieldRow label="Scrim">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={!!style.scrimEnabled}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                applyImmediate(
+                                  { scrimEnabled: true, scrimColor: style.scrimColor ?? "#000000", scrimOpacity: style.scrimOpacity ?? 40 },
+                                  "Enable scrim"
+                                );
+                              } else {
+                                applyImmediate({ scrimEnabled: false }, "Disable scrim");
+                              }
+                            }}
+                            className="accent-[#4B57DB] w-3.5 h-3.5"
+                          />
+                          {style.scrimEnabled && (
+                            <>
+                              <InspectorColorField
+                                color={style.scrimColor ?? "#000000"}
+                                documentColors={documentColors}
+                                onChange={(c) => updateStyle({ scrimColor: c })}
+                                onCommit={() => history.flush()}
+                              />
+                              <InspectorNumberInput
+                                value={style.scrimOpacity ?? 40}
+                                onChange={(e) => updateStyle({ scrimOpacity: Number((e.target as HTMLInputElement).value) || 0 })}
+                                onBlur={() => history.flush()}
+                                min={0}
+                                max={100}
+                                unit="%"
+                                className="w-14"
+                              />
+                            </>
+                          )}
+                        </div>
+                      </InspectorFieldRow>
+                    )}
                   </div>
                 )}
               </div>

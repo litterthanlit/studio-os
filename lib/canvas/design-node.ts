@@ -209,6 +209,8 @@ export type DesignNodeStyle = {
   opacity?: number;
   shadow?: string;           // Raw CSS box-shadow value
   scrimEnabled?: boolean;    // undefined = auto (light foreground detection), true = always, false = never
+  scrimColor?: string;       // defaults to #000000
+  scrimOpacity?: number;     // 0-100, defaults to 40
   blur?: number;             // CSS filter: blur(Npx)
   effects?: EffectEntry[];   // Ordered Figma-like effects stack
   objectFit?: "cover" | "contain" | "fill";

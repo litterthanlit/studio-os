@@ -12,24 +12,38 @@ const VALID_TYPES: Set<string> = new Set([
   "divider",
 ]);
 
-// MVP grid patterns — anything else falls back to flex column
-const VALID_GRID_PATTERNS = [
-  /^repeat\(\s*[2-4]\s*,\s*1fr\s*\)$/, // repeat(2, 1fr) through repeat(4, 1fr)
-  /^[1-4]fr(\s+[1-4]fr){1,2}$/,         // "2fr 1fr", "1fr 2fr", "3fr 2fr", "2fr 1fr 1fr", etc.
-];
-
 const VALID_BREAKPOINTS = new Set<string>(["desktop", "mobile"]);
 
+/**
+ * Expanded grid validation — accepts valid CSS grid notation.
+ * Allows: fr, px, %, auto, repeat(), minmax(), auto-fit, auto-fill.
+ * Rejects: nonsense strings, script injection, > 12 columns.
+ */
 function isValidGrid(template: string): boolean {
-  const normalized = template.trim();
-  return VALID_GRID_PATTERNS.some((p) => p.test(normalized));
+  const t = template.trim();
+  if (t.length === 0 || t.length > 200) return false;
+
+  // Accept repeat() patterns (including auto-fill/auto-fit with minmax)
+  const repeatPattern = /^repeat\(\s*(?:auto-fill|auto-fit|\d+)\s*,\s*.+\)$/;
+  if (repeatPattern.test(t)) {
+    const countMatch = t.match(/^repeat\(\s*(\d+)/);
+    if (countMatch && parseInt(countMatch[1], 10) > 12) return false;
+    return true;
+  }
+
+  // Accept space-separated track values
+  const parts = t.split(/\s+/);
+  if (parts.length > 12) return false;
+
+  const validTrack = /^(?:\d+(?:\.\d+)?(?:fr|px|%|rem|em|vw|vh)|auto|min-content|max-content|minmax\([^)]+\))$/;
+  return parts.every((p) => validTrack.test(p));
 }
 
 /** Normalize shorthand grids: "1fr 1fr" → "repeat(2, 1fr)" */
 function normalizeGrid(template: string): string {
   const t = template.trim();
   const parts = t.split(/\s+/);
-  if (parts.every((p) => p === "1fr") && parts.length >= 2 && parts.length <= 4) {
+  if (parts.every((p) => p === "1fr") && parts.length >= 2 && parts.length <= 12) {
     return `repeat(${parts.length}, 1fr)`;
   }
   return t;
@@ -103,11 +117,19 @@ function normalizeStyle(
     if (isValidGrid(normalized)) {
       style.gridTemplate = normalized;
     } else {
-      console.warn(
-        `[V6-VALIDATE] Invalid gridTemplate "${style.gridTemplate}" on node "${nodeName}" — falling back to flex`
-      );
+      console.warn(`[VALIDATOR] Stripped gridTemplate: "${style.gridTemplate}" from node ${nodeName}`);
       delete style.gridTemplate;
       delete style.display;
+    }
+  }
+
+  if (style.gridTemplateRows) {
+    const normalized = normalizeGrid(String(style.gridTemplateRows));
+    if (isValidGrid(normalized)) {
+      style.gridTemplateRows = normalized;
+    } else {
+      console.warn(`[VALIDATOR] Stripped gridTemplateRows: "${style.gridTemplateRows}" from node ${nodeName}`);
+      delete style.gridTemplateRows;
     }
   }
 

@@ -1033,6 +1033,64 @@ export function DesignNodeInspector({
                 )}
               </div>
             </InspectorFieldRow>
+
+            {/* Aspect Ratio */}
+            <InspectorFieldRow
+              label="Ratio"
+              hasOverride={hasOverride("aspectRatio")}
+              onResetOverride={() => resetOverride("aspectRatio")}
+            >
+              <select
+                value={String(style.aspectRatio ?? "")}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const val = v === "" ? undefined : v;
+                  applyImmediate({ aspectRatio: val }, `Set aspect ratio ${v || "auto"}`);
+                }}
+                className="h-7 px-1.5 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-border-control rounded-[2px] text-text-primary font-mono"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                <option value="">Auto</option>
+                <option value="16/9">16:9</option>
+                <option value="4/3">4:3</option>
+                <option value="1">1:1</option>
+                <option value="9/16">9:16</option>
+                <option value="3/2">3:2</option>
+              </select>
+            </InspectorFieldRow>
+
+            {/* Max Width */}
+            <InspectorFieldRow
+              label="Max W"
+              hasOverride={hasOverride("maxWidth")}
+              onResetOverride={() => resetOverride("maxWidth")}
+            >
+              <input
+                type="text"
+                value={style.maxWidth != null ? String(style.maxWidth) : ""}
+                placeholder="none"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") {
+                    updateStyle({ maxWidth: undefined });
+                  } else {
+                    const num = Number(v);
+                    updateStyle({ maxWidth: isNaN(num) ? v : num });
+                  }
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value;
+                  if (v === "") {
+                    applyImmediate({ maxWidth: undefined }, "Remove max width");
+                  } else {
+                    const num = Number(v);
+                    applyImmediate({ maxWidth: isNaN(num) ? v : num }, `Set max width ${v}`);
+                  }
+                }}
+                className="w-full h-7 px-2 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-border-control rounded-[2px] text-text-primary font-mono focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 outline-none"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              />
+            </InspectorFieldRow>
           </div>
         </section>
       )}

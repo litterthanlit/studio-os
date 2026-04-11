@@ -11,6 +11,10 @@ const GRID_PRESETS = [
   { value: "2fr 1fr", label: "2:1", fractions: [2, 1] },
   { value: "1fr 2fr", label: "1:2", fractions: [1, 2] },
   { value: "3fr 2fr", label: "3:2", fractions: [3, 2] },
+  { value: "1fr 2fr 1fr", label: "1:2:1", fractions: [1, 2, 1] },
+  { value: "repeat(auto-fill, minmax(200px, 1fr))", label: "Auto", fractions: [1, 1] },
+  { value: "repeat(6, 1fr)", label: "6 col", fractions: [1, 1, 1, 1, 1, 1] },
+  { value: "240px 1fr", label: "Sidebar", fractions: [0, 1] },
 ] as const;
 
 function normalizeTemplate(value: string): string {

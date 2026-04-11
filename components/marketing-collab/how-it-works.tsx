@@ -4,7 +4,7 @@ import { SectionRule } from "./section-rule";
 
 export function HowItWorks() {
   return (
-    <section className="py-[180px] relative" id="how">
+    <section className="py-[180px] relative scroll-mt-[72px]" id="how">
       <div className="max-w-[1120px] mx-auto px-10">
         <div className="mb-20" data-reveal>
           <SectionRule label="How it works" />

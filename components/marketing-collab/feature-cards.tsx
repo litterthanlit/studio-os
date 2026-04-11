@@ -2,7 +2,7 @@ import { SectionRule } from "./section-rule";
 
 export function FeatureCards() {
   return (
-    <section className="w-full py-[100px] bg-[#FAFAF8]" id="features" style={{
+    <section className="w-full py-[100px] bg-[#FAFAF8] scroll-mt-[72px]" id="features" style={{
       backgroundImage: 'linear-gradient(to right, rgba(12, 12, 20, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(12, 12, 20, 0.03) 1px, transparent 1px)',
       backgroundSize: '20px 20px'
     }}>

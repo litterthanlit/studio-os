@@ -1,7 +1,12 @@
 "use client";
 import { LogoMark } from "./logo-mark";
 
-export function Hero() {
+type HeroProps = {
+  /** Primary CTA label (e.g. marketing experiments /cursor) */
+  primaryCta?: string;
+};
+
+export function Hero({ primaryCta = "Start designing" }: HeroProps) {
   return (
     <section className="relative w-full overflow-hidden min-h-[640px] border-b border-[#0C0C14]/5 flex">
       {/* Full-bleed split backgrounds */}
@@ -30,7 +35,7 @@ export function Hero() {
           </p>
           <div className="flex gap-3 items-center">
             <button className="text-[13px] font-medium text-white bg-[#1A1A1A] px-6 py-[11px] rounded-[4px] hover:bg-[#333] transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]">
-              Start designing
+              {primaryCta}
             </button>
             <a href="#how" className="text-[13px] font-medium text-[#6B6B6B] px-4 py-[11px] inline-flex items-center gap-1.5 hover:text-[#1A1A1A] transition-colors group">
               See how it works

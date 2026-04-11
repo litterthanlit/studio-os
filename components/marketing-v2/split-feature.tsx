@@ -3,7 +3,7 @@ import { LogoMark } from "./logo-mark";
 
 export function SplitFeature() {
   return (
-    <section className="relative w-full overflow-hidden min-h-[600px] border-y border-[#0C0C14]/10 flex">
+    <section id="workflow" className="relative w-full overflow-hidden min-h-[600px] border-y border-[#0C0C14]/10 flex scroll-mt-[72px]">
       {/* Full-bleed split backgrounds */}
       <div className="absolute inset-0 flex flex-col md:flex-row pointer-events-none">
         <div className="w-full md:w-1/2 bg-[#4B57DB]" />
@@ -24,7 +24,7 @@ export function SplitFeature() {
           
           <div className="flex flex-col gap-6 mt-[60px]">
             <div className="flex items-center gap-4">
-              <LogoMark />
+              <LogoMark variant="onAccent" />
               <span className="font-sans font-light tracking-wide text-white text-lg">studio OS</span>
             </div>
             <div className="font-mono text-white/50 text-xs mt-10">

@@ -1,8 +1,8 @@
-import { LogoMark } from "./logo-mark";
+import { LogoMark } from "@/components/marketing-v2/logo-mark";
 
 export function SplitTaste() {
   return (
-    <section className="relative w-full overflow-hidden min-h-[580px] border-y border-[#0C0C14]/8 flex">
+    <section id="taste" className="relative w-full overflow-hidden min-h-[580px] border-y border-[#0C0C14]/8 flex scroll-mt-[72px]">
       {/* Split backgrounds */}
       <div className="absolute inset-0 flex flex-col md:flex-row pointer-events-none">
         <div className="w-full md:w-1/2 bg-[#4B57DB]" />
@@ -25,7 +25,7 @@ export function SplitTaste() {
             </p>
           </div>
           <div className="flex items-center gap-3 mt-10 md:mt-0">
-            <LogoMark className="opacity-60" />
+            <LogoMark variant="onAccent" className="opacity-80" />
             <span className="font-sans font-light tracking-wide text-white/60 text-sm">studio OS</span>
           </div>
         </div>

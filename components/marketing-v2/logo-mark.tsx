@@ -1,11 +1,21 @@
-export function LogoMark({ className = "" }: { className?: string }) {
+type LogoMarkProps = {
+  className?: string;
+  /** White mark for cobalt / accent backgrounds */
+  variant?: "default" | "onAccent";
+};
+
+export function LogoMark({ className = "", variant = "default" }: LogoMarkProps) {
   return (
-    <div className={`flex flex-col gap-[3px] items-start ${className}`}>
-      <div className="h-[4px] w-6 bg-[#4B57DB] rounded-full opacity-100" />
-      <div className="h-[4px] w-8 bg-[#4B57DB] rounded-full opacity-[0.85]" />
-      <div className="h-[4px] w-8 bg-[#4B57DB] rounded-full opacity-[0.70]" />
-      <div className="h-[4px] w-8 bg-[#4B57DB] rounded-full opacity-[0.55]" />
-      <div className="h-[4px] w-8 bg-[#4B57DB] rounded-full opacity-[0.40]" />
+    <div className={`inline-flex shrink-0 items-center ${className}`}>
+      <img
+        src="/studio-os-mark.svg"
+        alt=""
+        width={127}
+        height={83}
+        className={`h-[26px] w-auto max-w-none object-contain object-left ${
+          variant === "onAccent" ? "brightness-0 invert" : ""
+        }`}
+      />
     </div>
   );
 }

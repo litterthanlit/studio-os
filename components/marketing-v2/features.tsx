@@ -2,7 +2,7 @@ import React from "react";
 
 export function Features() {
   return (
-    <section className="w-full py-[120px] bg-[#FAFAFA]" id="features">
+    <section className="w-full py-[120px] bg-[#FAFAFA] scroll-mt-[72px]" id="features">
       <div className="w-full max-w-[1440px] px-5 md:px-[80px] mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[20px]">
           

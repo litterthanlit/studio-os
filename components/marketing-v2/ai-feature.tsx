@@ -3,7 +3,7 @@ import { LogoMark } from "./logo-mark";
 
 export function AiFeature() {
   return (
-    <section className="w-full bg-[#0C0C14] py-[120px] px-5 md:px-[80px] flex justify-center min-h-[900px] border-t border-[#0C0C14]/10 overflow-hidden">
+    <section id="ai" className="w-full bg-[#0C0C14] py-[120px] px-5 md:px-[80px] flex justify-center min-h-[900px] border-t border-[#0C0C14]/10 overflow-hidden scroll-mt-[72px]">
       <div className="w-full max-w-[1440px] mx-auto relative flex flex-col justify-between h-full min-h-[900px]">
         {/* Header */}
         <div className="flex justify-start w-full z-20">

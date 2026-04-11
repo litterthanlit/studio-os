@@ -21,7 +21,7 @@ export function Nav() {
             Export
           </Link>
           <button className="bg-[#4B57DB] text-white text-sm font-medium px-4 py-2 rounded-[4px] hover:bg-[#4B57DB]/90 transition-colors">
-            Get access
+            Join waitlist
           </button>
         </nav>
       </div>

@@ -16,7 +16,7 @@ export function Hero() {
             A high-end design environment built for speed, predictability, and AI-native workflows.
           </p>
           <button className="bg-[#4B57DB] text-white font-sans text-sm font-medium px-6 py-3 rounded-[4px] hover:bg-[#4B57DB]/90 transition-colors">
-            Start building
+            Join waitlist
           </button>
         </div>
 

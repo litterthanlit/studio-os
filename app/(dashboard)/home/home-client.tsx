@@ -88,7 +88,7 @@ export function HomeClient() {
   }, []);
 
   return (
-    <div className="relative z-10 mx-auto max-w-[860px] animate-in fade-in slide-in-from-bottom-2 pt-24 pb-16 duration-300 ease-out">
+    <div className="relative z-10 mx-auto max-w-[860px] pt-24 pb-16">
 
       {/* ── Header ── */}
       <div className="mb-10">

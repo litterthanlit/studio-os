@@ -1290,6 +1290,31 @@ export function DesignNodeInspector({
               </InspectorFieldRow>
             )}
 
+            {style.display === "grid" && (
+              <InspectorFieldRow
+                label="Rows"
+                hasOverride={hasOverride("gridTemplateRows")}
+                onResetOverride={() => resetOverride("gridTemplateRows")}
+              >
+                <input
+                  type="text"
+                  value={style.gridTemplateRows ?? ""}
+                  placeholder="auto"
+                  onChange={(e) => updateStyle({ gridTemplateRows: e.target.value || undefined })}
+                  onBlur={(e) => {
+                    history.flush();
+                    const v = e.target.value;
+                    applyImmediate(
+                      { gridTemplateRows: v || undefined },
+                      v ? `Set grid rows: ${v}` : "Remove grid rows"
+                    );
+                  }}
+                  className="w-full h-7 px-2 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-border-control rounded-[2px] text-text-primary font-mono focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 outline-none"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                />
+              </InspectorFieldRow>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <InspectorFieldRow
                 label="Align"
@@ -1327,24 +1352,81 @@ export function DesignNodeInspector({
               </InspectorFieldRow>
             </div>
 
-            <InspectorFieldRow
-              label="Gap"
-              hasOverride={hasOverride("gap")}
-              onResetOverride={() => resetOverride("gap")}
-              disabled={isForbiddenField("gap")}
-            >
-              <InspectorNumberInput
-                value={isMultiSelect
-                  ? (comparisons?.gap?.sharedValue as number | "") ?? ""
-                  : style.gap ?? ""
-                }
-                mixed={isMultiSelect && comparisons?.gap?.status === "mixed"}
-                placeholder="0"
-                min={0}
-                onChange={(e) => updateStyle({ gap: Number(e.target.value) || undefined })}
-                onBlur={() => history.flush()}
-              />
-            </InspectorFieldRow>
+            {/* Gap — unified or split */}
+            {(() => {
+              const gapValue = style.gap;
+              const gapStr = String(gapValue ?? 0);
+              const gapParts = typeof gapValue === "string" ? gapStr.split(/\s+/) : null;
+              const rowGap = gapParts?.length === 2 ? Number(gapParts[0]) : Number(gapValue ?? 0);
+              const colGap = gapParts?.length === 2 ? Number(gapParts[1]) : Number(gapValue ?? 0);
+              const isSplit = gapParts?.length === 2;
+
+              return (
+                <InspectorFieldRow
+                  label="Gap"
+                  hasOverride={hasOverride("gap")}
+                  onResetOverride={() => resetOverride("gap")}
+                  disabled={isForbiddenField("gap")}
+                >
+                  <div className="flex items-center gap-1">
+                    {isSplit ? (
+                      <>
+                        <div className="flex-1">
+                          <InspectorNumberInput
+                            value={rowGap}
+                            onChange={(e) => updateStyle({ gap: `${Number(e.target.value)} ${colGap}` })}
+                            onBlur={() => {
+                              history.flush();
+                              applyImmediate({ gap: `${rowGap} ${colGap}` }, "Set row gap");
+                            }}
+                            min={0}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <InspectorNumberInput
+                            value={colGap}
+                            onChange={(e) => updateStyle({ gap: `${rowGap} ${Number(e.target.value)}` })}
+                            onBlur={() => {
+                              history.flush();
+                              applyImmediate({ gap: `${rowGap} ${colGap}` }, "Set col gap");
+                            }}
+                            min={0}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1">
+                        <InspectorNumberInput
+                          value={rowGap}
+                          onChange={(e) => updateStyle({ gap: Number(e.target.value) || undefined })}
+                          onBlur={() => history.flush()}
+                          min={0}
+                        />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="w-5 h-5 flex items-center justify-center text-text-muted hover:text-text-primary"
+                      onClick={() => {
+                        if (isSplit) {
+                          applyImmediate({ gap: rowGap }, "Set uniform gap");
+                        } else {
+                          applyImmediate({ gap: `${rowGap} ${rowGap}` }, "Split gap");
+                        }
+                      }}
+                      title={isSplit ? "Uniform gap" : "Split row/col gap"}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        {isSplit
+                          ? <path d="M3 6h6" />
+                          : <path d="M3 6h6M6 3v6" />
+                        }
+                      </svg>
+                    </button>
+                  </div>
+                </InspectorFieldRow>
+              );
+            })()}
 
             <InspectorFieldRow
               label="Overflow"

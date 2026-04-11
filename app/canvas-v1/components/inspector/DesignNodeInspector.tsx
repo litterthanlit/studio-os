@@ -1194,6 +1194,29 @@ export function DesignNodeInspector({
               </InspectorFieldRow>
             )}
 
+            {style.display !== "grid" && (
+              <div className="flex gap-2">
+                <InspectorFieldRow label="Grow" className="flex-1">
+                  <InspectorNumberInput
+                    value={style.flexGrow ?? 0}
+                    min={0}
+                    step={1}
+                    onChange={(e) => updateStyle({ flexGrow: Number(e.target.value) || 0 })}
+                    onBlur={() => history.flush()}
+                  />
+                </InspectorFieldRow>
+                <InspectorFieldRow label="Shrink" className="flex-1">
+                  <InspectorNumberInput
+                    value={style.flexShrink ?? 1}
+                    min={0}
+                    step={1}
+                    onChange={(e) => updateStyle({ flexShrink: Number(e.target.value) })}
+                    onBlur={() => history.flush()}
+                  />
+                </InspectorFieldRow>
+              </div>
+            )}
+
             {style.display === "grid" && (
               <InspectorFieldRow
                 label="Template"
@@ -1262,6 +1285,21 @@ export function DesignNodeInspector({
                 min={0}
                 onChange={(e) => updateStyle({ gap: Number(e.target.value) || undefined })}
                 onBlur={() => history.flush()}
+              />
+            </InspectorFieldRow>
+
+            <InspectorFieldRow
+              label="Overflow"
+              hasOverride={hasOverride("overflow")}
+              onResetOverride={() => resetOverride("overflow")}
+            >
+              <InspectorSegmented
+                value={style.overflow ?? "visible"}
+                options={[
+                  { value: "visible", label: "Visible" },
+                  { value: "hidden", label: "Hidden" },
+                ]}
+                onChange={(v) => applyImmediate({ overflow: v }, `Set overflow ${v}`)}
               />
             </InspectorFieldRow>
           </div>

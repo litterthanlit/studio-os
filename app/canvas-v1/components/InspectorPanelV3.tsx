@@ -4,7 +4,7 @@
  * V3 Inspector Panel — tabbed right rail (Design | CSS | Export).
  *
  * Prompt composition lives in FloatingPromptPanel (Prompt tool), not in this rail.
- * Layout chain: panel (absolute, flex-col) -> header (shrink-0) -> tabs (shrink-0)
+ * Layout chain: panel (flex column in editor row: Layers | Inspector | Canvas) -> header -> tabs
  * -> content (flex-1 min-h-0 overflow).
  */
 
@@ -1889,27 +1889,21 @@ export function InspectorPanelV3({
         .filter((n): n is DesignNode => n !== null);
       if (resolved.length > 0) return resolved;
     }
+    // Primary id without multi-select ids (or stale ids above) — still resolve single selection.
+    if (selection.selectedNodeId) {
+      const one = findDesignNodeById(tree, selection.selectedNodeId);
+      if (one) return [one];
+    }
     // No inner selection — show the item root node (frame/text canvas items)
     const isCanvasFrameOrText =
       singleSelected?.kind === "frame" || singleSelected?.kind === "text";
-    if (isCanvasFrameOrText && !selection.selectedNodeId) {
+    if (isCanvasFrameOrText) {
       return [tree];
     }
     return [];
   }, [activeArtboard, isV6Tree, selection.selectedNodeIds, selection.selectedNodeId, singleSelected]);
 
   const isNodeInspector = Boolean((selectedNode || selectedDesignNode) && activeArtboard);
-
-  // ── Header: zoom + node type ──────────────────────────────────────
-  const zoomPercent = Math.round(state.viewport.zoom * 100);
-
-  const handleZoomReset = React.useCallback(() => {
-    dispatch({
-      type: "SET_VIEWPORT",
-      pan: state.viewport.pan,
-      zoom: 1,
-    });
-  }, [dispatch, state.viewport.pan]);
 
   // ── Breakpoint badge + resolved style for CSS tab ──────────────────
   const artboardBreakpoint = activeArtboard?.breakpoint ?? "desktop";
@@ -1990,7 +1984,7 @@ export function InspectorPanelV3({
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-0 bottom-0 z-20 w-[288px] flex flex-col border-l-[0.5px] border-sidebar-border bg-card-bg"
+      className="relative z-20 flex h-full min-h-0 w-[288px] min-w-[288px] max-w-[288px] shrink-0 flex-col border-l-[0.5px] border-sidebar-border bg-card-bg"
     >
       {/* Header area — shrink-0 so it never grows/shrinks */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle shrink-0">
@@ -2009,13 +2003,6 @@ export function InspectorPanelV3({
                 : "No Selection"}
         </span>
         <div className="flex items-center gap-2 shrink-0">
-          <span
-            className="text-[11px] font-mono text-text-secondary cursor-pointer hover:text-text-primary transition-colors"
-            onClick={handleZoomReset}
-            title="Reset zoom to 100%"
-          >
-            {zoomPercent}%
-          </span>
           <button
             type="button"
             disabled

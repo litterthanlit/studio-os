@@ -104,6 +104,35 @@ function normalizeHexColor(value: string): string | null {
   return `#${expanded.toUpperCase()}`;
 }
 
+/** Solid hex + opacity % from any supported color string. */
+function parseColorInput(value: string): { hex: string; opacityPct: number } {
+  const t = value.trim();
+  const rgba = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/.exec(t);
+  if (rgba) {
+    const r = parseInt(rgba[1], 10);
+    const g = parseInt(rgba[2], 10);
+    const b = parseInt(rgba[3], 10);
+    const a = rgba[4] !== undefined ? parseFloat(rgba[4]) : 1;
+    const hex = `#${[r, g, b]
+      .map((x) => x.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()}`;
+    return { hex, opacityPct: Math.max(0, Math.min(100, Math.round(a * 100))) };
+  }
+  const norm = normalizeHexColor(t) ?? "#FFFFFF";
+  return { hex: norm, opacityPct: 100 };
+}
+
+function formatColorOutput(hex: string, opacityPct: number): string {
+  if (opacityPct >= 100) return hex;
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return hex;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacityPct / 100})`;
+}
+
 function dedupeColors(colors: string[]): string[] {
   const uniqueColors = new Map<string, string>();
   for (const color of colors) {
@@ -288,6 +317,11 @@ export function ColorPickerPopover({
 
   const currentHex = React.useMemo(() => hsvToHex(hue, sat, bri), [hue, sat, bri]);
 
+  const outputColor = React.useMemo(
+    () => formatColorOutput(currentHex, opacity),
+    [currentHex, opacity]
+  );
+
   // ── Mount ──────────────────────────────────────────────────────────────
   React.useEffect(() => {
     setMounted(true);
@@ -298,24 +332,27 @@ export function ColorPickerPopover({
 
   React.useEffect(() => {
     if (open && !wasOpenRef.current) {
-      const hsv = hexToHsv(value);
+      const { hex, opacityPct } = parseColorInput(value);
+      const hsv = hexToHsv(hex);
       if (hsv) {
         setHue(hsv.h);
         setSat(hsv.s);
         setBri(hsv.v);
       }
-      const norm = normalizeHexColor(value) ?? "#FFFFFF";
-      setHexInput(norm.slice(1));
-      setOpacity(100);
+      setHexInput(hex.slice(1));
+      setOpacity(opacityPct);
     }
     wasOpenRef.current = open;
   }, [open, value]);
 
-  // ── Sync hex input + fire onChange when internal color changes ─────────
   React.useEffect(() => {
     setHexInput(currentHex.slice(1));
-    onSelectRef.current(currentHex);
   }, [currentHex]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    onSelectRef.current(outputColor);
+  }, [open, outputColor]);
 
   // ── Draw gradient canvas ───────────────────────────────────────────────
   React.useEffect(() => {
@@ -629,7 +666,9 @@ export function ColorPickerPopover({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     const normalized = normalizeHexColor(hexInput);
-                    if (normalized) onSelectRef.current(normalized);
+                    if (normalized) {
+                      onSelectRef.current(formatColorOutput(normalized, opacity));
+                    }
                   }
                 }}
                 maxLength={6}

@@ -42,6 +42,7 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   } else if (style.display === "flex" || style.flexDirection) {
     css.display = "flex";
     css.flexDirection = style.flexDirection || "column";
+    if (style.flexWrap) css.flexWrap = style.flexWrap;
   }
 
   if (style.gap != null) {
@@ -136,6 +137,12 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
   if (style.objectFit) css.objectFit = style.objectFit;
   if (style.maxWidth != null) {
     css.maxWidth = typeof style.maxWidth === "number" ? style.maxWidth : style.maxWidth;
+  }
+  if (style.minWidth != null) {
+    css.minWidth = typeof style.minWidth === "number" ? style.minWidth : style.minWidth;
+  }
+  if (style.minHeight != null) {
+    css.minHeight = typeof style.minHeight === "number" ? style.minHeight : style.minHeight;
   }
   if (style.transform) {
     const parts: string[] = [];

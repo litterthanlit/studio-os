@@ -31,8 +31,9 @@ import {
   InspectorColorField,
   InspectorTextInput,
 } from "./InspectorField";
-import { GridTemplatePicker } from "./GridTemplatePicker";
-import { SectionRule } from "./SectionRule";
+import { LayoutInspectorFramer } from "./LayoutInspectorFramer";
+import { InspectorSectionCluster } from "./InspectorSectionCluster";
+import { InspectorDrawerSection } from "./InspectorDrawerSection";
 import { GradientEditor } from "./GradientEditor";
 import { InspectorSegmented, InspectorSegmentedSmall } from "./InspectorSegmented";
 import { BreakpointBadge } from "./BreakpointBadge";
@@ -59,6 +60,32 @@ import {
   compareTypographyProperties,
   compareVisualProperties,
 } from "@/app/canvas-v1/lib/property-comparison";
+
+/** Unique solid hex colors from selected nodes (Framer-style selection colors). */
+function collectSelectionColors(nodes: DesignNode[]): { hex: string; key: string }[] {
+  const seen = new Set<string>();
+  const out: { hex: string; key: string }[] = [];
+  function pushHex(raw: string | undefined, key: string) {
+    if (!raw) return;
+    const t = raw.trim();
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(t)) return;
+    let hex = t;
+    if (t.length === 4) {
+      hex = `#${t[1]}${t[1]}${t[2]}${t[2]}${t[3]}${t[3]}`;
+    }
+    hex = hex.toUpperCase();
+    if (seen.has(hex)) return;
+    seen.add(hex);
+    out.push({ hex, key });
+  }
+  for (const n of nodes) {
+    const s = n.style;
+    if (s.background && !s.gradient) pushHex(s.background, "fill");
+    if (s.foreground) pushHex(s.foreground, "text");
+    if (s.borderColor) pushHex(s.borderColor, "border");
+  }
+  return out;
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -361,6 +388,8 @@ export function DesignNodeInspector({
 
   // Transform scale lock state
   const [scaleLocked, setScaleLocked] = React.useState(true);
+  const [whLocked, setWhLocked] = React.useState(false);
+  const whRatioRef = React.useRef<number | null>(null);
 
   // Inset clip mask uniform lock state
   const [insetLinked, setInsetLinked] = React.useState(true);
@@ -381,6 +410,22 @@ export function DesignNodeInspector({
     () => normalizeLegacyEffects(style) ?? [],
     [style]
   );
+  const selectionColorsList = React.useMemo(() => collectSelectionColors(nodes), [nodes]);
+
+  /** Text (glyph) color vs layer fill — both editable like Framer; hide Text on image/divider-only. */
+  const showStylesTextColorRow = React.useMemo(() => {
+    const list = isMultiSelect ? nodes : [primaryNode];
+    return list.some((n) => n.type !== "image" && n.type !== "divider");
+  }, [isMultiSelect, nodes, primaryNode]);
+
+  /** Label for background: Framer uses "Fill" on frames/images, "Frame" for text-box fill behind glyphs. */
+  const layerFillLabel = React.useMemo(() => {
+    if (isMultiSelect) {
+      const onlyContainerLike = nodes.every((n) => n.type === "frame" || n.type === "image");
+      return onlyContainerLike ? "Fill" : "Frame";
+    }
+    return primaryNode.type === "frame" || primaryNode.type === "image" ? "Fill" : "Frame";
+  }, [isMultiSelect, nodes, primaryNode.type]);
 
   // ── Property comparisons for multi-select ──
   const comparisons = React.useMemo(() => {
@@ -779,7 +824,7 @@ export function DesignNodeInspector({
   }
 
   return (
-    <div data-inspector-first-section className="space-y-6 py-4">
+    <div data-inspector-first-section className="space-y-6 py-5">
       {/* ── Instance banners ──────────────────────────────────────────── */}
       {isInstanceRoot && instanceRootContext && instanceRootContext.instanceNode.componentRef && (
         <InstanceRootBanner
@@ -849,10 +894,11 @@ export function DesignNodeInspector({
         </div>
       )}
 
+      <div className="space-y-0">
+        <InspectorSectionCluster isFirst ariaLabel="Frame">
       {/* ── POSITION ─────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <SectionRule label="POSITION" />
-        <div className="px-4 space-y-2">
+      <InspectorDrawerSection title="Position">
+        <div className="px-4 space-y-2 pb-1">
           <InspectorFieldRow label="Mode" disabled={isForbiddenField("position")}>
             <InspectorSegmented
               value={isBreakout ? "absolute" : "relative"}
@@ -911,13 +957,12 @@ export function DesignNodeInspector({
             </>
           )}
         </div>
-      </section>
+      </InspectorDrawerSection>
 
       {/* ── SIZE ──────────────────────────────────────────────────────── */}
       {sections.showSize && (
-        <section className="space-y-3">
-          <SectionRule label="SIZE" />
-          <div className="px-4 space-y-2">
+        <InspectorDrawerSection title="Size">
+          <div className="px-4 space-y-2 pb-1">
             {/* Width */}
             <InspectorFieldRow
               label="W"
@@ -956,7 +1001,17 @@ export function DesignNodeInspector({
                     placeholder="0"
                     min={0}
                     className="w-16"
-                    onChange={(e) => updateStyle({ width: Number(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const w = Number(e.target.value) || 0;
+                      if (whLocked && whRatioRef.current != null) {
+                        updateStyle({
+                          width: w,
+                          height: Math.max(0, Math.round(w * whRatioRef.current)),
+                        });
+                      } else {
+                        updateStyle({ width: w });
+                      }
+                    }}
                     onBlur={() => history.flush()}
                   />
                 ) : (
@@ -975,6 +1030,33 @@ export function DesignNodeInspector({
                 )}
               </div>
             </InspectorFieldRow>
+
+            <div className="flex justify-center py-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!whLocked) {
+                    const w = typeof style.width === "number" ? style.width : null;
+                    const h = typeof style.height === "number" ? style.height : null;
+                    if (w != null && h != null && w > 0) {
+                      whRatioRef.current = h / w;
+                    } else {
+                      whRatioRef.current = null;
+                    }
+                  }
+                  setWhLocked((v) => !v);
+                }}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-[2px] border transition-colors",
+                  whLocked
+                    ? "border-[#4B57DB] bg-[#EDF1FE] text-[#4B57DB] dark:bg-[#222244]/80 dark:border-[#4B57DB]"
+                    : "border-[#E5E5E0] bg-[#F8F8F6] text-[#A0A0A0] hover:border-[#D1D1CC] dark:border-[#444444] dark:bg-[#2A2A2A]"
+                )}
+                title={whLocked ? "Unlock width and height" : "Lock width and height proportion"}
+              >
+                <Link2 size={14} strokeWidth={1.75} />
+              </button>
+            </div>
 
             {/* Height */}
             <InspectorFieldRow
@@ -1014,7 +1096,17 @@ export function DesignNodeInspector({
                     placeholder="0"
                     min={0}
                     className="w-16"
-                    onChange={(e) => updateStyle({ height: Number(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const h = Number(e.target.value) || 0;
+                      if (whLocked && whRatioRef.current != null) {
+                        updateStyle({
+                          height: h,
+                          width: Math.max(0, Math.round(h / whRatioRef.current)),
+                        });
+                      } else {
+                        updateStyle({ height: h });
+                      }
+                    }}
                     onBlur={() => history.flush()}
                   />
                 ) : (
@@ -1047,7 +1139,7 @@ export function DesignNodeInspector({
                   const val = v === "" ? undefined : v;
                   applyImmediate({ aspectRatio: val }, `Set aspect ratio ${v || "auto"}`);
                 }}
-                className="h-7 px-1.5 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-border-control rounded-[2px] text-text-primary font-mono"
+                className="h-7 px-1.5 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] text-[#1A1A1A] dark:text-[#D0D0D0] font-mono outline-none focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
                 style={{ fontFamily: "'IBM Plex Mono', monospace" }}
               >
                 <option value="">Auto</option>
@@ -1065,8 +1157,7 @@ export function DesignNodeInspector({
               hasOverride={hasOverride("maxWidth")}
               onResetOverride={() => resetOverride("maxWidth")}
             >
-              <input
-                type="text"
+              <InspectorTextInput
                 value={style.maxWidth != null ? String(style.maxWidth) : ""}
                 placeholder="none"
                 onChange={(e) => {
@@ -1087,375 +1178,112 @@ export function DesignNodeInspector({
                     applyImmediate({ maxWidth: isNaN(num) ? v : num }, `Set max width ${v}`);
                   }
                 }}
-                className="w-full h-7 px-2 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-border-control rounded-[2px] text-text-primary font-mono focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 outline-none"
                 style={{ fontFamily: "'IBM Plex Mono', monospace" }}
               />
             </InspectorFieldRow>
-          </div>
-        </section>
-      )}
 
-      {/* ── TRANSFORM ────────────────────────────────────────────────── */}
-      {sections.showSize && (
-        <section className="space-y-3">
-          <SectionRule label="TRANSFORM" />
-          <div className="px-4 space-y-2">
-            {/* Rotate */}
-            <InspectorFieldRow label="Rotate">
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  value={style.transform?.rotate ?? 0}
-                  onChange={(e) => updateTransform({ rotate: Number(e.target.value) || 0 })}
-                  onBlur={() => history.flush()}
-                  className="w-16 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
-                />
-                <span className="text-[11px] text-[#6B6B6B]">deg</span>
-              </div>
-            </InspectorFieldRow>
-
-            {/* Scale X / Y */}
-            <InspectorFieldRow label="Scale">
-              <div className="flex items-center gap-1">
-                <div className="flex items-center gap-0.5">
-                  <span className="text-[11px] text-[#6B6B6B]">X</span>
-                  <input
-                    type="number"
-                    step={0.01}
-                    value={style.transform?.scale?.x ?? 1}
-                    onChange={(e) => {
-                      const val = Number(e.target.value) || 1;
-                      if (scaleLocked) {
-                        updateTransform({ scale: { x: val, y: val } });
-                      } else {
-                        updateTransform({ scale: { x: val, y: style.transform?.scale?.y ?? 1 } });
-                      }
-                    }}
-                    onBlur={() => history.flush()}
-                    className="w-14 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setScaleLocked(!scaleLocked)}
-                  className={cn(
-                    "p-0.5 rounded-[2px] transition-colors",
-                    scaleLocked
-                      ? "text-[#4B57DB] hover:bg-[#EDF1FE]"
-                      : "text-[#A0A0A0] hover:text-[#6B6B6B]"
-                  )}
-                  title={scaleLocked ? "Unlock scale" : "Lock scale"}
-                >
-                  {scaleLocked ? <Link2 size={14} strokeWidth={1.5} /> : <Unlink2 size={14} strokeWidth={1.5} />}
-                </button>
-                <div className="flex items-center gap-0.5">
-                  <span className="text-[11px] text-[#6B6B6B]">Y</span>
-                  <input
-                    type="number"
-                    step={0.01}
-                    value={style.transform?.scale?.y ?? 1}
-                    onChange={(e) => {
-                      const val = Number(e.target.value) || 1;
-                      if (scaleLocked) {
-                        updateTransform({ scale: { x: val, y: val } });
-                      } else {
-                        updateTransform({ scale: { x: style.transform?.scale?.x ?? 1, y: val } });
-                      }
-                    }}
-                    onBlur={() => history.flush()}
-                    className="w-14 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
-                  />
-                </div>
-              </div>
-            </InspectorFieldRow>
-
-            {/* Transform Origin — 3x3 grid */}
-            <InspectorFieldRow label="Origin">
-              <div className="inline-grid grid-cols-3 gap-[6px] p-1 border border-[#E5E5E0] rounded-[4px] bg-white">
-                {[
-                  [0, 0], [50, 0], [100, 0],
-                  [0, 50], [50, 50], [100, 50],
-                  [0, 100], [50, 100], [100, 100],
-                ].map(([ox, oy]) => {
-                  const currentX = style.transformOrigin?.x ?? 50;
-                  const currentY = style.transformOrigin?.y ?? 50;
-                  const isActive = currentX === ox && currentY === oy;
-                  return (
-                    <button
-                      key={`${ox}-${oy}`}
-                      type="button"
-                      onClick={() => updateTransformOrigin(ox, oy)}
-                      className={cn(
-                        "w-[8px] h-[8px] rounded-full transition-colors",
-                        isActive
-                          ? "bg-[#4B57DB]"
-                          : "bg-[#D0D0D0] hover:bg-[#6B6B6B]"
-                      )}
-                      title={`Origin ${ox}% ${oy}%`}
-                    />
-                  );
-                })}
-              </div>
-            </InspectorFieldRow>
-          </div>
-        </section>
-      )}
-
-      {/* ── SPACING (frame + text) ───────────────────────────────────── */}
-      {sections.showSpacing && (
-        <section className="space-y-3">
-          <SectionRule label="SPACING" />
-          <div className="px-4">
-            <SpacingDiagram
-              node={primaryNode}
-              style={style}
-              onPaddingChange={updatePadding}
-              onHistoryFlush={() => history.flush()}
-              hasOverride={hasOverride("padding")}
-              onResetOverride={() => resetOverride("padding")}
-            />
-          </div>
-        </section>
-      )}
-
-      {/* ── LAYOUT (frame only) ──────────────────────────────────────── */}
-      {sections.showLayout && (
-        <section className="space-y-3">
-          <SectionRule label="LAYOUT" />
-          <div className="px-4 space-y-2">
-            <InspectorFieldRow label="Display" disabled={isForbiddenField("display")}>
-              <InspectorSegmented
-                value={style.display || "flex"}
-                options={[
-                  { value: "flex", label: "Flex" },
-                  { value: "grid", label: "Grid" },
-                ]}
-                onChange={(v) => applyImmediate({ display: v as "flex" | "grid" }, "Changed display")}
-              />
-            </InspectorFieldRow>
-
-            {(style.display || "flex") === "flex" && (
-              <InspectorFieldRow
-                label="Direction"
-                hasOverride={hasOverride("flexDirection")}
-                onResetOverride={() => resetOverride("flexDirection")}
-                disabled={isForbiddenField("flexDirection")}
-              >
-                <InspectorSegmented
-                  value={style.flexDirection || "column"}
-                  options={[
-                    { value: "row", label: "Row" },
-                    { value: "column", label: "Column" },
-                  ]}
-                  onChange={(v) => applyImmediate({ flexDirection: v as "row" | "column" }, "Changed direction")}
-                />
-              </InspectorFieldRow>
-            )}
-
-            {style.display !== "grid" && (
-              <div className="flex gap-2">
-                <InspectorFieldRow label="Grow" className="flex-1">
-                  <InspectorNumberInput
-                    value={style.flexGrow ?? 0}
-                    min={0}
-                    step={1}
-                    onChange={(e) => updateStyle({ flexGrow: Number(e.target.value) || 0 })}
-                    onBlur={() => history.flush()}
-                  />
-                </InspectorFieldRow>
-                <InspectorFieldRow label="Shrink" className="flex-1">
-                  <InspectorNumberInput
-                    value={style.flexShrink ?? 1}
-                    min={0}
-                    step={1}
-                    onChange={(e) => updateStyle({ flexShrink: Number(e.target.value) })}
-                    onBlur={() => history.flush()}
-                  />
-                </InspectorFieldRow>
-              </div>
-            )}
-
-            {style.display === "grid" && (
-              <InspectorFieldRow
-                label="Template"
-                hasOverride={hasOverride("gridTemplate")}
-                onResetOverride={() => resetOverride("gridTemplate")}
-                disabled={isForbiddenField("gridTemplate")}
-              >
-                <GridTemplatePicker
-                  value={style.gridTemplate || ""}
-                  onChange={(v) => updateStyle({ gridTemplate: v })}
-                  onCommit={() => history.flush()}
-                />
-              </InspectorFieldRow>
-            )}
-
-            {style.display === "grid" && (
-              <InspectorFieldRow
-                label="Rows"
-                hasOverride={hasOverride("gridTemplateRows")}
-                onResetOverride={() => resetOverride("gridTemplateRows")}
-              >
-                <input
-                  type="text"
-                  value={style.gridTemplateRows ?? ""}
-                  placeholder="auto"
-                  onChange={(e) => updateStyle({ gridTemplateRows: e.target.value || undefined })}
-                  onBlur={(e) => {
-                    history.flush();
+            <div className="grid grid-cols-2 gap-3">
+              <InspectorFieldRow label="Min W" hasOverride={hasOverride("minWidth")} onResetOverride={() => resetOverride("minWidth")}>
+                <InspectorTextInput
+                  value={style.minWidth != null ? String(style.minWidth) : ""}
+                  placeholder="—"
+                  onChange={(e) => {
                     const v = e.target.value;
-                    applyImmediate(
-                      { gridTemplateRows: v || undefined },
-                      v ? `Set grid rows: ${v}` : "Remove grid rows"
-                    );
+                    if (v === "") updateStyle({ minWidth: undefined });
+                    else {
+                      const num = Number(v);
+                      updateStyle({ minWidth: isNaN(num) ? v : num });
+                    }
                   }}
-                  className="w-full h-7 px-2 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-border-control rounded-[2px] text-text-primary font-mono focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40 outline-none"
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v === "") applyImmediate({ minWidth: undefined }, "Remove min width");
+                    else {
+                      const num = Number(v);
+                      applyImmediate({ minWidth: isNaN(num) ? v : num }, `Set min width ${v}`);
+                    }
+                  }}
                   style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                 />
               </InspectorFieldRow>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <InspectorFieldRow
-                label="Align"
-                hasOverride={hasOverride("alignItems")}
-                onResetOverride={() => resetOverride("alignItems")}
-                disabled={isForbiddenField("alignItems")}
-              >
-                <InspectorSegmentedSmall
-                  value={style.alignItems || "stretch"}
-                  options={[
-                    { value: "flex-start", label: "Start" },
-                    { value: "center", label: "Center" },
-                    { value: "flex-end", label: "End" },
-                    { value: "stretch", label: "Stretch" },
-                  ]}
-                  onChange={(v) => applyImmediate({ alignItems: v as DesignNodeStyle["alignItems"] }, "Changed align")}
-                />
-              </InspectorFieldRow>
-              <InspectorFieldRow
-                label="Justify"
-                hasOverride={hasOverride("justifyContent")}
-                onResetOverride={() => resetOverride("justifyContent")}
-                disabled={isForbiddenField("justifyContent")}
-              >
-                <InspectorSegmentedSmall
-                  value={style.justifyContent || "flex-start"}
-                  options={[
-                    { value: "flex-start", label: "Start" },
-                    { value: "center", label: "Center" },
-                    { value: "flex-end", label: "End" },
-                    { value: "space-between", label: "Between" },
-                  ]}
-                  onChange={(v) => applyImmediate({ justifyContent: v as DesignNodeStyle["justifyContent"] }, "Changed justify")}
+              <InspectorFieldRow label="Min H" hasOverride={hasOverride("minHeight")} onResetOverride={() => resetOverride("minHeight")}>
+                <InspectorTextInput
+                  value={style.minHeight != null ? String(style.minHeight) : ""}
+                  placeholder="—"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") updateStyle({ minHeight: undefined });
+                    else {
+                      const num = Number(v);
+                      updateStyle({ minHeight: isNaN(num) ? v : num });
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v === "") applyImmediate({ minHeight: undefined }, "Remove min height");
+                    else {
+                      const num = Number(v);
+                      applyImmediate({ minHeight: isNaN(num) ? v : num }, `Set min height ${v}`);
+                    }
+                  }}
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                 />
               </InspectorFieldRow>
             </div>
-
-            {/* Gap — unified or split */}
-            {(() => {
-              const gapValue = style.gap;
-              const gapStr = String(gapValue ?? 0);
-              const gapParts = typeof gapValue === "string" ? gapStr.split(/\s+/) : null;
-              const rowGap = gapParts?.length === 2 ? Number(gapParts[0]) : Number(gapValue ?? 0);
-              const colGap = gapParts?.length === 2 ? Number(gapParts[1]) : Number(gapValue ?? 0);
-              const isSplit = gapParts?.length === 2;
-
-              return (
-                <InspectorFieldRow
-                  label="Gap"
-                  hasOverride={hasOverride("gap")}
-                  onResetOverride={() => resetOverride("gap")}
-                  disabled={isForbiddenField("gap")}
-                >
-                  <div className="flex items-center gap-1">
-                    {isSplit ? (
-                      <>
-                        <div className="flex-1">
-                          <InspectorNumberInput
-                            value={rowGap}
-                            onChange={(e) => updateStyle({ gap: `${Number(e.target.value)} ${colGap}` })}
-                            onBlur={() => {
-                              history.flush();
-                              applyImmediate({ gap: `${rowGap} ${colGap}` }, "Set row gap");
-                            }}
-                            min={0}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <InspectorNumberInput
-                            value={colGap}
-                            onChange={(e) => updateStyle({ gap: `${rowGap} ${Number(e.target.value)}` })}
-                            onBlur={() => {
-                              history.flush();
-                              applyImmediate({ gap: `${rowGap} ${colGap}` }, "Set col gap");
-                            }}
-                            min={0}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex-1">
-                        <InspectorNumberInput
-                          value={rowGap}
-                          onChange={(e) => updateStyle({ gap: Number(e.target.value) || undefined })}
-                          onBlur={() => history.flush()}
-                          min={0}
-                        />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="w-5 h-5 flex items-center justify-center text-text-muted hover:text-text-primary"
-                      onClick={() => {
-                        if (isSplit) {
-                          applyImmediate({ gap: rowGap }, "Set uniform gap");
-                        } else {
-                          applyImmediate({ gap: `${rowGap} ${rowGap}` }, "Split gap");
-                        }
-                      }}
-                      title={isSplit ? "Uniform gap" : "Split row/col gap"}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        {isSplit
-                          ? <path d="M3 6h6" />
-                          : <path d="M3 6h6M6 3v6" />
-                        }
-                      </svg>
-                    </button>
-                  </div>
-                </InspectorFieldRow>
-              );
-            })()}
-
-            <InspectorFieldRow
-              label="Overflow"
-              hasOverride={hasOverride("overflow")}
-              onResetOverride={() => resetOverride("overflow")}
-            >
-              <InspectorSegmented
-                value={style.overflow ?? "visible"}
-                options={[
-                  { value: "visible", label: "Visible" },
-                  { value: "hidden", label: "Hidden" },
-                ]}
-                onChange={(v) => applyImmediate({ overflow: v }, `Set overflow ${v}`)}
-              />
-            </InspectorFieldRow>
           </div>
-        </section>
+        </InspectorDrawerSection>
       )}
+        </InspectorSectionCluster>
 
-      {sections.showTypography &&
-        (sections.showSize || sections.showSpacing || sections.showLayout) && (
-          <div className="mx-4 border-t border-border-subtle pt-1" aria-hidden />
-        )}
+      {/* ── LAYOUT (stack/grid + padding last) ───────────────────────── */}
+      {(sections.showSpacing || sections.showLayout) && (
+        <InspectorSectionCluster ariaLabel="Layout">
+          {sections.showLayout ? (
+            <LayoutInspectorFramer
+              style={style}
+              applyImmediate={applyImmediate}
+              updateStyle={updateStyle}
+              historyFlush={() => history.flush()}
+              hasOverride={hasOverride}
+              resetOverride={resetOverride}
+              isForbiddenField={isForbiddenField}
+              trailingContent={
+                sections.showSpacing ? (
+                  <SpacingDiagram
+                    node={primaryNode}
+                    style={style}
+                    onPaddingChange={updatePadding}
+                    onHistoryFlush={() => history.flush()}
+                    hasOverride={hasOverride("padding")}
+                    onResetOverride={() => resetOverride("padding")}
+                  />
+                ) : undefined
+              }
+            />
+          ) : (
+            sections.showSpacing && (
+              <InspectorDrawerSection title="Layout">
+                <div className="px-4 pb-1">
+                  <SpacingDiagram
+                    node={primaryNode}
+                    style={style}
+                    onPaddingChange={updatePadding}
+                    onHistoryFlush={() => history.flush()}
+                    hasOverride={hasOverride("padding")}
+                    onResetOverride={() => resetOverride("padding")}
+                  />
+                </div>
+              </InspectorDrawerSection>
+            )
+          )}
+        </InspectorSectionCluster>
+      )}
 
       {/* ── TYPOGRAPHY (text + button) ───────────────────────────────── */}
       {sections.showTypography && (
-        <section className="space-y-3">
-          <SectionRule label="TYPOGRAPHY" />
-          <div className="px-4 space-y-2">
+        <InspectorSectionCluster ariaLabel="Typography">
+        <InspectorDrawerSection title="Typography">
+          <div className="px-4 space-y-2 pb-1">
             {/* Font Family */}
             <InspectorFieldRow 
               label="Font"
@@ -1631,14 +1459,15 @@ export function DesignNodeInspector({
               </InspectorFieldRow>
             </div>
           </div>
-        </section>
+        </InspectorDrawerSection>
+        </InspectorSectionCluster>
       )}
 
-      {/* ── FILL ─────────────────────────────────────────────────────── */}
-      {sections.showFill && (
-        <section className="space-y-3">
-          <SectionRule label="FILL" />
-          <div className="px-4 space-y-2">
+      {/* ── STYLES (Framer-like: fill, effects, layer) ─────────────────── */}
+      {(sections.showFill || sections.showAppearance) && (
+        <InspectorSectionCluster ariaLabel="Styles">
+        <InspectorDrawerSection title="Styles">
+          <div className="px-4 space-y-2 pb-1">
             {/* Solid / Gradient toggle */}
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[11px] text-[#6B6B6B] w-10">Fill</span>
@@ -1673,7 +1502,26 @@ export function DesignNodeInspector({
               </div>
             </div>
 
-            {/* Show gradient editor or solid color picker */}
+            {/* Text = glyph / inherited color; Frame or Fill = layer background (Framer-style). */}
+            {showStylesTextColorRow && (
+              <InspectorFieldRow
+                label="Text"
+                hasOverride={hasOverride("foreground")}
+                onResetOverride={() => resetOverride("foreground")}
+              >
+                <InspectorColorField
+                  color={isMultiSelect
+                    ? (comparisons?.foreground?.sharedValue as string | "") ?? ""
+                    : style.foreground || ""
+                  }
+                  mixed={isMultiSelect && comparisons?.foreground?.status === "mixed"}
+                  documentColors={documentColors}
+                  onCommit={() => history.flush()}
+                  onChange={(c) => updateStyle({ foreground: c })}
+                />
+              </InspectorFieldRow>
+            )}
+
             {primaryNode.style.gradient ? (
               <GradientEditor
                 value={primaryNode.style.gradient}
@@ -1681,7 +1529,7 @@ export function DesignNodeInspector({
               />
             ) : (
               <InspectorFieldRow
-                label="Bg"
+                label={layerFillLabel}
                 hasOverride={hasOverride("background")}
                 onResetOverride={() => resetOverride("background")}
               >
@@ -1697,23 +1545,6 @@ export function DesignNodeInspector({
                 />
               </InspectorFieldRow>
             )}
-
-            <InspectorFieldRow
-              label="Text"
-              hasOverride={hasOverride("foreground")}
-              onResetOverride={() => resetOverride("foreground")}
-            >
-              <InspectorColorField
-                color={isMultiSelect
-                  ? (comparisons?.foreground?.sharedValue as string | "") ?? ""
-                  : style.foreground || ""
-                }
-                mixed={isMultiSelect && comparisons?.foreground?.status === "mixed"}
-                documentColors={documentColors}
-                onCommit={() => history.flush()}
-                onChange={(c) => updateStyle({ foreground: c })}
-              />
-            </InspectorFieldRow>
 
             {/* Object Fit (image nodes only) */}
             {primaryNode.type === "image" && (
@@ -1847,15 +1678,12 @@ export function DesignNodeInspector({
                 )}
               </div>
             )}
-          </div>
-        </section>
-      )}
 
-      {/* ── EFFECTS (all types) ─────────────────────────────────────── */}
-      {sections.showAppearance && (
-        <section className="space-y-3">
-          <SectionRule label="EFFECTS" />
-          <div className="px-4 space-y-2">
+            <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
+              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Effects
+              </span>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => addEffect("dropShadow")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Drop Shadow</button>
               <button type="button" onClick={() => addEffect("innerShadow")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Inner Shadow</button>
@@ -1908,15 +1736,12 @@ export function DesignNodeInspector({
                 )}
               </div>
             ))}
-          </div>
-        </section>
-      )}
 
-      {/* ── APPEARANCE (all types) ───────────────────────────────────── */}
-      {sections.showAppearance && (
-        <section className="space-y-3">
-          <SectionRule label="APPEARANCE" />
-          <div className="px-4 space-y-2">
+            <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
+              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Layer
+              </span>
+            </div>
             {/* Radius — uniform + expandable individual corners */}
             {primaryNode.type !== "divider" && (
               <InspectorFieldRow
@@ -2216,8 +2041,29 @@ export function DesignNodeInspector({
               </select>
             </div>
 
-            {/* ── Clip Mask ─────────────────────────────────────────── */}
-            <SectionRule label="CLIP MASK" />
+            <InspectorFieldRow
+              label="Overflow"
+              hasOverride={hasOverride("overflow")}
+              onResetOverride={() => resetOverride("overflow")}
+            >
+              <InspectorSelect
+                value={style.overflow ?? "visible"}
+                onChange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value as "visible" | "hidden";
+                  applyImmediate({ overflow: v }, v === "hidden" ? "Clip content" : "Overflow visible");
+                }}
+              >
+                <option value="visible">Visible</option>
+                <option value="hidden">Clip</option>
+              </InspectorSelect>
+            </InspectorFieldRow>
+
+            {/* ── Clip mask (sub-block inside Styles) ───────────────── */}
+            <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
+              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Clip mask
+              </span>
+            </div>
 
             {/* Type picker */}
             <InspectorSegmentedSmall
@@ -2560,9 +2406,141 @@ export function DesignNodeInspector({
                 </div>
               );
             })()}
+
+            <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
+              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                Selection colors
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5 pb-1">
+              {selectionColorsList.map(({ hex, key }) => (
+                <div key={`${key}-${hex}`} className="flex items-center gap-2 min-h-7">
+                  <span
+                    className="h-5 w-5 shrink-0 rounded-[3px] border border-[#E5E5E0] dark:border-[#444444]"
+                    style={{ backgroundColor: hex }}
+                  />
+                  <span className="font-mono text-[12px] text-[#1A1A1A] dark:text-[#D0D0D0] flex-1 truncate uppercase">
+                    {hex}
+                  </span>
+                  <span className="text-[11px] text-[#8A8A8A]">100%</span>
+                </div>
+              ))}
+              {selectionColorsList.length === 0 && (
+                <span className="text-[11px] text-[#A0A0A0]">No solid colors in selection</span>
+              )}
+            </div>
           </div>
-        </section>
+        </InspectorDrawerSection>
+        </InspectorSectionCluster>
       )}
+
+      {/* ── TRANSFORM (end of inspector — visual rotate / scale / origin) ─ */}
+      {sections.showSize && (
+        <InspectorSectionCluster ariaLabel="Transform">
+          <InspectorDrawerSection title="Transform">
+            <div className="px-4 space-y-2 pb-1">
+              <p className="-mt-0.5 text-[11px] leading-snug text-[#8A8A8A] dark:text-[#888888]">
+                Rotate and scale how the layer looks on the canvas; origin is the pivot. Does not change layout size.
+              </p>
+              {/* Rotate */}
+              <InspectorFieldRow label="Rotate">
+                <div className="flex items-center gap-1">
+                  <InspectorNumberInput
+                    className="w-16"
+                    value={style.transform?.rotate ?? 0}
+                    onChange={(e) => updateTransform({ rotate: Number(e.target.value) || 0 })}
+                    onBlur={() => history.flush()}
+                  />
+                  <span className="text-[11px] text-[#6B6B6B]">deg</span>
+                </div>
+              </InspectorFieldRow>
+
+              {/* Scale X / Y */}
+              <InspectorFieldRow label="Scale">
+                <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[11px] text-[#6B6B6B]">X</span>
+                    <InspectorNumberInput
+                      className="w-14"
+                      step={0.01}
+                      value={style.transform?.scale?.x ?? 1}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 1;
+                        if (scaleLocked) {
+                          updateTransform({ scale: { x: val, y: val } });
+                        } else {
+                          updateTransform({ scale: { x: val, y: style.transform?.scale?.y ?? 1 } });
+                        }
+                      }}
+                      onBlur={() => history.flush()}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setScaleLocked(!scaleLocked)}
+                    className={cn(
+                      "p-0.5 rounded-[2px] transition-colors",
+                      scaleLocked
+                        ? "text-[#4B57DB] hover:bg-[#EDF1FE]"
+                        : "text-[#A0A0A0] hover:text-[#6B6B6B]"
+                    )}
+                    title={scaleLocked ? "Unlock scale" : "Lock scale"}
+                  >
+                    {scaleLocked ? <Link2 size={14} strokeWidth={1.5} /> : <Unlink2 size={14} strokeWidth={1.5} />}
+                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[11px] text-[#6B6B6B]">Y</span>
+                    <InspectorNumberInput
+                      className="w-14"
+                      step={0.01}
+                      value={style.transform?.scale?.y ?? 1}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 1;
+                        if (scaleLocked) {
+                          updateTransform({ scale: { x: val, y: val } });
+                        } else {
+                          updateTransform({ scale: { x: style.transform?.scale?.x ?? 1, y: val } });
+                        }
+                      }}
+                      onBlur={() => history.flush()}
+                    />
+                  </div>
+                </div>
+              </InspectorFieldRow>
+
+              {/* Transform Origin — 3x3 grid */}
+              <InspectorFieldRow label="Origin">
+                <div className="inline-grid grid-cols-3 gap-[6px] p-1 border border-[#E5E5E0] rounded-[4px] bg-white">
+                  {[
+                    [0, 0], [50, 0], [100, 0],
+                    [0, 50], [50, 50], [100, 50],
+                    [0, 100], [50, 100], [100, 100],
+                  ].map(([ox, oy]) => {
+                    const currentX = style.transformOrigin?.x ?? 50;
+                    const currentY = style.transformOrigin?.y ?? 50;
+                    const isActive = currentX === ox && currentY === oy;
+                    return (
+                      <button
+                        key={`${ox}-${oy}`}
+                        type="button"
+                        onClick={() => updateTransformOrigin(ox, oy)}
+                        className={cn(
+                          "w-[8px] h-[8px] rounded-full transition-colors",
+                          isActive
+                            ? "bg-[#4B57DB]"
+                            : "bg-[#D0D0D0] hover:bg-[#6B6B6B]"
+                        )}
+                        title={`Origin ${ox}% ${oy}%`}
+                      />
+                    );
+                  })}
+                </div>
+              </InspectorFieldRow>
+            </div>
+          </InspectorDrawerSection>
+        </InspectorSectionCluster>
+      )}
+      </div>
     </div>
   );
 }

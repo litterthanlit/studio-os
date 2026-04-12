@@ -16,7 +16,7 @@ import { VariantCarousel } from "./VariantCarousel";
 type CanvasArtboardProps = {
   item: ArtboardItem;
   tokens: DesignSystemTokens | null;
-  /** Editor tool: select | hand | marquee | frame | text | prompt */
+  /** Editor tool: select | hand | frame | text | prompt */
   activeTool?: string;
   isDragging?: boolean;
   isGenerating?: boolean;
@@ -376,6 +376,13 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
                   onUpdateContent={variantPreview ? () => {} : handleNodeContentUpdate}
                   onUpdateNodeStyle={variantPreview ? () => {} : handleNodeStyleUpdate}
                   onPushHistory={(desc) => dispatch({ type: "PUSH_HISTORY", description: desc })}
+                  onDiscardTextEdit={
+                    variantPreview
+                      ? undefined
+                      : (nodeId) => {
+                          dispatch({ type: "DELETE_SECTION", itemId: item.id, nodeId });
+                        }
+                  }
                   itemId={item.id}
                   zoom={state.viewport.zoom}
                   canvasTool={variantPreview ? "select" : activeTool}

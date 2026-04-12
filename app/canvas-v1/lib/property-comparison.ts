@@ -146,10 +146,12 @@ const COMMON_STYLE_PROPERTIES: StylePropertyKey[] = [
   // Layout
   "display",
   "flexDirection",
+  "flexWrap",
   "gap",
   "alignItems",
   "justifyContent",
   "gridTemplate",
+  "gridTemplateRows",
   "flexGrow",
   "flexShrink",
   "aspectRatio",
@@ -184,6 +186,8 @@ const COMMON_STYLE_PROPERTIES: StylePropertyKey[] = [
   "blur",
   "objectFit",
   "maxWidth",
+  "minWidth",
+  "minHeight",
 ];
 
 /**

@@ -235,6 +235,11 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
     React.useState<number | null>(null);
 
+  // Marquee is no longer a tool — box-select uses Cursor (select) only.
+  React.useEffect(() => {
+    if (activeTool === "marquee") setActiveTool("select");
+  }, [activeTool]);
+
   React.useEffect(() => {
     // #region agent log
     fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
@@ -654,30 +659,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     zoomToFit();
   }, [state.selection, items, containerRef, viewport, dispatch, triggerDiscreteZoom, zoomToFit]);
 
-  // ── Zoom change handler for EditorTransportBar ─────────────────────
-
-  const handleZoomChange = React.useCallback(
-    (newZoom: number) => {
-      const container = containerRef.current;
-      if (!container) return;
-      const viewW = container.clientWidth;
-      const viewH = container.clientHeight;
-      const centerX = viewW / 2;
-      const centerY = viewH / 2;
-      const zoomRatio = newZoom / viewport.zoom;
-      triggerDiscreteZoom();
-      dispatch({
-        type: "SET_VIEWPORT",
-        pan: {
-          x: centerX - (centerX - viewport.pan.x) * zoomRatio,
-          y: centerY - (centerY - viewport.pan.y) * zoomRatio,
-        },
-        zoom: newZoom,
-      });
-    },
-    [containerRef, viewport, dispatch, triggerDiscreteZoom]
-  );
-
   // Wire stable refs so keyboard shortcuts can call the real implementations
   zoomToFitRef.current = zoomToFit;
   zoomToSelectionRef.current = zoomToSelection;
@@ -975,9 +956,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full w-full" data-theme={effectiveTheme}>
+    <div className="flex h-full w-full flex-col" data-theme={effectiveTheme}>
       <EditorShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      {/* Mini rail sidebar */}
+      {/* Top tool rail (panel toggles + nav) */}
       <MiniRail
         layersVisible={showLayers}
         onToggleLayers={() => setShowLayers((v) => !v)}
@@ -991,11 +972,15 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         onOpenShortcuts={() => setShortcutsOpen(true)}
       />
 
+      {/* Editor row: Layers | Canvas | Inspector */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+        {showLayers && <LayersPanelV3 projectId={projectId} />}
+
       {/* Canvas surface */}
       <div
         ref={containerRef}
         className={cn(
-          "editor-canvas-surface relative h-full flex-1 overflow-hidden bg-canvas-workspace",
+          "editor-canvas-surface relative h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-canvas-workspace",
           isDragOver && "ring-2 ring-inset ring-[#4B57DB] ring-dashed"
         )}
       style={{
@@ -1212,9 +1197,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         )}
       </div>
 
-      {/* Layers panel */}
-      {showLayers && <LayersPanelV3 projectId={projectId} />}
-
       {/* Floating prompt panel — Prompt tool (K); not gated on inspector visibility */}
       {activeTool === "prompt" && (() => {
         const activeArtboard = state.selection.activeItemId
@@ -1236,16 +1218,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         );
       })()}
 
-      {/* Inspector panel — Design | CSS | Export (prompt = floating panel) */}
-      {showInspector && (
-        <InspectorPanelV3
-          projectId={projectId}
-          promptTextareaRef={promptTextareaRef}
-          panelRef={inspectorPanelRef}
-          onOpenGenerate={openPromptWithInspector}
-        />
-      )}
-
       {/* Section library panel */}
       <AnimatePresence>
         {sectionLibraryInsertIndex !== null && (
@@ -1266,11 +1238,17 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       <EditorTransportBar
         activeTool={activeTool}
         onToolChange={setActiveTool}
-        zoom={viewport.zoom}
-        onZoomChange={handleZoomChange}
-        onZoomToFit={zoomToFit}
         onGenerate={openPromptWithInspector}
       />
+      </div>
+        {showInspector && (
+          <InspectorPanelV3
+            projectId={projectId}
+            promptTextareaRef={promptTextareaRef}
+            panelRef={inspectorPanelRef}
+            onOpenGenerate={openPromptWithInspector}
+          />
+        )}
       </div>
 
       {/* Master edit mode overlay (Track 3) */}

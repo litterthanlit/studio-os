@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
 import type { TextItem } from "@/lib/canvas/unified-canvas-state";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
@@ -17,7 +16,6 @@ type CanvasTextProps = {
 
 export function CanvasText({ item, zoom, isDragging, onPointerDown }: CanvasTextProps) {
   const { state, dispatch } = useCanvas();
-  const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActive = state.selection.activeItemId === item.id;
 
   const tree = React.useMemo(() => canvasItemToDesignNode(item), [item]);
@@ -112,14 +110,6 @@ export function CanvasText({ item, zoom, isDragging, onPointerDown }: CanvasText
         }
       }}
     >
-      {/* Selection outline */}
-      {isSelected && (
-        <div
-          className="pointer-events-none absolute inset-0 outline outline-2 outline-[#4B57DB]"
-          style={{ zIndex: 1 }}
-        />
-      )}
-
       <ComposeDocumentViewV6
         tree={tree}
         components={state.components}
@@ -132,6 +122,9 @@ export function CanvasText({ item, zoom, isDragging, onPointerDown }: CanvasText
         onUpdateContent={handleUpdateContent}
         onUpdateNodeStyle={handleUpdateNodeStyle}
         onPushHistory={handlePushHistory}
+        onDiscardTextEdit={() => {
+          dispatch({ type: "REMOVE_ITEM", itemId: item.id });
+        }}
         itemId={item.id}
         zoom={zoom}
         interactive

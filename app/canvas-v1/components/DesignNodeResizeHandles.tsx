@@ -35,8 +35,40 @@ type HandlePosition =
 // ── Constants ────────────────────────────────────────────────────────
 
 const HANDLE_SIZE = 8;
+const TEXT_HANDLE_SIZE = 5;
 const HALF = HANDLE_SIZE / 2;
 const MIN_SIZE = 20;
+
+/** Positions for text — width-focused, no corner handles (Framer-like). */
+const TEXT_HANDLE_POSITIONS = new Set<HandlePosition>(["left", "right"]);
+
+function getHandlePositionStyle(
+  position: HandlePosition,
+  w: number,
+  h: number,
+  half: number,
+): React.CSSProperties {
+  switch (position) {
+    case "top-left":
+      return { top: -half, left: -half };
+    case "top":
+      return { top: -half, left: w / 2 - half };
+    case "top-right":
+      return { top: -half, left: w - half };
+    case "right":
+      return { top: h / 2 - half, left: w - half };
+    case "bottom-right":
+      return { top: h - half, left: w - half };
+    case "bottom":
+      return { top: h - half, left: w / 2 - half };
+    case "bottom-left":
+      return { top: h - half, left: -half };
+    case "left":
+      return { top: h / 2 - half, left: -half };
+    default:
+      return { top: 0, left: 0 };
+  }
+}
 
 // ── Handle Definitions ───────────────────────────────────────────────
 
@@ -162,6 +194,13 @@ export function DesignNodeResizeHandles({
     if (affectsVertical && !canResizeHeight) return false;
     return true;
   });
+
+  const isTextNode = node.type === "text";
+  const handleSize = isTextNode ? TEXT_HANDLE_SIZE : HANDLE_SIZE;
+  const half = handleSize / 2;
+  const handlesToRender = isTextNode
+    ? enabledHandles.filter((h) => TEXT_HANDLE_POSITIONS.has(h.position))
+    : enabledHandles;
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, handle: HandlePosition) => {
@@ -415,32 +454,35 @@ export function DesignNodeResizeHandles({
   const w = nodeRect.width;
   const h = nodeRect.height;
 
-  if (enabledHandles.length === 0) {
+  if (handlesToRender.length === 0) {
     return null;
   }
 
+  const borderColor = isTextNode ? "rgba(75, 87, 219, 0.45)" : "#4B57DB";
+  const hoverBg = isTextNode ? "rgba(75, 87, 219, 0.85)" : "#4B57DB";
+
   return (
     <>
-      {enabledHandles.map(({ position, cursor, getStyle }) => (
+      {handlesToRender.map(({ position, cursor }) => (
         <div
           key={position}
           style={{
             position: "absolute",
-            width: HANDLE_SIZE,
-            height: HANDLE_SIZE,
+            width: handleSize,
+            height: handleSize,
             borderRadius: 1,
-            border: "1px solid #4B57DB",
+            border: `1px solid ${borderColor}`,
             backgroundColor: "white",
             cursor,
             zIndex: 10,
             transition: "transform 100ms ease, background-color 100ms ease",
-            ...getStyle(w, h),
+            ...getHandlePositionStyle(position, w, h, half),
           }}
           onPointerDown={(e) => handlePointerDown(e, position)}
           onMouseEnter={(e) => {
             const el = e.currentTarget as HTMLElement;
-            el.style.backgroundColor = "#4B57DB";
-            el.style.transform = "scale(1.25)";
+            el.style.backgroundColor = hoverBg;
+            el.style.transform = isTextNode ? "scale(1.15)" : "scale(1.25)";
           }}
           onMouseLeave={(e) => {
             const el = e.currentTarget as HTMLElement;

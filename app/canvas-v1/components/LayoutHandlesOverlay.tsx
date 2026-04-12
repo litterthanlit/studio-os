@@ -417,6 +417,11 @@ export function LayoutHandlesOverlay({
     // #endregion
   }, [isLayoutContainer, selectedNode, selectedNodeId, showGapHandles, showPaddingHandles]);
   
+  // Text nodes: no gap/padding chrome (matches no resize handles on text)
+  if (selectedNode?.type === "text") {
+    return null;
+  }
+
   // Skip during SSR and if nothing to show
   if (!isMounted || (!showPaddingHandles && !showGapHandles)) {
     return null;

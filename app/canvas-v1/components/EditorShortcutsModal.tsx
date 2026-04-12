@@ -5,11 +5,11 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ROWS: { keys: string; action: string }[] = [
-  { keys: "V / H / M / F / T / K", action: "Select / Hand / Marquee / Frame / Text / Prompt tools" },
+  { keys: "V / H / F / T / K", action: "Select / Hand / Frame / Text / Prompt tools" },
   { keys: "Space + drag", action: "Pan canvas" },
   { keys: "⌘ 0 / ⌘ 1", action: "Zoom to fit / selection" },
   { keys: "⇧ + Click", action: "Add to selection (multi-select)" },
-  { keys: "Marquee (M)", action: "Drag to box-select; ⇧ adds to selection" },
+  { keys: "Select (V)", action: "Drag on empty area to box-select; ⇧ adds to selection" },
   { keys: "Frame (F)", action: "Drag on a frame background to draw a nested frame (absolute)" },
   { keys: "Text (T)", action: "Click or drag on a frame background to place a text layer" },
   { keys: "⌥ drag", action: "Drag selected layer onto another frame to reparent (drop ring while moving)" },

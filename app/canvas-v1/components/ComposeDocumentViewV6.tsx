@@ -111,6 +111,10 @@ type ComposeDocumentViewV6Props = {
   onUpdateContent?: (nodeId: string, key: string, value: string) => void;
   onUpdateNodeStyle?: (nodeId: string, style: Partial<DesignNodeStyle>) => void;
   onPushHistory?: (description: string) => void;
+  /**
+   * Escape on unchanged placeholder text — remove the text layer (canvas) or delete the node (artboard).
+   */
+  onDiscardTextEdit?: (nodeId: string) => void;
   interactive?: boolean;
   /** Artboard ID — needed for drag-to-reposition dispatch */
   itemId?: string | null;
@@ -120,7 +124,7 @@ type ComposeDocumentViewV6Props = {
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
   /** Insert under `parentNodeId` when set (frame/group); else legacy root children. */
   onInsertSection?: (index: number, section: DesignNode, parentNodeId?: string | null) => void;
-  /** Matches EditorTransportBar: select | hand | marquee | prompt | frame | text */
+  /** Matches EditorTransportBar: select | hand | prompt | frame | text */
   canvasTool?: string;
   /**
    * When true, `resolveTree` memo depends on full `components` so live master edits re-resolve.
@@ -131,6 +135,9 @@ type ComposeDocumentViewV6Props = {
   /** Opens the full component library (e.g. from insertion bar “Browse all”). */
   onOpenGallery?: () => void;
 };
+
+/** Matches ADD_TEXT default in canvas-reducer — Esc deletes layer if still this placeholder. */
+const DEFAULT_NEW_TEXT_PLACEHOLDER = "Type something";
 
 type InlineTextEditEventDetail = {
   itemId: string;
@@ -210,15 +217,27 @@ function isLightColor(hex?: string): boolean {
 
 type SelectionLevel = "primary" | "secondary" | "none";
 
-function selectionOutlineStyle(level: SelectionLevel, isLiveHit?: boolean): React.CSSProperties {
+function selectionOutlineStyle(
+  level: SelectionLevel,
+  isLiveHit?: boolean,
+  /** Softer outline + outward offset so type selection is less tight on glyphs */
+  variant?: "default" | "text",
+): React.CSSProperties {
+  const text = variant === "text";
   if (level === "primary") {
-    return { outline: "1.5px solid #4B57DB", outlineOffset: -1.5 };
+    return text
+      ? { outline: "1px solid rgba(75, 87, 219, 0.55)", outlineOffset: 3 }
+      : { outline: "1.5px solid #4B57DB", outlineOffset: -1.5 };
   }
   if (level === "secondary") {
-    return { outline: "1.5px solid rgba(75, 87, 219, 0.45)", outlineOffset: -1.5 };
+    return text
+      ? { outline: "1px solid rgba(75, 87, 219, 0.38)", outlineOffset: 3 }
+      : { outline: "1.5px solid rgba(75, 87, 219, 0.45)", outlineOffset: -1.5 };
   }
   if (isLiveHit) {
-    return { outline: "1.5px solid rgba(75, 87, 219, 0.3)", outlineOffset: -1.5 };
+    return text
+      ? { outline: "1px solid rgba(75, 87, 219, 0.22)", outlineOffset: 3 }
+      : { outline: "1.5px solid rgba(75, 87, 219, 0.3)", outlineOffset: -1.5 };
   }
   return {};
 }
@@ -236,16 +255,19 @@ function getSelectionLevel(
 
 // ── Text Content Renderer ──────────────────────────────────────────
 
-function TextContent({ node, isEditing, isSelected = false, dragProtected = false, onStartEdit, onCommitEdit }: {
+function TextContent({ node, isEditing, isSelected = false, dragProtected = false, onStartEdit, onCommitEdit, onDiscardEdit }: {
   node: DesignNode;
   isEditing: boolean;
   isSelected?: boolean;
   dragProtected?: boolean;
   onStartEdit: () => void;
   onCommitEdit: (newText: string) => void;
+  /** When Esc and text is still the default placeholder — parent removes the layer/node. */
+  onDiscardEdit?: () => void;
 }) {
   const textRef = React.useRef<HTMLDivElement>(null);
   const originalTextRef = React.useRef<string>("");
+  const discardedRef = React.useRef(false);
   const content = node.content;
   const [isHovered, setIsHovered] = React.useState(false);
   const clickCountRef = React.useRef(0);
@@ -255,6 +277,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
   React.useEffect(() => {
     if (!isEditing || !textRef.current) return;
     const el = textRef.current;
+    discardedRef.current = false;
     originalTextRef.current = el.textContent || "";
     el.contentEditable = "true";
     el.setAttribute("data-v6-text-editing", "true");
@@ -270,6 +293,16 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
     sel?.removeAllRanges();
     sel?.addRange(range);
 
+    const commit = () => {
+      if (discardedRef.current) return;
+      const newText = el.textContent || "";
+      el.contentEditable = "false";
+      el.removeAttribute("data-v6-text-editing");
+      onCommitEdit(newText);
+    };
+
+    const handleBlur = () => commit();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -277,6 +310,19 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
       }
       if (e.key === "Escape") {
         e.preventDefault();
+        const origTrim = (originalTextRef.current || "").trim();
+        const canDiscard =
+          Boolean(onDiscardEdit) &&
+          (origTrim === "" || origTrim === DEFAULT_NEW_TEXT_PLACEHOLDER);
+        if (canDiscard && onDiscardEdit) {
+          discardedRef.current = true;
+          el.contentEditable = "false";
+          el.removeAttribute("data-v6-text-editing");
+          el.removeEventListener("keydown", handleKeyDown);
+          el.removeEventListener("blur", handleBlur);
+          onDiscardEdit();
+          return;
+        }
         el.textContent = originalTextRef.current;
         commit();
       }
@@ -292,15 +338,6 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
       }
     };
 
-    const commit = () => {
-      const newText = el.textContent || "";
-      el.contentEditable = "false";
-      el.removeAttribute("data-v6-text-editing");
-      onCommitEdit(newText);
-    };
-
-    const handleBlur = () => commit();
-
     el.addEventListener("keydown", handleKeyDown);
     el.addEventListener("blur", handleBlur);
 
@@ -308,7 +345,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
       el.removeEventListener("keydown", handleKeyDown);
       el.removeEventListener("blur", handleBlur);
     };
-  }, [isEditing, onCommitEdit]);
+  }, [isEditing, onCommitEdit, onDiscardEdit]);
 
   // Triple-click handler
   const handleClick = React.useCallback((e: React.MouseEvent) => {
@@ -565,7 +602,7 @@ function EmptyFrameLabel({ style }: { style: DesignNodeStyle }) {
 
 // ── Main Render Function ───────────────────────────────────────────
 
-function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onContextMenu, rootNodeId, onInsertSection, onOpenGallery, liveHits }: {
+function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId, interactive, onSelect, onToggleSelect, onStartEdit, onCommitEdit, onDiscardTextEdit, onContextMenu, rootNodeId, onInsertSection, onOpenGallery, liveHits }: {
   node: DesignNode;
   selectedNodeId: string | null;
   /** All selected node IDs for multi-select outline rendering. */
@@ -577,6 +614,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
   onToggleSelect?: (nodeId: string) => void;
   onStartEdit: (nodeId: string) => void;
   onCommitEdit: (nodeId: string, newText: string) => void;
+  onDiscardTextEdit?: (nodeId: string) => void;
   onContextMenu?: (node: DesignNode, event: React.MouseEvent) => void;
   /** ID of the root node — used to detect root frame for insertion bars */
   rootNodeId?: string;
@@ -617,6 +655,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             onToggleSelect={onToggleSelect}
             onStartEdit={onStartEdit}
             onCommitEdit={onCommitEdit}
+            onDiscardTextEdit={onDiscardTextEdit}
             onContextMenu={onContextMenu}
             onOpenGallery={onOpenGallery}
             liveHits={liveHits}
@@ -675,6 +714,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
                     onToggleSelect={onToggleSelect}
                     onStartEdit={onStartEdit}
                     onCommitEdit={onCommitEdit}
+                    onDiscardTextEdit={onDiscardTextEdit}
                     onContextMenu={onContextMenu}
                     onOpenGallery={onOpenGallery}
                     liveHits={liveHits}
@@ -722,7 +762,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
       const textStyle: React.CSSProperties = {
         ...cssStyle,
         boxSizing: "border-box",
-        ...selectionOutlineStyle(selLevel, isLiveHit),
+        ...(isEditing ? {} : selectionOutlineStyle(selLevel, isLiveHit, "text")),
       };
 
       if (showBreakoutBadge && textStyle.position !== "absolute") {
@@ -740,12 +780,8 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             // Don't re-select (which exits edit mode) if clicking inside active contentEditable
             if (isEditing) return;
             if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
-            // Figma pattern: single-click on already-selected text enters edit mode
-            if (isSelected) {
-              onStartEdit(node.id);
-              return;
-            }
-            onSelect(node.id);
+            // One click → edit with caret only (outline hidden while isEditing); selection syncs in handleStartEdit
+            onStartEdit(node.id);
           } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
@@ -758,6 +794,9 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             dragProtected={interactive && isSelected && isAbsolute}
             onStartEdit={() => onStartEdit(node.id)}
             onCommitEdit={(newText) => onCommitEdit(node.id, newText)}
+            onDiscardEdit={
+              onDiscardTextEdit ? () => onDiscardTextEdit(node.id) : undefined
+            }
           />
         </div>
       );
@@ -960,6 +999,9 @@ function ResizeOverlay({
 
   if (!nodeRect || !selectedNode || !onUpdateNodeStyle || editingNodeId) return null;
 
+  // Text: selection outline only (no resize handles — size via inspector / hug/fill)
+  if (selectedNode.type === "text") return null;
+
   // Apply the node's rotation to the resize overlay so handles match the element
   const rotation = selectedNode.style.transform?.rotate ?? 0;
   const originX = selectedNode.style.transformOrigin?.x ?? 50;
@@ -1015,6 +1057,7 @@ export function ComposeDocumentViewV6({
   onUpdateContent,
   onUpdateNodeStyle,
   onPushHistory,
+  onDiscardTextEdit,
   interactive = false,
   itemId = null,
   zoom = 1,
@@ -1418,8 +1461,7 @@ export function ComposeDocumentViewV6({
     onSelectNode?.(null);
   }, [onSelectNode]);
 
-  const rubberBandEnabled =
-    canvasTool === "select" || canvasTool === "marquee";
+  const rubberBandEnabled = canvasTool === "select";
 
   const handleFrameCommit = React.useCallback(
     (payload: FrameDrawCommitPayload) => {
@@ -1742,6 +1784,10 @@ export function ComposeDocumentViewV6({
   } | null>(null);
 
   React.useEffect(() => {
+    if (editingNodeId) {
+      setParentBounds(null);
+      return;
+    }
     if (!parentBoundaryId || !containerRef.current) { setParentBounds(null); return; }
     const el = containerRef.current.querySelector<HTMLElement>(
       `[data-node-id="${parentBoundaryId}"]`
@@ -1755,7 +1801,7 @@ export function ComposeDocumentViewV6({
       width: er.width / zoom,
       height: er.height / zoom,
     });
-  }, [parentBoundaryId, zoom, tree]);
+  }, [parentBoundaryId, zoom, tree, editingNodeId]);
 
   // Determine if selected node is absolute (for move cursor)
   const selectedNodeIsAbsolute = React.useMemo(() => {
@@ -1771,9 +1817,9 @@ export function ComposeDocumentViewV6({
     }
   }, [selectedNodeId, editingNodeId]);
 
-  // Apply move cursor to selected absolute node
+  // Apply move cursor to selected absolute node (not while typing)
   React.useEffect(() => {
-    if (!containerRef.current || !selectedNodeId || !selectedNodeIsAbsolute) return;
+    if (!containerRef.current || !selectedNodeId || !selectedNodeIsAbsolute || editingNodeId) return;
     const el = containerRef.current.querySelector<HTMLElement>(
       `[data-node-id="${selectedNodeId}"]`
     );
@@ -1782,11 +1828,11 @@ export function ComposeDocumentViewV6({
     return () => {
       el.style.cursor = "";
     };
-  }, [selectedNodeId, selectedNodeIsAbsolute]);
+  }, [selectedNodeId, selectedNodeIsAbsolute, editingNodeId]);
 
   // ── Drag opacity: dim selection outline during drag ────────────────
   React.useEffect(() => {
-    if (!isDragging || !selectedNodeId || !containerRef.current) return;
+    if (!isDragging || !selectedNodeId || !containerRef.current || editingNodeId) return;
     const el = containerRef.current.querySelector<HTMLElement>(
       `[data-node-id="${selectedNodeId}"]`
     );
@@ -1799,7 +1845,7 @@ export function ComposeDocumentViewV6({
       el.style.outline = "1.5px solid #4B57DB";
       el.style.outlineOffset = "-1.5px";
     };
-  }, [isDragging, selectedNodeId]);
+  }, [isDragging, selectedNodeId, editingNodeId]);
 
   const handleSelect = React.useCallback(
     (nodeId: string) => {
@@ -1822,6 +1868,10 @@ export function ComposeDocumentViewV6({
   const handleStartEdit = React.useCallback(
     (nodeId: string) => {
       if (!interactive) return;
+      // Keep selection in sync without handleSelect (that clears editing state).
+      if (selectedNodeId !== nodeId) {
+        onSelectNode?.(nodeId);
+      }
       // Push history before first edit
       if (!historyPushedRef.current) {
         onPushHistory?.("Edit text");
@@ -1829,7 +1879,7 @@ export function ComposeDocumentViewV6({
       }
       setEditingNodeId(nodeId);
     },
-    [interactive, onPushHistory]
+    [interactive, onPushHistory, selectedNodeId, onSelectNode]
   );
 
   const handleCommitEdit = React.useCallback(
@@ -1840,6 +1890,23 @@ export function ComposeDocumentViewV6({
     },
     [onUpdateContent]
   );
+
+  const handleDiscardTextEditInner = React.useCallback(
+    (nodeId: string) => {
+      setEditingNodeId(null);
+      historyPushedRef.current = false;
+      onDiscardTextEdit?.(nodeId);
+    },
+    [onDiscardTextEdit]
+  );
+
+  React.useEffect(() => {
+    if (!editingNodeId) return;
+    if (!findDesignNodeById(tree, editingNodeId)) {
+      setEditingNodeId(null);
+      historyPushedRef.current = false;
+    }
+  }, [tree, editingNodeId]);
 
   // Listen for keyboard-initiated Enter-to-edit and route through the
   // normal V6 edit path so history/edit state stays coherent.
@@ -2014,6 +2081,7 @@ export function ComposeDocumentViewV6({
           onToggleSelect={onToggleNodeSelection ? handleToggleSelect : undefined}
           onStartEdit={handleStartEdit}
           onCommitEdit={handleCommitEdit}
+          onDiscardTextEdit={handleDiscardTextEditInner}
           onContextMenu={onContextMenu}
           rootNodeId={tree.id}
           onInsertSection={onInsertSection}
@@ -2117,7 +2185,7 @@ export function ComposeDocumentViewV6({
         </div>
       )}
       {/* ── Parent boundary on drill-in ── */}
-      {interactive && parentBounds && (
+      {interactive && parentBounds && !editingNodeId && (
         <div style={{
           position: "absolute",
           top: parentBounds.top, left: parentBounds.left,
@@ -2126,8 +2194,8 @@ export function ComposeDocumentViewV6({
           pointerEvents: "none", zIndex: 9998,
         }} />
       )}
-      {/* ── Track 4: Nested hover preview ── */}
-      {interactive && (
+      {/* ── Track 4: Nested hover preview (hidden while typing — caret only) ── */}
+      {interactive && !editingNodeId && (
         <NestedHoverPreview
           targetNode={hoverTarget}
           parentChain={parentChain}

@@ -573,58 +573,48 @@ function HeroVisual() {
 
 function HarnessVisualImportScore() {
   return (
-    <div className="relative mx-auto w-full max-w-[280px]">
-      <p className="mb-3 font-mono text-[7px] uppercase tracking-[1px] text-[#6B6B6B]">Drop references</p>
-      <div className="mb-4 flex items-end justify-center gap-2">
-        <div
-          className="h-14 w-11 rounded-[3px] bg-[#E5E7EB] shadow-sm ring-1 ring-[#D1E2F6]"
-          style={{
-            backgroundImage:
-              "linear-gradient(145deg, #f0f0f0 0%, #d8d8d8 40%, #e8e8e8 100%)",
-          }}
-        />
-        <div className="h-16 w-12 rounded-[3px] bg-[#3A48B5]/15 ring-1 ring-[#3A48B5]/25">
-          <div className="m-1.5 space-y-1">
-            <div className="h-1 w-full rounded-full bg-[#3A48B5]/35" />
-            <div className="h-1 w-4/5 rounded-full bg-[#3A48B5]/20" />
-            <div className="mt-2 h-6 w-full rounded-[2px] bg-white/80" />
-          </div>
+    <div className="relative flex w-full flex-col items-center justify-center">
+      <div className="relative mb-5 flex h-[90px] w-full max-w-[300px] justify-center">
+        {/* Left — slightly tucked in from full spread */}
+        <div className="absolute left-[6%] top-5 z-[1] w-[98px] overflow-hidden rounded-[4px] border-[1.5px] border-white bg-white shadow-sm transition-all duration-300 hover:z-[4] hover:-translate-y-1 hover:shadow-md md:left-[8%] md:w-[106px]">
+          <img src="/image-1.png" alt="Reference 1" className="block aspect-[4/3] w-full object-cover" />
         </div>
-        <div className="flex h-12 w-10 items-center justify-center rounded-[3px] border border-dashed border-[#3A48B5]/35 bg-[#FAFAFA]">
-          <span className="font-mono text-[9px] text-[#3A48B5]/60">+</span>
+
+        <div className="absolute right-[6%] top-6 z-[2] w-[102px] overflow-hidden rounded-[4px] border-[1.5px] border-white bg-white shadow-sm transition-all duration-300 hover:z-[4] hover:-translate-y-1 hover:shadow-md md:right-[8%] md:w-[110px]">
+          <img src="/image-3.png" alt="Reference 3" className="block aspect-[16/10] w-full object-cover" />
+        </div>
+
+        <div className="absolute left-1/2 top-0 z-[3] w-[114px] -translate-x-1/2 overflow-hidden rounded-[4px] border-[1.5px] border-white bg-white shadow-md transition-all duration-300 hover:z-[4] hover:-translate-y-1 hover:shadow-lg md:w-[122px]">
+          <img src="/image-2.png" alt="Reference 2" className="block aspect-[16/9] w-full object-cover" />
         </div>
       </div>
-      <div className="flex items-stretch gap-2">
-        <div className="flex flex-1 flex-col gap-1.5 rounded-[4px] border border-[#D1E2F6] bg-white p-2.5 shadow-sm">
-          <span className="font-mono text-[6px] uppercase tracking-[0.5px] text-[#6B6B6B]">Hierarchy</span>
-          <div className="flex h-[42px] items-end justify-between gap-1 px-0.5">
+      <div className="flex w-full max-w-[280px] items-stretch gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-[6px] border border-[#3A48B5]/12 bg-white/95 p-2 shadow-[0_1px_0_rgba(58,72,181,0.06),0_4px_12px_-4px_rgba(27,40,61,0.08)]">
+          <span className="font-mono text-[7px] font-bold uppercase tracking-[0.12em] text-[#3A48B5]">Hierarchy</span>
+          <div className="flex h-[30px] items-end justify-between gap-0.5 rounded-[3px] bg-[#F2F5F9] px-1 pb-1 pt-1.5">
             {[40, 65, 35, 80, 50].map((h, i) => (
               <div
                 key={i}
-                className="w-[18%] rounded-t-[1px] bg-[#3A48B5]/25"
-                style={{ height: `${h}%` }}
+                className="w-full rounded-t-[2px] bg-[#4B57DB]"
+                style={{ height: `${h}%`, opacity: 0.45 + (h / 100) * 0.55 }}
               />
             ))}
           </div>
         </div>
-        <div className="flex w-[72px] flex-col justify-between rounded-[4px] border border-[#D1E2F6] bg-white p-2 shadow-sm">
-          <span className="font-mono text-[6px] uppercase tracking-[0.5px] text-[#6B6B6B]">Rhythm</span>
-          <div className="flex h-8 items-end justify-between px-0.5">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex w-1 flex-col justify-end gap-0.5">
-                <div className="h-2 w-px bg-[#3A48B5]/50" />
-                <div className="h-2 w-px bg-[#3A48B5]/30" />
-                <div className="h-2 w-px bg-[#3A48B5]/15" />
-              </div>
-            ))}
+        <div className="flex w-[58px] shrink-0 flex-col gap-1.5 rounded-[6px] border border-[#3A48B5]/12 bg-white/95 p-2 shadow-[0_1px_0_rgba(58,72,181,0.06),0_4px_12px_-4px_rgba(27,40,61,0.08)]">
+          <span className="font-mono text-[7px] font-bold uppercase tracking-[0.12em] text-[#3A48B5]">Rhythm</span>
+          <div className="flex h-[30px] flex-col justify-between gap-1 rounded-[3px] bg-[#F2F5F9] px-1 py-1">
+            <div className="h-1.5 w-full rounded-full bg-[#94A3B8]/55" />
+            <div className="h-1.5 w-[78%] rounded-full bg-[#94A3B8]/35" />
+            <div className="h-1.5 w-[58%] rounded-full bg-[#94A3B8]/22" />
           </div>
         </div>
-        <div className="flex w-[52px] flex-col gap-1.5 rounded-[4px] border border-[#D1E2F6] bg-white p-2 shadow-sm">
-          <span className="font-mono text-[6px] uppercase tracking-[0.5px] text-[#6B6B6B]">Palette</span>
-          <div className="flex flex-1 flex-col gap-1">
-            <div className="h-2.5 w-full rounded-[1px] bg-[#1B283D]" />
-            <div className="h-2.5 w-full rounded-[1px] bg-[#D1E2F6]" />
-            <div className="h-2.5 w-full rounded-[1px] bg-[#FC8162]" />
+        <div className="flex w-[46px] shrink-0 flex-col gap-1.5 rounded-[6px] border border-[#3A48B5]/12 bg-white/95 p-2 shadow-[0_1px_0_rgba(58,72,181,0.06),0_4px_12px_-4px_rgba(27,40,61,0.08)]">
+          <span className="font-mono text-[7px] font-bold uppercase tracking-[0.12em] text-[#3A48B5]">Color</span>
+          <div className="flex min-h-[30px] flex-1 flex-col gap-1">
+            <div className="h-full min-h-[6px] w-full rounded-[2px] border border-black/[0.06] bg-[#D1E2F6]" />
+            <div className="h-full min-h-[6px] w-full rounded-[2px] border border-black/[0.06] bg-[#3A48B5]" />
+            <div className="h-full min-h-[6px] w-full rounded-[2px] border border-black/[0.06] bg-[#FC8162]" />
           </div>
         </div>
       </div>
@@ -634,31 +624,30 @@ function HarnessVisualImportScore() {
 
 function HarnessVisualCompileTaste() {
   return (
-    <div className="relative mx-auto w-full max-w-[280px]">
-      <div className="mb-3 rounded-[4px] border border-[#3A48B5]/15 bg-white px-2.5 py-2 shadow-sm">
-        <p className="font-mono text-[8px] leading-relaxed text-[#525252]">
-          <span className="text-[#3A48B5]">›</span> Keep editorial type, tight vertical rhythm, no neon accents…
+    <div className="relative mx-auto flex w-full max-w-[240px] flex-col gap-3">
+      <div className="rounded-[6px] border border-white/5 bg-[#12121a] p-3 shadow-lg">
+        <p className="font-mono text-[9px] leading-relaxed text-[#8B95A8]">
+          <span className="mr-1 text-[#8FA0EC]">›</span>Keep editorial type, tight vertical rhythm, no neon accents…
         </p>
       </div>
-      <p className="mb-2 font-mono text-[7px] uppercase tracking-[1px] text-[#6B6B6B]">Becomes constraints</p>
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 rounded-[4px] border border-[#3A48B5]/20 bg-[#3A48B5]/10 px-2.5 py-2">
-          <span className="shrink-0 font-mono text-[7px] font-medium uppercase tracking-[0.5px] text-[#3A48B5]">
+        <div className="flex items-center gap-3 rounded-[6px] border border-[#3A48B5]/40 bg-[#12121a] shadow-md px-3 py-2.5">
+          <span className="shrink-0 font-mono text-[8px] font-bold uppercase tracking-widest text-[#8FA0EC]">
             Protect
           </span>
-          <span className="text-[9px] font-medium text-[#1B283D]">Serif display · 8/16/32 spacing</span>
+          <span className="text-[10px] font-medium text-white/90">Serif display · 8/16/32</span>
         </div>
-        <div className="flex items-center gap-2 rounded-[4px] border border-dashed border-[#D1E2F6] bg-[#FAFAFA] px-2.5 py-2">
-          <span className="shrink-0 font-mono text-[7px] font-medium uppercase tracking-[0.5px] text-[#6B6B6B]">
+        <div className="flex items-center gap-3 rounded-[6px] border border-dashed border-white/10 bg-[#12121a] shadow-md px-3 py-2.5">
+          <span className="shrink-0 font-mono text-[8px] font-bold uppercase tracking-widest text-[#6B6B6B]">
             Bend
           </span>
-          <span className="text-[9px] font-medium text-[#525252]">Line length · component density</span>
+          <span className="text-[10px] font-medium text-white/50">Density · line length</span>
         </div>
-        <div className="flex items-center gap-2 rounded-[4px] border border-[#FC8162]/25 bg-white px-2.5 py-2 opacity-90">
-          <span className="shrink-0 font-mono text-[7px] font-medium uppercase tracking-[0.5px] text-[#B85A45]">
+        <div className="flex items-center gap-3 rounded-[6px] border border-[#FC8162]/30 bg-[#12121a] shadow-md px-3 py-2.5">
+          <span className="shrink-0 font-mono text-[8px] font-bold uppercase tracking-widest text-[#FC8162]">
             Avoid
           </span>
-          <span className="text-[9px] font-medium text-[#6B6B6B] line-through decoration-[#FC8162]/50">Gradients · heavy shadows</span>
+          <span className="text-[10px] font-medium text-white/30 line-through decoration-[#FC8162]/40">Gradients · shadows</span>
         </div>
       </div>
     </div>
@@ -667,42 +656,40 @@ function HarnessVisualCompileTaste() {
 
 function HarnessVisualEditExport() {
   return (
-    <div className="relative mx-auto w-full max-w-[280px]">
-      <div className="overflow-hidden rounded-[4px] border border-[#2A2A2A] bg-[#141418] shadow-md">
-        <div className="flex h-6 items-center gap-1 border-b border-white/[0.06] bg-[#1A1A1F] px-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#FC8162]/90" />
-          <div className="h-1.5 w-1.5 rounded-full bg-[#E8C547]/80" />
-          <div className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]/70" />
-          <span className="ml-2 font-mono text-[6px] text-[#6B6B6B]">Canvas</span>
+    <div className="relative mx-auto flex w-full max-w-[240px] flex-col">
+      <div className="overflow-hidden rounded-[6px] border border-white/10 bg-[#12121a] shadow-xl">
+        <div className="flex h-7 items-center gap-1.5 border-b border-white/5 bg-[#16161c] px-3">
+          <div className="h-2 w-2 rounded-full bg-[#FC8162]/80" />
+          <div className="h-2 w-2 rounded-full bg-[#E8C547]/80" />
+          <div className="h-2 w-2 rounded-full bg-[#4ADE80]/80" />
         </div>
-        <div className="flex gap-2 p-2">
+        <div className="flex gap-2 p-2.5">
           <div
-            className="relative h-[72px] flex-[1.15] rounded-[3px] bg-[#FAFAFA]"
+            className="relative h-[80px] flex-[1.2] rounded-[4px] bg-[#0a0a0f]"
             style={{
-              backgroundImage:
-                "linear-gradient(to right, rgba(58,72,181,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(58,72,181,0.06) 1px, transparent 1px)",
-              backgroundSize: "10px 10px",
+              backgroundImage: "radial-gradient(#3A48B5 1px, transparent 1px)",
+              backgroundSize: "8px 8px",
+              opacity: 0.8,
             }}
           >
-            <div className="absolute left-2 top-2 h-7 w-[42%] rounded-[2px] border border-[#3A48B5]/40 bg-white shadow-sm" />
-            <div className="absolute bottom-2 left-2 right-2 flex gap-1">
-              <div className="h-3 flex-1 rounded-[1px] bg-[#3A48B5]/10" />
-              <div className="h-3 flex-1 rounded-[1px] bg-[#3A48B5]/6" />
+            <div className="absolute left-2 top-2 h-6 w-[40%] rounded-[2px] border border-[#3A48B5]/40 bg-[#3A48B5]/20 shadow-sm" />
+            <div className="absolute bottom-2 left-2 right-2 flex gap-1.5">
+              <div className="h-3 flex-1 rounded-[2px] bg-white/10" />
+              <div className="h-3 flex-1 rounded-[2px] bg-white/5" />
             </div>
           </div>
-          <div className="flex w-[52px] flex-col gap-0.5 rounded-[2px] bg-[#0F0F12] p-1.5">
-            <span className="mb-0.5 font-mono text-[5px] uppercase tracking-[0.5px] text-[#555]">Layers</span>
-            <div className="h-1.5 w-full rounded-[1px] bg-[#3A48B5]/40" />
-            <div className="h-1.5 w-full rounded-[1px] bg-[#333]" />
-            <div className="h-1.5 w-full rounded-[1px] bg-[#2A2A2A]" />
+          <div className="flex flex-1 flex-col gap-1.5 rounded-[4px] bg-[#16161c] p-2">
+            <div className="h-1.5 w-full rounded-[1px] bg-[#3A48B5]" />
+            <div className="h-1.5 w-full rounded-[1px] bg-white/20" />
+            <div className="h-1.5 w-full rounded-[1px] bg-white/10" />
           </div>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-        <span className="rounded-[3px] bg-[#3A48B5] px-2.5 py-1.5 font-mono text-[8px] font-medium text-[#FAFAFA] shadow-sm">
-          Copy HTML
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <span className="rounded-[4px] bg-[#3A48B5] px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-white shadow-sm">
+          Export HTML
         </span>
-        <span className="rounded-[3px] border border-[#D1E2F6] bg-white px-2.5 py-1.5 font-mono text-[8px] font-medium text-[#1B283D]">
+        <span className="rounded-[4px] border border-[#3A48B5]/20 bg-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-[#525252] shadow-sm">
           Publish
         </span>
       </div>
@@ -727,17 +714,31 @@ function HarnessStepCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-10%" }}
       transition={{ duration: 0.5, ease }}
-      className="flex h-full flex-col overflow-hidden rounded-[6px] border border-[#3A48B5]/12 bg-white shadow-[0_12px_48px_-28px_rgba(58,72,181,0.14)]"
+      className="group flex h-full flex-col overflow-hidden rounded-[14px] border border-[#3A48B5]/15 bg-[#FAFAFA] shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 hover:border-[#3A48B5]/30 hover:shadow-[0_8px_24px_-8px_rgba(58,72,181,0.15)]"
     >
-      <div className="border-b border-[#D1E2F6]/90 bg-[linear-gradient(180deg,#FAFAFA_0%,#F5F6FA_100%)] px-4 py-6 md:px-5 md:py-7">
-        {visual}
+      <div className="relative flex min-h-[220px] items-center justify-center overflow-hidden bg-[#F2F5F9] p-5 border-b border-[#3A48B5]/10 md:min-h-[232px] md:p-7">
+        <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_20px_rgba(58,72,181,0.05)] z-0" />
+        <div
+          className="absolute inset-0 opacity-[0.08] z-0"
+          style={{
+            backgroundImage: "radial-gradient(#3A48B5 1px, transparent 1px)",
+            backgroundSize: "16px 16px",
+          }}
+        />
+        <div className="relative z-10 flex w-full justify-center transition-transform duration-500 group-hover:scale-[1.02]">
+          {visual}
+        </div>
       </div>
-      <div className="flex flex-1 flex-col px-5 pb-6 pt-5 md:px-6 md:pb-7 md:pt-6">
-        <span className="mb-3 font-mono text-[10px] tracking-[1px] text-[#525252]">{step}</span>
-        <h3 className="mb-2 font-['Noto_Serif'] text-[20px] font-normal leading-snug tracking-tight text-[#1B283D] md:text-[22px]">
+      <div className="flex flex-1 flex-col bg-white px-7 py-8 md:px-8 md:py-9">
+        <div className="mb-4">
+          <span className="inline-flex items-center rounded-[4px] bg-[#3A48B5]/8 px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[1px] text-[#3A48B5]">
+            Step {step}
+          </span>
+        </div>
+        <h3 className="mb-3 font-['Noto_Serif'] text-[19px] font-normal leading-snug tracking-tight text-[#111827] md:text-[21px]">
           {title}
         </h3>
-        <p className="text-[14px] font-medium leading-relaxed text-[#6B6B6B]">{body}</p>
+        <p className="text-[14.5px] font-medium leading-[1.65] text-[#525252]">{body}</p>
       </div>
     </motion.article>
   );
@@ -772,21 +773,20 @@ function TasteStrip() {
 
 function PitchInspRule({ label }: { label: string }) {
   return (
-    <div className="mb-2 flex items-center gap-1.5">
-      <div className="h-px flex-1 bg-[#2A2A2A]" />
-      <span className="whitespace-nowrap font-mono text-[7px] uppercase tracking-[1px] text-[#4A4A4A]">
+    <div className="mb-2 flex items-center gap-2">
+      <span className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[1px] text-[#8FA0EC]">
         {label}
       </span>
-      <div className="h-px flex-1 bg-[#2A2A2A]" />
+      <div className="h-px flex-1 bg-white/10" />
     </div>
   );
 }
 
 function PitchInspRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex h-5 items-center justify-between">
-      <span className="text-[9px] text-[#777]">{label}</span>
-      <span className="font-mono text-[9px] text-[#D0D0D0]">{value}</span>
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] text-[#8B95A8]">{label}</span>
+      <span className="font-mono text-[10px] text-[#FAFAFA]">{value}</span>
     </div>
   );
 }
@@ -800,19 +800,19 @@ function PitchLayer({
   depth: number;
   selected?: boolean;
 }) {
-  const pl = 6 + depth * 14;
+  const pl = 8 + depth * 14;
   return (
     <div
-      className={`flex h-[22px] items-center gap-[5px] px-1.5 py-[3px] text-[8px] ${
+      className={`flex h-[26px] items-center gap-[6px] py-[3px] text-[10px] ${
         selected
-          ? "border-l-[1.5px] border-[#3A48B5] bg-[#3A48B5]/10 text-[#D1E2F6]"
-          : "text-[#777]"
+          ? "border-l-[2px] border-[#3A48B5] bg-[#3A48B5]/20 text-[#D1E2F6]"
+          : "border-l-[2px] border-transparent text-[#8B95A8]"
       }`}
       style={{ paddingLeft: pl }}
     >
       <div
-        className={`h-2 w-2 rounded-[1px] border ${
-          selected ? "border-[#3A48B5]" : "border-[#444]"
+        className={`h-2.5 w-2.5 rounded-[2px] border ${
+          selected ? "border-[#4B57DB] bg-[#4B57DB]/20" : "border-white/20"
         }`}
       />
       {label}
@@ -820,133 +820,191 @@ function PitchLayer({
   );
 }
 
+/** Same canvas height on every card so row pairs share equal white copy blocks. */
+const editorCardCanvasClass =
+  "relative flex h-[280px] max-h-[280px] shrink-0 items-center justify-center overflow-hidden bg-[#F2F5F9] p-5 border-b border-[#3A48B5]/10 md:p-7";
+
 function EditorPitch() {
   return (
-    <section id="editor" className="scroll-mt-24 border-b border-[#3A48B5]/10 bg-[#FAFAFA] py-20 md:py-28">
+    <section id="editor" className="scroll-mt-24 border-b border-[#3A48B5]/10 bg-[#FAFAFA] py-24 md:py-32">
       <div className="mx-auto max-w-[1120px] px-5 md:px-10">
         <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#525252]">The editor</p>
-        <h2 className="mb-14 max-w-[640px] font-['Noto_Serif'] text-[clamp(1.75rem,3.5vw,2.75rem)] font-normal leading-[1.08] tracking-[-0.02em] text-[#1B283D]">
+        <h2 className="mb-16 max-w-[640px] font-['Noto_Serif'] text-[clamp(1.75rem,3.5vw,2.75rem)] font-normal leading-[1.08] tracking-[-0.02em] text-[#1B283D] md:mb-20">
           A real design tool.
           <br />
           <span className="text-[#6B6B6B]">Not a preview pane.</span>
         </h2>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-2 md:gap-8 lg:gap-10">
           {/* Canvas feel */}
-          <div className="overflow-hidden rounded-[6px] border border-[#D1E2F6] bg-white transition-colors hover:border-[#3A48B5]/25">
-            <div className="relative flex h-[220px] items-center justify-center overflow-hidden bg-[#1A1A1A]">
-              <div className="relative h-[75%] w-[75%] rounded-[3px] bg-[#FAFAFA]">
-                <div
-                  className="absolute inset-0 rounded-[3px]"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='21' height='21'><rect width='20' height='20' rx='1' fill='%233A48B5' opacity='.04'/></svg>")`,
-                    backgroundSize: "21px 21px",
-                  }}
-                />
-                <div className="absolute left-8 top-6 z-[1] h-[90px] w-[130px] rounded-[2px] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
-                  <div className="absolute -top-3.5 left-0 font-mono text-[7px] text-[#1B283D]">Hero — frame</div>
+          <div className="group flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-[#3A48B5]/15 bg-[#FAFAFA] shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 hover:border-[#3A48B5]/30 hover:shadow-[0_8px_24px_-8px_rgba(58,72,181,0.15)]">
+            <div className={editorCardCanvasClass}>
+              <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_20px_rgba(58,72,181,0.05)] z-0" />
+              <div
+                className="absolute inset-0 opacity-[0.08] z-0"
+                style={{
+                  backgroundImage: "radial-gradient(#3A48B5 1px, transparent 1px)",
+                  backgroundSize: "16px 16px",
+                }}
+              />
+              <div className="relative z-10 h-[120px] w-[180px] rounded-[4px] border border-[#3A48B5]/40 bg-[#16161c] shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]">
+                <div className="absolute -top-5 left-0 font-mono text-[9px] font-medium text-[#3A48B5]">Hero Section</div>
+                
+                {/* Measurement line */}
+                <div className="absolute -right-6 top-1/2 h-px w-4 bg-[#FC8162]" />
+                <div className="absolute -right-6 top-1/4 h-[50%] w-px bg-[#FC8162]" />
+                <div className="absolute -right-6 top-1/4 h-px w-2 bg-[#FC8162]" />
+                <div className="absolute -right-6 top-3/4 h-px w-2 bg-[#FC8162]" />
+                <div className="absolute -right-12 top-1/2 -translate-y-1/2 rounded-[2px] bg-[#FC8162] px-1.5 py-0.5 font-mono text-[8px] font-bold text-white shadow-[0_0_8px_rgba(252,129,98,0.6)]">
+                  320
                 </div>
-                <div className="absolute left-[100px] top-11 h-11 w-[90px] border border-dashed border-[#3A48B5]/45" />
-                <div className="absolute left-[164px] top-[60px] h-[18px] w-px bg-[#FC8162]" />
-                <div className="absolute left-[170px] top-[65px] rounded-[1px] bg-[#FC8162] px-1 py-px font-mono text-[6px] text-[#FAFAFA]">
-                  24px
-                </div>
+
+                {/* Inner element */}
+                <div className="absolute left-[10%] top-[20%] h-[20%] w-[50%] rounded-[2px] border border-dashed border-[#4B57DB]/60 bg-[#3A48B5]/10" />
+                <div className="absolute left-[10%] top-[50%] h-[10%] w-[80%] rounded-[2px] bg-white/10" />
+                <div className="absolute left-[10%] top-[65%] h-[10%] w-[60%] rounded-[2px] bg-white/10" />
               </div>
             </div>
-            <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Canvas feel</h3>
-              <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
-                Hover outlines, frame labels, measurement guides, smooth zoom. It feels like the tools you already use.
+            <div className="flex min-h-0 flex-1 flex-col justify-start bg-white px-7 py-8 md:px-8 md:py-9">
+              <h3 className="mb-3 font-['Noto_Serif'] text-[19px] font-normal tracking-tight text-[#111827] md:text-[21px]">Canvas feel</h3>
+              <p className="text-[14.5px] font-medium leading-[1.65] text-[#525252] text-pretty">
+                Hover outlines, frame labels, measurement guides, smooth zoom. It feels like the pro tools you already use.
               </p>
             </div>
           </div>
 
-          {/* Inspector */}
-          <div className="overflow-hidden rounded-[6px] border border-[#D1E2F6] bg-white transition-colors hover:border-[#3A48B5]/25">
-            <div className="flex h-[220px] items-center justify-center bg-[#1A1A1A]">
-              <div className="w-[65%]">
-                <PitchInspRule label="Size" />
-                <PitchInspRow label="Width" value="Fill" />
-                <PitchInspRow label="Height" value="Hug" />
-                <div className="mt-1 flex gap-px rounded-[2px] bg-[#222] p-0.5">
-                  <div className="rounded-[1px] px-1.5 py-0.5 font-mono text-[7px] text-[#666]">Fixed</div>
-                  <div className="rounded-[1px] bg-[#333] px-1.5 py-0.5 font-mono text-[7px] text-[#E0E0E0]">Fill</div>
-                  <div className="rounded-[1px] px-1.5 py-0.5 font-mono text-[7px] text-[#666]">Hug</div>
+          {/* Precision inspector */}
+          <div className="group flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-[#3A48B5]/15 bg-[#FAFAFA] shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 hover:border-[#3A48B5]/30 hover:shadow-[0_8px_24px_-8px_rgba(58,72,181,0.15)]">
+            <div className={editorCardCanvasClass}>
+              <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_20px_rgba(58,72,181,0.05)] z-0" />
+              <div
+                className="absolute inset-0 opacity-[0.08] z-0"
+                style={{
+                  backgroundImage: "radial-gradient(#3A48B5 1px, transparent 1px)",
+                  backgroundSize: "16px 16px",
+                }}
+              />
+              <div className="relative z-10 max-h-[min(228px,100%)] w-[200px] overflow-y-auto rounded-[6px] border border-white/10 bg-[#12121a] shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]">
+                <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2.5">
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#8FA0EC]">Inspector</span>
                 </div>
-                <div className="mt-3">
-                  <PitchInspRule label="Typography" />
-                  <PitchInspRow label="Font" value="Geist Sans" />
-                  <PitchInspRow label="Weight" value="500" />
-                  <PitchInspRow label="Size" value="28px" />
-                  <PitchInspRow label="Tracking" value="-0.03em" />
+                <div className="p-3">
+                  <PitchInspRule label="Layout" />
+                  <div className="mt-2 flex gap-1 rounded-[4px] bg-black/40 p-1">
+                    <div className="flex-1 rounded-[3px] px-2 py-1 text-center font-mono text-[9px] text-[#6B6B6B]">Fixed</div>
+                    <div className="flex-1 rounded-[3px] bg-[#3A48B5] px-2 py-1 text-center font-mono text-[9px] font-bold text-white shadow-sm">Fill</div>
+                    <div className="flex-1 rounded-[3px] px-2 py-1 text-center font-mono text-[9px] text-[#6B6B6B]">Hug</div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <PitchInspRule label="Type" />
+                    <div className="mt-2 space-y-1.5 rounded-[4px] border border-white/5 bg-black/20 p-2">
+                      <PitchInspRow label="Font" value="Geist Sans" />
+                      <PitchInspRow label="Weight" value="500" />
+                      <PitchInspRow label="Size" value="28px" />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Precision inspector</h3>
-              <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
-                Fixed / Fill / Hug sizing, typography, spacing, and fill — all in a two-column layout the model can read.
+            <div className="flex min-h-0 flex-1 flex-col justify-start bg-white px-7 py-8 md:px-8 md:py-9">
+              <h3 className="mb-3 font-['Noto_Serif'] text-[19px] font-normal tracking-tight text-[#111827] md:text-[21px]">Precision inspector</h3>
+              <p className="text-[14.5px] font-medium leading-[1.65] text-[#525252] text-pretty">
+                Fixed / Fill / Hug sizing, typography, spacing, and fill — all in a familiar property panel the model can read.
               </p>
             </div>
           </div>
 
-          {/* Layers */}
-          <div className="overflow-hidden rounded-[6px] border border-[#D1E2F6] bg-white transition-colors hover:border-[#3A48B5]/25">
-            <div className="flex h-[220px] items-center justify-center bg-[#1A1A1A]">
-              <div className="w-[55%]">
-                <div className="mb-1 border-b border-[#2A2A2A]/50 pb-1.5 font-mono text-[7px] uppercase tracking-[1px] text-[#555]">
-                  Layers
+          {/* Component hierarchy */}
+          <div className="group flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-[#3A48B5]/15 bg-[#FAFAFA] shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 hover:border-[#3A48B5]/30 hover:shadow-[0_8px_24px_-8px_rgba(58,72,181,0.15)]">
+            <div className={editorCardCanvasClass}>
+              <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_20px_rgba(58,72,181,0.05)] z-0" />
+              <div
+                className="absolute inset-0 opacity-[0.08] z-0"
+                style={{
+                  backgroundImage: "radial-gradient(#3A48B5 1px, transparent 1px)",
+                  backgroundSize: "16px 16px",
+                }}
+              />
+              <div className="relative z-10 max-h-[min(228px,100%)] w-[200px] overflow-y-auto rounded-[6px] border border-white/10 bg-[#12121a] shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]">
+                <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2.5">
+                  <span className="font-mono text-[9px] uppercase tracking-widest text-[#8FA0EC]">Layers</span>
                 </div>
-                <PitchLayer label="Page" depth={0} />
-                <PitchLayer label="Hero Section" depth={1} />
-                <PitchLayer label="Heading" depth={2} selected />
-                <PitchLayer label="Subtitle" depth={2} />
-                <PitchLayer label="Cover Image" depth={2} />
-                <PitchLayer label="Features Grid" depth={1} />
-                <PitchLayer label="Card 1" depth={2} />
-                <PitchLayer label="Card 2" depth={2} />
+                <div className="flex flex-col py-2">
+                  <PitchLayer label="Page" depth={0} />
+                  <PitchLayer label="Hero Section" depth={1} />
+                  <PitchLayer label="Heading" depth={2} selected />
+                  <PitchLayer label="Subtitle" depth={2} />
+                  <PitchLayer label="Cover Image" depth={2} />
+                  <PitchLayer label="Features Grid" depth={1} />
+                  <PitchLayer label="Card 1" depth={2} />
+                  <PitchLayer label="Card 2" depth={2} />
+                </div>
               </div>
             </div>
-            <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Component hierarchy</h3>
-              <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
-                Clean tree structure, drag reorder, multi-select. See what was generated and restructure it.
+            <div className="flex min-h-0 flex-1 flex-col justify-start bg-white px-7 py-8 md:px-8 md:py-9">
+              <h3 className="mb-3 font-['Noto_Serif'] text-[19px] font-normal tracking-tight text-[#111827] md:text-[21px]">Component hierarchy</h3>
+              <p className="text-[14.5px] font-medium leading-[1.65] text-[#525252] text-pretty">
+                Clean tree structure, drag reorder, multi-select. See exactly what was generated and restructure it instantly.
               </p>
             </div>
           </div>
 
-          {/* Layout semantics */}
-          <div className="overflow-hidden rounded-[6px] border border-[#D1E2F6] bg-white transition-colors hover:border-[#3A48B5]/25">
-            <div className="flex h-[220px] items-center justify-center bg-[#FAFAFA]">
-              <div className="text-center">
-                <div className="mb-4 flex items-end justify-center gap-7">
-                  <div className="text-center">
-                    <div className="mb-1.5 flex h-[72px] w-[72px] items-center justify-center rounded-[4px] border-[1.5px] border-[#3A48B5] bg-white font-mono text-[11px] text-[#1B283D]">
-                      Fill
-                    </div>
-                    <div className="text-[10px] text-[#A0A0A0]">Stretches</div>
+          {/* Layout semantics — extra horizontal inset keeps coral dimension inside fixed canvas */}
+          <div className="group flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-[#3A48B5]/15 bg-[#FAFAFA] shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 hover:border-[#3A48B5]/30 hover:shadow-[0_8px_24px_-8px_rgba(58,72,181,0.15)]">
+            <div className={editorCardCanvasClass}>
+              <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_20px_rgba(58,72,181,0.05)] z-0" />
+              <div
+                className="absolute inset-0 opacity-[0.08] z-0"
+                style={{
+                  backgroundImage: "radial-gradient(#3A48B5 1px, transparent 1px)",
+                  backgroundSize: "16px 16px",
+                }}
+              />
+              <div className="relative z-10 flex items-end justify-center gap-4 px-2 pb-0 pl-3 pr-12 sm:gap-6 sm:pr-14 transition-transform duration-500 group-hover:scale-[1.02]">
+                <div className="group/item relative flex flex-col items-center">
+                  <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-[6px] border border-[#3A48B5]/20 bg-[#3A48B5]/10 transition-colors shadow-sm">
+                    <div className="h-[40px] w-full bg-[#3A48B5]/20 border-y border-[#3A48B5]/30" />
+                    <div className="absolute inset-y-0 -left-2 -right-2 rounded-[6px] border-2 border-dashed border-[#3A48B5]/60 opacity-0 transition-opacity group-hover/item:opacity-100" />
                   </div>
-                  <div className="text-center">
-                    <div className="mb-1.5 flex h-[52px] w-[52px] items-center justify-center rounded-[4px] border border-[#D1E2F6] bg-white font-mono text-[11px] text-[#525252]">
-                      Hug
-                    </div>
-                    <div className="text-[10px] text-[#A0A0A0]">Wraps</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="mb-1.5 flex h-[62px] w-[62px] items-center justify-center rounded-[4px] border border-[#D1E2F6] bg-white font-mono text-[11px] text-[#525252]">
-                      Fixed
-                    </div>
-                    <div className="text-[10px] text-[#A0A0A0]">Exact</div>
-                  </div>
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#3A48B5]">Fill</span>
+                  <span className="mt-1 font-mono text-[9px] text-[#6B6B6B]">Stretches</span>
                 </div>
-                <div className="font-mono text-[9px] tracking-[0.5px] text-[#A0A0A0]">
-                  Layout semantics the AI understands
+                <div className="group/item relative flex flex-col items-center">
+                  <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-[6px] border border-[#3A48B5]/20 bg-[#3A48B5]/5 transition-colors group-hover/item:border-[#3A48B5]/40 shadow-sm">
+                    <div className="h-10 w-[52px] bg-[#3A48B5]/10 border border-[#3A48B5]/20" />
+                    <div className="absolute inset-3 rounded-[2px] border-2 border-dashed border-[#FC8162] opacity-0 transition-opacity group-hover/item:opacity-100" />
+                  </div>
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#525252]">Hug</span>
+                  <span className="mt-1 font-mono text-[9px] text-[#6B6B6B]">Wraps</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="relative mb-3 flex h-20 w-20 items-center justify-center overflow-visible rounded-[6px] border border-[#3A48B5]/20 bg-[#3A48B5]/5 shadow-sm">
+                    <div className="origin-center scale-[0.72]">
+                      <div className="relative h-[76px] w-[108px]">
+                        <div
+                          className="absolute left-0 top-1/2 h-9 w-8 -translate-y-1/2 rounded-[3px] border border-[#94A3B8]/55 bg-white shadow-sm"
+                          aria-hidden
+                        />
+                        {/* Extension + bracket + label — same language as Hero “320” */}
+                        <div className="pointer-events-none absolute -right-5 top-1/2 z-[1] h-[2px] w-3 -translate-y-1/2 bg-[#FC8162]" />
+                        <div className="pointer-events-none absolute -right-5 top-[14%] z-[1] h-[72%] w-[2px] bg-[#FC8162]" />
+                        <div className="pointer-events-none absolute -right-5 top-[14%] z-[1] h-[2px] w-1.5 bg-[#FC8162]" />
+                        <div className="pointer-events-none absolute -right-5 bottom-[14%] z-[1] h-[2px] w-1.5 bg-[#FC8162]" />
+                        <div className="pointer-events-none absolute -right-[42px] top-1/2 z-[1] -translate-y-1/2 rounded-[2px] bg-[#FC8162] px-1.5 py-0.5 font-mono text-[7px] font-bold leading-none text-white shadow-[0_0_6px_rgba(252,129,98,0.45)]">
+                          96
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#525252]">Fixed</span>
+                  <span className="mt-1 font-mono text-[9px] text-[#6B6B6B]">Exact</span>
                 </div>
               </div>
             </div>
-            <div className="px-[22px] py-5">
-              <h3 className="mb-1.5 font-['Noto_Serif'] text-[15px] font-normal text-[#1B283D]">Layout semantics</h3>
-              <p className="text-[13px] font-medium leading-[1.5] text-[#6B6B6B] text-pretty">
+            <div className="flex min-h-0 flex-1 flex-col justify-start bg-white px-7 py-8 md:px-8 md:py-9">
+              <h3 className="mb-3 font-['Noto_Serif'] text-[19px] font-normal tracking-tight text-[#111827] md:text-[21px]">Layout semantics</h3>
+              <p className="text-[14.5px] font-medium leading-[1.65] text-[#525252] text-pretty">
                 Fill, Hug, and Fixed sizing — not just pixels. Generate with these constraints; edit with the same vocabulary.
               </p>
             </div>
@@ -1158,9 +1216,13 @@ function ExportPanel() {
               {"}"}
             </code>
           </pre>
+          {/* In-app affordance only — muted so it doesn’t compete with the section “Join waitlist” CTA */}
           <div className="pointer-events-none absolute bottom-3 right-3 sm:bottom-4 sm:right-4">
-            <span className="pointer-events-auto inline-flex rounded-[6px] bg-[#FC8162] px-3.5 py-2 font-sans text-[11px] font-semibold text-[#FAFAFA] shadow-sm transition-colors hover:bg-[#EE7351] sm:px-4 sm:text-[12px]">
-              Export to Code
+            <span
+              className="inline-flex rounded-[5px] border border-white/[0.12] bg-[#14141c]/95 px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-[#8B95A8] shadow-none backdrop-blur-[2px] sm:text-[11px]"
+              aria-hidden
+            >
+              Export
             </span>
           </div>
         </div>
@@ -1237,13 +1299,13 @@ export function CursorSite() {
         </div>
       </section>
 
-      <section id="harness" className="scroll-mt-24 border-b border-[#3A48B5]/8 bg-[#FAFAFA] py-20 md:py-28">
+      <section id="harness" className="scroll-mt-24 border-b border-[#3A48B5]/8 bg-[#FAFAFA] py-24 md:py-32">
         <div className="mx-auto max-w-[1200px] px-5 md:px-10">
           <p className="mb-3 font-mono text-[10px] uppercase tracking-[1px] text-[#525252]">The loop</p>
-          <h2 className="mb-14 max-w-[520px] font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-normal leading-tight tracking-tight text-[#1B283D]">
+          <h2 className="mb-16 max-w-[560px] font-['Noto_Serif'] text-[clamp(1.75rem,3vw,2.25rem)] font-normal leading-tight tracking-tight text-[#1B283D] md:mb-20">
             One pipeline from inspiration to shipped UI — without losing your eye.
           </h2>
-          <div className="grid gap-6 md:grid-cols-3 md:gap-6 lg:gap-8">
+          <div className="grid gap-8 md:grid-cols-3 md:gap-8 lg:gap-10 xl:gap-12">
             <HarnessStepCard
               step="01"
               title="Import & score"

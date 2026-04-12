@@ -173,13 +173,17 @@ export type DesignNodeStyle = {
   // ── Layout ──
   display?: "flex" | "grid";
   flexDirection?: "row" | "column";
-  gap?: number;
+  /** Uniform gap (px) or split `"rowGap colGap"` for independent axes. */
+  gap?: number | string;
+  flexWrap?: "wrap" | "nowrap";
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between";
   gridTemplate?: string;   // MVP: "repeat(N, 1fr)", "2fr 1fr", "1fr 2fr", "1fr 1fr 1fr" only
+  gridTemplateRows?: string;
   flexGrow?: number;
   flexShrink?: number;
-  aspectRatio?: number;
+  /** CSS `aspect-ratio`: number (e.g. 1.77) or ratio string (e.g. `"16/9"`). */
+  aspectRatio?: number | string;
 
   // ── Spacing ──
   padding?: { top?: number; right?: number; bottom?: number; left?: number };
@@ -192,7 +196,7 @@ export type DesignNodeStyle = {
   letterSpacing?: number;
   fontStyle?: "normal" | "italic";
   textDecoration?: "none" | "underline";
-  textAlign?: "left" | "center" | "right";
+  textAlign?: "left" | "center" | "right" | "justify";
 
   // ── Visual ──
   background?: string;
@@ -205,7 +209,7 @@ export type DesignNodeStyle = {
   accent?: string;
   borderColor?: string;
   borderWidth?: number;
-  borderRadius?: number;
+  borderRadius?: number | string;
   opacity?: number;
   shadow?: string;           // Raw CSS box-shadow value
   scrimEnabled?: boolean;    // undefined = auto (light foreground detection), true = always, false = never
@@ -215,6 +219,8 @@ export type DesignNodeStyle = {
   effects?: EffectEntry[];   // Ordered Figma-like effects stack
   objectFit?: "cover" | "contain" | "fill";
   maxWidth?: number | string; // number=px, string=CSS value
+  minWidth?: number | string;
+  minHeight?: number | string;
   blendMode?: "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity";
   clipPath?: ClipPathValue;
 };

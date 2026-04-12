@@ -43,7 +43,9 @@ export function InspectorSegmented({
               className={cn(
                 "flex-1 h-[18px] px-[6px] text-[10px] font-mono text-center transition-all duration-100 rounded-[2px] flex items-center justify-center",
                 isSelected
-                  ? "bg-white text-[#1A1A1A] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-[#333333] dark:text-[#FFFFFF]"
+                  ? opt.icon
+                    ? "bg-white text-[#4B57DB] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-[#333333] dark:text-[#7B8CFF]"
+                    : "bg-white text-[#1A1A1A] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-[#333333] dark:text-[#FFFFFF]"
                   : "text-[#A0A0A0] hover:text-[#6B6B6B] dark:text-[#666666] dark:hover:text-[#D0D0D0]"
               )}
               onClick={() => onChange(opt.value)}

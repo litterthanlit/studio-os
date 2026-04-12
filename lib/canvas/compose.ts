@@ -180,12 +180,19 @@ export type ArtboardSpec = {
 };
 
 /**
- * Type guard: DesignNode root is always type "frame", PageNode root is always type "page".
- * Only valid for root-level trees — a non-root frame child would also pass this check,
- * but we only call this on artboard.pageTree (always a root).
+ * Type guard for V6 DesignNode trees vs legacy PageNode trees.
+ * Legacy compose roots are PageNode with `type: "page"`.
+ * Artboard roots are usually `frame`; canvas Frame/Text items use `frame` or `text` (etc.) as root.
  */
 export function isDesignNodeTree(tree: PageNode | DesignNode): tree is DesignNode {
-  return tree.type === "frame";
+  if (tree.type === "page") return false;
+  return (
+    tree.type === "frame" ||
+    tree.type === "text" ||
+    tree.type === "image" ||
+    tree.type === "button" ||
+    tree.type === "divider"
+  );
 }
 
 /**

@@ -5,7 +5,7 @@
  *
  * Design system:
  * - Two-column layout: label left (Geist Sans 13px #6B6B6B), value right (Geist Mono 12px #1A1A1A)
- * - 32px row height consistent across all fields
+ * - min 32px row height; rows grow for multi-line controls (e.g. grid template picker)
  * - 24px section gap, 16px section padding
  * - Input height: 24px, bg: #F8F8F6, border: 1px #E5E5E0, radius: 2px
  * - Accent: #4B57DB
@@ -35,11 +35,11 @@ export function InspectorFieldRow({
 }) {
   return (
     <div
-      className={cn("flex items-center h-8 gap-3", className)}
+      className={cn("flex items-start min-h-8 gap-3 py-1", className)}
       title={disabled ? "Controlled by master component" : undefined}
     >
       <span className={cn(
-        "w-16 shrink-0 text-[13px] font-normal flex items-center gap-1.5",
+        "w-16 shrink-0 pt-0.5 text-[13px] font-normal flex items-start gap-1.5",
         disabled ? "text-[#A0A0A0]" : "text-[#6B6B6B] dark:text-[#999999]"
       )}>
         {hasOverride && !disabled && (

@@ -135,78 +135,73 @@ export function MiniRail({
         : Monitor;
 
   return (
-    <div className="w-[52px] h-full bg-sidebar-bg border-r-[0.5px] border-sidebar-border flex flex-col items-center pt-[12px] pb-[12px] flex-shrink-0 z-30">
-      {/* Studio OS logo mark */}
-      <Link
-        href="/home"
-        title="Studio OS"
-        aria-label="Studio OS Home"
-        className="flex items-center justify-center mb-4"
-      >
-        <LogoMark size={24} />
-      </Link>
-
-      {/* Panel toggles group */}
-      <div className="flex flex-col items-center">
-        <RailButton
-          active={layersVisible}
-          onClick={onToggleLayers}
-          title="Toggle Layers"
+    <div className="w-full shrink-0 bg-sidebar-bg border-b-[0.5px] border-sidebar-border flex flex-row items-center justify-between gap-2 px-2 py-1.5 z-30 min-h-[48px]">
+      <div className="flex flex-row items-center gap-1 min-w-0">
+        {/* Studio OS logo mark */}
+        <Link
+          href="/home"
+          title="Studio OS"
+          aria-label="Studio OS Home"
+          className="flex items-center justify-center shrink-0 mr-1"
         >
-          <Layers size={16} strokeWidth={1.5} />
-        </RailButton>
+          <LogoMark size={24} />
+        </Link>
 
-        <RailButton
-          active={inspectorVisible}
-          onClick={onToggleInspector}
-          title="Toggle Inspector"
-        >
-          <SlidersHorizontal size={16} strokeWidth={1.5} />
-        </RailButton>
-
-        {onToggleComponentGallery && (
+        {/* Panel toggles */}
+        <div className="flex flex-row items-center gap-0.5">
           <RailButton
-            active={componentGalleryVisible}
-            onClick={onToggleComponentGallery}
-            title="Toggle Component Library"
+            active={layersVisible}
+            onClick={onToggleLayers}
+            title="Toggle Layers"
           >
-            <Boxes size={16} strokeWidth={1.5} />
+            <Layers size={16} strokeWidth={1.5} />
           </RailButton>
-        )}
+
+          <RailButton
+            active={inspectorVisible}
+            onClick={onToggleInspector}
+            title="Toggle Inspector"
+          >
+            <SlidersHorizontal size={16} strokeWidth={1.5} />
+          </RailButton>
+
+          {onToggleComponentGallery && (
+            <RailButton
+              active={componentGalleryVisible}
+              onClick={onToggleComponentGallery}
+              title="Toggle Component Library"
+            >
+              <Boxes size={16} strokeWidth={1.5} />
+            </RailButton>
+          )}
+        </div>
+
+        {/* Navigation + help */}
+        <div className="flex flex-row items-center gap-0.5 border-l border-sidebar-border pl-2 ml-1">
+          <RailLink href="/home" title="Home">
+            <Home size={16} strokeWidth={1.5} />
+          </RailLink>
+
+          <RailLink href="/settings" title="Settings">
+            <Settings size={16} strokeWidth={1.5} />
+          </RailLink>
+
+          {onShowWelcome && (
+            <RailButton onClick={onShowWelcome} title="Show welcome guide">
+              <HelpCircle size={16} strokeWidth={1.5} />
+            </RailButton>
+          )}
+
+          {onOpenShortcuts && (
+            <RailButton onClick={onOpenShortcuts} title="Keyboard shortcuts (?)" active={false}>
+              <span className="font-mono text-[10px] font-medium">?</span>
+            </RailButton>
+          )}
+        </div>
       </div>
 
-      {/* Navigation group - 16px gap from toggles */}
-      <div className="flex flex-col items-center mt-4">
-        <RailLink href="/home" title="Home">
-          <Home size={16} strokeWidth={1.5} />
-        </RailLink>
-
-        <RailLink href="/settings" title="Settings">
-          <Settings size={16} strokeWidth={1.5} />
-        </RailLink>
-
-        {/* Show welcome overlay */}
-        {onShowWelcome && (
-          <RailButton
-            onClick={onShowWelcome}
-            title="Show welcome guide"
-          >
-            <HelpCircle size={16} strokeWidth={1.5} />
-          </RailButton>
-        )}
-
-        {onOpenShortcuts && (
-          <RailButton onClick={onOpenShortcuts} title="Keyboard shortcuts (?)" active={false}>
-            <span className="font-mono text-[10px] font-medium">?</span>
-          </RailButton>
-        )}
-      </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Bottom group - 16px gap implied by spacer */}
-      <div className="flex flex-col items-center gap-0">
+      {/* Theme + quick exit — right side */}
+      <div className="flex flex-row items-center gap-0.5 shrink-0">
         {onCycleEditorTheme && (
           <RailButton
             onClick={onCycleEditorTheme}

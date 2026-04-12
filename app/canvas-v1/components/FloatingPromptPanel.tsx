@@ -4,13 +4,11 @@
  * FloatingPromptPanel — floating panel wrapper that renders PromptComposerV2
  * inside floating chrome. Appears when the Prompt tool (K) is active.
  *
- * When the inspector is open, sits left of the 288px rail with an 8px gap;
- * otherwise anchors to the viewport right.
+ * Anchors to the right edge of the canvas region (inspector lives in a column left of the canvas).
  */
 
 import * as React from "react";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { PromptComposerV2 } from "./PromptComposerV2";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import type { PageNode } from "@/lib/canvas/compose";
@@ -19,24 +17,21 @@ type FloatingPromptPanelProps = {
   projectId: string;
   selectedNode: DesignNode | PageNode | null;
   onClose: () => void;
-  inspectorOpen: boolean;
+  /** @deprecated No longer affects layout; inspector is not overlaying the canvas edge. */
+  inspectorOpen?: boolean;
 };
 
 export function FloatingPromptPanel({
   projectId,
   selectedNode,
   onClose,
-  inspectorOpen,
 }: FloatingPromptPanelProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const retryRef = React.useRef<(() => void) | null>(null);
 
   return (
     <div
-      className={cn(
-        "absolute top-4 bottom-4 w-[300px] z-20 flex flex-col rounded-[4px] border-[0.5px] border-border-subtle bg-card-bg shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden",
-        inspectorOpen ? "right-[296px]" : "right-4"
-      )}
+      className="absolute right-4 top-4 bottom-4 z-20 flex w-[300px] flex-col overflow-hidden rounded-[4px] border-[0.5px] border-border-subtle bg-card-bg shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 shrink-0">

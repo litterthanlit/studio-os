@@ -36,6 +36,10 @@ import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import { getProjectState } from "@/lib/project-store";
 
+/** Selected layer row — blue fill + amber ring (same for canvas items and in-breakpoint nodes) */
+const LAYER_ROW_SELECTED =
+  "bg-[#4B57DB] text-white shadow-sm ring-2 ring-[#FBBF24] rounded-[6px] mx-1.5";
+
 // ─── Helper: Get all ancestor IDs of a node ──────────────────────────────────
 
 function getAncestors(nodeId: string, root: DesignNode): string[] {
@@ -64,8 +68,8 @@ function getAncestors(nodeId: string, root: DesignNode): string[] {
 
 // ─── Node type → icon ────────────────────────────────────────────────────────
 
-function NodeIcon({ type }: { type: PageNode["type"] }) {
-  const cls = "shrink-0 text-[#A0A0A0] dark:text-[#666666]";
+function NodeIcon({ type, selected }: { type: PageNode["type"]; selected?: boolean }) {
+  const cls = cn("shrink-0", selected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]");
   const props = { size: 14, strokeWidth: 1.5, className: cls } as const;
   switch (type) {
     case "page": return <Layout {...props} />;
@@ -88,8 +92,11 @@ function formatLabel(node: PageNode): string {
 
 // ─── DesignNode type → icon ─────────────────────────────────────────────────
 
-function DesignNodeIcon({ type }: { type: DesignNode["type"] }) {
-  const cls = "shrink-0 text-[#A0A0A0] dark:text-[#666666]";
+function DesignNodeIcon({ type, active }: { type: DesignNode["type"]; active?: boolean }) {
+  const cls = cn(
+    "shrink-0",
+    active ? "text-white/90" : "text-[#8E8E8E] dark:text-[#737373]"
+  );
   const props = { size: 14, strokeWidth: 1.5, className: cls } as const;
   switch (type) {
     case "frame": return <Layers {...props} />;
@@ -325,56 +332,88 @@ function DesignTreeNode({
         }}
         onContextMenu={(e) => onContextMenu?.(node, itemId, e)}
         className={cn(
-          "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
+          "group flex w-full items-center gap-1 text-left transition-colors duration-100 rounded-[6px] mx-1.5 px-1 min-h-[30px]",
           isPrimary
-            ? "bg-[#D1E4FC]/50 text-[#4B57DB] border-l-[1.5px] border-[#4B57DB] dark:bg-[#222244]/50"
+            ? LAYER_ROW_SELECTED
             : isSecondary
-              ? "bg-[#D1E4FC]/25 text-[#4B57DB]/70 border-l-[1.5px] border-[#4B57DB]/45 dark:bg-[#222244]/25"
+              ? "bg-[#4B57DB]/12 text-[#4B57DB] dark:bg-[#4B57DB]/18 dark:text-[#93A6FF]"
               : isParentTarget && isContainer && isValidDrop
-                ? "bg-[#D1E4FC]/20 text-[#1A1A1A] border-l-[1.5px] border-[#4B57DB] dark:text-[#D0D0D0]"
-                : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
+                ? "bg-[#4B57DB]/10 text-[var(--text-primary)] ring-1 ring-[#4B57DB]/25"
+                : "text-[var(--text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
         )}
         style={{
-          height: 28,
-          paddingLeft: depth * 14 + (hasChildren ? 4 : 16),
+          paddingLeft: depth * 12 + (hasChildren ? 2 : 10),
           opacity: rowOpacity,
         }}
       >
         {hasChildren && (
           <span
             onClick={(e) => { e.stopPropagation(); onToggleExpanded(node.id); }}
-            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm hover:bg-[#E5E5E0] dark:hover:bg-[#333333]"
+            className={cn(
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] -ml-0.5",
+              isPrimary ? "hover:bg-white/15" : "hover:bg-black/[0.06] dark:hover:bg-white/10"
+            )}
           >
-            <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", expanded && "rotate-90")} />
+            <ChevronRight
+              size={12}
+              strokeWidth={2}
+              className={cn("transition-transform duration-150", expanded && "rotate-90", isPrimary && "text-white/90")}
+            />
           </span>
         )}
         {isInstanceRoot
-          ? <Diamond className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" size={14} strokeWidth={1.5} />
-          : <DesignNodeIcon type={node.type} />
+          ? (
+              <Diamond
+                className={cn("shrink-0", isPrimary ? "text-white/90" : "text-[#8E8E8E] dark:text-[#737373]")}
+                size={14}
+                strokeWidth={1.5}
+              />
+            )
+          : <DesignNodeIcon type={node.type} active={isPrimary} />
         }
-        <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-[12px] leading-tight",
+            isPrimary ? "text-white font-medium" : "text-[var(--text-primary)]"
+          )}
+        >
           {formatDesignNodeLabel(node)}
           {isInstanceRoot && masterName && (
-            <span className="text-[#A0A0A0] dark:text-[#666666]"> · {masterName}</span>
+            <span className={cn("font-normal", isPrimary ? "text-white/65" : "text-[var(--text-muted)]")}>
+              {" "}
+              · {masterName}
+            </span>
           )}
         </span>
         {showOverrideDot && (
           <span
-            className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#4B57DB] mr-0.5"
+            className={cn(
+              "shrink-0 w-1.5 h-1.5 rounded-full mr-0.5",
+              isPrimary ? "bg-white/90" : "bg-[#4B57DB]"
+            )}
             title="Local overrides"
           />
         )}
         {isStale && (
           <span
-            className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#F59E0B] mr-1"
+            className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#FBBF24] mr-1"
             title="Component is stale — master has been updated"
           />
         )}
         {node.isGroup && (
-          <span className="text-[10px] text-[#A0A0A0] ml-auto mr-1 dark:text-[#666666]">Group</span>
+          <span
+            className={cn(
+              "text-[10px] ml-auto mr-1",
+              isPrimary ? "text-white/70" : "text-[var(--text-muted)]"
+            )}
+          >
+            Group
+          </span>
         )}
         {isPrimary && selectedNodeIds.length > 1 && (
-          <span className="ml-auto mr-2 text-[9px] text-[#4B57DB] bg-[#D1E4FC]/50 px-1 rounded-[2px] dark:bg-[#222244]/50">primary</span>
+          <span className="ml-auto mr-1 text-[9px] font-medium uppercase tracking-wide text-white/80 bg-white/15 px-1.5 py-0.5 rounded">
+            primary
+          </span>
         )}
         {/* Invalid parent target indicator */}
         {isInvalidParentTarget && !isContainer && (
@@ -410,8 +449,12 @@ function DesignTreeNode({
   );
 }
 
-function BreakpointIcon({ bp }: { bp: string }) {
-  const props = { size: 14, strokeWidth: 1, className: "shrink-0 text-[#A0A0A0] dark:text-[#666666]" } as const;
+function BreakpointIcon({ bp, selected }: { bp: string; selected?: boolean }) {
+  const props = {
+    size: 14,
+    strokeWidth: 1,
+    className: cn("shrink-0", selected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]"),
+  } as const;
   if (bp === "mobile") return <Smartphone {...props} />;
   return <Monitor {...props} />;
 }
@@ -436,7 +479,7 @@ function TreeNode({
         className={cn(
           "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
           isSelected
-            ? "bg-[#D1E4FC]/50 text-[#4B57DB] border-l-[1.5px] border-[#4B57DB] dark:bg-[#222244]/50"
+            ? LAYER_ROW_SELECTED
             : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
         )}
         style={{ height: 28, paddingLeft: depth * 14 + (hasChildren ? 4 : 16) }}
@@ -444,13 +487,31 @@ function TreeNode({
         {hasChildren && (
           <span
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm hover:bg-[#E5E5E0] dark:hover:bg-[#333333]"
+            className={cn(
+              "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm",
+              isSelected ? "hover:bg-white/15" : "hover:bg-[#E5E5E0] dark:hover:bg-[#333333]"
+            )}
           >
-            <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", expanded && "rotate-90")} />
+            <ChevronRight
+              size={10}
+              strokeWidth={1.5}
+              className={cn(
+                "transition-transform duration-100",
+                expanded && "rotate-90",
+                isSelected && "text-white/90"
+              )}
+            />
           </span>
         )}
-        <NodeIcon type={node.type} />
-        <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">{formatLabel(node)}</span>
+        <NodeIcon type={node.type} selected={isSelected} />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-[12px]",
+            isSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]"
+          )}
+        >
+          {formatLabel(node)}
+        </span>
       </button>
       {expanded && hasChildren && node.children!.map((child) => (
         <TreeNode key={child.id} node={child} depth={depth + 1} selectedNodeId={selectedNodeId} itemId={itemId} onSelectNode={onSelectNode} />
@@ -466,16 +527,25 @@ function Group({ label, count, defaultOpen, children }: {
 }) {
   const [open, setOpen] = React.useState(defaultOpen ?? true);
   return (
-    <div className="mb-1">
+    <div className="mb-0.5">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[1px] text-[#A0A0A0] hover:text-[#6B6B6B] dark:text-[#666666] dark:hover:text-[#D0D0D0]"
+        className="flex w-full items-center gap-1 px-2.5 py-1.5 text-left text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
       >
-        <ChevronRight size={10} strokeWidth={1.5} className={cn("transition-transform duration-100", open && "rotate-90")} />
-        {label}
-        {typeof count === "number" && <span className="ml-auto text-[9px]">({count})</span>}
+        <ChevronRight
+          size={12}
+          strokeWidth={2}
+          className={cn("shrink-0 text-[var(--text-muted)] transition-transform duration-150", open && "rotate-90")}
+        />
+        <span className="truncate">{label}</span>
+        {typeof count === "number" && (
+          <span className="ml-auto shrink-0 tabular-nums text-[10px] font-normal text-[var(--text-muted)]">
+            {count}
+          </span>
+        )}
       </button>
-      {open && <div>{children}</div>}
+      {open && <div className="pb-1">{children}</div>}
     </div>
   );
 }
@@ -629,6 +699,7 @@ function CanvasItemDesignTree({
 
 export function LayersPanelV3({ projectId }: { projectId?: string }) {
   const { state, dispatch } = useCanvas();
+  const activeBreakpoint = state.activeBreakpoint ?? "desktop";
   const { items, selection, components } = state;
   const masterEditDirty = Boolean(state.masterEditSession?.dirty);
 
@@ -645,19 +716,17 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
     ) || null;
   }, [items, selection.activeItemId]);
 
-  // ── Auto-expand ancestors and scroll to selected node ───────────────────────
+  // ── Auto-expand ancestors (artboard) and scroll layers row into view ────────
   React.useEffect(() => {
     if (selectedNodeId && activeArtboard && isDesignNodeTree(activeArtboard.pageTree)) {
       const root = activeArtboard.pageTree as DesignNode;
-      
-      // Find all ancestors of selected node
+
       const ancestors = getAncestors(selectedNodeId, root);
-      
-      // Add them to expanded set (only if not already expanded)
-      setExpandedNodeIds(prev => {
+
+      setExpandedNodeIds((prev) => {
         const next = new Set(prev);
         let changed = false;
-        ancestors.forEach(id => {
+        ancestors.forEach((id) => {
           if (!next.has(id)) {
             next.add(id);
             changed = true;
@@ -665,22 +734,22 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
         });
         return changed ? next : prev;
       });
-      
-      // Scroll into view after expansion renders
-      setTimeout(() => {
-        const rowElement = document.querySelector(`[data-layer-id="${selectedNodeId}"]`);
-        if (rowElement) {
-          rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          
-          // Add highlight pulse class
-          rowElement.classList.add('highlight-pulse');
-          setTimeout(() => {
-            rowElement.classList.remove('highlight-pulse');
-          }, 300);
-        }
-      }, 50);
     }
-  }, [selectedNodeId, activeArtboard]);
+
+    const scrollTargetId = selectedNodeId ?? selection.activeItemId;
+    if (!scrollTargetId) return;
+
+    setTimeout(() => {
+      const rowElement = document.querySelector(`[data-layer-id="${scrollTargetId}"]`);
+      if (rowElement) {
+        rowElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        rowElement.classList.add("highlight-pulse");
+        setTimeout(() => {
+          rowElement.classList.remove("highlight-pulse");
+        }, 300);
+      }
+    }, 50);
+  }, [selectedNodeId, activeArtboard, selection.activeItemId]);
 
   const handleToggleExpanded = React.useCallback((nodeId: string) => {
     setExpandedNodeIds(prev => {
@@ -1003,16 +1072,59 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
 
   return (
     <div
-      className="absolute left-0 top-0 bottom-0 z-20 flex flex-col w-[200px] min-w-[200px] max-w-[200px] border-r-[0.5px] border-sidebar-border bg-sidebar-bg"
+      className="relative z-20 flex h-full min-h-0 w-[248px] min-w-[248px] max-w-[248px] shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--sidebar-bg)]"
       style={{ contain: "strict" }}
     >
-      <div className="shrink-0 border-b-[0.5px] border-sidebar-border px-3 py-2">
-        <div className="font-mono text-[10px] uppercase tracking-[1px] text-[var(--section-label)]">
-          Layers
+      {/* Framer-style: primary panel title + compact controls */}
+      <div className="shrink-0 border-b border-[var(--border-subtle)] px-3 pt-2.5 pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold tracking-tight text-[var(--text-primary)]">
+                Layers
+              </span>
+            </div>
+            <p
+              className="mt-1 text-[10px] leading-snug text-[var(--text-muted)]"
+              title="Drag a row to move or reparent. Esc cancels."
+            >
+              Drag to reorder · Esc cancels
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-0.5 pt-0.5">
+            <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--text-muted)] select-none">
+              Breakpoint
+            </span>
+            <div className="flex h-[24px] rounded-[2px] border border-[var(--border-control)] overflow-hidden">
+              <button
+                type="button"
+                title="Desktop"
+                onClick={() => dispatch({ type: "SET_ACTIVE_BREAKPOINT", breakpoint: "desktop" })}
+                className={cn(
+                  "flex w-7 items-center justify-center transition-colors",
+                  activeBreakpoint === "desktop"
+                    ? "bg-[#4B57DB] text-white"
+                    : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <Monitor size={13} strokeWidth={1.5} />
+              </button>
+              <button
+                type="button"
+                title="Mobile"
+                onClick={() => dispatch({ type: "SET_ACTIVE_BREAKPOINT", breakpoint: "mobile" })}
+                className={cn(
+                  "flex w-7 items-center justify-center border-l border-[var(--border-control)] transition-colors",
+                  activeBreakpoint === "mobile"
+                    ? "bg-[#4B57DB] text-white"
+                    : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <Smartphone size={13} strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
         </div>
-        <p className="mt-0.5 text-[9px] leading-snug text-[var(--text-muted)]">
-          Drag a row to move or reparent in the tree. Esc cancels drag.
-        </p>
       </div>
       {/* Scrollable content — isolated from the positioning shell above so
           scroll position can never shift the panel's top edge. */}
@@ -1028,23 +1140,32 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
           {/* Canvas group — loose frame/text items on the canvas surface */}
           {canvasDesignItems.length > 0 && (
             <Group label="Canvas" count={canvasDesignItems.length} defaultOpen>
-              {canvasDesignItems.map((item) => (
+              {canvasDesignItems.map((item) => {
+                const canvasRowSelected = selection.selectedItemIds.includes(item.id);
+                return (
                 <div key={item.id}>
                   <button
+                    type="button"
+                    data-layer-id={item.id}
                     onClick={() => handleSelectItem(item.id)}
                     className={cn(
-                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors",
-                      selection.selectedItemIds.includes(item.id)
-                        ? "bg-[#D1E4FC]/50 text-[#4B57DB] dark:bg-[#222244]/50"
+                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors duration-100",
+                      canvasRowSelected
+                        ? LAYER_ROW_SELECTED
                         : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                     )}
                     style={{ height: 28, paddingLeft: 24 }}
                   >
                     {item.kind === "frame"
-                      ? <Square size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" />
-                      : <Type size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" />
+                      ? <Square size={14} strokeWidth={1.5} className={cn("shrink-0", canvasRowSelected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]")} />
+                      : <Type size={14} strokeWidth={1.5} className={cn("shrink-0", canvasRowSelected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]")} />
                     }
-                    <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">
+                    <span
+                      className={cn(
+                        "min-w-0 flex-1 truncate text-[12px]",
+                        canvasRowSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]"
+                      )}
+                    >
                       {item.name || (item.kind === "frame" ? "Frame" : "Text")}
                     </span>
                   </button>
@@ -1069,27 +1190,35 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                     />
                   )}
                 </div>
-              ))}
+              );
+              })}
             </Group>
           )}
 
           {/* Site group */}
           {orderedArtboards.length > 0 && (
             <Group label="Site" defaultOpen>
-              {orderedArtboards.map((artboard) => (
+              {orderedArtboards.map((artboard) => {
+                const siteRowSelected = selection.selectedItemIds.includes(artboard.id);
+                return (
                 <div key={artboard.id}>
                   <button
                     onClick={() => handleSelectItem(artboard.id)}
                     className={cn(
-                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors",
-                      selection.selectedItemIds.includes(artboard.id)
-                        ? "bg-[#D1E4FC]/50 text-[#4B57DB] dark:bg-[#222244]/50"
+                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors duration-100",
+                      siteRowSelected
+                        ? LAYER_ROW_SELECTED
                         : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                     )}
                     style={{ height: 28, paddingLeft: 24 }}
                   >
-                    <BreakpointIcon bp={artboard.breakpoint} />
-                    <span className="truncate text-[12px] dark:text-[#D0D0D0]">
+                    <BreakpointIcon bp={artboard.breakpoint} selected={siteRowSelected} />
+                    <span
+                      className={cn(
+                        "truncate text-[12px]",
+                        siteRowSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]"
+                      )}
+                    >
                       {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
                     </span>
                   </button>
@@ -1126,56 +1255,77 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                       ))
                   }
                 </div>
-              ))}
+              );
+              })}
             </Group>
           )}
 
           {/* References group */}
           {references.length > 0 && (
             <Group label="References" count={references.length}>
-              {references.map((ref) => (
+              {references.map((ref) => {
+                const refSelected = selection.selectedItemIds.includes(ref.id);
+                return (
                 <button
                   key={ref.id}
                   onClick={() => handleSelectItem(ref.id)}
                   className={cn(
-                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
-                    selection.selectedItemIds.includes(ref.id)
-                      ? "bg-[#D1E4FC]/50 text-[#4B57DB] dark:bg-[#222244]/50"
+                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors duration-100",
+                    refSelected
+                      ? LAYER_ROW_SELECTED
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                   )}
                   style={{ height: 28, paddingLeft: 24 }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={ref.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover" />
-                  <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">
+                  <img src={ref.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover ring-1 ring-white/20" />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-[12px]",
+                      refSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]"
+                    )}
+                  >
                     {ref.title || "Reference"}
                   </span>
                 </button>
-              ))}
+              );
+              })}
             </Group>
           )}
 
           {/* Notes group */}
           {notes.length > 0 && (
             <Group label="Notes" count={notes.length}>
-              {notes.map((note) => (
+              {notes.map((note) => {
+                const noteSelected = selection.selectedItemIds.includes(note.id);
+                return (
                 <button
                   key={note.id}
                   onClick={() => handleSelectItem(note.id)}
                   className={cn(
-                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors",
-                    selection.selectedItemIds.includes(note.id)
-                      ? "bg-[#D1E4FC]/50 text-[#4B57DB] dark:bg-[#222244]/50"
+                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors duration-100",
+                    noteSelected
+                      ? LAYER_ROW_SELECTED
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                   )}
                   style={{ height: 28, paddingLeft: 24 }}
                 >
-                  <StickyNote size={14} strokeWidth={1.5} className="shrink-0 text-[#A0A0A0] dark:text-[#666666]" />
-                  <span className="min-w-0 flex-1 truncate text-[12px] dark:text-[#D0D0D0]">
+                  <StickyNote
+                    size={14}
+                    strokeWidth={1.5}
+                    className={cn("shrink-0", noteSelected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]")}
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-[12px]",
+                      noteSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]"
+                    )}
+                  >
                     &ldquo;{note.text.length > 24 ? note.text.slice(0, 24) + "…" : note.text}&rdquo;
                   </span>
                 </button>
-              ))}
+              );
+              })}
             </Group>
           )}
         </div>

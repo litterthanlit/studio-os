@@ -37,6 +37,7 @@ type HandlePosition =
 
 const HANDLE_SIZE = 8;
 const TEXT_HANDLE_SIZE = 5;
+const HIT_TARGET_SIZE = 18;
 const HALF = HANDLE_SIZE / 2;
 const MIN_SIZE = 20;
 
@@ -139,6 +140,8 @@ type DesignNodeResizeHandlesProps = {
   onResizeDone?: () => void;
   /** Called when resize converts a Fill axis to Fixed */
   onSizingModeChanged?: (axes: "width" | "height" | "both") => void;
+  /** Returns parent-relative coordinates when a flow node should break out on resize */
+  getBreakoutOrigin?: () => { x: number; y: number; zIndex?: number } | null;
 };
 
 // ── Component ────────────────────────────────────────────────────────
@@ -152,6 +155,7 @@ export function DesignNodeResizeHandles({
   onResizeStart,
   onResizeDone,
   onSizingModeChanged,
+  getBreakoutOrigin,
 }: DesignNodeResizeHandlesProps) {
   const resizingRef = useRef<{
     handle: HandlePosition;
@@ -163,10 +167,14 @@ export function DesignNodeResizeHandles({
     startY: number;
     aspectRatio: number;
     isAbsolute: boolean;
+    shouldBreakout: boolean;
+    breakoutZIndex?: number;
     canResizeWidth: boolean;
     canResizeHeight: boolean;
     historyCaptured: boolean;
     lastUpdateKey: string | null;
+    pointerId: number;
+    pointerTarget: HTMLElement | null;
   } | null>(null);
 
   // Allow Fill/Hug nodes to be resized — converts to Fixed on drag.
@@ -217,17 +225,23 @@ export function DesignNodeResizeHandles({
         typeof node.style.height === "number"
           ? node.style.height
           : nodeRect.height;
+      const breakoutOrigin = node.style.position === "absolute" ? null : getBreakoutOrigin?.();
+      const isAbsoluteResize = node.style.position === "absolute" || Boolean(breakoutOrigin);
 
       resizingRef.current = {
         handle,
+        pointerId: e.pointerId,
+        pointerTarget: e.currentTarget as HTMLElement,
         startScreenX: e.clientX,
         startScreenY: e.clientY,
         startW,
         startH,
-        startX: node.style.x ?? 0,
-        startY: node.style.y ?? 0,
+        startX: node.style.position === "absolute" ? (node.style.x ?? 0) : (breakoutOrigin?.x ?? 0),
+        startY: node.style.position === "absolute" ? (node.style.y ?? 0) : (breakoutOrigin?.y ?? 0),
         aspectRatio: startW / (startH || 1),
-        isAbsolute: node.style.position === "absolute",
+        isAbsolute: isAbsoluteResize,
+        shouldBreakout: Boolean(breakoutOrigin),
+        breakoutZIndex: breakoutOrigin?.zIndex,
         canResizeWidth,
         canResizeHeight,
         historyCaptured: false,
@@ -239,6 +253,11 @@ export function DesignNodeResizeHandles({
       const originalHeightMode = node.style.height;
 
       onResizeStart?.();
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* Pointer capture is best-effort; window listeners are still installed. */
+      }
 
       const computeUpdate = (
         screenX: number,
@@ -349,6 +368,11 @@ export function DesignNodeResizeHandles({
         // Build the style update
         const update: Partial<DesignNodeStyle> = {};
 
+        if (r.shouldBreakout) {
+          update.position = "absolute";
+          update.zIndex = r.breakoutZIndex ?? 1;
+        }
+
         if (r.canResizeWidth) {
           update.width = Math.round(newW);
         }
@@ -392,6 +416,14 @@ export function DesignNodeResizeHandles({
       };
 
       const cleanup = () => {
+        const active = resizingRef.current;
+        if (active?.pointerTarget?.hasPointerCapture(active.pointerId)) {
+          try {
+            active.pointerTarget.releasePointerCapture(active.pointerId);
+          } catch {
+            /* noop */
+          }
+        }
         resizingRef.current = null;
         onResizeDone?.();
         window.removeEventListener("pointermove", handlePointerMove);
@@ -449,7 +481,7 @@ export function DesignNodeResizeHandles({
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
     },
-    [canResizeHeight, canResizeWidth, node.style, nodeRect, zoom, onResize, onResizeEnd, onResizeStart, onResizeDone, onSizingModeChanged]
+    [canResizeHeight, canResizeWidth, getBreakoutOrigin, node.style, nodeRect, zoom, onResize, onResizeEnd, onResizeStart, onResizeDone, onSizingModeChanged]
   );
 
   const w = nodeRect.width;
@@ -467,30 +499,47 @@ export function DesignNodeResizeHandles({
       {handlesToRender.map(({ position, cursor }) => (
         <div
           key={position}
+          data-resize-handle={position}
           style={{
             position: "absolute",
-            width: handleSize,
-            height: handleSize,
+            width: HIT_TARGET_SIZE,
+            height: HIT_TARGET_SIZE,
             borderRadius: 9999,
-            border: `1px solid ${borderColor}`,
-            backgroundColor: "white",
+            backgroundColor: "transparent",
             cursor,
             zIndex: 10,
-            transition: "transform 100ms ease, background-color 100ms ease",
+            transform: `translate(${-(HIT_TARGET_SIZE - handleSize) / 2}px, ${-(HIT_TARGET_SIZE - handleSize) / 2}px)`,
             ...getHandlePositionStyle(position, w, h, half),
           }}
           onPointerDown={(e) => handlePointerDown(e, position)}
           onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLElement;
-            el.style.backgroundColor = hoverBg;
-            el.style.transform = isTextNode ? "scale(1.08)" : "scale(1.12)";
+            const dot = (e.currentTarget as HTMLElement).firstElementChild as HTMLElement | null;
+            if (!dot) return;
+            dot.style.backgroundColor = hoverBg;
+            dot.style.transform = isTextNode ? "scale(1.08)" : "scale(1.12)";
           }}
           onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLElement;
-            el.style.backgroundColor = "white";
-            el.style.transform = "scale(1)";
+            const dot = (e.currentTarget as HTMLElement).firstElementChild as HTMLElement | null;
+            if (!dot) return;
+            dot.style.backgroundColor = "white";
+            dot.style.transform = "scale(1)";
           }}
-        />
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: (HIT_TARGET_SIZE - handleSize) / 2,
+              left: (HIT_TARGET_SIZE - handleSize) / 2,
+              width: handleSize,
+              height: handleSize,
+              borderRadius: 9999,
+              border: `1px solid ${borderColor}`,
+              backgroundColor: "white",
+              pointerEvents: "none",
+              transition: "transform 100ms ease, background-color 100ms ease",
+            }}
+          />
+        </div>
       ))}
     </>
   );

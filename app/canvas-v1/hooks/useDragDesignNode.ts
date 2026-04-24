@@ -39,6 +39,8 @@ type UseDragDesignNodeOptions = {
     height: number,
     nodeId?: string | null
   ) => { x: number; y: number };
+  /** Select a node when drag starts from an unselected node. */
+  onSelectNode?: (nodeId: string) => void;
 };
 
 type PeerNodeOffset = {
@@ -69,8 +71,6 @@ type DragState = {
 };
 
 const DRAG_THRESHOLD_PX = 4;
-const FLOW_BREAKOUT_HOLD_MS = 180;
-
 export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   const {
     tree,
@@ -82,6 +82,7 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
     canvasTool = "select",
     containerRef,
     snapPosition,
+    onSelectNode,
   } = options;
 
   // Use context directly — returns null when no CanvasProvider (e.g. test-v6 page).
@@ -101,6 +102,8 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   const snapPositionRef = useRef(snapPosition);
   const selectedNodeIdsRef = useRef(selectedNodeIds);
   const canvasToolRef = useRef(canvasTool);
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  const onSelectNodeRef = useRef(onSelectNode);
 
   useEffect(() => {
     treeRef.current = tree;
@@ -109,8 +112,10 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
     dispatchRef.current = dispatch;
     snapPositionRef.current = snapPosition;
     selectedNodeIdsRef.current = selectedNodeIds;
+    selectedNodeIdRef.current = selectedNodeId;
     canvasToolRef.current = canvasTool;
-  }, [canvasTool, dispatch, itemId, selectedNodeIds, snapPosition, tree, zoom]);
+    onSelectNodeRef.current = onSelectNode;
+  }, [canvasTool, dispatch, itemId, onSelectNode, selectedNodeId, selectedNodeIds, snapPosition, tree, zoom]);
 
   const cleanupActiveDrag = useCallback(() => {
     const drag = draggingRef.current;
@@ -189,12 +194,6 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
           const screenDx = moveEvent.clientX - drag.startScreenX;
           const screenDy = moveEvent.clientY - drag.startScreenY;
           if (Math.hypot(screenDx, screenDy) < DRAG_THRESHOLD_PX) {
-            return;
-          }
-          if (
-            drag.shouldBreakout &&
-            performance.now() - drag.startTime < FLOW_BREAKOUT_HOLD_MS
-          ) {
             return;
           }
           drag.hasStarted = true;
@@ -395,21 +394,17 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
    * move directly; single selected flow nodes convert to Breakout once dragged.
    */
   useEffect(() => {
-    if (!interactive || !selectedNodeId || !itemId || !dispatch || !containerRef.current) return;
+    if (!interactive || !itemId || !dispatch || !containerRef.current) return;
 
-    // Determine which node IDs to attach drag listeners to.
-    // Always include primary; include secondaries for multi-drag.
-    const dragTargetIds = selectedNodeIds.length > 1
-      ? [...new Set([selectedNodeId, ...selectedNodeIds])]
-      : [selectedNodeId];
+    const allNodeEls = Array.from(
+      containerRef.current.querySelectorAll<HTMLElement>("[data-node-id]")
+    ).filter((el) => el.getAttribute("data-node-id") !== tree.id);
 
     const cleanups: Array<() => void> = [];
 
-    for (const targetId of dragTargetIds) {
-      const el = containerRef.current.querySelector<HTMLElement>(
-        `[data-node-id="${targetId}"]`
-      );
-      if (!el) continue;
+    for (const el of allNodeEls) {
+      const targetId = el.getAttribute("data-node-id");
+      if (!targetId) continue;
 
       const handlePointerDown = (e: PointerEvent) => {
         const tool = canvasToolRef.current;
@@ -420,8 +415,14 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
         if (!node) return;
 
         const currentIds = selectedNodeIdsRef.current;
+        const currentPrimaryId = selectedNodeIdRef.current;
         const isMultiSelect = currentIds.length > 1 && currentIds.includes(targetId);
         const isAbsolute = node.style.position === "absolute";
+        const isAlreadySelected = targetId === currentPrimaryId || currentIds.includes(targetId);
+
+        if (!isAlreadySelected) {
+          onSelectNodeRef.current?.(targetId);
+        }
 
         // Guard: disable drag for mixed (absolute + flow) selections
         if (isMultiSelect && !allAbsolute(currentIds, latestTree)) {
@@ -477,7 +478,7 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
     return () => {
       for (const cleanup of cleanups) cleanup();
     };
-  }, [interactive, selectedNodeId, selectedNodeIds, itemId, dispatch, containerRef, startDrag, buildPeers]);
+  }, [interactive, itemId, dispatch, containerRef, tree, startDrag, buildPeers]);
 
   useEffect(() => cleanupActiveDrag, [cleanupActiveDrag]);
 

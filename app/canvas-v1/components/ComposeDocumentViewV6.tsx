@@ -301,11 +301,10 @@ function formatDesignNodeLabel(node: DesignNode): string {
 
 // ── Text Content Renderer ──────────────────────────────────────────
 
-function TextContent({ node, isEditing, isSelected = false, dragProtected = false, onStartEdit, onCommitEdit, onDiscardEdit }: {
+function TextContent({ node, isEditing, isSelected = false, onStartEdit, onCommitEdit, onDiscardEdit }: {
   node: DesignNode;
   isEditing: boolean;
   isSelected?: boolean;
-  dragProtected?: boolean;
   onStartEdit: () => void;
   onCommitEdit: (newText: string) => void;
   /** When Esc or blur with no typed text — parent removes the layer/node. */
@@ -476,7 +475,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
     </style>
   `;
 
-  const tooltipText = isSelected ? "Click to edit" : "Double-click to edit";
+  const tooltipText = isSelected ? "Double-click to edit" : "Click to select";
 
   if (hasOnlyText) {
     return (
@@ -518,13 +517,6 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
           ref={textRef}
           data-text-edit-target="true"
           style={textEditableSurfaceStyle(node, isEditing)}
-          onPointerDownCapture={
-            dragProtected
-              ? (e) => {
-                  e.stopPropagation();
-                }
-              : undefined
-          }
           onClick={handleClick}
           onDoubleClick={(e) => {
             e.stopPropagation();
@@ -591,13 +583,6 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
         <div
           ref={textRef}
           data-text-edit-target="true"
-          onPointerDownCapture={
-            dragProtected
-              ? (e) => {
-                  e.stopPropagation();
-                }
-              : undefined
-          }
           onClick={handleClick}
           onDoubleClick={(e) => {
             e.stopPropagation();
@@ -853,8 +838,7 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             // Don't re-select (which exits edit mode) if clicking inside active contentEditable
             if (isEditing) return;
             if (e.shiftKey && onToggleSelect) { onToggleSelect(node.id); return; }
-            // One click → edit with caret only (outline hidden while isEditing); selection syncs in handleStartEdit
-            onStartEdit(node.id);
+            onSelect(node.id);
           } : undefined}
           onContextMenu={interactive && onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(node, e); } : undefined}
           {...hoverHandlers}
@@ -864,7 +848,6 @@ function RenderDesignNode({ node, selectedNodeId, selectedNodeIds, editingNodeId
             node={node}
             isEditing={isEditing}
             isSelected={isSelected}
-            dragProtected={interactive && isSelected && isAbsolute}
             onStartEdit={() => onStartEdit(node.id)}
             onCommitEdit={(newText) => onCommitEdit(node.id, newText)}
             onDiscardEdit={
@@ -1069,11 +1052,30 @@ function ResizeOverlay({
   }, [selectedNodeId, editingNodeId, containerRef, zoom, tree]);
 
   const selectedNode = selectedNodeId ? findDesignNodeById(tree, selectedNodeId) : null;
+  const getResizeBreakoutOrigin = React.useCallback(() => {
+    if (!containerRef.current || !selectedNode || selectedNode.style.position === "absolute") {
+      return null;
+    }
+
+    const parentNode = findDesignNodeParent(tree, selectedNode.id);
+    if (!parentNode) return null;
+
+    const nodeEl = containerRef.current.querySelector<HTMLElement>(`[data-node-id="${selectedNode.id}"]`);
+    const parentEl = containerRef.current.querySelector<HTMLElement>(`[data-node-id="${parentNode.id}"]`);
+    if (!nodeEl || !parentEl) return null;
+
+    const nodeDomRect = nodeEl.getBoundingClientRect();
+    const parentDomRect = parentEl.getBoundingClientRect();
+    const scale = zoom || 1;
+
+    return {
+      x: Math.round((nodeDomRect.left - parentDomRect.left) / scale),
+      y: Math.round((nodeDomRect.top - parentDomRect.top) / scale),
+      zIndex: selectedNode.style.zIndex ?? 1,
+    };
+  }, [containerRef, selectedNode, tree, zoom]);
 
   if (!nodeRect || !selectedNode || !onUpdateNodeStyle || editingNodeId) return null;
-
-  // Text: selection outline only (no resize handles — size via inspector / hug/fill)
-  if (selectedNode.type === "text") return null;
 
   // Apply the node's rotation to the resize overlay so handles match the element
   const rotation = selectedNode.style.transform?.rotate ?? 0;
@@ -1111,6 +1113,7 @@ function ResizeOverlay({
           onResizeStart={onResizeStart}
           onResizeDone={onResizeDone}
           onSizingModeChanged={onSizingModeChanged}
+          getBreakoutOrigin={getResizeBreakoutOrigin}
         />
       </div>
     </div>
@@ -1505,6 +1508,11 @@ export function ComposeDocumentViewV6({
     canvasTool,
     containerRef,
     snapPosition: snapGuidesHook.snapPosition,
+    onSelectNode: (nodeId) => {
+      exitAnyActiveTextEditingV6();
+      setEditingNodeId(null);
+      onSelectNode?.(nodeId);
+    },
   });
 
   // Sync drag state from the drag hook into the snap hook's input
@@ -1678,6 +1686,7 @@ export function ComposeDocumentViewV6({
   const mergedPointerDown = React.useCallback(
     (e: React.PointerEvent) => {
       if (!interactive) return;
+      if ((e.target as HTMLElement).closest("[data-resize-handle]")) return;
       if (canvasTool === "frame") {
         frameDraw.handlePointerDown(e);
         e.stopPropagation();
@@ -1702,6 +1711,10 @@ export function ComposeDocumentViewV6({
   const mergedPointerMove = React.useCallback(
     (e: React.PointerEvent) => {
       if (!interactive) return;
+      if (isResizing) {
+        e.stopPropagation();
+        return;
+      }
       if (canvasTool === "frame") {
         frameDraw.handlePointerMove(e);
         e.stopPropagation();
@@ -1715,12 +1728,16 @@ export function ComposeDocumentViewV6({
       rubberBand.handlePointerMove(e);
       e.stopPropagation();
     },
-    [interactive, canvasTool, frameDraw, textPlace, rubberBand]
+    [interactive, isResizing, canvasTool, frameDraw, textPlace, rubberBand]
   );
 
   const mergedPointerUp = React.useCallback(
     (e: React.PointerEvent) => {
       if (!interactive) return;
+      if (isResizing) {
+        e.stopPropagation();
+        return;
+      }
       if (canvasTool === "frame") {
         frameDraw.handlePointerUp(e);
         e.stopPropagation();
@@ -1734,7 +1751,7 @@ export function ComposeDocumentViewV6({
       rubberBand.handlePointerUp(e);
       e.stopPropagation();
     },
-    [interactive, canvasTool, frameDraw, textPlace, rubberBand]
+    [interactive, isResizing, canvasTool, frameDraw, textPlace, rubberBand]
   );
 
   // ── Update interaction suppression flag ────────────────────────────

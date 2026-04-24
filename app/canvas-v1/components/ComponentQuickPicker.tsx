@@ -3,12 +3,10 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import {
-  Layout, Columns2, Grid3x3, Quote, Award, Megaphone, PanelBottom, Box,
+  Layout, Columns2, Grid3x3, Quote, Award, Megaphone, PanelBottom,
 } from "lucide-react";
 import {
   loadSavedComponents,
-  createTemplateById,
-  getTemplateList,
   type DesignComponent,
 } from "@/lib/canvas/design-component-library";
 import { cloneDesignNode } from "@/lib/canvas/design-node";
@@ -100,18 +98,6 @@ export function ComponentQuickPicker({
     }
   }
 
-  function handlePrimitiveTemplateClick(templateId: string) {
-    if (!itemId) return;
-    const comp = createTemplateById(templateId);
-    if (!comp) return;
-    const cloned = cloneDesignNode(comp.node);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dispatch({ type: "INSERT_SECTION", itemId, section: cloned as any });
-    onDismiss();
-  }
-
-  const primitiveTemplates = getTemplateList().filter((t) => t.category === "Primitives");
-
   function handleLegacyClick(component: DesignComponent) {
     if (itemId) {
       const cloned = cloneDesignNode(component.node);
@@ -157,27 +143,6 @@ export function ComponentQuickPicker({
           </button>
         );
       })}
-
-      {primitiveTemplates.length > 0 && (
-        <>
-          <div className="h-px bg-[#E5E5E0] my-1" />
-          <div className="px-3 py-1">
-            <span className="text-[11px] uppercase tracking-wide text-[#8A8A8A] font-mono">Primitives</span>
-          </div>
-          {primitiveTemplates.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => handlePrimitiveTemplateClick(t.id)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-[#1A1A1A] hover:bg-[#F5F5F0] transition-colors text-left"
-            >
-              <Box size={14} strokeWidth={1.5} className="text-[#A0A0A0] shrink-0" />
-              <span className="flex-1 truncate">{t.name}</span>
-              <span className="text-[10px] text-[#8A8A8A] font-mono uppercase">{t.category}</span>
-            </button>
-          ))}
-        </>
-      )}
 
       {/* Recent user masters */}
       {recentUserMasters.length > 0 && (

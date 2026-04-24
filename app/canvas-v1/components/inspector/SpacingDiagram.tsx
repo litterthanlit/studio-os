@@ -7,13 +7,17 @@
 
 import * as React from "react";
 import { InspectorNumberInput } from "./InspectorField";
-import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
+import type { DesignNodeStyle } from "@/lib/canvas/design-node";
 
 type SpacingDiagramProps = {
-  node: DesignNode;
-  style: DesignNodeStyle;
-  onPaddingChange: (side: "top" | "right" | "bottom" | "left", value: number | undefined) => void;
+  node?: { id: string };
+  style: Partial<DesignNodeStyle>;
+  onPaddingChange?: (side: "top" | "right" | "bottom" | "left", value: number | undefined) => void;
   onHistoryFlush: () => void;
+  itemId?: string;
+  nodeId?: string;
+  nodeType?: string;
+  onHistorySchedule?: (description: string) => void;
   hasOverride?: boolean;
   onResetOverride?: () => void;
 };
@@ -49,7 +53,7 @@ function PadField({
       min={0}
       onChange={(e) => {
         const v = e.target.value;
-        onPaddingChange(side, v === "" ? undefined : Number(v));
+        onPaddingChange?.(side, v === "" ? undefined : Number(v));
       }}
       onBlur={onHistoryFlush}
       className={edgeInputClass}
@@ -58,7 +62,6 @@ function PadField({
 }
 
 export function SpacingDiagram({
-  node: _node,
   style,
   onPaddingChange,
   onHistoryFlush,

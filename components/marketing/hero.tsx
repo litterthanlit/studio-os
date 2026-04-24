@@ -76,6 +76,8 @@ export function Hero() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const canvasEl = canvas;
+    const context = ctx;
 
     let cols = 0;
     let rows = 0;
@@ -83,8 +85,8 @@ export function Hero() {
     let intensityGrid: number[][] = [];
 
     function buildGrid() {
-      cols = Math.ceil(canvas.width / CELL_SIZE);
-      rows = Math.ceil(canvas.height / CELL_SIZE);
+      cols = Math.ceil(canvasEl.width / CELL_SIZE);
+      rows = Math.ceil(canvasEl.height / CELL_SIZE);
       grid = Array.from({ length: rows }, () =>
         Array.from({ length: cols }, () =>
           Math.floor(Math.random() * ASCII_CHARS.length)
@@ -96,8 +98,8 @@ export function Hero() {
     }
 
     function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvasEl.width = window.innerWidth;
+      canvasEl.height = window.innerHeight;
       buildGrid();
     }
 
@@ -121,10 +123,10 @@ export function Hero() {
         theme.getPropertyValue("--text-tertiary").trim() ||
         "rgba(120,120,120,1)";
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.font = `${FONT_SIZE}px "IBM Plex Mono", monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      context.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      context.font = `${FONT_SIZE}px "IBM Plex Mono", monospace`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
 
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < cols; col += 1) {
@@ -150,13 +152,13 @@ export function Hero() {
 
           const intensity = intensityGrid[row][col];
           if (intensity > 0.01) {
-            ctx.globalAlpha = intensity;
-            ctx.fillStyle = asciiColor;
-            ctx.fillText(ASCII_CHARS[grid[row][col]], x, y);
+            context.globalAlpha = intensity;
+            context.fillStyle = asciiColor;
+            context.fillText(ASCII_CHARS[grid[row][col]], x, y);
           }
         }
       }
-      ctx.globalAlpha = 1;
+      context.globalAlpha = 1;
     }
 
     function onMouseMove(e: MouseEvent) {

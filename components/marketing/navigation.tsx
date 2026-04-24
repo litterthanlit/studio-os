@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Transition } from "framer-motion";
 import { useState } from "react";
 import { springs } from "@/lib/animations";
 
@@ -14,7 +14,7 @@ const NAV_ITEMS = [
 
 // ── Inline logo — 3 stacked folders, each lifts with staggered spring ──
 function LogoMark() {
-  const folderSpring = { type: "spring", stiffness: 420, damping: 18 };
+  const folderSpring: Transition = { type: "spring", stiffness: 420, damping: 18 };
 
   return (
     <motion.svg

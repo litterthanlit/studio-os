@@ -528,7 +528,7 @@ function sanitizeDesignTokens(value: unknown): DesignSystemTokens | null {
               Object.entries(spacing.scale).filter(
                 ([, spacingValue]) => typeof spacingValue === "string"
               )
-            )
+            ) as Record<string, string>
           : {}),
       },
     },

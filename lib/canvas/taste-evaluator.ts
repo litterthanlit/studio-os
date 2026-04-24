@@ -53,7 +53,7 @@ function summarizePageTree(pageTree: PageNode, tasteProfile?: TasteProfile): str
         id: node.id,
         type: node.type,
         paddingY: node.style?.paddingY,
-        minHeight: node.style?.minHeight,
+        minHeight: typeof node.style?.minHeight === "number" ? node.style.minHeight : undefined,
         children: node.children ?? [],
       });
     }
@@ -199,7 +199,7 @@ function summarizePageTree(pageTree: PageNode, tasteProfile?: TasteProfile): str
     }
     if (lower.includes("pill") || lower.includes("rounded")) {
       walkPageTree(pageTree, n => {
-        if (n.type === "button" && n.style?.borderRadius && n.style.borderRadius > 20) {
+        if (n.type === "button" && typeof n.style?.borderRadius === "number" && n.style.borderRadius > 20) {
           avoidLeaks.push(`AVOID VIOLATION: "${avoidItem}" but pill button found (radius ${n.style.borderRadius})`);
         }
       });

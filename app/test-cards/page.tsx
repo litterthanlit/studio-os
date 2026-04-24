@@ -21,8 +21,8 @@ export default function TestCardsPage() {
               This is the default base card. It has a white background, 1px border, and a shadow that appears on hover.
             </CardContent>
             <CardFooter>
-              <Button variant="ghost" size="sm">Cancel</Button>
-              <Button variant="primary" size="sm" className="ml-2">Action</Button>
+              <Button variant="ghost" className="px-3 py-1.5 text-xs">Cancel</Button>
+              <Button variant="primary" className="ml-2 px-3 py-1.5 text-xs">Action</Button>
             </CardFooter>
           </Card>
 
@@ -34,7 +34,7 @@ export default function TestCardsPage() {
               This is the active card. It features a 2px indigo border and a subtle inner glow. Ideal for selection states.
             </CardContent>
             <CardFooter>
-              <Button variant="primary" size="sm" className="ml-auto">Selected</Button>
+              <Button variant="primary" className="ml-auto px-3 py-1.5 text-xs">Selected</Button>
             </CardFooter>
           </Card>
         </div>

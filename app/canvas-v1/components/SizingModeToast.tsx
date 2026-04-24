@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 type SizingModeToastProps = {
   /** Which axes were converted: "width", "height", or "both" */
@@ -11,17 +11,10 @@ type SizingModeToastProps = {
 };
 
 export function SizingModeToast({ axes, onDismiss }: SizingModeToastProps) {
-  const [visible, setVisible] = useState(false);
-
   useEffect(() => {
-    if (!axes) {
-      setVisible(false);
-      return;
-    }
-    setVisible(true);
+    if (!axes) return;
     const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(onDismiss, 200); // Wait for fade-out
+      onDismiss();
     }, 3000);
     return () => clearTimeout(timer);
   }, [axes, onDismiss]);
@@ -45,7 +38,7 @@ export function SizingModeToast({ axes, onDismiss }: SizingModeToastProps) {
         padding: "6px 12px",
         zIndex: 9999,
         pointerEvents: "none",
-        opacity: visible ? 1 : 0,
+        opacity: 1,
         transition: "opacity 200ms ease",
         whiteSpace: "nowrap",
       }}

@@ -127,7 +127,6 @@ export function designStyleToCSS(style: DesignNodeStyle): CSSProperties {
     if (filter) css.filter = filter;
     if (backdropFilter) {
       css.backdropFilter = backdropFilter;
-      // @ts-expect-error webkit prefixed property for Safari compatibility
       css.WebkitBackdropFilter = backdropFilter;
     }
   } else {

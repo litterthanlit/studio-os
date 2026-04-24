@@ -289,8 +289,8 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
       <div
         className={cn(
           "canvas-artboard relative",
-          isDesktop ? "border-t-2 border-t-[#4B57DB]" : "border-t border-t-[var(--border-primary)]",
-          isSelected && "outline outline-1 outline-[#4B57DB]",
+          isDesktop ? "border-t border-t-[rgba(59,130,246,0.72)]" : "border-t border-t-[var(--border-primary)]",
+          isSelected && "outline outline-1 outline-[rgba(59,130,246,0.78)]",
           isActiveArtboard && "editing",
           // Template fallback: persistent amber border
           isTemplateFallback && !isGenerating && "outline outline-2 outline-[#F59E0B]"

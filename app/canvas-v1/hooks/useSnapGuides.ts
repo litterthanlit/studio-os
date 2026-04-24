@@ -63,7 +63,9 @@ export function useSnapGuides(opts: {
   const { tree, draggedNodeId, isDragging } = opts;
 
   const treeRef = useRef(tree);
-  treeRef.current = tree;
+  useEffect(() => {
+    treeRef.current = tree;
+  }, [tree]);
 
   const dragSessionRef = useRef<DragSession | null>(null);
   const activeGuidesRef = useRef<SnapGuide[]>([]);
@@ -85,7 +87,8 @@ export function useSnapGuides(opts: {
   useEffect(() => {
     if (!isDragging || !draggedNodeId) {
       dragSessionRef.current = null;
-      setGuides([]);
+      const clearTimer = window.setTimeout(() => setGuides([]), 0);
+      return () => window.clearTimeout(clearTimer);
     }
   }, [draggedNodeId, isDragging, setGuides]);
 

@@ -2,7 +2,7 @@
 // Validates and normalizes AI-generated DesignNode JSON.
 // Structural validation, ID deduplication, grid constraint enforcement.
 
-import type { DesignNode, DesignNodeType } from "./design-node";
+import type { DesignNode, DesignNodeStyle, EffectEntry } from "./design-node";
 
 const VALID_TYPES: Set<string> = new Set([
   "frame",
@@ -64,9 +64,9 @@ function isValidNode(node: unknown): node is Record<string, unknown> {
   return true;
 }
 
-function sanitizeEffects(rawEffects: unknown): unknown[] | undefined {
+function sanitizeEffects(rawEffects: unknown): EffectEntry[] | undefined {
   if (!Array.isArray(rawEffects)) return undefined;
-  const sanitized = rawEffects.flatMap((entry) => {
+  const sanitized: EffectEntry[] = rawEffects.flatMap((entry): EffectEntry[] => {
     if (!entry || typeof entry !== "object") return [];
     const effect = entry as Record<string, unknown>;
     const type = effect.type;

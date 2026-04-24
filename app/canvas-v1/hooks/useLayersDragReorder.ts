@@ -138,17 +138,6 @@ export function useLayersDragReorder(
       // Find the element under the pointer
       const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
       if (!elementUnder) {
-        // Check if we're in empty space below root children (root-level drop)
-        const layersPanel = (elementUnder as HTMLElement)?.closest?.('[data-layers-panel]');
-        if (layersPanel) {
-          const rootCount = getRootChildCount?.() ?? 0;
-          setDropTarget({
-            parentId: undefined,
-            index: rootCount,
-            isValidDrop: true,
-          });
-          return;
-        }
         setDropTarget(null);
         return;
       }
@@ -222,7 +211,7 @@ export function useLayersDragReorder(
           setDropTarget(null);
           return;
         }
-        const nodeType = getNodeType?.(targetNodeId);
+        const nodeType = getNodeType?.(targetNodeId) ?? null;
         dropParentId = targetNodeId;
         dropIndex = 0; // Prepend as first child
         validDrop = isValidParent(nodeType);

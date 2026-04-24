@@ -1,7 +1,7 @@
 import type { DesignSystemTokens } from "./generate-system";
 import type { SiteType } from "./templates";
 import type { TasteProfile } from "@/types/taste-profile";
-import type { DesignNode } from "./design-node";
+import type { DesignNode, DesignNodeStyle } from "./design-node";
 
 export type CanvasStage = "collect" | "compose";
 export type Breakpoint = "desktop" | "mobile";
@@ -15,6 +15,8 @@ export type PageNodeType =
   | "paragraph"
   | "button-row"
   | "button"
+  | "container"
+  | "icon"
   | "metric-row"
   | "metric-item"
   | "logo-row"
@@ -24,36 +26,22 @@ export type PageNodeType =
   | "testimonial-grid"
   | "testimonial-card"
   | "pricing-grid"
-  | "pricing-tier";
+  | "pricing-tier"
+  | DesignNode["type"];
 
-export type PageNodeStyle = {
-  background?: string;
-  foreground?: string;
-  muted?: string;
-  accent?: string;
-  borderColor?: string;
-  fontFamily?: string;
-  fontSize?: number;
-  fontWeight?: number;
-  lineHeight?: number;
-  letterSpacing?: number;
-  borderRadius?: number;
+export type PageNodeStyle = Partial<DesignNodeStyle> & {
   paddingX?: number;
   paddingY?: number;
-  gap?: number;
+  gap?: number | string;
   columns?: number;
-  maxWidth?: number;
-  minHeight?: number;
+  maxWidth?: number | string;
+  minHeight?: number | string;
   align?: "left" | "center" | "right";
   direction?: "row" | "column";
   justify?: "start" | "center" | "end" | "between";
-  opacity?: number;
-  blur?: number;
-  shadow?: "none" | "soft" | "medium";
+  shadow?: string;
   emphasized?: boolean;
   badgeTone?: "surface" | "accent" | "outline";
-  fontStyle?: "normal" | "italic";       // V3.3
-  textDecoration?: "none" | "underline"; // V3.3
 };
 
 export type PageNodeContent = {
@@ -68,6 +56,8 @@ export type PageNodeContent = {
   icon?: string;
   mediaUrl?: string;
   mediaAlt?: string;
+  src?: string;
+  alt?: string;
 };
 
 export type PageNode = {

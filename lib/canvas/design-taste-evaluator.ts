@@ -188,7 +188,7 @@ export function summarizeDesignTree(tree: DesignNode, tasteProfile?: TasteProfil
     }
     if (lower.includes("pill") || lower.includes("rounded")) {
       walkDesignTree(tree, (n) => {
-        if (n.type === "button" && n.style?.borderRadius && n.style.borderRadius > 20) {
+        if (n.type === "button" && typeof n.style?.borderRadius === "number" && n.style.borderRadius > 20) {
           avoidLeaks.push(
             `AVOID VIOLATION: "${avoidItem}" but pill button found (radius ${n.style.borderRadius})`
           );

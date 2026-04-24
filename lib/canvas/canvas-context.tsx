@@ -79,17 +79,17 @@ export function CanvasProvider({
 
   // Keep a ref to the latest state so the unmount flush can access it
   const latestStateRef = useRef(reducerState);
-  latestStateRef.current = reducerState;
-
-  // Hydration gate: true once the reducer has processed LOAD_STATE.
-  // Checked synchronously during render — no RAF timing issues.
-  const isHydrated =
-    loadedForProjectRef.current === projectId &&
-    loadedItemCountRef.current >= 0 &&
-    (loadedItemCountRef.current === 0 || reducerState.items.length > 0);
+  useEffect(() => {
+    latestStateRef.current = reducerState;
+  }, [reducerState]);
 
   // On state change (debounced 500ms): persist
   useEffect(() => {
+    const isHydrated =
+      loadedForProjectRef.current === projectId &&
+      loadedItemCountRef.current >= 0 &&
+      (loadedItemCountRef.current === 0 || reducerState.items.length > 0);
+
     if (!isHydrated) return;
 
     if (saveTimerRef.current) {
@@ -105,7 +105,7 @@ export function CanvasProvider({
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [projectId, reducerState, isHydrated]);
+  }, [projectId, reducerState]);
 
   // Flush pending save on unmount (HMR, navigation) so state is never lost
   useEffect(() => {

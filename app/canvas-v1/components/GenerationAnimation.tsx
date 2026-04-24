@@ -35,8 +35,6 @@ const DOT_COLOR = "#1A1A1A";
 const BAR_COLOR = "#1A1A1A";
 const ACCENT_BLUE = "#4B57DB";
 const MUTED_TEXT = "#A0A0A0";
-const AMBER = "#F59E0B";
-
 const CROSSFADE_MS = 300;
 const COLLAPSE_MS = 200;
 const CLEAR_MS = 50;
@@ -269,7 +267,7 @@ export function GenerationAnimation({
   const transitionStartRef = React.useRef<number>(0);
 
   // Precomputed field data (seeded once per generation)
-  const seedRef = React.useRef(Date.now());
+  const seedRef = React.useRef(1);
   const dotFieldRef = React.useRef<DotFieldData | null>(null);
   const barFieldRef = React.useRef<BarFieldData | null>(null);
   const waveBandRef = React.useRef<WaveBandData | null>(null);

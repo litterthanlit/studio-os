@@ -896,7 +896,7 @@ function renderNode(
   switch (node.type) {
     case "page": {
       const pageChildren = node.children ?? [];
-      const pageGap = style.gap ?? 18;
+      const pageGap = typeof style.gap === "number" ? style.gap : 18;
       const barOffset = pageGap > 0 ? -pageGap : 0;
       const pageContent: React.ReactNode[] = [];
       const handleInsertSection = context.onOpenSectionLibrary;

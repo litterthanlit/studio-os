@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+import fs from "node:fs";
+import path from "node:path";
 
-const dir = './components/marketing-gemini-v3';
+const dir = "./components/marketing-gemini-v3";
 
 function processFile(filePath) {
   let content = fs.readFileSync(filePath, 'utf8');

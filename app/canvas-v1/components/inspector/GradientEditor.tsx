@@ -19,7 +19,7 @@ export function GradientEditor({ value, onChange }: GradientEditorProps) {
 
   // Per-stop popover open state and anchor refs
   const [openStopIndex, setOpenStopIndex] = React.useState<number | null>(null);
-  const swatchRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const [colorAnchorEl, setColorAnchorEl] = React.useState<HTMLButtonElement | null>(null);
 
   const updateField = <K extends keyof GradientValue>(
     key: K,
@@ -124,19 +124,25 @@ export function GradientEditor({ value, onChange }: GradientEditorProps) {
           <div key={i} className="flex items-center gap-1.5">
             {/* Color swatch button — opens ColorPickerPopover */}
             <button
-              ref={(el) => { swatchRefs.current[i] = el; }}
               type="button"
               className="h-5 w-5 rounded-[2px] border border-[#E5E5E0] flex-shrink-0"
               style={{ backgroundColor: stop.color }}
-              onClick={() => setOpenStopIndex(openStopIndex === i ? null : i)}
+              onClick={(event) => {
+                const nextIndex = openStopIndex === i ? null : i;
+                setOpenStopIndex(nextIndex);
+                setColorAnchorEl(nextIndex === null ? null : event.currentTarget);
+              }}
               aria-label={`Pick color for stop ${i + 1}`}
             />
             <ColorPickerPopover
               open={openStopIndex === i}
               value={stop.color}
-              anchorEl={swatchRefs.current[i] ?? null}
+              anchorEl={openStopIndex === i ? colorAnchorEl : null}
               onSelect={(color) => updateStop(i, { color })}
-              onClose={() => setOpenStopIndex(null)}
+              onClose={() => {
+                setOpenStopIndex(null);
+                setColorAnchorEl(null);
+              }}
             />
             <input
               type="number"

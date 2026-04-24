@@ -19,6 +19,7 @@
 import * as React from "react";
 import { useCallback, useRef } from "react";
 import type { DesignNode, DesignNodeStyle } from "@/lib/canvas/design-node";
+import { CANVAS_SEL_HANDLE_HOVER, CANVAS_SEL_HANDLE_STROKE } from "@/app/canvas-v1/canvas-selection-tokens";
 
 // ── Handle Types ─────────────────────────────────────────────────────
 
@@ -458,8 +459,8 @@ export function DesignNodeResizeHandles({
     return null;
   }
 
-  const borderColor = isTextNode ? "rgba(75, 87, 219, 0.45)" : "#4B57DB";
-  const hoverBg = isTextNode ? "rgba(75, 87, 219, 0.85)" : "#4B57DB";
+  const borderColor = CANVAS_SEL_HANDLE_STROKE;
+  const hoverBg = CANVAS_SEL_HANDLE_HOVER;
 
   return (
     <>
@@ -470,7 +471,7 @@ export function DesignNodeResizeHandles({
             position: "absolute",
             width: handleSize,
             height: handleSize,
-            borderRadius: 1,
+            borderRadius: 9999,
             border: `1px solid ${borderColor}`,
             backgroundColor: "white",
             cursor,
@@ -482,7 +483,7 @@ export function DesignNodeResizeHandles({
           onMouseEnter={(e) => {
             const el = e.currentTarget as HTMLElement;
             el.style.backgroundColor = hoverBg;
-            el.style.transform = isTextNode ? "scale(1.15)" : "scale(1.25)";
+            el.style.transform = isTextNode ? "scale(1.08)" : "scale(1.12)";
           }}
           onMouseLeave={(e) => {
             const el = e.currentTarget as HTMLElement;

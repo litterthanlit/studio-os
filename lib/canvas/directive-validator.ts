@@ -261,7 +261,7 @@ export function validateDirectiveCompliance(
     walkPageTree(pageTree, (n) => {
       if (n.style?.borderRadius !== undefined && n.type !== "page") {
         const r = n.style.borderRadius;
-        if (r < minR || r > maxR) {
+        if (typeof r === "number" && (r < minR || r > maxR)) {
           violations.push({
             directive: cornerDirective,
             found: r,
@@ -303,7 +303,7 @@ export function validateDirectiveCompliance(
       walkPageTree(pageTree, (n) => {
         if (
           n.type === "button" &&
-          n.style?.borderRadius !== undefined &&
+          typeof n.style?.borderRadius === "number" &&
           n.style.borderRadius > 20
         ) {
           violations.push({
@@ -387,11 +387,11 @@ export function validateDirectiveCompliance(
         if (n.type === "section" && n.children) {
           const numberHeadings: string[] = [];
           walkPageTree(n, (child) => {
-            if (child.type === "heading" && child.text) {
+            if (child.type === "heading" && child.content?.text) {
               // Check if text is primarily a number (e.g., "48,000+", "200+", "12")
-              const cleaned = child.text.replace(/[,+%$]/g, "").trim();
+              const cleaned = child.content.text.replace(/[,+%$]/g, "").trim();
               if (/^\d+$/.test(cleaned)) {
-                numberHeadings.push(child.text);
+                numberHeadings.push(child.content.text);
               }
             }
           });

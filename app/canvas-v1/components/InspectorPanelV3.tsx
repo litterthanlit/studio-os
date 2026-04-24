@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * V3 Inspector Panel — tabbed right rail (Design | CSS | Export).
+ * V3 Inspector Panel — tabbed right rail (Design | Prompt | CSS | Export).
  *
- * Prompt composition lives in FloatingPromptPanel (Prompt tool), not in this rail.
  * Layout chain: panel (flex column in editor row: Layers | Inspector | Canvas) -> header -> tabs
  * -> content (flex-1 min-h-0 overflow).
  */
@@ -591,6 +590,10 @@ function NodeInspector({
     });
   }
 
+  function updatePadding(side: "top" | "right" | "bottom" | "left", value: number | undefined) {
+    updateStyle("padding", { ...(style.padding ?? {}), [side]: value });
+  }
+
   const textPreview = (content.text || "").trim();
   const truncatedPreview =
     textPreview.length > 96 ? `${textPreview.slice(0, 96)}...` : textPreview || "Empty text";
@@ -908,6 +911,7 @@ function NodeInspector({
               nodeId={node.id}
               nodeType={node.type}
               style={style}
+              onPaddingChange={updatePadding}
               onHistorySchedule={history.schedule}
               onHistoryFlush={history.flush}
             />
@@ -1124,7 +1128,7 @@ function relativeTime(iso: string): string {
 }
 
 function getSuggestionChips(
-  selectedNode: PageNode | null,
+  selectedNode: PageNode | DesignNode | null,
   hasArtboards: boolean
 ): string[] {
   if (!selectedNode) {
@@ -1136,7 +1140,7 @@ function getSuggestionChips(
     case "heading":
       return ["Make it shorter", "More professional tone", "Add a number or stat"];
     case "paragraph":
-      if (selectedNode.name.toLowerCase().includes("kicker"))
+      if ((selectedNode.name ?? "").toLowerCase().includes("kicker"))
         return ["Make it punchier", "Add urgency", "Use action words"];
       return ["Simplify this", "Make it more persuasive", "Add a call to action"];
     case "button":
@@ -1169,7 +1173,7 @@ function PromptComposer({
   retryRef,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  selectedNode: PageNode | null;
+  selectedNode: PageNode | DesignNode | null;
   projectId?: string;
   varySignal?: number;
   retryRef?: React.MutableRefObject<(() => void) | null>;
@@ -1195,7 +1199,7 @@ function PromptComposer({
     () => {
       if (!projectId) return "balanced";
       const ps = getProjectState(projectId);
-      return (ps.canvas as any)?.fidelityMode ?? "balanced";
+      return ps.canvas?.fidelityMode ?? "balanced";
     }
   );
 
@@ -1204,7 +1208,7 @@ function PromptComposer({
     (mode: FidelityMode) => {
       setFidelityMode(mode);
       if (projectId) {
-        upsertProjectState(projectId, { canvas: { fidelityMode: mode } as any });
+        upsertProjectState(projectId, { canvas: { fidelityMode: mode } });
       }
     },
     [projectId]
@@ -1786,6 +1790,8 @@ type InspectorPanelV3Props = {
   promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   panelRef?: React.RefObject<InspectorPanelV3Handle | null>;
   onOpenGenerate?: () => void;
+  activeTool?: string;
+  onInspectorTabChange?: (tab: InspectorTabId) => void;
 };
 
 export function InspectorPanelV3({
@@ -1793,6 +1799,8 @@ export function InspectorPanelV3({
   promptTextareaRef,
   panelRef: externalPanelRef,
   onOpenGenerate,
+  activeTool,
+  onInspectorTabChange,
 }: InspectorPanelV3Props) {
   const { state, dispatch } = useCanvas();
   const { selection, items, prompt } = state;
@@ -1804,6 +1812,17 @@ export function InspectorPanelV3({
 
   // ── Tab state ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = React.useState<InspectorTabId>("design");
+  const handleTabChange = React.useCallback(
+    (tab: InspectorTabId) => {
+      setActiveTab(tab);
+      onInspectorTabChange?.(tab);
+    },
+    [onInspectorTabChange]
+  );
+
+  React.useEffect(() => {
+    if (activeTool === "prompt") setActiveTab("prompt");
+  }, [activeTool]);
 
   // Ref for PromptComposer's generate function — set by PromptComposer, read by imperative handle
   const retryRef = React.useRef<(() => void) | null>(null);
@@ -1902,8 +1921,6 @@ export function InspectorPanelV3({
     }
     return [];
   }, [activeArtboard, isV6Tree, selection.selectedNodeIds, selection.selectedNodeId, singleSelected]);
-
-  const isNodeInspector = Boolean((selectedNode || selectedDesignNode) && activeArtboard);
 
   // ── Breakpoint badge + resolved style for CSS tab ──────────────────
   const artboardBreakpoint = activeArtboard?.breakpoint ?? "desktop";
@@ -2015,7 +2032,7 @@ export function InspectorPanelV3({
             type="button"
             variant="primary"
             className="h-auto px-2.5 py-1 text-[11px]"
-            onClick={() => setActiveTab("export")}
+            onClick={() => handleTabChange("export")}
           >
             Export
           </StudioButton>
@@ -2023,7 +2040,7 @@ export function InspectorPanelV3({
       </div>
 
       {/* Tabs — shrink-0, never participates in flex distribution */}
-      <InspectorTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <InspectorTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Breakpoint badge (below tabs, non-desktop only) — shrink-0 */}
       {showBreakpointBadge && activeArtboard && (
@@ -2053,8 +2070,16 @@ export function InspectorPanelV3({
               )}
             </AnimatePresence>
 
-            <div className={isNodeInspector ? undefined : "p-4"}>{inspectorContent}</div>
+            <div className="p-4">{inspectorContent}</div>
           </>
+        ) : activeTab === "prompt" ? (
+          <PromptComposer
+            textareaRef={textareaRef}
+            selectedNode={selectedNode ?? selectedDesignNode}
+            projectId={projectId}
+            varySignal={varySignal}
+            retryRef={retryRef}
+          />
         ) : activeTab === "export" ? (
           <ExportTab
             artboard={activeArtboard}

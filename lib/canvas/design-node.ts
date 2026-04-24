@@ -176,7 +176,7 @@ export type DesignNodeStyle = {
   /** Uniform gap (px) or split `"rowGap colGap"` for independent axes. */
   gap?: number | string;
   flexWrap?: "wrap" | "nowrap";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
+  alignItems?: "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between";
   gridTemplate?: string;   // MVP: "repeat(N, 1fr)", "2fr 1fr", "1fr 2fr", "1fr 1fr 1fr" only
   gridTemplateRows?: string;
@@ -184,6 +184,15 @@ export type DesignNodeStyle = {
   flexShrink?: number;
   /** CSS `aspect-ratio`: number (e.g. 1.77) or ratio string (e.g. `"16/9"`). */
   aspectRatio?: number | string;
+  /** Transitional PageNode compatibility while legacy inspectors are retired. */
+  direction?: "row" | "column";
+  align?: "left" | "center" | "right";
+  justify?: "start" | "center" | "end" | "between";
+  columns?: number;
+  paddingX?: number;
+  paddingY?: number;
+  emphasized?: boolean;
+  badgeTone?: "surface" | "accent" | "outline";
 
   // ── Spacing ──
   padding?: { top?: number; right?: number; bottom?: number; left?: number };

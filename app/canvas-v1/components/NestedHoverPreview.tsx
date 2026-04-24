@@ -45,7 +45,7 @@ export function NestedHoverPreview({
   scrollY,
   artboardX,
   artboardY,
-}: NestedHoverPreviewProps): JSX.Element | null {
+}: NestedHoverPreviewProps): React.ReactPortal | null {
   // Early exit if no target
   if (!targetNode) {
     return null;
@@ -82,8 +82,8 @@ export function NestedHoverPreview({
           top: screenY,
           width: screenWidth,
           height: screenHeight,
-          border: "1.5px dashed #4B57DB",
-          backgroundColor: "rgba(75, 87, 219, 0.05)",
+          border: "1px dashed rgba(59, 130, 246, 0.4)",
+          backgroundColor: "rgba(191, 219, 254, 0.06)",
           zIndex: 40,
           borderRadius: 2,
         }}

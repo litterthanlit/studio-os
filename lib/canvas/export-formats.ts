@@ -1171,7 +1171,7 @@ function classForColor(prefix: string, value?: string) {
   return value ? `${prefix}-[${sanitizeArbitrary(value)}]` : "";
 }
 
-function classForSize(prefix: string, value?: number) {
+function classForSize(prefix: string, value?: number | string) {
   return typeof value === "number" ? `${prefix}-[${value}px]` : "";
 }
 

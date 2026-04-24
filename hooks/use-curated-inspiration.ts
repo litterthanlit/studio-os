@@ -80,7 +80,7 @@ export function useCuratedInspiration(options: UseCuratedInspirationOptions = {}
       }
 
       const data = await res.json();
-      const likedIds = new Set(data.likes?.map((like: { image_id: string }) => like.image_id) || []);
+      const likedIds = new Set<string>(data.likes?.map((like: { image_id: string }) => like.image_id) || []);
       setLikedImageIds(likedIds);
     } catch (err) {
       console.error("[useCuratedInspiration] Likes fetch error:", err);

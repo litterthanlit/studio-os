@@ -3,7 +3,7 @@
 // Runs on app boot, version-gated to execute exactly once.
 
 import type { DesignNode } from "./design-node";
-import { isDesignNodeTree } from "./compose";
+import { isDesignNodeTree, type PageNode } from "./compose";
 
 const MIGRATION_KEY = "studio-os:migration-v2-hug";
 const CANVAS_V3_PREFIX = "studio-os:canvas-v3:";
@@ -120,7 +120,7 @@ export function runAutoToHugMigration(): void {
 
       for (const ab of artboards) {
         const artboard = ab as Record<string, unknown>;
-        if (artboard.pageTree && isDesignNodeTree(artboard.pageTree as any)) {
+        if (artboard.pageTree && isDesignNodeTree(artboard.pageTree as DesignNode | PageNode)) {
           if (migrateNodeAutoToHug(artboard.pageTree as DesignNode)) {
             changed = true;
             totalMigrated++;

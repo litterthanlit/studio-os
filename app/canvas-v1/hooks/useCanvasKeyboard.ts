@@ -16,7 +16,7 @@ import {
   findParentNode,
   type PageNodeStyle,
 } from "@/lib/canvas/compose";
-import { findDesignNodeById, findDesignNodeParent, cloneDesignNode, type DesignNode } from "@/lib/canvas/design-node";
+import { findDesignNodeById, findDesignNodeParent, cloneDesignNode, type DesignNode, type DesignNodeStyle } from "@/lib/canvas/design-node";
 import {
   serializeDesignNodesForClipboard,
   setMemoryDesignClip,
@@ -695,7 +695,7 @@ export function useCanvasKeyboard({
         e.preventDefault();
         const activeItem = getActiveItem();
         const prevSibTree = activeItem ? getNodeTree(activeItem) : null;
-        if (state.selection.selectedNodeId && prevSibTree) {
+        if (activeItem && state.selection.selectedNodeId && prevSibTree) {
           const parent = getParent(
             { id: state.selection.selectedNodeId } as DesignNode,
             prevSibTree
@@ -719,7 +719,7 @@ export function useCanvasKeyboard({
         e.preventDefault();
         const activeItem = getActiveItem();
         const nextSibTree = activeItem ? getNodeTree(activeItem) : null;
-        if (state.selection.selectedNodeId && nextSibTree) {
+        if (activeItem && state.selection.selectedNodeId && nextSibTree) {
           const parent = getParent(
             { id: state.selection.selectedNodeId } as DesignNode,
             nextSibTree
@@ -743,10 +743,10 @@ export function useCanvasKeyboard({
         e.preventDefault();
         const activeItem = getActiveItem();
         const jumpRootTree = activeItem ? getNodeTree(activeItem) : null;
-        if (jumpRootTree) {
+        if (activeItem && jumpRootTree) {
           dispatch({
             type: "SELECT_NODE",
-            itemId: activeItem!.id,
+            itemId: activeItem.id,
             nodeId: jumpRootTree.id,
           });
         }
@@ -758,7 +758,7 @@ export function useCanvasKeyboard({
         e.preventDefault();
         const activeItem = getActiveItem();
         const enterFrameTree = activeItem ? getNodeTree(activeItem) : null;
-        if (state.selection.selectedNodeId && enterFrameTree) {
+        if (activeItem && state.selection.selectedNodeId && enterFrameTree) {
           const rootNode = enterFrameTree;
           const node = findDesignNodeByIdFromNested(rootNode, state.selection.selectedNodeId);
           if (node?.children && node.children.length > 0) {
@@ -776,7 +776,7 @@ export function useCanvasKeyboard({
       if (isMeta && (e.key.startsWith("Arrow") || ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))) {
         const activeItem = getActiveItem();
         const arrowNavTree = activeItem ? getNodeTree(activeItem) : null;
-        if (!state.selection.selectedNodeId || !arrowNavTree) {
+        if (!activeItem || !state.selection.selectedNodeId || !arrowNavTree) {
           return;
         }
 
@@ -857,7 +857,7 @@ export function useCanvasKeyboard({
       if (isMeta && (e.key === "b" || e.key === "B" || e.key === "i" || e.key === "I" || e.key === "u" || e.key === "U")) {
         const activeItem = getActiveItem();
         const formatTree = activeItem ? getNodeTree(activeItem) : null;
-        if (state.selection.selectedNodeId && formatTree) {
+        if (activeItem && state.selection.selectedNodeId && formatTree) {
           const node = findDesignNodeById(
             formatTree,
             state.selection.selectedNodeId
@@ -875,7 +875,7 @@ export function useCanvasKeyboard({
                 type: "UPDATE_NODE_STYLE",
                 itemId: activeItem.id,
                 nodeId: node.id,
-                style: { fontWeight: newWeight } as Record<string, unknown>,
+                style: { fontWeight: newWeight } satisfies Partial<DesignNodeStyle>,
               });
             } else if (e.key === "i" || e.key === "I") {
               // Toggle italic: normal ↔ italic
@@ -886,7 +886,7 @@ export function useCanvasKeyboard({
                 type: "UPDATE_NODE_STYLE",
                 itemId: activeItem.id,
                 nodeId: node.id,
-                style: { fontStyle: newStyle } as Record<string, unknown>,
+                style: { fontStyle: newStyle } satisfies Partial<DesignNodeStyle>,
               });
             } else if (e.key === "u" || e.key === "U") {
               // Toggle underline: none ↔ underline
@@ -897,7 +897,7 @@ export function useCanvasKeyboard({
                 type: "UPDATE_NODE_STYLE",
                 itemId: activeItem.id,
                 nodeId: node.id,
-                style: { textDecoration: newDecoration } as Record<string, unknown>,
+                style: { textDecoration: newDecoration } satisfies Partial<DesignNodeStyle>,
               });
             }
           }

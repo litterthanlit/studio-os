@@ -93,7 +93,9 @@ export function compileTasteToDirectives(
 
   // ── Color ──────────────────────────────────────────────────────────
   const colors = taste.colorBehavior.suggestedColors;
-  const paletteHexes = [colors.background, colors.surface, colors.text, colors.accent, colors.secondary].filter(Boolean);
+  const paletteHexes = [colors.background, colors.surface, colors.text, colors.accent, colors.secondary].filter(
+    (color): color is string => Boolean(color)
+  );
   if (paletteHexes.length > 0) {
     allDirectives.push({
       _dimKey: "palette",

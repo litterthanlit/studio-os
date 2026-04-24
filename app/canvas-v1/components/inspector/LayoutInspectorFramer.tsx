@@ -47,7 +47,7 @@ const JUSTIFY_OPTIONS: { value: NonNullable<DesignNodeStyle["justifyContent"]>; 
 
 const ALIGN_OPTIONS: {
   value: NonNullable<DesignNodeStyle["alignItems"]>;
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: string;
 }[] = [
   { value: "flex-start", Icon: AlignStartVertical, title: "Start" },
@@ -143,7 +143,7 @@ export function LayoutInspectorFramer({
         >
           <div
             className={cn(
-              "flex rounded-[2px] bg-[#F5F5F0] dark:bg-[#2A2A2A] p-[2px] gap-[1px] h-[22px] w-full"
+              "flex rounded-lg bg-[#EBEBE8] dark:bg-[#2A2A2A] p-1 gap-0.5 h-8 min-h-[32px] w-full shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none"
             )}
             role="group"
             aria-label="Align items"
@@ -156,10 +156,10 @@ export function LayoutInspectorFramer({
                   type="button"
                   title={title}
                   className={cn(
-                    "flex-1 flex items-center justify-center rounded-[2px] transition-all duration-100",
+                    "flex-1 flex items-center justify-center rounded-md transition-all duration-100",
                     active
-                      ? "bg-white text-[#4B57DB] shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-[#333333] dark:text-[#7B8CFF]"
-                      : "text-[#A0A0A0] hover:text-[#6B6B6B] dark:text-[#666666] dark:hover:text-[#D0D0D0]"
+                      ? "bg-white text-[#4B57DB] shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:bg-[#333333] dark:text-[#7B8CFF]"
+                      : "text-[#8A8A8A] hover:text-[#5C5C5C] dark:text-[#666666] dark:hover:text-[#D0D0D0]"
                   )}
                   onClick={() => applyImmediate({ alignItems: value }, "Changed align")}
                 >

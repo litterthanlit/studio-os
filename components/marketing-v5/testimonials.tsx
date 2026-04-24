@@ -12,7 +12,7 @@ export function Testimonials() {
         {/* Testimonial 1 */}
         <div className="bg-[#D1E4FC] rounded-[8px] p-6 lg:p-8 flex flex-col justify-between h-[200px]">
           <p className="font-sans text-[#0C0C14] text-lg lg:text-xl font-medium leading-snug">
-            "A fundamental shift in my workflow."
+            &ldquo;A fundamental shift in my workflow.&rdquo;
           </p>
           <span className="font-sans text-[#0C0C14]/60 text-sm mt-4">
             Architectural Lead
@@ -22,7 +22,7 @@ export function Testimonials() {
         {/* Testimonial 2 */}
         <div className="bg-[#D1E4FC] rounded-[8px] p-6 lg:p-8 flex flex-col justify-between h-[200px]">
           <p className="font-sans text-[#0C0C14] text-lg lg:text-xl font-medium leading-snug">
-            "This approach has been richly framed."
+            &ldquo;This approach has been richly framed.&rdquo;
           </p>
           <span className="font-sans text-[#0C0C14]/60 text-sm mt-4">
             Geist Sans
@@ -32,7 +32,7 @@ export function Testimonials() {
         {/* Testimonial 3 */}
         <div className="bg-[#D1E4FC] rounded-[8px] p-6 lg:p-8 flex flex-col justify-between h-[200px]">
           <p className="font-sans text-[#0C0C14] text-lg lg:text-xl font-medium leading-snug">
-            "I'm wowed by the design and build."
+            &ldquo;I&rsquo;m wowed by the design and build.&rdquo;
           </p>
           <span className="font-sans text-[#0C0C14]/60 text-sm mt-4">
             Reception Park

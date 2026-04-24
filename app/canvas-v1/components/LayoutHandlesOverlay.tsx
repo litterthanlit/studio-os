@@ -80,6 +80,8 @@ export function LayoutHandlesOverlay({
   });
   
   const selectedNode = selectedNodeId ? findDesignNodeById(tree, selectedNodeId) : null;
+  const selectedGap =
+    typeof selectedNode?.style.gap === "number" ? selectedNode.style.gap : 0;
   const isLayoutContainer = selectedNode && 
     (selectedNode.style.display === "flex" || selectedNode.style.display === "grid") &&
     (selectedNode.children && selectedNode.children.length > 1);
@@ -111,7 +113,7 @@ export function LayoutHandlesOverlay({
       const treeChildren = selectedNode.children ?? [];
       const finalChildren: HTMLElement[] = [];
       for (const child of treeChildren) {
-        const el = parentEl.querySelector<HTMLElement>(
+        const el: HTMLElement | null = parentEl.querySelector<HTMLElement>(
           `[data-node-id="${child.id}"]`
         );
         if (el && el !== parentEl) finalChildren.push(el);
@@ -221,7 +223,7 @@ export function LayoutHandlesOverlay({
     const gapRect = gapRects[gapIndex];
     if (!gapRect || !selectedNode) return;
     
-    const startValue = selectedNode.style.gap ?? 0;
+    const startValue = typeof selectedNode.style.gap === "number" ? selectedNode.style.gap : 0;
     
     setDragState({
       isDragging: true,
@@ -447,7 +449,7 @@ export function LayoutHandlesOverlay({
           <GapHandle
             key={`gap-${index}`}
             gapRect={gapRect}
-            currentValue={selectedNode!.style.gap ?? 0}
+            currentValue={selectedGap}
             direction={direction}
             zoom={zoom}
             isHovered={hoveredGapIndex === index}

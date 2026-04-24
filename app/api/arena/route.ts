@@ -50,7 +50,7 @@ export async function GET() {
       : data.channels ?? data.contents ?? [];
 
     const withThumbnails = await Promise.all(
-      channels.map(async (ch: { slug?: string; id?: number; [k: string]: unknown }) => {
+      channels.map(async (ch): Promise<ArenaChannel> => {
         const slug = ch.slug ?? ch.title;
         if (!slug) return { ...ch, thumb: null };
         try {

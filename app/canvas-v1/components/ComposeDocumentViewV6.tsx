@@ -16,7 +16,6 @@ import { ENTER_TEXT_EDIT_MODE_EVENT } from "@/app/canvas-v1/hooks/useCanvasKeybo
 import { DesignNodeResizeHandles } from "./DesignNodeResizeHandles";
 import { SizingModeToast } from "./SizingModeToast";
 import { SnapGuideLines } from "./SnapGuideLines";
-import { LayoutHandlesOverlay } from "./LayoutHandlesOverlay";
 import { Plus } from "lucide-react";
 import { ComponentQuickPicker } from "./ComponentQuickPicker";
 import { useRubberBandSelection } from "@/app/canvas-v1/hooks/useRubberBandSelection";
@@ -26,6 +25,20 @@ import { resolveInsertTargetForRawTree } from "@/lib/canvas/design-canvas-hit";
 import { useCanvasReparentAltDrag } from "@/app/canvas-v1/hooks/useCanvasReparentAltDrag";
 import { useNestedSelection } from "../hooks/useNestedSelection";
 import { NestedHoverPreview } from "./NestedHoverPreview";
+import {
+  CANVAS_SEL_CARET,
+  CANVAS_SEL_DRAG_DIM,
+  CANVAS_SEL_FILL_SOFT,
+  CANVAS_SEL_LABEL,
+  CANVAS_SEL_LIVE,
+  CANVAS_SEL_MARQUEE_BORDER,
+  CANVAS_SEL_MARQUEE_FILL,
+  CANVAS_SEL_PRIMARY,
+  CANVAS_SEL_SECONDARY,
+  CANVAS_SEL_TEXT_LIVE,
+  CANVAS_SEL_TEXT_PRIMARY,
+  CANVAS_SEL_TEXT_SECONDARY,
+} from "@/app/canvas-v1/canvas-selection-tokens";
 
 // ── Blank section factory for insertion ────────────────────────────────────
 let _insertCounter = 0;
@@ -58,6 +71,7 @@ function V6InsertionBar({
 }) {
   const [hovered, setHovered] = React.useState(false);
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [pickerAnchorRect, setPickerAnchorRect] = React.useState<DOMRect | null>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
 
   return (
@@ -76,18 +90,25 @@ function V6InsertionBar({
       <button
         ref={buttonRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-        className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white transition-all duration-100 ${hovered ? "border border-[#4B57DB] text-[#4B57DB]" : "border border-[#E5E5E0] text-[#A0A0A0] hover:border-[#D1E4FC] hover:text-[#4B57DB]"}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setPickerAnchorRect(e.currentTarget.getBoundingClientRect());
+          setPickerOpen(true);
+        }}
+        className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white transition-all duration-100 ${hovered ? "border border-[rgb(59,130,250)] text-[rgb(59,130,250)]" : "border border-[#E5E5E0] text-[#A0A0A0] hover:border-[#BFDBFE] hover:text-[rgb(59,130,250)]"}`}
         style={{ opacity: hovered || pickerOpen ? 1 : 0, transform: hovered || pickerOpen ? "scale(1)" : "scale(0.8)" }}
       >
         <Plus size={12} />
       </button>
-      {pickerOpen && buttonRef.current && (
+      {pickerOpen && pickerAnchorRect && (
         <ComponentQuickPicker
-          anchorRect={buttonRef.current.getBoundingClientRect()}
+          anchorRect={pickerAnchorRect}
           onInsert={(node) => { onInsert(node); setPickerOpen(false); }}
           onBrowseAll={() => { onOpenGallery?.(); setPickerOpen(false); }}
-          onDismiss={() => setPickerOpen(false)}
+          onDismiss={() => {
+            setPickerOpen(false);
+            setPickerAnchorRect(null);
+          }}
         />
       )}
     </div>
@@ -136,8 +157,23 @@ type ComposeDocumentViewV6Props = {
   onOpenGallery?: () => void;
 };
 
-/** Matches ADD_TEXT default in canvas-reducer — Esc deletes layer if still this placeholder. */
-const DEFAULT_NEW_TEXT_PLACEHOLDER = "Type something";
+/** Legacy ADD_TEXT placeholder — Esc still discards if unchanged from this string. */
+const LEGACY_TEXT_PLACEHOLDER = "Type something";
+
+function textEditableSurfaceStyle(node: DesignNode, isEditing: boolean): React.CSSProperties {
+  const fontSizePx = typeof node.style.fontSize === "number" ? node.style.fontSize : 16;
+  const lh = node.style.lineHeight;
+  const lineHeightMult =
+    typeof lh === "number" && lh > 0 && lh < 8 ? lh : 1.4;
+  return {
+    minHeight: fontSizePx * lineHeightMult,
+    minWidth: "0.6ch",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    outline: "none",
+    ...(isEditing ? { caretColor: CANVAS_SEL_CARET } : {}),
+  };
+}
 
 type InlineTextEditEventDetail = {
   itemId: string;
@@ -226,18 +262,18 @@ function selectionOutlineStyle(
   const text = variant === "text";
   if (level === "primary") {
     return text
-      ? { outline: "1px solid rgba(75, 87, 219, 0.55)", outlineOffset: 3 }
-      : { outline: "1.5px solid #4B57DB", outlineOffset: -1.5 };
+      ? { outline: `1px solid ${CANVAS_SEL_TEXT_PRIMARY}`, outlineOffset: 3 }
+      : { outline: `1px solid ${CANVAS_SEL_PRIMARY}`, outlineOffset: -1 };
   }
   if (level === "secondary") {
     return text
-      ? { outline: "1px solid rgba(75, 87, 219, 0.38)", outlineOffset: 3 }
-      : { outline: "1.5px solid rgba(75, 87, 219, 0.45)", outlineOffset: -1.5 };
+      ? { outline: `1px solid ${CANVAS_SEL_TEXT_SECONDARY}`, outlineOffset: 3 }
+      : { outline: `1px solid ${CANVAS_SEL_SECONDARY}`, outlineOffset: -1 };
   }
   if (isLiveHit) {
     return text
-      ? { outline: "1px solid rgba(75, 87, 219, 0.22)", outlineOffset: 3 }
-      : { outline: "1.5px solid rgba(75, 87, 219, 0.3)", outlineOffset: -1.5 };
+      ? { outline: `1px solid ${CANVAS_SEL_TEXT_LIVE}`, outlineOffset: 3 }
+      : { outline: `1px solid ${CANVAS_SEL_LIVE}`, outlineOffset: -1 };
   }
   return {};
 }
@@ -253,6 +289,16 @@ function getSelectionLevel(
   return "none";
 }
 
+/** One consistent title-style label (avoids "FRAME" vs "Frame" from name vs type). */
+function formatDesignNodeLabel(node: DesignNode): string {
+  const raw = (node.name || "").trim();
+  if (raw) {
+    return raw.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  }
+  const t = node.type;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 // ── Text Content Renderer ──────────────────────────────────────────
 
 function TextContent({ node, isEditing, isSelected = false, dragProtected = false, onStartEdit, onCommitEdit, onDiscardEdit }: {
@@ -262,7 +308,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
   dragProtected?: boolean;
   onStartEdit: () => void;
   onCommitEdit: (newText: string) => void;
-  /** When Esc and text is still the default placeholder — parent removes the layer/node. */
+  /** When Esc or blur with no typed text — parent removes the layer/node. */
   onDiscardEdit?: () => void;
 }) {
   const textRef = React.useRef<HTMLDivElement>(null);
@@ -281,7 +327,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
     originalTextRef.current = el.textContent || "";
     el.contentEditable = "true";
     el.setAttribute("data-v6-text-editing", "true");
-    el.style.caretColor = "#4B57DB";
+    el.style.caretColor = CANVAS_SEL_CARET;
     el.style.outline = "none";
     el.focus();
 
@@ -301,20 +347,45 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
       onCommitEdit(newText);
     };
 
-    const handleBlur = () => commit();
+    const shouldDiscardEmptyNewText = () => {
+      const origTrim = (originalTextRef.current || "").trim();
+      const newTrim = (el.textContent || "").trim();
+      const startedEmpty =
+        origTrim === "" || origTrim === LEGACY_TEXT_PLACEHOLDER;
+      return Boolean(onDiscardEdit) && startedEmpty && newTrim === "";
+    };
+
+    const handleBlur = () => {
+      if (discardedRef.current) return;
+      if (shouldDiscardEmptyNewText() && onDiscardEdit) {
+        discardedRef.current = true;
+        el.contentEditable = "false";
+        el.removeAttribute("data-v6-text-editing");
+        el.removeEventListener("keydown", handleKeyDown);
+        el.removeEventListener("blur", handleBlur);
+        onDiscardEdit();
+        return;
+      }
+      commit();
+    };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
+        if (shouldDiscardEmptyNewText() && onDiscardEdit) {
+          discardedRef.current = true;
+          el.contentEditable = "false";
+          el.removeAttribute("data-v6-text-editing");
+          el.removeEventListener("keydown", handleKeyDown);
+          el.removeEventListener("blur", handleBlur);
+          onDiscardEdit();
+          return;
+        }
         commit();
       }
       if (e.key === "Escape") {
         e.preventDefault();
-        const origTrim = (originalTextRef.current || "").trim();
-        const canDiscard =
-          Boolean(onDiscardEdit) &&
-          (origTrim === "" || origTrim === DEFAULT_NEW_TEXT_PLACEHOLDER);
-        if (canDiscard && onDiscardEdit) {
+        if (shouldDiscardEmptyNewText() && onDiscardEdit) {
           discardedRef.current = true;
           el.contentEditable = "false";
           el.removeAttribute("data-v6-text-editing");
@@ -390,8 +461,9 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
 
   if (!content) return null;
 
-  // For text nodes with only content.text, render a single editable div
-  const hasOnlyText = content.text && !content.kicker && !content.subtext;
+  // Single text field (incl. empty string) — do not use `content.text &&` or "" skips this branch
+  const hasOnlyText =
+    typeof content.text === "string" && !content.kicker && !content.subtext;
 
   const selectionColorStyles = `
     <style>
@@ -445,6 +517,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
         <div
           ref={textRef}
           data-text-edit-target="true"
+          style={textEditableSurfaceStyle(node, isEditing)}
           onPointerDownCapture={
             dragProtected
               ? (e) => {
@@ -514,7 +587,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
           {content.kicker}
         </span>
       )}
-      {content.text && (
+      {typeof content.text === "string" && (
         <div
           ref={textRef}
           data-text-edit-target="true"
@@ -533,7 +606,7 @@ function TextContent({ node, isEditing, isSelected = false, dragProtected = fals
             onStartEdit();
           }}
           suppressContentEditableWarning
-          style={{ display: "block" }}
+          style={{ display: "block", ...textEditableSurfaceStyle(node, isEditing) }}
         >
           {content.text}
         </div>
@@ -1016,7 +1089,7 @@ function ResizeOverlay({
         width: nodeRect.width,
         height: nodeRect.height,
         pointerEvents: "none",
-        zIndex: 10,
+        zIndex: 30,
         ...(rotation !== 0 ? {
           transform: `rotate(${rotation}deg)`,
           transformOrigin: `${originX}% ${originY}%`,
@@ -1173,10 +1246,12 @@ export function ComposeDocumentViewV6({
       opacity: 0; transition: opacity 100ms ease;
     `;
     label.innerHTML = `<span style="
-      font-size: 9px; font-family: 'IBM Plex Mono', monospace;
-      text-transform: uppercase; letter-spacing: 0.05em;
-      color: #A0A0A0; background: rgba(255,255,255,0.8);
-      padding: 1px 4px; border-radius: 2px; white-space: nowrap;
+      font-size: 10px; font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 500;
+      color: ${CANVAS_SEL_LABEL};
+      background: transparent;
+      padding: 0;
+      white-space: nowrap;
     "></span>`;
     containerRef.current.appendChild(label);
     hoverLabelRef.current = label;
@@ -1225,28 +1300,33 @@ export function ComposeDocumentViewV6({
         clearHoverOutline();
         return;
       }
-      // Same element — nothing to do
-      if (target === hoverElRef.current) return;
-      // Don't hover-outline any selected node (primary or secondary)
       const nodeId = target.getAttribute("data-node-id");
+      // Selected nodes must never keep the hover chip (must run before stale same-target return)
       if (nodeId && (nodeId === selectedNodeId || selectedNodeIds.includes(nodeId))) {
         clearHoverOutline();
         return;
       }
+      // Same unselected element — nothing to do
+      if (target === hoverElRef.current) return;
       // Swap outline
       clearHoverOutline();
-      target.style.outline = "1px solid rgba(75, 87, 219, 0.4)";
+      target.style.outline = "1px solid rgba(59, 130, 246, 0.35)";
       target.style.outlineOffset = "-1px";
       // ── Cursor: pointer for unselected hovered nodes ──────────────
       target.style.cursor = "pointer";
       hoverElRef.current = target;
 
-      // ── Hover label: position and show ──────────────────────────────
+      // ── Hover label: position and show (same formatter as selection label) ──
       if (hoverLabelRef.current && containerRef.current) {
         const containerRect = containerRef.current.getBoundingClientRect();
         const nodeRect = target.getBoundingClientRect();
-        const nodeType = target.getAttribute("data-node-type") || "frame";
-        const displayType = nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+        const hoveredDesign = nodeId ? findDesignNodeById(tree, nodeId) : null;
+        const displayType = hoveredDesign
+          ? formatDesignNodeLabel(hoveredDesign)
+          : (() => {
+              const nodeType = target.getAttribute("data-node-type") || "frame";
+              return nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+            })();
 
         hoverLabelRef.current.style.top = `${(nodeRect.top - containerRect.top) / zoom - 18}px`;
         hoverLabelRef.current.style.left = `${(nodeRect.left - containerRect.left) / zoom}px`;
@@ -1590,7 +1670,7 @@ export function ComposeDocumentViewV6({
           lineHeight: 1.4,
           foreground: "#1A1A1A",
         },
-        content: { text: "Type something" },
+        content: { text: "" },
       };
       onInsertSection(index, section, target.parentId);
     },
@@ -1750,7 +1830,7 @@ export function ComposeDocumentViewV6({
     const node = findDesignNodeById(tree, selectedNodeId);
     if (!node) return null;
     return {
-      text: node.name || node.type.charAt(0).toUpperCase() + node.type.slice(1),
+      text: formatDesignNodeLabel(node),
       nodeId: selectedNodeId,
     };
   }, [selectedNodeId, editingNodeId, tree]);
@@ -1838,12 +1918,12 @@ export function ComposeDocumentViewV6({
     );
     if (!el) return;
     // Drop selection outline to 60% opacity during drag
-    el.style.outline = "1.5px solid rgba(75, 87, 219, 0.6)";
-    el.style.outlineOffset = "-1.5px";
+    el.style.outline = `1px solid ${CANVAS_SEL_DRAG_DIM}`;
+    el.style.outlineOffset = "-1px";
     return () => {
       // Restore full selection outline on drag end
-      el.style.outline = "1.5px solid #4B57DB";
-      el.style.outlineOffset = "-1.5px";
+      el.style.outline = `1px solid ${CANVAS_SEL_PRIMARY}`;
+      el.style.outlineOffset = "-1px";
     };
   }, [isDragging, selectedNodeId, editingNodeId]);
 
@@ -2095,17 +2175,6 @@ export function ComposeDocumentViewV6({
             containerHeight={containerHeight || 2000}
           />
         )}
-        {/* LayoutHandlesOverlay for gap manipulation */}
-        {interactive && selectedNodeId && (
-          <LayoutHandlesOverlay
-            tree={tree}
-            selectedNodeId={selectedNodeId}
-            zoom={zoom}
-            containerRef={containerRef}
-            onUpdateNodeStyle={onUpdateNodeStyle ?? (() => {})}
-            onPushHistory={onPushHistory ?? (() => {})}
-          />
-        )}
         {/* ── Rubber-band marquee overlay ── */}
         {interactive && rubberBand.marqueeRect && (
           <div
@@ -2115,8 +2184,8 @@ export function ComposeDocumentViewV6({
               top: rubberBand.marqueeRect.y,
               width: rubberBand.marqueeRect.width,
               height: rubberBand.marqueeRect.height,
-              border: "1px solid rgba(75, 87, 219, 0.3)",
-              background: "rgba(209, 228, 252, 0.05)",
+              border: `1px solid ${CANVAS_SEL_MARQUEE_BORDER}`,
+              background: CANVAS_SEL_MARQUEE_FILL,
               pointerEvents: "none",
               zIndex: 9999,
             }}
@@ -2130,8 +2199,8 @@ export function ComposeDocumentViewV6({
               top: frameDraw.drawRect.y,
               width: frameDraw.drawRect.width,
               height: frameDraw.drawRect.height,
-              border: "1px solid #4B57DB",
-              background: "rgba(75, 87, 219, 0.06)",
+              border: `1px solid ${CANVAS_SEL_PRIMARY}`,
+              background: CANVAS_SEL_FILL_SOFT,
               pointerEvents: "none",
               zIndex: 9998,
             }}
@@ -2145,8 +2214,8 @@ export function ComposeDocumentViewV6({
               top: textPlace.drawRect.y,
               width: textPlace.drawRect.width,
               height: textPlace.drawRect.height,
-              border: "1px solid #4B57DB",
-              background: "rgba(75, 87, 219, 0.04)",
+              border: `1px solid ${CANVAS_SEL_PRIMARY}`,
+              background: "rgba(191, 219, 254, 0.12)",
               pointerEvents: "none",
               zIndex: 9998,
             }}
@@ -2175,10 +2244,13 @@ export function ComposeDocumentViewV6({
           zIndex: 10001, pointerEvents: "none",
         }}>
           <span style={{
-            fontSize: 9, fontFamily: "'IBM Plex Mono', monospace",
-            textTransform: "uppercase", letterSpacing: "0.05em",
-            color: "white", background: "#4B57DB",
-            padding: "1px 6px", borderRadius: 2, whiteSpace: "nowrap",
+            fontSize: 10,
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontWeight: 500,
+            color: CANVAS_SEL_LABEL,
+            background: "transparent",
+            padding: 0,
+            whiteSpace: "nowrap",
           }}>
             {selectedNodeInfo.text}
           </span>
@@ -2194,8 +2266,12 @@ export function ComposeDocumentViewV6({
           pointerEvents: "none", zIndex: 9998,
         }} />
       )}
-      {/* ── Track 4: Nested hover preview (hidden while typing — caret only) ── */}
-      {interactive && !editingNodeId && (
+      {/* ── Track 4: Nested hover preview — skip when target is already selected (no duplicate chrome) ── */}
+      {interactive &&
+        !editingNodeId &&
+        hoverTarget &&
+        hoverTarget.id !== selectedNodeId &&
+        !selectedNodeIds.includes(hoverTarget.id) && (
         <NestedHoverPreview
           targetNode={hoverTarget}
           parentChain={parentChain}
@@ -2221,8 +2297,9 @@ export function ComposeDocumentViewV6({
           <span style={{
             fontSize: 10,
             fontFamily: "'IBM Plex Mono', monospace",
-            color: "white",
-            background: "#4B57DB",
+            color: CANVAS_SEL_LABEL,
+            background: "rgba(255,255,255,0.94)",
+            border: "1px solid rgba(59, 130, 250, 0.35)",
             padding: "2px 6px",
             borderRadius: 4,
             whiteSpace: "nowrap",

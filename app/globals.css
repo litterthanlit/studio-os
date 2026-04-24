@@ -93,35 +93,37 @@
 .inspector-range-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 9999px;
   background: #4B57DB;
   cursor: pointer;
   border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   transition: background 150ms, box-shadow 150ms;
 }
 
 .inspector-range-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 9999px;
   background: #4B57DB;
   cursor: pointer;
   border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   transition: background 150ms, box-shadow 150ms;
 }
 
 .inspector-range-slider:hover::-webkit-slider-thumb,
 .inspector-range-slider:focus::-webkit-slider-thumb {
   background: #3D49C7;
-  box-shadow: 0 0 0 3px rgba(75, 87, 219, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22), 0 0 0 3px rgba(75, 87, 219, 0.15);
 }
 
 .inspector-range-slider:hover::-moz-range-thumb,
 .inspector-range-slider:focus::-moz-range-thumb {
   background: #3D49C7;
-  box-shadow: 0 0 0 3px rgba(75, 87, 219, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22), 0 0 0 3px rgba(75, 87, 219, 0.15);
 }
 
 /* ─── Theme Tokens ──────────────────────────────────────────────────────────── */

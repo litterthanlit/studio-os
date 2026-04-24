@@ -323,7 +323,7 @@ export function PromptComposerV2({
     () => {
       if (!projectId) return "balanced";
       const ps = getProjectState(projectId);
-      return (ps.canvas as any)?.fidelityMode ?? "balanced";
+      return ps.canvas?.fidelityMode ?? "balanced";
     }
   );
 
@@ -345,7 +345,7 @@ export function PromptComposerV2({
     (mode: FidelityMode) => {
       setFidelityMode(mode);
       if (projectId) {
-        upsertProjectState(projectId, { canvas: { fidelityMode: mode } as any });
+        upsertProjectState(projectId, { canvas: { fidelityMode: mode } });
       }
     },
     [projectId]
@@ -536,12 +536,12 @@ export function PromptComposerV2({
         if (!tree?.children) throw new Error("No node tree found");
 
         const context = buildSectionContext(tree.children, selectedSection.id);
-        const tokens = projectId ? (getProjectState(projectId).canvas?.designTokens ?? {}) : {};
+        const tokens = projectId ? (getProjectState(projectId).canvas?.designTokens ?? {}) as DesignSystemTokens : ({} as DesignSystemTokens);
 
         dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
 
         const sectionPrompt = buildDesignTreeSectionPrompt(
-          tokens as any,
+          tokens,
           context.targetName,
           { above: context.above, below: context.below },
           {

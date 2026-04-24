@@ -37,7 +37,7 @@ export function InspectorDrawerSection({
       <summary
         className={cn(
           "list-none cursor-pointer flex items-center justify-between gap-2 select-none [&::-webkit-details-marker]:hidden",
-          "px-4 py-2.5 min-h-[36px]",
+          "px-4 py-3 min-h-[40px]",
           "bg-[#FAFAF8] dark:bg-[#242424]",
           open && "border-b border-[#EBEBE6] dark:border-[#353535]",
           "hover:bg-[#F5F5F1] dark:hover:bg-[#2A2A2A]"
@@ -48,9 +48,9 @@ export function InspectorDrawerSection({
         </h3>
         <span className="text-[#6B6B6B] dark:text-[#999999] shrink-0" aria-hidden>
           {open ? (
-            <Minus className="h-3.5 w-3.5" strokeWidth={2} />
+            <Minus className="h-4 w-4" strokeWidth={2} />
           ) : (
-            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            <Plus className="h-4 w-4" strokeWidth={2} />
           )}
         </span>
       </summary>

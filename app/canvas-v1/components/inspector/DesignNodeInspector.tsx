@@ -21,6 +21,8 @@ import {
   Link2,
   Unlink2,
   X,
+  Square,
+  BoxSelect,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -397,14 +399,20 @@ export function DesignNodeInspector({
   // For single-select, use the node's style directly; for multi-select, use primary node style
   const style = primaryNode.style;
 
-  // ── Individual corner radii expand state ──
-  const _brValue = style.borderRadius;
-  const _brString = String(_brValue ?? 0);
-  const _brParts = typeof _brValue === "string" ? _brString.split(/\s+/) : null;
-  const _hasIndividualCorners = Boolean(
-    _brParts?.length === 4 && _brParts.some((c, _, arr) => c !== arr[0])
+  // ── Radius: uniform vs individual — individual only when 4 numeric tokens are not all equal ──
+  function borderRadiusLooksIndividual(br: unknown): boolean {
+    if (br == null) return false;
+    const parts = String(br).trim().split(/\s+/).filter(Boolean);
+    if (parts.length !== 4) return false;
+    const nums = parts.map((p) => parseFloat(p) || 0);
+    return !nums.every((n) => n === nums[0]);
+  }
+  const [radiusIndividualMode, setRadiusIndividualMode] = React.useState(() =>
+    borderRadiusLooksIndividual(primaryNode.style.borderRadius)
   );
-  const [cornersExpanded, setCornersExpanded] = React.useState(_hasIndividualCorners);
+  React.useEffect(() => {
+    setRadiusIndividualMode(borderRadiusLooksIndividual(primaryNode.style.borderRadius));
+  }, [nodeIds.join(","), primaryNode.id]);
   const sections = isMultiSelect ? classifyMultiSelect(nodes) : classifyDesignNode(primaryNode);
   const activeEffects = React.useMemo(
     () => normalizeLegacyEffects(style) ?? [],
@@ -898,7 +906,7 @@ export function DesignNodeInspector({
         <InspectorSectionCluster isFirst ariaLabel="Frame">
       {/* ── POSITION ─────────────────────────────────────────────────── */}
       <InspectorDrawerSection title="Position">
-        <div className="px-4 space-y-2 pb-1">
+        <div className="px-4 space-y-2.5 pb-4">
           <InspectorFieldRow label="Mode" disabled={isForbiddenField("position")}>
             <InspectorSegmented
               value={isBreakout ? "absolute" : "relative"}
@@ -962,7 +970,7 @@ export function DesignNodeInspector({
       {/* ── SIZE ──────────────────────────────────────────────────────── */}
       {sections.showSize && (
         <InspectorDrawerSection title="Size">
-          <div className="px-4 space-y-2 pb-1">
+          <div className="px-4 space-y-2.5 pb-4">
             {/* Width */}
             <InspectorFieldRow
               label="W"
@@ -1047,7 +1055,7 @@ export function DesignNodeInspector({
                   setWhLocked((v) => !v);
                 }}
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-[2px] border transition-colors",
+                  "flex h-7 w-7 items-center justify-center rounded-lg border transition-colors",
                   whLocked
                     ? "border-[#4B57DB] bg-[#EDF1FE] text-[#4B57DB] dark:bg-[#222244]/80 dark:border-[#4B57DB]"
                     : "border-[#E5E5E0] bg-[#F8F8F6] text-[#A0A0A0] hover:border-[#D1D1CC] dark:border-[#444444] dark:bg-[#2A2A2A]"
@@ -1139,7 +1147,7 @@ export function DesignNodeInspector({
                   const val = v === "" ? undefined : v;
                   applyImmediate({ aspectRatio: val }, `Set aspect ratio ${v || "auto"}`);
                 }}
-                className="h-7 px-1.5 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-[#E5E5E0] dark:border-[#333333] rounded-[2px] text-[#1A1A1A] dark:text-[#D0D0D0] font-mono outline-none focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
+                className="h-7 px-1.5 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-[#E5E5E0] dark:border-[#333333] rounded-lg text-[#1A1A1A] dark:text-[#D0D0D0] font-mono outline-none focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
                 style={{ fontFamily: "'IBM Plex Mono', monospace" }}
               >
                 <option value="">Auto</option>
@@ -1283,7 +1291,7 @@ export function DesignNodeInspector({
       {sections.showTypography && (
         <InspectorSectionCluster ariaLabel="Typography">
         <InspectorDrawerSection title="Typography">
-          <div className="px-4 space-y-2 pb-1">
+          <div className="px-4 space-y-2.5 pb-4">
             {/* Font Family */}
             <InspectorFieldRow 
               label="Font"
@@ -1415,7 +1423,7 @@ export function DesignNodeInspector({
                     title={opt.title}
                     onClick={() => applyImmediate({ textAlign: opt.value }, "Changed text align")}
                     className={cn(
-                      "flex h-6 w-6 items-center justify-center rounded-[2px] transition-colors",
+                      "flex h-6 w-6 items-center justify-center rounded-lg transition-colors",
                       style.textAlign === opt.value
                         ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
                         : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
@@ -1467,21 +1475,31 @@ export function DesignNodeInspector({
       {(sections.showFill || sections.showAppearance) && (
         <InspectorSectionCluster ariaLabel="Styles">
         <InspectorDrawerSection title="Styles">
-          <div className="px-4 space-y-2 pb-1">
-            {/* Solid / Gradient toggle */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] text-[#6B6B6B] w-10">Fill</span>
-              <div className="flex rounded-[2px] border border-[#E5E5E0] text-[11px]">
+          <div className="px-4 space-y-2.5 pb-4">
+            {/* Solid / Gradient — Framer-style segmented track */}
+            <div className="flex items-center gap-3 mb-1 min-h-8">
+              <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999] w-10 shrink-0">Fill</span>
+              <div className="flex flex-1 min-w-0 rounded-lg bg-[#EBEBE8] dark:bg-[#2A2A2A] p-1 gap-0.5 h-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none">
                 <button
                   type="button"
-                  className={`px-2 py-0.5 ${!primaryNode.style.gradient ? "bg-[#4B57DB] text-white" : "text-[#6B6B6B]"}`}
+                  className={cn(
+                    "flex-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
+                    !primaryNode.style.gradient
+                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:bg-[#333333] dark:text-[#FFFFFF]"
+                      : "text-[#8A8A8A] hover:text-[#5C5C5C] dark:text-[#666666] dark:hover:text-[#D0D0D0]",
+                  )}
                   onClick={() => applyImmediate({ gradient: undefined }, "Switched to solid fill")}
                 >
                   Solid
                 </button>
                 <button
                   type="button"
-                  className={`px-2 py-0.5 ${primaryNode.style.gradient ? "bg-[#4B57DB] text-white" : "text-[#6B6B6B]"}`}
+                  className={cn(
+                    "flex-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
+                    primaryNode.style.gradient
+                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:bg-[#333333] dark:text-[#FFFFFF]"
+                      : "text-[#8A8A8A] hover:text-[#5C5C5C] dark:text-[#666666] dark:hover:text-[#D0D0D0]",
+                  )}
                   onClick={() => {
                     if (!primaryNode.style.gradient) {
                       applyImmediate({
@@ -1575,7 +1593,7 @@ export function DesignNodeInspector({
                     <button
                       type="button"
                       onClick={() => applyImmediate({ coverImage: "https://", coverSize: "cover" }, "Added cover image")}
-                      className="h-6 w-6 flex items-center justify-center rounded-[2px] bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333] transition-colors"
+                      className="h-6 w-6 flex items-center justify-center rounded-lg bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333] transition-colors"
                     >
                       <Plus size={12} />
                     </button>
@@ -1587,7 +1605,7 @@ export function DesignNodeInspector({
                       <button
                         type="button"
                         onClick={() => applyImmediate({ coverImage: undefined, coverSize: undefined, coverPosition: undefined, scrimEnabled: undefined }, "Removed cover image")}
-                        className="h-6 w-6 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-red-500 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-[#A0A0A0] hover:text-red-500 transition-colors"
                       >
                         <Minus size={12} />
                       </button>
@@ -1601,7 +1619,7 @@ export function DesignNodeInspector({
                     />
 
                     {style.coverImage && style.coverImage !== "https://" && (
-                      <div className="w-full h-[60px] rounded-[2px] border border-[#E5E5E0] dark:border-[#333333] overflow-hidden bg-[#F5F5F0] dark:bg-[#2A2A2A]">
+                      <div className="w-full h-[60px] rounded-lg border border-[#E5E5E0] dark:border-[#333333] overflow-hidden bg-[#F5F5F0] dark:bg-[#2A2A2A]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={style.coverImage}
@@ -1685,10 +1703,10 @@ export function DesignNodeInspector({
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => addEffect("dropShadow")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Drop Shadow</button>
-              <button type="button" onClick={() => addEffect("innerShadow")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Inner Shadow</button>
-              <button type="button" onClick={() => addEffect("layerBlur")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Layer Blur</button>
-              <button type="button" onClick={() => addEffect("backgroundBlur")} className="h-7 rounded-[2px] border border-[#E5E5E0] text-[11px]">+ Background Blur</button>
+              <button type="button" onClick={() => addEffect("dropShadow")} className="h-7 rounded-lg border border-[#E5E5E0] text-[11px]">+ Drop Shadow</button>
+              <button type="button" onClick={() => addEffect("innerShadow")} className="h-7 rounded-lg border border-[#E5E5E0] text-[11px]">+ Inner Shadow</button>
+              <button type="button" onClick={() => addEffect("layerBlur")} className="h-7 rounded-lg border border-[#E5E5E0] text-[11px]">+ Layer Blur</button>
+              <button type="button" onClick={() => addEffect("backgroundBlur")} className="h-7 rounded-lg border border-[#E5E5E0] text-[11px]">+ Background Blur</button>
             </div>
 
             {isMultiSelect && comparisons?.effects?.status === "mixed" && (
@@ -1696,7 +1714,7 @@ export function DesignNodeInspector({
             )}
 
             {activeEffects.map((effect, index) => (
-              <div key={effect.id} className="rounded-[4px] border border-[#E5E5E0] p-2 space-y-2">
+              <div key={effect.id} className="rounded-lg border border-[#E5E5E0] p-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -1742,7 +1760,7 @@ export function DesignNodeInspector({
                 Layer
               </span>
             </div>
-            {/* Radius — uniform + expandable individual corners */}
+            {/* Radius — Framer-style: one field + mode toggle, or 4 corners when "individual" */}
             {primaryNode.type !== "divider" && (
               <InspectorFieldRow
                 label="Radius"
@@ -1753,7 +1771,7 @@ export function DesignNodeInspector({
                 {(() => {
                   const brValue = style.borderRadius;
                   const brString = String(brValue ?? 0);
-                  const brParts = typeof brValue === "string" ? brString.split(/\s+/) : null;
+                  const brParts = typeof brValue === "string" ? brString.trim().split(/\s+/).filter(Boolean) : null;
                   const corners =
                     brParts?.length === 4
                       ? brParts.map((v) => parseFloat(v) || 0)
@@ -1770,6 +1788,7 @@ export function DesignNodeInspector({
                     next[i] = newVal;
                     if (next.every((v) => v === next[0])) {
                       applyImmediate({ borderRadius: next[0] }, "Set border radius");
+                      setRadiusIndividualMode(false);
                     } else {
                       applyImmediate(
                         { borderRadius: next.join(" ") },
@@ -1778,130 +1797,107 @@ export function DesignNodeInspector({
                     }
                   }
 
+                  function handleRadiusModeChange(mode: "uniform" | "individual") {
+                    if (mode === "individual") {
+                      const base =
+                        typeof brValue === "number"
+                          ? brValue
+                          : brParts?.length === 4
+                            ? parseFloat(brParts[0]) || 0
+                            : parseFloat(String(brValue).split(/\s+/)[0]) || 0;
+                      applyImmediate(
+                        { borderRadius: `${base} ${base} ${base} ${base}` },
+                        "Individual corner radii"
+                      );
+                      setRadiusIndividualMode(true);
+                      return;
+                    }
+                    applyImmediate({ borderRadius: corners[0] }, "Uniform border radius");
+                    setRadiusIndividualMode(false);
+                  }
+
+                  const modeValue = radiusIndividualMode ? "individual" : "uniform";
+
                   return (
-                    <div className="flex w-full flex-col gap-1">
-                      {/* Row 1: presets + all-corners input + expand toggle */}
-                      <div className="flex flex-wrap items-end gap-3">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-[var(--text-secondary)]">
-                            Presets (all corners)
-                          </span>
-                          <div className="flex gap-0.5" role="group" aria-label="Radius presets — all corners">
-                            {(["0", "2", "4", "8"] as const).map((r) => (
-                              <div key={r} className="flex flex-col items-center gap-1">
-                                <span className="h-[14px] text-[10px] font-mono leading-none text-[var(--text-muted)]">
-                                  {r}px
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    applyImmediate(
-                                      { borderRadius: Number(r) },
-                                      `Set radius to ${r}`
-                                    )
-                                  }
-                                  className={cn(
-                                    "h-6 w-6 flex items-center justify-center rounded-[2px] text-[10px] font-mono transition-colors",
-                                    style.borderRadius === Number(r)
-                                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#333333] dark:text-[#FFFFFF]"
-                                      : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
-                                  )}
-                                  title={`${r}px on every corner (TL, TR, BR, BL)`}
-                                  aria-label={`${r} pixel radius on all four corners`}
-                                >
-                                  {r}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* All-corners input (hidden when expanded) */}
-                        {!cornersExpanded && (
-                          <div className="flex flex-col gap-1">
-                            <label
-                              htmlFor="inspector-border-radius-custom"
-                              className="text-[10px] font-mono uppercase tracking-[0.06em] text-[var(--text-secondary)]"
-                            >
-                              All corners
-                            </label>
-                            <div className="relative">
-                              <InspectorNumberInput
-                                id="inspector-border-radius-custom"
-                                value={
-                                  isMultiSelect
-                                    ? (comparisons?.borderRadius?.sharedValue as number | "") ?? ""
+                    <div className="flex w-full min-w-0 items-end gap-2">
+                      <div className="min-w-0 flex-1">
+                        {!radiusIndividualMode ? (
+                          <div className="relative">
+                            <InspectorNumberInput
+                              id="inspector-border-radius-custom"
+                              value={
+                                isMultiSelect
+                                  ? (comparisons?.borderRadius?.sharedValue as number | "") ?? ""
+                                  : typeof style.borderRadius === "string" &&
+                                      String(style.borderRadius).trim().split(/\s+/).length === 4
+                                    ? parseFloat(String(style.borderRadius).trim().split(/\s+/)[0]) || ""
                                     : style.borderRadius ?? ""
-                                }
-                                mixed={isMultiSelect && comparisons?.borderRadius?.status === "mixed"}
-                                placeholder="0"
-                                min={0}
-                                max={999}
-                                className="w-[4.25rem] pr-6"
-                                aria-label="Border radius in pixels — all corners"
-                                onChange={(e) =>
-                                  updateStyle({ borderRadius: Number(e.target.value) || undefined })
-                                }
-                                onBlur={() => history.flush()}
-                              />
-                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">
-                                px
-                              </span>
-                            </div>
+                              }
+                              mixed={isMultiSelect && comparisons?.borderRadius?.status === "mixed"}
+                              placeholder="0"
+                              min={0}
+                              max={999}
+                              className="w-full pr-7"
+                              aria-label="Border radius in pixels — all corners"
+                              onChange={(e) =>
+                                updateStyle({ borderRadius: Number(e.target.value) || undefined })
+                              }
+                              onBlur={() => history.flush()}
+                            />
+                            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0] dark:text-[#666666]">
+                              px
+                            </span>
                           </div>
-                        )}
-
-                        {/* Expand toggle */}
-                        <button
-                          type="button"
-                          onClick={() => setCornersExpanded((v) => !v)}
-                          className={cn(
-                            "mb-0.5 h-6 w-6 flex items-center justify-center rounded-[2px] transition-colors",
-                            cornersExpanded
-                              ? "bg-[#4B57DB] text-white"
-                              : "bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333]"
-                          )}
-                          title={cornersExpanded ? "Collapse individual corners" : "Expand individual corners"}
-                          aria-label={cornersExpanded ? "Collapse to uniform radius" : "Expand to set individual corner radii"}
-                        >
-                          {cornersExpanded ? <Minus size={10} /> : <Plus size={10} />}
-                        </button>
-                      </div>
-
-                      {/* Row 2: individual corner inputs (expanded only) */}
-                      {cornersExpanded && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-mono uppercase tracking-[0.06em] text-[var(--text-secondary)]">
-                            Individual corners
-                          </span>
-                          <div className="flex gap-1">
-                            {(["TL", "TR", "BR", "BL"] as const).map((label, i) => (
-                              <div key={label} className="flex flex-col items-center gap-0.5">
-                                <span className="text-[9px] font-mono leading-none text-[#A0A0A0] dark:text-[#666666]">
-                                  {label}
-                                </span>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <div
+                              className="flex overflow-hidden rounded-lg border border-[#E8E8E8] bg-[#F3F3F3] dark:border-[#333333] dark:bg-[#2A2A2A] divide-x divide-[#E8E8E8] dark:divide-[#333333]"
+                              role="group"
+                              aria-label="Per-corner radius"
+                            >
+                              {(["TL", "TR", "BR", "BL"] as const).map((label, i) => (
                                 <InspectorNumberInput
+                                  key={label}
                                   value={corners[i]}
                                   placeholder="0"
                                   min={0}
                                   max={999}
-                                  className="w-[3.25rem]"
+                                  className={cn(
+                                    "min-h-9 flex-1 rounded-none border-0 bg-transparent text-center shadow-none",
+                                    "focus:z-[1] focus:ring-1 focus:ring-inset focus:ring-[#4B57DB]",
+                                  )}
                                   aria-label={`${label} corner radius`}
                                   onChange={(e) => handleCornerChange(i, e.target.value)}
                                   onBlur={() => history.flush()}
                                 />
-                              </div>
-                            ))}
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-4 gap-0 text-center text-[9px] font-mono text-[#A0A0A0] dark:text-[#666666]">
+                              {(["TL", "TR", "BR", "BL"] as const).map((label) => (
+                                <span key={label}>{label}</span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {!cornersExpanded && (
-                        <p className="text-[10px] leading-snug text-[#A0A0A0] dark:text-[#666666]">
-                          One value sets the same radius on every corner (like CSS{" "}
-                          <span className="font-mono text-[9px]">border-radius</span>).
-                        </p>
-                      )}
+                        )}
+                      </div>
+                      <InspectorSegmentedSmall
+                        className="w-[72px] shrink-0"
+                        value={modeValue}
+                        mixed={isMultiSelect && comparisons?.borderRadius?.status === "mixed"}
+                        onChange={(v) => handleRadiusModeChange(v as "uniform" | "individual")}
+                        options={[
+                          {
+                            value: "uniform",
+                            label: "",
+                            icon: Square,
+                          },
+                          {
+                            value: "individual",
+                            label: "",
+                            icon: BoxSelect,
+                          },
+                        ]}
+                      />
                     </div>
                   );
                 })()}
@@ -1926,7 +1922,7 @@ export function DesignNodeInspector({
                     <button
                       type="button"
                       onClick={addBorder}
-                      className="h-6 w-6 flex items-center justify-center rounded-[2px] bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333] transition-colors"
+                      className="h-6 w-6 flex items-center justify-center rounded-lg bg-[#F5F5F0] dark:bg-[#2A2A2A] text-[#6B6B6B] dark:text-[#999999] hover:bg-[#EFEFEC] dark:hover:bg-[#333333] transition-colors"
                     >
                       <Plus size={12} />
                     </button>
@@ -1938,7 +1934,7 @@ export function DesignNodeInspector({
                       <button
                         type="button"
                         onClick={removeBorder}
-                        className="h-6 w-6 flex items-center justify-center rounded-[2px] text-[#A0A0A0] hover:text-red-500 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-[#A0A0A0] hover:text-red-500 transition-colors"
                       >
                         <Minus size={12} />
                       </button>
@@ -2016,7 +2012,7 @@ export function DesignNodeInspector({
                   updateStyle({ blendMode: val === "normal" ? undefined : (val as DesignNodeStyle["blendMode"]) });
                   history.flush();
                 }}
-                className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+                className="flex-1 border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
               >
                 <optgroup label="Common">
                   <option value="normal">Normal</option>
@@ -2110,7 +2106,7 @@ export function DesignNodeInspector({
                         value={c.radius}
                         onChange={(e) => updateClipCircle({ radius: Number(e.target.value) || 0 })}
                         onBlur={() => history.flush()}
-                        className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                        className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                     </div>
@@ -2123,7 +2119,7 @@ export function DesignNodeInspector({
                           value={c.cx}
                           onChange={(e) => updateClipCircle({ cx: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2135,7 +2131,7 @@ export function DesignNodeInspector({
                           value={c.cy}
                           onChange={(e) => updateClipCircle({ cy: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2162,7 +2158,7 @@ export function DesignNodeInspector({
                           value={el.rx}
                           onChange={(e) => updateClipEllipse({ rx: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2174,7 +2170,7 @@ export function DesignNodeInspector({
                           value={el.ry}
                           onChange={(e) => updateClipEllipse({ ry: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2188,7 +2184,7 @@ export function DesignNodeInspector({
                           value={el.cx}
                           onChange={(e) => updateClipEllipse({ cx: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2200,7 +2196,7 @@ export function DesignNodeInspector({
                           value={el.cy}
                           onChange={(e) => updateClipEllipse({ cy: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2233,7 +2229,7 @@ export function DesignNodeInspector({
                             value={ins.top}
                             onChange={(e) => updateClipInset({ top: Number(e.target.value) || 0 })}
                             onBlur={() => history.flush()}
-                            className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                            className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                         </div>
@@ -2245,7 +2241,7 @@ export function DesignNodeInspector({
                             value={ins.right}
                             onChange={(e) => updateClipInset({ right: Number(e.target.value) || 0 })}
                             onBlur={() => history.flush()}
-                            className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                            className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                         </div>
@@ -2255,7 +2251,7 @@ export function DesignNodeInspector({
                       type="button"
                       onClick={() => setInsetLinked(!insetLinked)}
                       className={cn(
-                        "p-0.5 rounded-[2px] transition-colors",
+                        "p-0.5 rounded-lg transition-colors",
                         insetLinked
                           ? "text-[#4B57DB] hover:bg-[#EDF1FE]"
                           : "text-[#A0A0A0] hover:text-[#6B6B6B]"
@@ -2273,7 +2269,7 @@ export function DesignNodeInspector({
                           value={ins.bottom}
                           onChange={(e) => updateClipInset({ bottom: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2285,7 +2281,7 @@ export function DesignNodeInspector({
                           value={ins.left}
                           onChange={(e) => updateClipInset({ left: Number(e.target.value) || 0 })}
                           onBlur={() => history.flush()}
-                          className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                          className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">%</span>
                       </div>
@@ -2298,7 +2294,7 @@ export function DesignNodeInspector({
                         value={ins.borderRadius ?? 0}
                         onChange={(e) => updateClipInset({ borderRadius: Number(e.target.value) || 0 })}
                         onBlur={() => history.flush()}
-                        className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-7"
+                        className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-7"
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">px</span>
                     </div>
@@ -2328,7 +2324,7 @@ export function DesignNodeInspector({
                           history.flush();
                         }
                       }}
-                      className="flex-1 border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
+                      className="flex-1 border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
                     >
                       <option value="" disabled>Choose preset...</option>
                       <option value="triangle">Triangle</option>
@@ -2356,7 +2352,7 @@ export function DesignNodeInspector({
                                 updateClipPolygon(next);
                               }}
                               onBlur={() => history.flush()}
-                              className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                              className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                             />
                             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">X</span>
                           </div>
@@ -2369,7 +2365,7 @@ export function DesignNodeInspector({
                                 updateClipPolygon(next);
                               }}
                               onBlur={() => history.flush()}
-                              className="w-full border border-[#E5E5E0] rounded-[2px] bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
+                              className="w-full border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] pr-6"
                             />
                             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[#A0A0A0]">Y</span>
                           </div>
@@ -2438,7 +2434,7 @@ export function DesignNodeInspector({
       {sections.showSize && (
         <InspectorSectionCluster ariaLabel="Transform">
           <InspectorDrawerSection title="Transform">
-            <div className="px-4 space-y-2 pb-1">
+            <div className="px-4 space-y-2.5 pb-4">
               <p className="-mt-0.5 text-[11px] leading-snug text-[#8A8A8A] dark:text-[#888888]">
                 Rotate and scale how the layer looks on the canvas; origin is the pivot. Does not change layout size.
               </p>
@@ -2479,7 +2475,7 @@ export function DesignNodeInspector({
                     type="button"
                     onClick={() => setScaleLocked(!scaleLocked)}
                     className={cn(
-                      "p-0.5 rounded-[2px] transition-colors",
+                      "p-0.5 rounded-lg transition-colors",
                       scaleLocked
                         ? "text-[#4B57DB] hover:bg-[#EDF1FE]"
                         : "text-[#A0A0A0] hover:text-[#6B6B6B]"
@@ -2510,7 +2506,7 @@ export function DesignNodeInspector({
 
               {/* Transform Origin — 3x3 grid */}
               <InspectorFieldRow label="Origin">
-                <div className="inline-grid grid-cols-3 gap-[6px] p-1 border border-[#E5E5E0] rounded-[4px] bg-white">
+                <div className="inline-grid grid-cols-3 gap-[6px] p-1 border border-[#E5E5E0] rounded-lg bg-white">
                   {[
                     [0, 0], [50, 0], [100, 0],
                     [0, 50], [50, 50], [100, 50],

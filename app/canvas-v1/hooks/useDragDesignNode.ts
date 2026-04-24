@@ -1,19 +1,17 @@
 "use client";
 
 /**
- * useDragDesignNode — drag-to-reposition for absolute-positioned DesignNode elements.
+ * useDragDesignNode — drag-to-reposition for selected DesignNode elements.
  *
- * Activates on pointerdown on a selected absolute-positioned node.
- * Tracks pointer movement (zoom-aware), updates style.x/y via UPDATE_NODE_STYLE,
- * pushes history on pointerup, supports shift-axis lock.
+ * Activates on pointerdown on a selected node. Flow nodes convert to Breakout
+ * on drag threshold, preserving their measured bounds, then move via style.x/y.
  *
- * Only activates for nodes where style.position === "absolute".
  * Gracefully does nothing when no CanvasProvider is present (e.g. test-v6 page).
  */
 
 import { useCallback, useRef, useEffect, useContext, useState } from "react";
 import { CanvasContext } from "@/lib/canvas/canvas-context";
-import { findDesignNodeById, type DesignNode } from "@/lib/canvas/design-node";
+import { findDesignNodeById, findDesignNodeParent, type DesignNode, type DesignNodeStyle } from "@/lib/canvas/design-node";
 import { allAbsolute } from "@/lib/canvas/multi-select-helpers";
 
 type UseDragDesignNodeOptions = {
@@ -53,12 +51,17 @@ type PeerNodeOffset = {
 
 type DragState = {
   nodeId: string;
+  startTime: number;
   startScreenX: number;
   startScreenY: number;
   startNodeX: number;
   startNodeY: number;
   nodeWidth: number;
   nodeHeight: number;
+  shouldBreakout: boolean;
+  breakoutWidth?: number;
+  breakoutHeight?: number;
+  zIndex?: number;
   hasStarted: boolean;
   historyPushed: boolean;
   /** When multi-dragging, offsets for ALL selected nodes (including primary). */
@@ -66,6 +69,7 @@ type DragState = {
 };
 
 const DRAG_THRESHOLD_PX = 4;
+const FLOW_BREAKOUT_HOLD_MS = 180;
 
 export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   const {
@@ -89,25 +93,24 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   const [isDragging, setIsDragging] = useState(false);
   const cleanupListenersRef = useRef<(() => void) | null>(null);
   const treeRef = useRef(tree);
-  treeRef.current = tree;
   const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-
   const itemIdRef = useRef(itemId);
-  itemIdRef.current = itemId;
 
   // Keep refs so closures always see the latest values
   const dispatchRef = useRef(dispatch);
-  dispatchRef.current = dispatch;
-
   const snapPositionRef = useRef(snapPosition);
-  snapPositionRef.current = snapPosition;
-
   const selectedNodeIdsRef = useRef(selectedNodeIds);
-  selectedNodeIdsRef.current = selectedNodeIds;
-
   const canvasToolRef = useRef(canvasTool);
-  canvasToolRef.current = canvasTool;
+
+  useEffect(() => {
+    treeRef.current = tree;
+    zoomRef.current = zoom;
+    itemIdRef.current = itemId;
+    dispatchRef.current = dispatch;
+    snapPositionRef.current = snapPosition;
+    selectedNodeIdsRef.current = selectedNodeIds;
+    canvasToolRef.current = canvasTool;
+  }, [canvasTool, dispatch, itemId, selectedNodeIds, snapPosition, tree, zoom]);
 
   const cleanupActiveDrag = useCallback(() => {
     const drag = draggingRef.current;
@@ -126,7 +129,16 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
    * peers: when multi-dragging, includes offsets for all selected nodes.
    */
   const startDrag = useCallback(
-    (e: PointerEvent, nodeId: string, startX: number, startY: number, nodeWidth: number, nodeHeight: number, peers: PeerNodeOffset[] = []) => {
+    (
+      e: PointerEvent,
+      nodeId: string,
+      startX: number,
+      startY: number,
+      nodeWidth: number,
+      nodeHeight: number,
+      peers: PeerNodeOffset[] = [],
+      breakout?: { width: number; height: number; zIndex?: number }
+    ) => {
       const d = dispatchRef.current;
       // No dispatch available (no CanvasProvider) — skip
       if (!d) return;
@@ -143,12 +155,17 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
 
       draggingRef.current = {
         nodeId,
+        startTime: performance.now(),
         startScreenX: e.clientX,
         startScreenY: e.clientY,
         startNodeX: startX,
         startNodeY: startY,
         nodeWidth,
         nodeHeight,
+        shouldBreakout: Boolean(breakout),
+        breakoutWidth: breakout?.width,
+        breakoutHeight: breakout?.height,
+        zIndex: breakout?.zIndex,
         hasStarted: false,
         historyPushed: false,
         peers,
@@ -168,6 +185,12 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
           const screenDx = moveEvent.clientX - drag.startScreenX;
           const screenDy = moveEvent.clientY - drag.startScreenY;
           if (Math.hypot(screenDx, screenDy) < DRAG_THRESHOLD_PX) {
+            return;
+          }
+          if (
+            drag.shouldBreakout &&
+            performance.now() - drag.startTime < FLOW_BREAKOUT_HOLD_MS
+          ) {
             return;
           }
           drag.hasStarted = true;
@@ -209,12 +232,19 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
           drag.historyPushed = true;
         }
 
-        // Update primary node
+        // Update primary node. Flow nodes become Breakout on the first drag update.
+        const primaryStyle: Partial<DesignNodeStyle> = { x: newX, y: newY };
+        if (drag.shouldBreakout) {
+          primaryStyle.position = "absolute";
+          primaryStyle.width = drag.breakoutWidth ?? drag.nodeWidth;
+          primaryStyle.height = drag.breakoutHeight ?? drag.nodeHeight;
+          primaryStyle.zIndex = drag.zIndex ?? 1;
+        }
         dd({
           type: "UPDATE_NODE_STYLE",
           itemId: abId,
           nodeId: drag.nodeId,
-          style: { x: newX, y: newY } as Record<string, unknown>,
+          style: primaryStyle,
         });
 
         // Update peer nodes (multi-drag)
@@ -274,11 +304,18 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
         const abId = itemIdRef.current;
         if (abId && dd) {
           // Final position update for primary node
+          const finalStyle: Partial<DesignNodeStyle> = { x: finalX, y: finalY };
+          if (drag.shouldBreakout) {
+            finalStyle.position = "absolute";
+            finalStyle.width = drag.breakoutWidth ?? drag.nodeWidth;
+            finalStyle.height = drag.breakoutHeight ?? drag.nodeHeight;
+            finalStyle.zIndex = drag.zIndex ?? 1;
+          }
           dd({
             type: "UPDATE_NODE_STYLE",
             itemId: abId,
             nodeId: drag.nodeId,
-            style: { x: finalX, y: finalY } as Record<string, unknown>,
+            style: finalStyle,
           });
 
           // Final position update for peer nodes (multi-drag)
@@ -350,9 +387,8 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
   );
 
   /**
-   * Attach pointerdown listener to the selected node's DOM element
-   * when it has position: absolute. Also attaches to secondary-selected
-   * nodes so any node in a multi-selection can initiate multi-drag.
+   * Attach pointerdown listener to selected node DOM elements. Absolute nodes
+   * move directly; single selected flow nodes convert to Breakout once dragged.
    */
   useEffect(() => {
     if (!interactive || !selectedNodeId || !itemId || !dispatch || !containerRef.current) return;
@@ -377,10 +413,11 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
 
         const latestTree = treeRef.current;
         const node = findDesignNodeById(latestTree, targetId);
-        if (!node || node.style.position !== "absolute") return;
+        if (!node) return;
 
         const currentIds = selectedNodeIdsRef.current;
         const isMultiSelect = currentIds.length > 1 && currentIds.includes(targetId);
+        const isAbsolute = node.style.position === "absolute";
 
         // Guard: disable drag for mixed (absolute + flow) selections
         if (isMultiSelect && !allAbsolute(currentIds, latestTree)) {
@@ -394,12 +431,39 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
         const nodeHeight =
           typeof node.style.height === "number" ? node.style.height : rect.height / currentZoom;
 
+        let startX = node.style.x ?? 0;
+        let startY = node.style.y ?? 0;
+        let breakout: { width: number; height: number; zIndex?: number } | undefined;
+
+        if (!isAbsolute) {
+          // Flow -> Breakout is a single-layer operation. Multi-select still
+          // requires all nodes to already be absolute so siblings do not jump.
+          if (isMultiSelect) return;
+          if (node.id === latestTree.id) return;
+
+          const parentNode = findDesignNodeParent(latestTree, node.id);
+          if (!parentNode) return;
+          const parentEl = containerRef.current?.querySelector<HTMLElement>(
+            `[data-node-id="${parentNode.id}"]`
+          );
+          const parentRect = parentEl?.getBoundingClientRect();
+          if (!parentRect) return;
+
+          startX = Math.round((rect.left - parentRect.left) / currentZoom);
+          startY = Math.round((rect.top - parentRect.top) / currentZoom);
+          breakout = {
+            width: Math.round(nodeWidth),
+            height: Math.round(nodeHeight),
+            zIndex: node.style.zIndex ?? 1,
+          };
+        }
+
         // Build peer offsets for multi-drag
         const peers: PeerNodeOffset[] = isMultiSelect
           ? buildPeers(latestTree, currentIds, currentZoom)
           : [];
 
-        startDrag(e, node.id, node.style.x ?? 0, node.style.y ?? 0, nodeWidth, nodeHeight, peers);
+        startDrag(e, node.id, startX, startY, nodeWidth, nodeHeight, peers, breakout);
       };
 
       el.addEventListener("pointerdown", handlePointerDown);

@@ -41,10 +41,13 @@ import { useCanvasKeyboard, type ClipboardEntry } from "../hooks/useCanvasKeyboa
 import { AnimatePresence } from "framer-motion";
 import { SectionLibraryPanel } from "./SectionLibraryPanel";
 import { ComponentGalleryPanel } from "./ComponentGalleryPanel";
+import {
+  CANVAS_SEL_FILL_SOFT,
+  CANVAS_SEL_PRIMARY,
+} from "@/app/canvas-v1/canvas-selection-tokens";
 import { MiniRail } from "./MiniRail";
-import { FloatingPromptPanel } from "./FloatingPromptPanel";
 import { WelcomeOverlay, useWelcomeOverlay } from "./WelcomeOverlay";
-import { isDesignNodeTree, findNodeById } from "@/lib/canvas/compose";
+import { isDesignNodeTree } from "@/lib/canvas/compose";
 import {
   parseDesignNodesFromClipboard,
   cloneNodesForPaste,
@@ -200,7 +203,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     // Find the selected node
     const node = findDesignNodeById(
-      activeArtboard.pageTree as any,
+      activeArtboard.pageTree as DesignNode,
       selectedNodeId
     );
 
@@ -289,6 +292,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // Focus prompt: ensure inspector is visible, focus textarea
   const handleFocusPrompt = React.useCallback(() => {
     setShowInspector(true);
+    setActiveTool("prompt");
     // Focus after state updates render
     setTimeout(() => promptTextareaRef.current?.focus(), 0);
   }, []);
@@ -299,6 +303,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   const focusPromptWithPrefill = React.useCallback((prefill: string) => {
     setShowInspector(true);
+    setActiveTool("prompt");
     dispatch({ type: "SET_PROMPT", value: prefill });
     setTimeout(() => {
       const textarea = promptTextareaRef.current;
@@ -981,7 +986,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         ref={containerRef}
         className={cn(
           "editor-canvas-surface relative h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-canvas-workspace",
-          isDragOver && "ring-2 ring-inset ring-[#4B57DB] ring-dashed"
+          isDragOver && "ring-1 ring-inset ring-[rgba(59,130,246,0.45)] ring-dashed"
         )}
       style={{
         backgroundColor: "var(--canvas-color, var(--canvas-workspace))",
@@ -1141,8 +1146,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                 top: target.y,
                 width: target.width,
                 height: target.height,
-                border: "2px solid #4B57DB",
-                backgroundColor: "rgba(209, 228, 252, 0.2)",
+                border: `1px solid ${CANVAS_SEL_PRIMARY}`,
+                backgroundColor: "rgba(191, 219, 254, 0.22)",
                 pointerEvents: "none",
                 borderRadius: 4,
                 zIndex: 999999,
@@ -1154,7 +1159,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         {/* Drag selection rectangle */}
         {dragSelection && (
           <div
-            className="absolute border border-[#4B57DB] bg-[#4B57DB]/5 pointer-events-none"
+            className="absolute border border-[rgba(59,130,246,0.42)] bg-[rgba(59,130,246,0.05)] pointer-events-none"
             style={{
               left: Math.min(dragSelection.startX, dragSelection.currentX),
               top: Math.min(dragSelection.startY, dragSelection.currentY),
@@ -1173,8 +1178,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               top: canvasFrameDraw.drawRect.y - viewport.pan.y / viewport.zoom,
               width: canvasFrameDraw.drawRect.width,
               height: canvasFrameDraw.drawRect.height,
-              border: "1px dashed #4B57DB",
-              backgroundColor: "rgba(75, 87, 219, 0.05)",
+              border: `1px dashed ${CANVAS_SEL_PRIMARY}`,
+              backgroundColor: CANVAS_SEL_FILL_SOFT,
               pointerEvents: "none",
             }}
           />
@@ -1189,34 +1194,13 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               top: canvasTextPlace.drawRect.y - viewport.pan.y / viewport.zoom,
               width: canvasTextPlace.drawRect.width,
               height: canvasTextPlace.drawRect.height,
-              border: "1px dashed #4B57DB",
-              backgroundColor: "rgba(75, 87, 219, 0.05)",
+              border: `1px dashed ${CANVAS_SEL_PRIMARY}`,
+              backgroundColor: CANVAS_SEL_FILL_SOFT,
               pointerEvents: "none",
             }}
           />
         )}
       </div>
-
-      {/* Floating prompt panel — Prompt tool (K); not gated on inspector visibility */}
-      {activeTool === "prompt" && (() => {
-        const activeArtboard = state.selection.activeItemId
-          ? items.find((i) => i.kind === "artboard" && i.id === state.selection.activeItemId) ?? null
-          : null;
-        const isV6 = activeArtboard ? isDesignNodeTree(activeArtboard.pageTree) : false;
-        const selectedNode = activeArtboard && state.selection.selectedNodeId
-          ? isV6
-            ? findDesignNodeById(activeArtboard.pageTree as any, state.selection.selectedNodeId)
-            : findNodeById(activeArtboard.pageTree, state.selection.selectedNodeId)
-          : null;
-        return (
-          <FloatingPromptPanel
-            projectId={projectId}
-            selectedNode={selectedNode}
-            inspectorOpen={showInspector}
-            onClose={() => setActiveTool("select")}
-          />
-        );
-      })()}
 
       {/* Section library panel */}
       <AnimatePresence>
@@ -1247,6 +1231,14 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             promptTextareaRef={promptTextareaRef}
             panelRef={inspectorPanelRef}
             onOpenGenerate={openPromptWithInspector}
+            activeTool={activeTool}
+            onInspectorTabChange={(tab) => {
+              if (tab === "prompt") {
+                setActiveTool("prompt");
+              } else if (activeTool === "prompt") {
+                setActiveTool("select");
+              }
+            }}
           />
         )}
       </div>

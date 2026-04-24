@@ -35,10 +35,15 @@ import { buildSectionContext } from "@/lib/canvas/section-context-builder";
 import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import { getProjectState } from "@/lib/project-store";
+import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 
-/** Selected layer row — blue fill + amber ring (same for canvas items and in-breakpoint nodes) */
-const LAYER_ROW_SELECTED =
-  "bg-[#4B57DB] text-white shadow-sm ring-2 ring-[#FBBF24] rounded-[6px] mx-1.5";
+/** Active artboard / breakpoint row — subtle blue (which canvas is open), not deep pill */
+const LAYER_ROW_ARTBOARD_SELECTED =
+  "bg-[#EBF2FF] text-[#3D4BB3] dark:bg-[#4B57DB]/14 dark:text-[#A8B8FF] rounded-md mx-1.5 font-medium";
+
+/** Primary layer row — deep blue pill (Hero, nodes, canvas items, refs) */
+const LAYER_ROW_DEEP_SELECTED =
+  "bg-[#4B57DB] text-white shadow-sm rounded-[6px] mx-1.5";
 
 // ─── Helper: Get all ancestor IDs of a node ──────────────────────────────────
 
@@ -179,21 +184,6 @@ function InstanceContextMenu({
     };
   }, [onDismiss]);
 
-  function Item({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
-    return (
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className={cn(
-          "flex w-full items-center px-3 py-1.5 text-[12px] text-left transition-colors",
-          danger ? "text-red-500 hover:bg-red-50" : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
-        )}
-      >
-        {label}
-      </button>
-    );
-  }
-
   return (
     <div
       ref={menuRef}
@@ -206,19 +196,42 @@ function InstanceContextMenu({
       <div className="h-px bg-[#E5E5E0] my-1" />
       {isInstanceRoot ? (
         <>
-          <Item label="Edit Master" onClick={() => { onEditMaster(); onDismiss(); }} />
-          <Item label="Detach Instance" onClick={() => { onDetach(); onDismiss(); }} />
-          <Item label="Reset All Overrides" onClick={() => { onResetAll(); onDismiss(); }} />
+          <InstanceContextMenuItem label="Edit Master" onClick={() => { onEditMaster(); onDismiss(); }} />
+          <InstanceContextMenuItem label="Detach Instance" onClick={() => { onDetach(); onDismiss(); }} />
+          <InstanceContextMenuItem label="Reset All Overrides" onClick={() => { onResetAll(); onDismiss(); }} />
           <div className="h-px bg-[#E5E5E0] my-1" />
-          <Item label="Delete" onClick={() => { onDelete(); onDismiss(); }} danger />
+          <InstanceContextMenuItem label="Delete" onClick={() => { onDelete(); onDismiss(); }} danger />
         </>
       ) : (
         <>
-          <Item label="Reset Override" onClick={() => { onResetOverride(); onDismiss(); }} />
-          <Item label="Copy" onClick={() => { onCopy(); onDismiss(); }} />
+          <InstanceContextMenuItem label="Reset Override" onClick={() => { onResetOverride(); onDismiss(); }} />
+          <InstanceContextMenuItem label="Copy" onClick={() => { onCopy(); onDismiss(); }} />
         </>
       )}
     </div>
+  );
+}
+
+function InstanceContextMenuItem({
+  label,
+  onClick,
+  danger,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className={cn(
+        "flex w-full items-center px-3 py-1.5 text-left text-[12px] transition-colors",
+        danger ? "text-red-500 hover:bg-red-50" : "text-[#1A1A1A] hover:bg-[#F5F5F0]"
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -332,9 +345,9 @@ function DesignTreeNode({
         }}
         onContextMenu={(e) => onContextMenu?.(node, itemId, e)}
         className={cn(
-          "group flex w-full items-center gap-1 text-left transition-colors duration-100 rounded-[6px] mx-1.5 px-1 min-h-[30px]",
+          "group flex w-full items-center gap-1 text-left transition-colors duration-100 rounded-[6px] mx-2 px-2 min-h-[34px]",
           isPrimary
-            ? LAYER_ROW_SELECTED
+            ? LAYER_ROW_DEEP_SELECTED
             : isSecondary
               ? "bg-[#4B57DB]/12 text-[#4B57DB] dark:bg-[#4B57DB]/18 dark:text-[#93A6FF]"
               : isParentTarget && isContainer && isValidDrop
@@ -342,7 +355,7 @@ function DesignTreeNode({
                 : "text-[var(--text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
         )}
         style={{
-          paddingLeft: depth * 12 + (hasChildren ? 2 : 10),
+          paddingLeft: depth * 13 + (hasChildren ? 2 : 12),
           opacity: rowOpacity,
         }}
       >
@@ -350,7 +363,7 @@ function DesignTreeNode({
           <span
             onClick={(e) => { e.stopPropagation(); onToggleExpanded(node.id); }}
             className={cn(
-              "flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] -ml-0.5",
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] -ml-0.5",
               isPrimary ? "hover:bg-white/15" : "hover:bg-black/[0.06] dark:hover:bg-white/10"
             )}
           >
@@ -449,11 +462,27 @@ function DesignTreeNode({
   );
 }
 
-function BreakpointIcon({ bp, selected }: { bp: string; selected?: boolean }) {
+function BreakpointIcon({
+  bp,
+  selected,
+  /** Subtle = artboard row (blue on light bg). Deep = unused here; icon matches row text. */
+  subtle,
+}: {
+  bp: string;
+  selected?: boolean;
+  subtle?: boolean;
+}) {
   const props = {
     size: 14,
     strokeWidth: 1,
-    className: cn("shrink-0", selected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]"),
+    className: cn(
+      "shrink-0",
+      selected
+        ? subtle
+          ? "text-[#4B57DB] dark:text-[#93A6FF]"
+          : "text-white/90"
+        : "text-[#A0A0A0] dark:text-[#666666]",
+    ),
   } as const;
   if (bp === "mobile") return <Smartphone {...props} />;
   return <Monitor {...props} />;
@@ -477,23 +506,23 @@ function TreeNode({
         type="button"
         onClick={() => onSelectNode(itemId, node.id)}
         className={cn(
-          "group flex w-full items-center gap-1.5 text-left transition-colors duration-75",
+          "group flex w-full items-center gap-2 text-left transition-colors duration-75 min-h-[34px]",
           isSelected
-            ? LAYER_ROW_SELECTED
+            ? LAYER_ROW_DEEP_SELECTED
             : "text-[#1A1A1A] hover:bg-[#F5F5F0] border-l-[1.5px] border-transparent dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
         )}
-        style={{ height: 28, paddingLeft: depth * 14 + (hasChildren ? 4 : 16) }}
+        style={{ minHeight: 34, paddingLeft: depth * 14 + (hasChildren ? 4 : 18) }}
       >
         {hasChildren && (
           <span
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
             className={cn(
-              "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm",
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-sm",
               isSelected ? "hover:bg-white/15" : "hover:bg-[#E5E5E0] dark:hover:bg-[#333333]"
             )}
           >
             <ChevronRight
-              size={10}
+              size={12}
               strokeWidth={1.5}
               className={cn(
                 "transition-transform duration-100",
@@ -531,7 +560,7 @@ function Group({ label, count, defaultOpen, children }: {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-1 px-2.5 py-1.5 text-left text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+        className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors min-h-[36px]"
       >
         <ChevronRight
           size={12}
@@ -545,7 +574,7 @@ function Group({ label, count, defaultOpen, children }: {
           </span>
         )}
       </button>
-      {open && <div className="pb-1">{children}</div>}
+      {open && <div className="pb-2">{children}</div>}
     </div>
   );
 }
@@ -589,7 +618,7 @@ function ArtboardDesignTree({
   const componentsEpoch = computeComponentsResolveEpoch(components);
   const resolvedTree = React.useMemo(
     () => resolveTree(sourceTree, components),
-    masterEditDirty ? [sourceTree, components] : [sourceTree, componentsEpoch]
+    [sourceTree, components, componentsEpoch, masterEditDirty]
   );
 
   return (
@@ -797,12 +826,12 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
 
       // Get taste profile and tokens from project state
       let tasteProfile = null;
-      let tokens = {};
+      let tokens = {} as DesignSystemTokens;
       if (projectId) {
         try {
           const ps = getProjectState(projectId);
           tasteProfile = ps.canvas?.tasteProfile ?? null;
-          tokens = ps.canvas?.designTokens ?? {};
+          tokens = (ps.canvas?.designTokens ?? {}) as DesignSystemTokens;
         } catch {}
       }
 
@@ -812,7 +841,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
       try {
         // Build the section prompt
         const sectionPrompt = buildDesignTreeSectionPrompt(
-          tokens as any,
+          tokens,
           context.targetName,
           { above: context.above, below: context.below },
           { intent, tasteProfile, direction }
@@ -1076,7 +1105,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
       style={{ contain: "strict" }}
     >
       {/* Framer-style: primary panel title + compact controls */}
-      <div className="shrink-0 border-b border-[var(--border-subtle)] px-3 pt-2.5 pb-2">
+      <div className="shrink-0 border-b border-[var(--border-subtle)] px-4 pt-3 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -1136,7 +1165,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
         onPointerUp={dragHook.handlePointerUp}
         onPointerCancel={dragHook.handlePointerCancel}
       >
-        <div className="pt-3 pb-2">
+        <div className="px-1 pt-4 pb-3">
           {/* Canvas group — loose frame/text items on the canvas surface */}
           {canvasDesignItems.length > 0 && (
             <Group label="Canvas" count={canvasDesignItems.length} defaultOpen>
@@ -1149,12 +1178,12 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                     data-layer-id={item.id}
                     onClick={() => handleSelectItem(item.id)}
                     className={cn(
-                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors duration-100",
+                      "flex w-full items-center gap-2 px-3.5 py-2 text-left transition-colors duration-100 min-h-[34px]",
                       canvasRowSelected
-                        ? LAYER_ROW_SELECTED
+                        ? LAYER_ROW_DEEP_SELECTED
                         : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                     )}
-                    style={{ height: 28, paddingLeft: 24 }}
+                    style={{ minHeight: 34, paddingLeft: 28 }}
                   >
                     {item.kind === "frame"
                       ? <Square size={14} strokeWidth={1.5} className={cn("shrink-0", canvasRowSelected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]")} />
@@ -1205,18 +1234,18 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                   <button
                     onClick={() => handleSelectItem(artboard.id)}
                     className={cn(
-                      "flex w-full items-center gap-1.5 px-3 py-1 text-left transition-colors duration-100",
+                      "flex w-full items-center gap-2 px-3.5 py-2 text-left transition-colors duration-100 min-h-[34px]",
                       siteRowSelected
-                        ? LAYER_ROW_SELECTED
+                        ? LAYER_ROW_ARTBOARD_SELECTED
                         : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                     )}
-                    style={{ height: 28, paddingLeft: 24 }}
+                    style={{ minHeight: 34, paddingLeft: 28 }}
                   >
-                    <BreakpointIcon bp={artboard.breakpoint} selected={siteRowSelected} />
+                    <BreakpointIcon bp={artboard.breakpoint} selected={siteRowSelected} subtle />
                     <span
                       className={cn(
                         "truncate text-[12px]",
-                        siteRowSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]"
+                        siteRowSelected ? "text-[#3D4BB3] font-medium dark:text-[#A8B8FF]" : "dark:text-[#D0D0D0]"
                       )}
                     >
                       {artboard.breakpoint.charAt(0).toUpperCase() + artboard.breakpoint.slice(1)} · {BREAKPOINT_WIDTHS[artboard.breakpoint]}px
@@ -1270,12 +1299,12 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                   key={ref.id}
                   onClick={() => handleSelectItem(ref.id)}
                   className={cn(
-                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors duration-100",
+                    "flex w-full items-center gap-2 px-3.5 py-2 text-left transition-colors duration-100 min-h-[34px]",
                     refSelected
-                      ? LAYER_ROW_SELECTED
+                      ? LAYER_ROW_DEEP_SELECTED
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                   )}
-                  style={{ height: 28, paddingLeft: 24 }}
+                  style={{ minHeight: 34, paddingLeft: 28 }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={ref.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded-[2px] object-cover ring-1 ring-white/20" />
@@ -1303,12 +1332,12 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                   key={note.id}
                   onClick={() => handleSelectItem(note.id)}
                   className={cn(
-                    "flex w-full items-center gap-2 px-3 py-1 text-left transition-colors duration-100",
+                    "flex w-full items-center gap-2 px-3.5 py-2 text-left transition-colors duration-100 min-h-[34px]",
                     noteSelected
-                      ? LAYER_ROW_SELECTED
+                      ? LAYER_ROW_DEEP_SELECTED
                       : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]"
                   )}
-                  style={{ height: 28, paddingLeft: 24 }}
+                  style={{ minHeight: 34, paddingLeft: 28 }}
                 >
                   <StickyNote
                     size={14}

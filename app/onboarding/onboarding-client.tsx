@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/project-store";
@@ -58,7 +58,7 @@ function getOrderedTemplates(archetype: Archetype | null) {
 
 const SPRING = [0.16, 1, 0.3, 1] as const;
 
-const stepVariants = {
+const stepVariants: Variants = {
   enter: (dir: number) => ({ opacity: 0, y: dir > 0 ? 16 : -16, scale: 0.98 }),
   center: {
     opacity: 1,

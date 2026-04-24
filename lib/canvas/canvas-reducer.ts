@@ -906,12 +906,12 @@ export function canvasReducer(
         name: "Text",
         style: {
           width,
-          height: mode === "click" ? ("hug" as any) : height,
+          height: mode === "click" ? "hug" : height,
           fontSize: 16,
           lineHeight: 1.4,
           foreground: "#1A1A1A",
         },
-        content: { text: "Type something" },
+        content: { text: "" },
       };
       return {
         ...state,
@@ -1131,13 +1131,13 @@ export function canvasReducer(
           ...action.changes,
           id: node.id,
           type: node.type,
-        }))
+        }) as typeof node)
       );
     }
 
     case "UPDATE_NODE_STYLE": {
       const breakpoint = getActiveBreakpoint(state);
-      const treeUpdater = (tree: DesignNode) =>
+      const treeUpdater = <T extends TreeNode>(tree: T): T =>
         updateNodeInTree(tree, action.nodeId, (node) => {
           if (breakpoint === "desktop") {
             return { ...node, style: { ...node.style, ...action.style } };
@@ -1178,7 +1178,7 @@ export function canvasReducer(
       const breakpoint = getActiveBreakpoint(state);
       const { nodeIds } = action;
 
-      const treeUpdater = (pageTree: DesignNode) => {
+      const treeUpdater = <T extends TreeNode>(pageTree: T): T => {
         let result = pageTree;
         for (const nodeId of nodeIds) {
           result = updateNodeInTree(result, nodeId, (node) => {
@@ -1784,7 +1784,9 @@ export function canvasReducer(
           delete updated[property];
 
           const hasRemaining = Object.keys(updated).length > 0;
-          const nextOverrides = { ...node.responsiveOverrides };
+          const nextOverrides: Partial<Record<Breakpoint, Partial<DesignNodeStyle>>> = {
+            ...node.responsiveOverrides,
+          };
           if (hasRemaining) {
             nextOverrides[bp] = updated;
           } else {
@@ -1863,6 +1865,27 @@ export function canvasReducer(
           : [...state.selection.selectedItemIds, action.itemId]
         : [action.itemId];
 
+      // #region agent log
+      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d008eb" },
+        body: JSON.stringify({
+          sessionId: "d008eb",
+          hypothesisId: "H2",
+          location: "canvas-reducer.ts:SELECT_ITEM",
+          message: "item selection (clears node selection)",
+          data: {
+            itemId: action.itemId,
+            addToSelection: Boolean(action.addToSelection),
+            prevActiveItemId: state.selection.activeItemId,
+            prevNodeId: state.selection.selectedNodeId,
+            nextIdsLen: ids.length,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       return {
         ...state,
         selection: {
@@ -1875,6 +1898,34 @@ export function canvasReducer(
     }
 
     case "SELECT_NODE": {
+      // #region agent log
+      {
+        const item = state.items.find((i) => i.id === action.itemId);
+        const tree = item ? getNodeTree(item) : null;
+        const nodeInTree = tree
+          ? Boolean(findDesignNodeById(tree, action.nodeId))
+          : false;
+        fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d008eb" },
+          body: JSON.stringify({
+            sessionId: "d008eb",
+            hypothesisId: "H3",
+            location: "canvas-reducer.ts:SELECT_NODE",
+            message: "node selection",
+            data: {
+              itemId: action.itemId,
+              nodeId: action.nodeId,
+              itemKind: item?.kind ?? null,
+              hasTree: Boolean(tree),
+              nodeInTree,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
+
       return {
         ...state,
         selection: {

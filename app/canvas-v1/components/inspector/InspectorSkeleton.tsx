@@ -263,6 +263,10 @@ export function InspectorSkeleton({
     });
   }
 
+  function updatePadding(side: "top" | "right" | "bottom" | "left", value: number | undefined) {
+    updateStyle("padding", { ...(style.padding ?? {}), [side]: value });
+  }
+
   // ── Border & Shadow "addable" state ──────────────────────────────────
 
   const hasBorder = Boolean(style.borderColor);
@@ -408,6 +412,7 @@ export function InspectorSkeleton({
             nodeId={node.id}
             nodeType={node.type}
             style={style}
+            onPaddingChange={updatePadding}
             onHistorySchedule={history.schedule}
             onHistoryFlush={history.flush}
           />

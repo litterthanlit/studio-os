@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useDropzone } from "react-dropzone";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { springs, fadeIn } from "@/lib/animations";
 
@@ -28,10 +28,8 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
   });
 
   return (
-    <motion.div
-      {...(getRootProps() as React.HTMLAttributes<HTMLDivElement>)}
-      whileHover={disabled ? {} : { scale: 1.005, transition: springs.smooth }}
-      whileTap={disabled ? {} : { scale: 0.995, transition: springs.snappy }}
+    <div
+      {...getRootProps()}
       className={cn(
         "relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-4 py-8 cursor-pointer",
         "transition-colors duration-200",
@@ -90,6 +88,6 @@ export function UploadZone({ onFilesAdded, disabled, className }: UploadZoneProp
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

@@ -182,18 +182,21 @@ async function fetchFallbackImages(limit: number) {
     const images = Array.isArray(data) ? data : data.images || [];
 
     return NextResponse.json({
-      images: images.map((img: Record<string, unknown>) => ({
-        id: img.id,
-        sourceId: img.id,
-        imageUrl: img.url || img.urls?.regular,
-        thumbnailUrl: img.urls?.small || img.url,
-        title: img.title || img.alt || "Untitled",
-        scores: null,
-        tags: [],
-        colors: img.colors || [],
-        mood: null,
-        style: null,
-      })),
+      images: images.map((img: Record<string, unknown>) => {
+        const urls = img.urls as { regular?: string; small?: string } | undefined;
+        return {
+          id: img.id,
+          sourceId: img.id,
+          imageUrl: img.url || urls?.regular,
+          thumbnailUrl: urls?.small || img.url,
+          title: img.title || img.alt || "Untitled",
+          scores: null,
+          tags: [],
+          colors: img.colors || [],
+          mood: null,
+          style: null,
+        };
+      }),
       collection: "Random",
       scored: false,
     });

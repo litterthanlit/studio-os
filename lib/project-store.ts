@@ -32,7 +32,7 @@ export type StoredProjectFont = {
 export type StoredReference = {
   id: string;
   imageUrl: string;
-  source: "upload" | "arena" | "pinterest" | "url";
+  source: "upload" | "arena" | "pinterest" | "url" | "generated";
   sourceUrl?: string;
   title?: string;
   addedAt: string;
@@ -65,6 +65,7 @@ export type ProjectCanvasState = {
   componentPrompt?: string;
   siteType?: SiteType;
   generatedVariants?: GeneratedVariant[];
+  fidelityMode?: "close" | "balanced" | "push";
   selectedVariantId?: string | null;
   composeDocument?: ComposeDocument | null;
   generatedSite?: StoredGeneratedSite | null;

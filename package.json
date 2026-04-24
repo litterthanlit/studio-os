@@ -14,7 +14,9 @@
     "benchmark:v6": "npx tsx scripts/benchmark-harness.ts --v6",
     "benchmark:v5": "npx tsx scripts/benchmark-harness.ts --v5",
     "benchmark:compare": "npx tsx scripts/benchmark-harness.ts --compare",
-    "qa:canvas-trust": "npx tsx scripts/canvas-trust-smoke.ts"
+    "qa:canvas-trust": "npx tsx scripts/canvas-trust-smoke.ts",
+    "qa:launch-benchmark": "npx tsx scripts/launch-benchmark-preflight.ts",
+    "qa:launch-benchmark:strict": "npx tsx scripts/launch-benchmark-preflight.ts --strict"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

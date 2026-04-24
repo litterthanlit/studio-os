@@ -79,27 +79,6 @@ export function useTextPlace({
       if (spaceHeldRef.current) return;
       const target = e.target as HTMLElement;
       const blockReason = getCanvasDrawToolBlockReason(target);
-      // #region agent log
-      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-        body: JSON.stringify({
-          sessionId: "f3006b",
-          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          hypothesisId: "H1-text-tool-start",
-          runId: "initial-pass",
-          location: "useTextPlace:handlePointerDown",
-          message: blockReason ? "text tool start blocked" : "text tool start accepted",
-          data: {
-            blockReason,
-            pointerId: e.pointerId,
-            clientX: e.clientX,
-            clientY: e.clientY,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (blockReason) return;
 
       dragRef.current = {

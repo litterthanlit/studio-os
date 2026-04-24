@@ -218,11 +218,15 @@ function EmptySelection({
   onOpenGenerate?: () => void;
 }) {
   const { state, dispatch } = useCanvas();
+  const [projectName, setProjectName] = React.useState("Project");
   const refCount = state.items.filter((i) => i.kind === "reference").length;
   const artboardCount = state.items.filter((i) => i.kind === "artboard").length;
   const noteCount = state.items.filter((i) => i.kind === "note").length;
   const zoom = Math.round(state.viewport.zoom * 100);
-  const projectName = projectId ? (getProjectById(projectId)?.name ?? "Project") : "Project";
+
+  React.useEffect(() => {
+    setProjectName(projectId ? (getProjectById(projectId)?.name ?? "Project") : "Project");
+  }, [projectId]);
 
   return (
     <div>

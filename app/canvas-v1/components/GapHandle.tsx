@@ -32,33 +32,6 @@ export function GapHandle({
   React.useEffect(() => {
     if (!visualRef.current) return;
     const style = window.getComputedStyle(visualRef.current);
-    // #region agent log
-    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-      body: JSON.stringify({
-        sessionId: "f3006b",
-        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        hypothesisId: "H6-gap-dom-visibility",
-        runId: "initial-pass",
-        location: "GapHandle:mount",
-        message: "gap handle mounted in DOM",
-        data: {
-          gapIndex: gapRect.index,
-          direction,
-          centerX: gapRect.centerX,
-          centerY: gapRect.centerY,
-          width: gapRect.width,
-          height: gapRect.height,
-          display: style.display,
-          visibility: style.visibility,
-          opacity: style.opacity,
-          zIndex: style.zIndex,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
   }, [direction, gapRect.centerX, gapRect.centerY, gapRect.height, gapRect.index, gapRect.width]);
 
   // Calculate visual size based on state

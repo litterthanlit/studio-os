@@ -1865,27 +1865,6 @@ export function canvasReducer(
           : [...state.selection.selectedItemIds, action.itemId]
         : [action.itemId];
 
-      // #region agent log
-      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d008eb" },
-        body: JSON.stringify({
-          sessionId: "d008eb",
-          hypothesisId: "H2",
-          location: "canvas-reducer.ts:SELECT_ITEM",
-          message: "item selection (clears node selection)",
-          data: {
-            itemId: action.itemId,
-            addToSelection: Boolean(action.addToSelection),
-            prevActiveItemId: state.selection.activeItemId,
-            prevNodeId: state.selection.selectedNodeId,
-            nextIdsLen: ids.length,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-
       return {
         ...state,
         selection: {
@@ -1898,33 +1877,6 @@ export function canvasReducer(
     }
 
     case "SELECT_NODE": {
-      // #region agent log
-      {
-        const item = state.items.find((i) => i.id === action.itemId);
-        const tree = item ? getNodeTree(item) : null;
-        const nodeInTree = tree
-          ? Boolean(findDesignNodeById(tree, action.nodeId))
-          : false;
-        fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d008eb" },
-          body: JSON.stringify({
-            sessionId: "d008eb",
-            hypothesisId: "H3",
-            location: "canvas-reducer.ts:SELECT_NODE",
-            message: "node selection",
-            data: {
-              itemId: action.itemId,
-              nodeId: action.nodeId,
-              itemKind: item?.kind ?? null,
-              hasTree: Boolean(tree),
-              nodeInTree,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-      }
-      // #endregion
 
       return {
         ...state,

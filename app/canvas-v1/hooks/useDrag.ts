@@ -42,30 +42,6 @@ export function useDrag(options: DragCallbacks): DragHandlers {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
 
-      // #region agent log
-      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-        body: JSON.stringify({
-          sessionId: "f3006b",
-          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          hypothesisId: "H7-item-drag-handler",
-          runId: "initial-pass",
-          location: "useDrag:onPointerDown",
-          message: "canvas item drag handler activated",
-          data: {
-            itemId,
-            itemX,
-            itemY,
-            tag,
-            clientX: e.clientX,
-            clientY: e.clientY,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-
       e.stopPropagation();
       e.preventDefault();
 

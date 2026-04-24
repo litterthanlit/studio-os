@@ -138,30 +138,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const loadingArtboards = React.useMemo(() => createLoadingArtboards(items), [items]);
   const hasArtboards = items.some((item) => item.kind === "artboard");
 
-  React.useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-      body: JSON.stringify({
-        sessionId: "f3006b",
-        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        hypothesisId: "H9-canvas-mount",
-        runId: "initial-pass",
-        location: "UnifiedCanvasView:mount",
-        message: "canvas view mounted",
-        data: {
-          projectId,
-          itemCount: items.length,
-          hasArtboards,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Welcome overlay for first-time users
   const { visible: welcomeVisible, dismiss: dismissWelcome, show: showWelcome } = useWelcomeOverlay();
 
@@ -242,29 +218,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   React.useEffect(() => {
     if (activeTool === "marquee") setActiveTool("select");
   }, [activeTool]);
-
-  React.useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-      body: JSON.stringify({
-        sessionId: "f3006b",
-        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        hypothesisId: "H10-tool-state",
-        runId: "initial-pass",
-        location: "UnifiedCanvasView:activeTool",
-        message: "active tool changed",
-        data: {
-          projectId,
-          activeTool,
-          activeItemId: state.selection.activeItemId ?? null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [activeTool, projectId, state.selection.activeItemId]);
 
   const openPromptWithInspector = React.useCallback(() => {
     setShowInspector(true);
@@ -359,11 +312,15 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // Keep a ref so the pointerup closure (captured inside useDrag) can read the latest value
   const dropTargetArtboardIdRef = React.useRef<string | null>(null);
-  dropTargetArtboardIdRef.current = dropTargetArtboardId;
+  React.useEffect(() => {
+    dropTargetArtboardIdRef.current = dropTargetArtboardId;
+  }, [dropTargetArtboardId]);
 
   // Keep a ref to state.items so drag-end closures always have current item data
   const itemsRef = React.useRef(items);
-  itemsRef.current = items;
+  React.useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   // Auto-extract colors/fonts/tags from references
   const { isAnalyzing } = useReferenceExtractor(items, dispatch);
@@ -665,8 +622,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   }, [state.selection, items, containerRef, viewport, dispatch, triggerDiscreteZoom, zoomToFit]);
 
   // Wire stable refs so keyboard shortcuts can call the real implementations
-  zoomToFitRef.current = zoomToFit;
-  zoomToSelectionRef.current = zoomToSelection;
+  React.useEffect(() => {
+    zoomToFitRef.current = zoomToFit;
+    zoomToSelectionRef.current = zoomToSelection;
+  }, [zoomToFit, zoomToSelection]);
 
   // ── Drag box selection ─────────────────────────────────────────────
 
@@ -706,7 +665,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // Keep a ref in sync so mouseUp can read latest value without state updater
   const dragSelectionRef = React.useRef(dragSelection);
-  dragSelectionRef.current = dragSelection;
+  React.useEffect(() => {
+    dragSelectionRef.current = dragSelection;
+  }, [dragSelection]);
 
   React.useEffect(() => {
     if (!dragSelection) return;

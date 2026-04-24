@@ -174,6 +174,10 @@ export function useDragDesignNode(options: UseDragDesignNodeOptions) {
       const handlePointerMove = (moveEvent: PointerEvent) => {
         const drag = draggingRef.current;
         if (!drag) return;
+        if ((moveEvent.buttons & 1) !== 1) {
+          cleanupActiveDrag();
+          return;
+        }
         const dd = dispatchRef.current;
         if (!dd) return;
 

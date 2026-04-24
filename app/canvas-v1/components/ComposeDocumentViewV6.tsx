@@ -1553,27 +1553,6 @@ export function ComposeDocumentViewV6({
         payload.startClientY,
         containerRef.current
       );
-      // #region agent log
-      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-        body: JSON.stringify({
-          sessionId: "f3006b",
-          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          hypothesisId: "H2-frame-insert-target",
-          runId: "initial-pass",
-          location: "ComposeDocumentViewV6:handleFrameCommit",
-          message: target ? "frame commit resolved insert target" : "frame commit missing insert target",
-          data: {
-            ok: Boolean(target),
-            parentId: target?.parentId ?? null,
-            offsetNodeId: target?.offsetElement.getAttribute("data-node-id") ?? null,
-            payload,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (!target) return;
       const parentNode = findDesignNodeById(tree, target.parentId);
       if (!parentNode) return;
@@ -1617,27 +1596,6 @@ export function ComposeDocumentViewV6({
         payload.startClientY,
         containerRef.current
       );
-      // #region agent log
-      fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-        body: JSON.stringify({
-          sessionId: "f3006b",
-          id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          hypothesisId: "H2-text-insert-target",
-          runId: "initial-pass",
-          location: "ComposeDocumentViewV6:handleTextCommit",
-          message: target ? "text commit resolved insert target" : "text commit missing insert target",
-          data: {
-            ok: Boolean(target),
-            parentId: target?.parentId ?? null,
-            offsetNodeId: target?.offsetElement.getAttribute("data-node-id") ?? null,
-            payload,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (!target) return;
       const parentNode = findDesignNodeById(tree, target.parentId);
       if (!parentNode) return;
@@ -1725,22 +1683,6 @@ export function ComposeDocumentViewV6({
         e.stopPropagation();
         const targetNodeId =
           (e.target as HTMLElement).closest("[data-node-id]")?.getAttribute("data-node-id") ?? null;
-        // #region agent log
-        fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-          body: JSON.stringify({
-            sessionId: "f3006b",
-            id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            hypothesisId: "H1-tool-pointer-entry",
-            runId: "initial-pass",
-            location: "ComposeDocumentViewV6:mergedPointerDown",
-            message: "frame tool pointerdown reached compose container",
-            data: { canvasTool, targetNodeId, clientX: e.clientX, clientY: e.clientY },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         return;
       }
       if (canvasTool === "text") {
@@ -1748,22 +1690,6 @@ export function ComposeDocumentViewV6({
         e.stopPropagation();
         const targetNodeId =
           (e.target as HTMLElement).closest("[data-node-id]")?.getAttribute("data-node-id") ?? null;
-        // #region agent log
-        fetch("http://127.0.0.1:7393/ingest/391248b0-24d6-418e-a9f6-e5cbe0f87918", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f3006b" },
-          body: JSON.stringify({
-            sessionId: "f3006b",
-            id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            hypothesisId: "H1-tool-pointer-entry",
-            runId: "initial-pass",
-            location: "ComposeDocumentViewV6:mergedPointerDown",
-            message: "text tool pointerdown reached compose container",
-            data: { canvasTool, targetNodeId, clientX: e.clientX, clientY: e.clientY },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         return;
       }
       rubberBand.handlePointerDown(e);

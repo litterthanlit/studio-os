@@ -1136,8 +1136,8 @@ function getSuggestionChips(
   hasArtboards: boolean
 ): string[] {
   if (!selectedNode) {
-    if (hasArtboards) return ["Add a pricing section", "Tighten the layout", "Improve mobile responsiveness"];
-    return ["Generate a landing page", "Build a portfolio site", "Create a SaaS homepage"];
+    if (hasArtboards) return ["Tighten spacing", "Make this more premium", "Make this more editorial"];
+    return ["Explore directions", "Generate an editorial portfolio", "Create a premium launch page"];
   }
 
   switch (selectedNode.type) {
@@ -1607,6 +1607,7 @@ function PromptComposer({
       <div className="flex-1 overflow-y-auto px-3 min-h-0">
         {/* Taste Intelligence surfaces — scroll with content */}
         <div className="-mx-3">
+          <LaunchLoopStrip />
           <div className="border-b border-[#E5E5E0]">
             <TasteCard
               tasteProfile={tasteProfile}
@@ -1767,9 +1768,30 @@ function GenerateButtonWithHint({
           className="absolute bottom-full right-0 mb-1 whitespace-nowrap text-[12px] text-[#6B6B6B] bg-[#FFFFFF] border border-[#E5E5E0] rounded-[4px] px-3 py-1.5 shadow-sm pointer-events-none"
           style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
         >
-          AI generates a site based on your references and prompt
+          Generate an editable site from your references, Taste Brief, and prompt
         </div>
       )}
+    </div>
+  );
+}
+
+function LaunchLoopStrip() {
+  const steps = ["References", "Taste Brief", "Generate", "Edit", "Publish"];
+
+  return (
+    <div className="px-3 py-2 border-b border-[#E5E5E0]">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {steps.map((step, index) => (
+          <React.Fragment key={step}>
+            <span className="rounded-[3px] bg-[#F5F5F0] px-1.5 py-1 text-[10px] font-mono uppercase tracking-[0.6px] text-[#6B6B6B]">
+              {step}
+            </span>
+            {index < steps.length - 1 && (
+              <span className="text-[10px] text-[#A0A0A0]">-&gt;</span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 }

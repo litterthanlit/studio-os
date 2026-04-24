@@ -23,11 +23,11 @@ export function ReferenceRail({ references }: ReferenceRailProps) {
     return (
       <div className="px-3 py-2">
         <p className="text-[11px] text-[#A0A0A0]">
-          Drop reference images onto the canvas to inform generation
+          Drop 3-4 references to build a Taste Brief before generation
         </p>
         <OnboardingHint
           hintKey="references-seen"
-          text="Drop images here to set your taste"
+          text="Use references to teach Studio OS your taste"
           className="mt-2"
         />
       </div>

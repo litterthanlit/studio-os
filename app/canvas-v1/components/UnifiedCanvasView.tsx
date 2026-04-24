@@ -926,7 +926,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             <rect x="28" y="4" width="4" height="40" rx="2" fill="#A0A0A0" />
             <rect x="36" y="8" width="4" height="32" rx="2" fill="#A0A0A0" />
           </svg>
-          <p className="text-[14px] text-text-muted">Drop references or start with a prompt</p>
+          <p className="text-[14px] font-medium text-text">Drop references to teach Studio OS your taste</p>
+          <p className="mt-1 text-[12px] text-text-muted">Then generate an editable site direction from the Prompt panel.</p>
         </div>
       )}
 

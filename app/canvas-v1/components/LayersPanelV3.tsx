@@ -745,12 +745,27 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
     ) || null;
   }, [items, selection.activeItemId]);
 
+  const activeLayerTree = React.useMemo(() => {
+    if (!selection.activeItemId) return null;
+
+    const activeItem = items.find((i) => i.id === selection.activeItemId);
+    if (!activeItem) return null;
+
+    if (activeItem.kind === "artboard" && isDesignNodeTree(activeItem.pageTree)) {
+      return resolveTree(activeItem.pageTree as DesignNode, components);
+    }
+
+    if (activeItem.kind === "frame") {
+      return resolveTree(canvasItemToDesignNode(activeItem), components);
+    }
+
+    return null;
+  }, [components, items, selection.activeItemId]);
+
   // ── Auto-expand ancestors (artboard) and scroll layers row into view ────────
   React.useEffect(() => {
-    if (selectedNodeId && activeArtboard && isDesignNodeTree(activeArtboard.pageTree)) {
-      const root = activeArtboard.pageTree as DesignNode;
-
-      const ancestors = getAncestors(selectedNodeId, root);
+    if (selectedNodeId && activeLayerTree) {
+      const ancestors = getAncestors(selectedNodeId, activeLayerTree);
 
       setExpandedNodeIds((prev) => {
         const next = new Set(prev);
@@ -778,7 +793,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
         }, 300);
       }
     }, 50);
-  }, [selectedNodeId, activeArtboard, selection.activeItemId]);
+  }, [selectedNodeId, activeLayerTree, selection.activeItemId]);
 
   const handleToggleExpanded = React.useCallback((nodeId: string) => {
     setExpandedNodeIds(prev => {

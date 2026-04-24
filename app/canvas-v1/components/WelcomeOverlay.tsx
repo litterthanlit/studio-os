@@ -2,7 +2,7 @@
 
 /**
  * Welcome Overlay — shown on first visit when `studio-os:onboarding-seen`
- * is not set in localStorage. Teaches the core loop in 5 scannable steps
+ * is not set in localStorage. Teaches the launch loop in 5 scannable steps
  * and offers two paths: open a sample project or start from scratch.
  */
 
@@ -14,11 +14,11 @@ import { persistSampleProject } from "@/lib/canvas/sample-project";
 const ONBOARDING_KEY = "studio-os:onboarding-seen";
 
 const STEPS = [
-  { num: "1", text: "Drop in references", desc: "screenshots, moodboards, anything that represents the vibe" },
-  { num: "2", text: "Generate", desc: "AI builds a site that matches your taste" },
-  { num: "3", text: "Edit", desc: "select, move, resize, restyle. It's a real editor." },
-  { num: "4", text: "Refine", desc: "use the floating prompt panel (Prompt tool) to iterate with AI" },
-  { num: "5", text: "Export", desc: "copy the HTML and ship it" },
+  { num: "1", text: "Add references", desc: "drop 3-4 screenshots, sites, or moodboards that define the direction" },
+  { num: "2", text: "Review the Taste Brief", desc: "see the typography, spacing, color, density, and mood Studio OS extracted" },
+  { num: "3", text: "Generate an editable site", desc: "turn the brief into real sections you can select, drag, resize, and restyle" },
+  { num: "4", text: "Refine one section", desc: "tighten spacing, make it more premium, or push it closer to a reference" },
+  { num: "5", text: "Publish or export", desc: "run preflight, share a clean link, or copy the handoff code" },
 ];
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -106,11 +106,17 @@ export function WelcomeOverlay({ visible, onDismiss }: WelcomeOverlayProps) {
         <div className="px-8 pt-8 pb-6">
           <h2
             id="welcome-title"
-            className="text-[22px] font-semibold text-[#1A1A1A] mb-6"
+            className="text-[22px] font-semibold text-[#1A1A1A] mb-2"
             style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
           >
-            Welcome to Studio OS
+            Turn references into an editable site
           </h2>
+          <p
+            className="text-[13px] leading-[1.5] text-[#6B6B6B] mb-6"
+            style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
+          >
+            Studio OS is strongest when it learns your taste first, then gives you a generated direction you can actually edit and ship.
+          </p>
 
           {/* Steps */}
           <ol className="space-y-3.5 mb-0 list-none p-0 m-0">

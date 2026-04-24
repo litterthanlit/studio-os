@@ -14,6 +14,7 @@ import {
   type ExportOptions,
   countExternalImageReferences,
 } from "@/lib/canvas/export-options";
+import { runExportPreflight } from "@/lib/canvas/export-preflight";
 import { buildExportZipBlob } from "@/lib/canvas/build-export-zip";
 import { OnboardingHint } from "../OnboardingHint";
 import { StudioButton } from "@/components/ui/studio-button";
@@ -88,6 +89,10 @@ export function ExportTab({
 
   const externalImageCount = React.useMemo(
     () => (exportRoot ? countExternalImageReferences(exportRoot) : 0),
+    [exportRoot]
+  );
+  const preflight = React.useMemo(
+    () => runExportPreflight(exportRoot),
     [exportRoot]
   );
 
@@ -255,6 +260,41 @@ export function ExportTab({
         </p>
       )}
 
+      <div className="rounded-[4px] border border-[var(--border-primary)] bg-[var(--surface-secondary)] px-2.5 py-2">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666]">
+            Publish preflight
+          </span>
+          <span className={preflight.ready ? "text-[10px] text-emerald-600 dark:text-emerald-400" : "text-[10px] text-amber-700 dark:text-amber-300"}>
+            {preflight.ready ? "Ready" : "Needs review"}
+          </span>
+        </div>
+        {preflight.issues.length === 0 ? (
+          <p className="text-[11px] text-text-muted">
+            No blocking issues found. Preview the page before sending it to a client.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {preflight.issues.slice(0, 4).map((issue) => (
+              <div key={issue.id} className="text-[11px] leading-snug">
+                <span
+                  className={
+                    issue.severity === "error"
+                      ? "text-red-600 dark:text-red-400"
+                      : issue.severity === "warning"
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-text-muted"
+                  }
+                >
+                  {issue.label}
+                </span>
+                <span className="text-text-muted"> — {issue.detail}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {selectionNotOnSourceTree && (
         <p className="text-[11px] text-text-muted">
           This selection is not on the{" "}
@@ -313,7 +353,7 @@ export function ExportTab({
               variant="secondary"
               className="w-full shrink-0 text-[12px]"
               onClick={handlePublish}
-              disabled={publishLoading || zipLoading}
+              disabled={publishLoading || zipLoading || !preflight.ready}
             >
               {publishLoading ? "Publishing…" : "Publish link"}
             </StudioButton>

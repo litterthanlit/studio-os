@@ -43,12 +43,20 @@ export function TasteCard({
   }
 
   const {
+    summary,
     archetypeMatch,
     archetypeConfidence,
     adjectives,
     colorBehavior,
     layoutBias,
+    typographyTraits,
+    imageTreatment,
+    ctaTone,
     avoid,
+    confidence,
+    referenceCount,
+    dominantReferenceType,
+    warnings,
   } = tasteProfile;
 
   const isLowConfidence = archetypeConfidence < 0.5;
@@ -114,6 +122,20 @@ export function TasteCard({
         </button>
       </div>
 
+      <div className="mb-2 rounded-[4px] border border-[#E5E5E0] bg-white/70 px-2.5 py-2 dark:border-[#333333] dark:bg-[#202020]">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#8A8A8A]">
+            Taste brief
+          </span>
+          <span className="font-mono text-[10px] text-[#A0A0A0]">
+            {referenceCount} refs · {Math.round(confidence * 100)}%
+          </span>
+        </div>
+        <p className="text-[11px] leading-snug text-[#4A4A4A] dark:text-[#D0D0D0]">
+          {summary || `A ${archetypeMatch} direction from ${dominantReferenceType} references.`}
+        </p>
+      </div>
+
       {/* Adjective pills — limit 5 */}
       {adjectives.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -161,6 +183,13 @@ export function TasteCard({
         )}
       </div>
 
+      <div className="mb-2 grid grid-cols-2 gap-1.5 text-[10px] leading-snug">
+        <TasteBriefTrait label="Type" value={`${typographyTraits.headingTone} · ${typographyTraits.scale}`} />
+        <TasteBriefTrait label="Images" value={`${imageTreatment.style} · ${imageTreatment.sizing}`} />
+        <TasteBriefTrait label="Color" value={`${colorBehavior.mode} · ${colorBehavior.accentStrategy}`} />
+        <TasteBriefTrait label="CTA" value={`${ctaTone.style} · ${ctaTone.hierarchy}`} />
+      </div>
+
       {/* Avoid list */}
       {visibleAvoids.length > 0 && (
         <div className="text-[11px] text-[#A0A0A0] mb-2">
@@ -182,6 +211,12 @@ export function TasteCard({
         </div>
       )}
 
+      {warnings.length > 0 && (
+        <div className="mb-2 rounded-[4px] bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          {warnings[0]}
+        </div>
+      )}
+
       {/* Fidelity selector */}
       <div className="pt-1">
         <InspectorSegmented
@@ -189,6 +224,19 @@ export function TasteCard({
           options={FIDELITY_OPTIONS}
           onChange={(v) => onFidelityChange(v as FidelityMode)}
         />
+      </div>
+    </div>
+  );
+}
+
+function TasteBriefTrait({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[3px] bg-[#F5F5F0] px-2 py-1 dark:bg-[#242424]">
+      <div className="font-mono uppercase tracking-[0.08em] text-[#A0A0A0]">
+        {label}
+      </div>
+      <div className="truncate text-[#4A4A4A] dark:text-[#D0D0D0]" title={value}>
+        {value}
       </div>
     </div>
   );

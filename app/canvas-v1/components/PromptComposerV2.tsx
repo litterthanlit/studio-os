@@ -235,6 +235,29 @@ function getSuggestionChips(
   }
 }
 
+const SECTION_REGEN_MODES = [
+  {
+    label: "Tighten",
+    prompt: "Tighten spacing, sharpen hierarchy, and remove any generic filler while keeping this section's purpose.",
+    intent: "more-like-this" as const,
+  },
+  {
+    label: "Premium",
+    prompt: "Make this section feel more premium with stronger hierarchy, more intentional spacing, and refined visual restraint.",
+    intent: "more-like-this" as const,
+  },
+  {
+    label: "Editorial",
+    prompt: "Make this section more editorial: stronger type contrast, more distinctive composition, and less SaaS-template structure.",
+    intent: "different-approach" as const,
+  },
+  {
+    label: "Reference",
+    prompt: "Move this section closer to the primary reference while preserving the site's overall flow.",
+    intent: "more-like-this" as const,
+  },
+];
+
 // ─── Generate Button with Onboarding Hint ─────────────────────────────────────
 
 function GenerateButtonWithHint({
@@ -558,6 +581,9 @@ export function PromptComposerV2({
 
         const context = buildSectionContext(tree.children, selectedSection.id);
         const tokens = projectId ? (getProjectState(projectId).canvas?.designTokens ?? {}) as DesignSystemTokens : ({} as DesignSystemTokens);
+        const rawPrompt = prompt.value.trim();
+        const mode = SECTION_REGEN_MODES.find((option) => option.prompt === rawPrompt);
+        const intent = mode?.intent ?? "more-like-this";
 
         dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
 
@@ -566,8 +592,8 @@ export function PromptComposerV2({
           context.targetName,
           { above: context.above, below: context.below },
           {
-            intent: "more-like-this",
-            direction: prompt.value.trim(),
+            intent,
+            direction: rawPrompt,
             tasteProfile,
             fidelityMode,
           }
@@ -579,7 +605,7 @@ export function PromptComposerV2({
           body: JSON.stringify({
             prompt: sectionPrompt,
             tokens,
-            regenerationIntent: "more-like-this",
+            regenerationIntent: intent,
             useDesignNode: true,
             mode: "single",
           }),
@@ -1078,6 +1104,31 @@ export function PromptComposerV2({
             <ReferenceRail references={referenceItems} />
           </div>
         </div>
+
+        {selectedSection && (
+          <div className="my-2 rounded-[4px] border border-[#D1E4FC] bg-[#F7FAFF] p-2 dark:border-[#29336F] dark:bg-[#171B2E]">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#4B57DB] dark:text-[#91A0FF]">
+                Section regen
+              </span>
+              <span className="truncate text-[10px] text-[#6B6B6B] dark:text-[#A0A0A0]">
+                {selectedSection.name}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {SECTION_REGEN_MODES.map((mode) => (
+                <button
+                  key={mode.label}
+                  type="button"
+                  onClick={() => dispatch({ type: "SET_PROMPT", value: mode.prompt })}
+                  className="rounded-[3px] bg-white px-2 py-1.5 text-left text-[11px] text-[#1A1A1A] shadow-sm transition-colors hover:bg-[#EEF4FF] dark:bg-[#222222] dark:text-[#D0D0D0] dark:hover:bg-[#2A2F4D]"
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Prompt history */}
         {prompt.history.length > 0 && (

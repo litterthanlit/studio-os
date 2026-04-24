@@ -65,11 +65,13 @@ import type {
   PromptRunArtboard,
   Breakpoint,
 } from "@/lib/canvas/unified-canvas-state";
-import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
+import { canvasItemToDesignNode, getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { TasteProfile } from "@/types/taste-profile";
 import { isHintSeen, markHintSeen } from "./OnboardingHint";
+import { buildSectionContext } from "@/lib/canvas/section-context-builder";
+import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
@@ -1161,11 +1163,34 @@ function getSuggestionChips(
     case "section":
       if (selectedNode.content?.mediaUrl)
         return ["A hero photo", "An abstract pattern", "A product screenshot"];
-      return ["Add more whitespace", "Make it darker", "Simplify this section"];
+      return ["Tighten spacing", "Make this more premium", "More like the primary reference"];
     default:
       return ["Redesign this section", "Change the layout", "Add more content"];
   }
 }
+
+const SECTION_REGEN_MODES = [
+  {
+    label: "Tighten",
+    prompt: "Tighten spacing, sharpen hierarchy, and remove any generic filler while keeping this section's purpose.",
+    intent: "more-like-this" as const,
+  },
+  {
+    label: "Premium",
+    prompt: "Make this section feel more premium with stronger hierarchy, more intentional spacing, and refined visual restraint.",
+    intent: "more-like-this" as const,
+  },
+  {
+    label: "Editorial",
+    prompt: "Make this section more editorial: stronger type contrast, more distinctive composition, and less SaaS-template structure.",
+    intent: "different-approach" as const,
+  },
+  {
+    label: "Reference",
+    prompt: "Move this section closer to the primary reference while preserving the site's overall flow.",
+    intent: "more-like-this" as const,
+  },
+];
 
 // ─── Prompt Composer (embedded) ──────────────────────────────────────────────
 
@@ -1217,6 +1242,17 @@ function PromptComposer({
     },
     [projectId]
   );
+
+  const selectedSection = React.useMemo(() => {
+    if (!selection.activeItemId || !selection.selectedNodeId) return null;
+    const item = items.find((i) => i.id === selection.activeItemId);
+    if (!item) return null;
+    const tree = getNodeTree(item);
+    if (!tree?.children) return null;
+    const node = tree.children.find((child) => child.id === selection.selectedNodeId);
+    if (!node) return null;
+    return { id: node.id, name: node.name || "Section", itemId: item.id };
+  }, [items, selection.activeItemId, selection.selectedNodeId]);
 
   // Reference context: selected references, or all references if none selected
   const referenceItems = React.useMemo(() => {
@@ -1302,6 +1338,82 @@ function PromptComposer({
     }
 
     setError(null);
+
+    if (selectedSection) {
+      dispatch({
+        type: "SET_PROMPT_STATUS",
+        isGenerating: true,
+        agentSteps: [`Regenerating section: ${selectedSection.name}...`],
+        generationResult: null,
+      });
+
+      try {
+        const item = items.find((i) => i.id === selectedSection.itemId);
+        if (!item) throw new Error("Section item not found");
+        const tree = getNodeTree(item);
+        if (!tree?.children) throw new Error("No node tree found");
+
+        const context = buildSectionContext(tree.children, selectedSection.id);
+        const tokens = projectId
+          ? (getProjectState(projectId).canvas?.designTokens ?? {}) as DesignSystemTokens
+          : ({} as DesignSystemTokens);
+        const rawPrompt = prompt.value.trim();
+        const mode = SECTION_REGEN_MODES.find((option) => option.prompt === rawPrompt);
+        const intent = mode?.intent ?? "more-like-this";
+
+        dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
+
+        const sectionPrompt = buildDesignTreeSectionPrompt(
+          tokens,
+          context.targetName,
+          { above: context.above, below: context.below },
+          {
+            intent,
+            direction: rawPrompt,
+            tasteProfile,
+            fidelityMode,
+          }
+        );
+
+        const res = await fetch("/api/canvas/generate-component", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: sectionPrompt,
+            tokens,
+            regenerationIntent: intent,
+            useDesignNode: true,
+            mode: "single",
+          }),
+        });
+
+        if (!res.ok) throw new Error("Section regeneration failed");
+        const data = await res.json();
+        const variant = data.variants?.[0];
+        if (!variant?.pageTree) throw new Error("No section generated");
+
+        let sectionTree = variant.pageTree as DesignNode;
+        if (sectionTree.type === "frame" && sectionTree.children?.length === 1 && sectionTree.name === "Root") {
+          sectionTree = sectionTree.children[0];
+        }
+
+        dispatch({
+          type: "REPLACE_SECTION",
+          itemId: selectedSection.itemId,
+          nodeId: selectedSection.id,
+          replacement: sectionTree,
+        });
+
+        dispatch({ type: "SET_PROMPT_STATUS", generationResult: "success" });
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Section regeneration failed";
+        setError(errMsg);
+        dispatch({ type: "SET_PROMPT_STATUS", generationResult: "error" });
+      } finally {
+        dispatch({ type: "SET_PROMPT_STATUS", isGenerating: false, agentSteps: [] });
+      }
+      return;
+    }
 
     // Snapshot pre-edit state for preview/reject flow
     dispatch({
@@ -1535,7 +1647,7 @@ function PromptComposer({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId, selectedSection, items]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {
@@ -1623,6 +1735,31 @@ function PromptComposer({
             <ReferenceRail references={referenceItems} />
           </div>
         </div>
+
+        {selectedSection && (
+          <div className="my-2 rounded-[4px] border border-[#D1E4FC] bg-[#F7FAFF] p-2">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#4B57DB]">
+                Section regen
+              </span>
+              <span className="truncate text-[10px] text-[#6B6B6B]">
+                {selectedSection.name}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {SECTION_REGEN_MODES.map((mode) => (
+                <button
+                  key={mode.label}
+                  type="button"
+                  onClick={() => dispatch({ type: "SET_PROMPT", value: mode.prompt })}
+                  className="rounded-[3px] bg-white px-2 py-1.5 text-left text-[11px] text-[#1A1A1A] shadow-sm transition-colors hover:bg-[#EEF4FF]"
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Prompt history */}
         {prompt.history.length > 0 && (

@@ -29,6 +29,7 @@ import {
   createEmptyCanvas,
 } from "./unified-canvas-state";
 import { hydrateSampleProjectCanvas } from "./sample-project";
+import { hydrateStarterCanvas } from "./starter-canvas";
 import { migrateToSingleArtboard } from "./migrate-responsive";
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export function CanvasProvider({
     let loaded = loadUnifiedCanvas(projectId);
     loaded = migrateToSingleArtboard(loaded);
     loaded = hydrateSampleProjectCanvas(projectId, loaded);
+    loaded = hydrateStarterCanvas(projectId, loaded);
     loadedItemCountRef.current = loaded.items.length;
     dispatch({ type: "LOAD_STATE", state: loaded });
   }, [projectId]);

@@ -3,11 +3,11 @@
 /**
  * Welcome Overlay — shown on first visit when `studio-os:onboarding-seen`
  * is not set in localStorage. Teaches the launch loop in 5 scannable steps
- * and offers two paths: open a sample project or start from scratch.
+ * and offers two paths: open a starter canvas or start from scratch.
  */
 
 import * as React from "react";
-import { persistSampleProject } from "@/lib/canvas/sample-project";
+import { persistStarterCanvas } from "@/lib/canvas/starter-canvas";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -79,10 +79,10 @@ export function WelcomeOverlay({ visible, onDismiss }: WelcomeOverlayProps) {
     }
   };
 
-  const handleOpenSample = () => {
-    const projectId = persistSampleProject();
+  const handleOpenStarter = () => {
+    const projectId = persistStarterCanvas();
     onDismiss();
-    // Navigate to the sample project canvas
+    // Navigate to the starter canvas
     window.location.href = `/canvas?project=${encodeURIComponent(projectId)}`;
   };
 
@@ -144,11 +144,11 @@ export function WelcomeOverlay({ visible, onDismiss }: WelcomeOverlayProps) {
         <div className="px-8 pb-8 pt-2 flex gap-3">
           <button
             type="button"
-            onClick={handleOpenSample}
+            onClick={handleOpenStarter}
             className="flex-1 h-10 rounded-[4px] bg-[#4B57DB] text-white text-[14px] font-medium cursor-pointer border-none transition-colors duration-150 hover:bg-[#3D49C7]"
             style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
           >
-            Open sample project
+            Open starter canvas
           </button>
           <button
             type="button"

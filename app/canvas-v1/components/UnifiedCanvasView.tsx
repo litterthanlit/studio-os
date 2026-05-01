@@ -28,8 +28,8 @@ import { CanvasNote } from "./CanvasNote";
 import { CanvasArrow } from "./CanvasArrow";
 import { CanvasFrame } from "./CanvasFrame";
 import { CanvasText } from "./CanvasText";
-import { InspectorPanelV3, type InspectorPanelV3Handle } from "./InspectorPanelV3";
-import { LayersPanelV3 } from "./LayersPanelV3";
+import { InspectorPanelV3 } from "./InspectorPanelV3";
+import { EditorLeftPanel, type EditorLeftTabId } from "./EditorLeftPanel";
 import { EditorTransportBar } from "./EditorTransportBar";
 import { useEditorTheme } from "../hooks/useEditorTheme";
 import { EditorContextStrip } from "./EditorContextStrip";
@@ -137,13 +137,15 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const hasArtboards = items.some((item) => item.kind === "artboard");
 
   // Welcome overlay for first-time users
-  const { visible: welcomeVisible, dismiss: dismissWelcome, show: showWelcome } = useWelcomeOverlay();
+  const { visible: welcomeVisible, dismiss: dismissWelcome } = useWelcomeOverlay();
 
   const { effectiveTheme, preference, cyclePreference } = useEditorTheme();
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
 
   // Panel visibility state
   const [showLayers, setShowLayers] = React.useState(true);
+  const [leftPanelTab, setLeftPanelTab] = React.useState<EditorLeftTabId>("layers");
+  const [promptVarySignal, setPromptVarySignal] = React.useState(0);
   const [showInspector, setShowInspector] = React.useState(true);
   const [showComponentGallery, setShowComponentGallery] = React.useState(false);
   const [activeTool, setActiveTool] = React.useState("select");
@@ -156,7 +158,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   }, [activeTool]);
 
   const openPromptWithInspector = React.useCallback(() => {
-    setShowInspector(true);
+    setShowLayers(true);
+    setLeftPanelTab("prompt");
     setActiveTool("prompt");
   }, []);
 
@@ -176,22 +179,23 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   // Prompt textarea ref for focus management
   const promptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const inspectorPanelRef = React.useRef<InspectorPanelV3Handle>(null);
+  const promptRetryRef = React.useRef<(() => void) | null>(null);
 
   // Focus prompt: ensure inspector is visible, focus textarea
   const handleFocusPrompt = React.useCallback(() => {
-    setShowInspector(true);
+    setShowLayers(true);
+    setLeftPanelTab("prompt");
     setActiveTool("prompt");
-    // Focus after state updates render
     setTimeout(() => promptTextareaRef.current?.focus(), 0);
   }, []);
 
   const handleRetryGeneration = React.useCallback(() => {
-    inspectorPanelRef.current?.retryGeneration();
+    promptRetryRef.current?.();
   }, []);
 
   const focusPromptWithPrefill = React.useCallback((prefill: string) => {
-    setShowInspector(true);
+    setShowLayers(true);
+    setLeftPanelTab("prompt");
     setActiveTool("prompt");
     dispatch({ type: "SET_PROMPT", value: prefill });
     setTimeout(() => {
@@ -202,6 +206,27 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       }
     }, 0);
   }, [dispatch]);
+
+  const bumpPromptVary = React.useCallback(() => {
+    setPromptVarySignal((v) => v + 1);
+  }, []);
+
+  const handleLeftTabChange = React.useCallback(
+    (tab: EditorLeftTabId) => {
+      setLeftPanelTab(tab);
+      if (tab !== "prompt" && activeTool === "prompt") {
+        setActiveTool("select");
+      }
+    },
+    [activeTool]
+  );
+
+  React.useEffect(() => {
+    if (activeTool === "prompt") {
+      setShowLayers(true);
+      setLeftPanelTab("prompt");
+    }
+  }, [activeTool]);
 
   // Stable refs so zoom keyboard shortcuts can call implementations defined after containerRef
   const zoomToFitRef = React.useRef<(() => void) | null>(null);
@@ -858,17 +883,21 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full w-full flex-col" data-theme={effectiveTheme}>
+    <div
+      className="editor-shell flex h-full w-full min-h-0 flex-col bg-[var(--sidebar-bg)] text-[var(--text-primary)]"
+      data-theme="dark"
+      data-editor-theme={effectiveTheme}
+    >
       <EditorShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {/* Top tool rail (panel toggles + nav) */}
       <MiniRail
+        projectId={projectId}
         layersVisible={showLayers}
         onToggleLayers={() => setShowLayers((v) => !v)}
         inspectorVisible={showInspector}
         onToggleInspector={() => setShowInspector((v) => !v)}
         componentGalleryVisible={showComponentGallery}
         onToggleComponentGallery={() => setShowComponentGallery((v) => !v)}
-        onShowWelcome={showWelcome}
         editorThemePreference={preference}
         onCycleEditorTheme={cyclePreference}
         onOpenShortcuts={() => setShortcutsOpen(true)}
@@ -876,13 +905,23 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       {/* Editor row: Layers | Canvas | Inspector */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-row">
-        {showLayers && <LayersPanelV3 projectId={projectId} />}
+        {showLayers && (
+          <EditorLeftPanel
+            projectId={projectId}
+            activeTab={leftPanelTab}
+            onTabChange={handleLeftTabChange}
+            promptTextareaRef={promptTextareaRef}
+            promptVarySignal={promptVarySignal}
+            promptRetryRef={promptRetryRef}
+            onRefineWithTastePrefill={focusPromptWithPrefill}
+          />
+        )}
 
       {/* Canvas surface */}
       <div
         ref={containerRef}
         className={cn(
-          "editor-canvas-surface relative h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-canvas-workspace",
+          "editor-canvas-surface editor-shell-canvas relative h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-canvas-workspace",
           isDragOver && "ring-1 ring-inset ring-[rgba(59,130,246,0.45)] ring-dashed"
         )}
       style={{
@@ -927,7 +966,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             <rect x="36" y="8" width="4" height="32" rx="2" fill="#A0A0A0" />
           </svg>
           <p className="text-[14px] font-medium text-text">Drop references to teach Studio OS your taste</p>
-          <p className="mt-1 text-[12px] text-text-muted">Then generate an editable site direction from the Prompt panel.</p>
+          <p className="mt-1 text-[12px] text-text-muted">Then generate from the Direction panel (left) — synthesis uses your references and taste.</p>
         </div>
       )}
 
@@ -943,6 +982,22 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         }}
         data-canvas-surface="true"
       >
+        {/* Non-interactive system-board cues — behind canvas items */}
+        <div className="pointer-events-none absolute left-0 top-0 z-0 select-none" aria-hidden>
+          <p
+            className="font-serif text-[clamp(2.5rem,4vw,3.75rem)] font-normal leading-[1.05] tracking-tight text-[#1A1A1A]/[0.07]"
+            style={{ transform: "translate(-40px, -20px)" }}
+          >
+            System canvas
+          </p>
+          <div
+            className="absolute rounded-[6px] border-[0.5px] border-[#2563FF]/22 bg-[#EDE9E2]/85 px-3 py-2"
+            style={{ transform: "translate(420px, 48px)", width: 200 }}
+          >
+            <p className="font-mono text-[8px] uppercase tracking-[0.14em] text-[#6B6B6B]/80">Synthesis</p>
+            <p className="mt-1 font-serif text-[15px] text-[#1A1A1A]/35">Refs → taste → layout</p>
+          </div>
+        </div>
         {items.map((item) => {
           switch (item.kind) {
             case "reference":
@@ -1120,23 +1175,13 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       <EditorTransportBar
         activeTool={activeTool}
         onToolChange={setActiveTool}
-        onGenerate={openPromptWithInspector}
       />
       </div>
         {showInspector && (
           <InspectorPanelV3
             projectId={projectId}
-            promptTextareaRef={promptTextareaRef}
-            panelRef={inspectorPanelRef}
             onOpenGenerate={openPromptWithInspector}
-            activeTool={activeTool}
-            onInspectorTabChange={(tab) => {
-              if (tab === "prompt") {
-                setActiveTool("prompt");
-              } else if (activeTool === "prompt") {
-                setActiveTool("select");
-              }
-            }}
+            onBumpPromptVary={bumpPromptVary}
           />
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type InspectorTabId = "design" | "prompt" | "css" | "export";
+export type InspectorTabId = "design" | "css" | "export";
 
 type InspectorTabsProps = {
   activeTab: InspectorTabId;
@@ -11,15 +11,13 @@ type InspectorTabsProps = {
 
 const tabs: Array<{ id: InspectorTabId; label: string }> = [
   { id: "design", label: "Design" },
-  { id: "prompt", label: "Prompt" },
-  { id: "css", label: "CSS" },
-  { id: "export", label: "Export" },
+  { id: "css", label: "Inspect" },
 ];
 
 export function InspectorTabs({ activeTab, onTabChange }: InspectorTabsProps) {
   return (
     <div
-      className="flex border-b-[0.5px] border-sidebar-border px-3 sticky top-0 bg-card-bg z-10"
+      className="flex border-b border-[#26262c] bg-[#101014]"
       role="tablist"
       aria-label="Inspector"
     >
@@ -32,10 +30,10 @@ export function InspectorTabs({ activeTab, onTabChange }: InspectorTabsProps) {
           id={`inspector-tab-${tab.id}`}
           onClick={() => onTabChange(tab.id)}
           className={cn(
-            "min-h-[40px] flex-1 justify-center py-3 px-2 text-[10px] font-mono uppercase tracking-[1px] transition-colors cursor-pointer flex items-center gap-1.5",
+            "h-10 flex-1 justify-center border-r border-[#26262c] px-3 text-[12px] font-medium transition-colors cursor-pointer flex items-center last:border-r-0",
             activeTab === tab.id
-              ? "text-text-primary font-semibold border-b-[1.5px] border-accent"
-              : "text-text-muted hover:text-text-secondary border-b-[1.5px] border-transparent"
+              ? "bg-[#151519] text-[#f2f2f2]"
+              : "bg-[#101014] text-[#8f8f98] hover:text-[#d7d7dc]"
           )}
         >
           {tab.label}

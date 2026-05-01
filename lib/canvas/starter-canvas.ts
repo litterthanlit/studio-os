@@ -19,16 +19,16 @@ import {
 import type { SiteType } from "./templates";
 
 export const STARTER_CANVAS_PROJECT_ID = "starter-canvas";
-export const STARTER_CANVAS_LAYOUT_VERSION = 3;
+export const STARTER_CANVAS_LAYOUT_VERSION = 4;
 
 const STARTER_LAYOUT_LS_KEY = "studio-os:starter-canvas-layout-version";
 
 const C = {
-  accent: "#4B57DB",
-  bg: "#FAFAF8",
+  accent: "#2563FF",
+  bg: "#F2ECE4",
   surface: "#FFFFFF",
-  muted: "#F5F5F0",
-  border: "#E5E5E0",
+  muted: "#ECE6DD",
+  border: "#DCD4C9",
   primary: "#1A1A1A",
   secondary: "#6B6B6B",
   warm: "#B88A5A",
@@ -253,10 +253,10 @@ function createReferences(): ReferenceItem[] {
   return refs.map((ref, index) => ({
     id: ref.id,
     kind: "reference",
-    x: 660 + index * 172,
-    y: 80,
-    width: 158,
-    height: 220,
+    x: 1180 + (index % 2) * 112,
+    y: 92 + Math.floor(index / 2) * 142,
+    width: 96,
+    height: 126,
     zIndex: index,
     locked: false,
     imageUrl: ref.imageUrl,
@@ -279,66 +279,395 @@ function createHeroFrame(): FrameItem {
   return {
     id: "starter-frame-hero",
     kind: "frame",
-    name: "Starter Hero",
+    name: "01 / Cover",
     x: 80,
-    y: 80,
-    width: 520,
-    height: 360,
+    y: 92,
+    width: 390,
+    height: 276,
     zIndex: 10,
     locked: false,
     style: {
-      width: 520,
-      height: 360,
+      width: 390,
+      height: 276,
       display: "flex",
       flexDirection: "column",
-      justifyContent: "space-between",
-      padding: { top: 36, right: 36, bottom: 34, left: 36 },
-      background: C.primary,
-      foreground: C.surface,
-      borderRadius: 8,
+      gap: 22,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      background: "transparent",
+      foreground: C.primary,
     },
     children: [
-      textNode("starter-hero-kicker", "STUDIO OS / STARTER CANVAS", {
+      textNode("starter-hero-kicker", "01 / COVER", {
         fontFamily: FONT.mono,
-        fontSize: 11,
-        fontWeight: 500,
+        fontSize: 10,
+        fontWeight: 650,
         letterSpacing: 0,
-        foreground: "#D7D7D2",
+        foreground: C.secondary,
       }),
-      frameNode("starter-hero-copy", "Hero copy", {
+      frameNode("starter-hero-copy", "System canvas title", {
         width: "fill",
         height: "hug",
         display: "flex",
         flexDirection: "column",
-        gap: 18,
+        gap: 2,
       }, [
-        textNode("starter-hero-title", "Design with references.", {
+        textNode("starter-hero-title-1", "System", {
           fontFamily: FONT.serif,
-          fontSize: 58,
+          fontSize: 92,
           fontWeight: 500,
-          lineHeight: 0.96,
-          foreground: C.surface,
+          lineHeight: 0.9,
+          foreground: C.primary,
         }),
-        textNode("starter-hero-subtitle", "From inspiration to shipped UI without losing your eye.", {
-          width: 360,
+        textNode("starter-hero-title-2", "canvas", {
+          fontFamily: FONT.serif,
+          fontSize: 92,
+          fontWeight: 500,
+          lineHeight: 0.9,
+          foreground: C.primary,
+        }),
+      ]),
+      textNode("starter-hero-subtitle", "A shared space for thinking in systems.\nAlign on direction. Build with confidence.", {
+        width: 360,
+        fontFamily: FONT.sans,
+        fontSize: 16,
+        lineHeight: 1.45,
+        foreground: C.secondary,
+      }),
+    ],
+  };
+}
+
+function createProjectMetaFrame(): FrameItem {
+  return {
+    id: "starter-frame-project-meta",
+    kind: "frame",
+    name: "Project Status",
+    x: 560,
+    y: 110,
+    width: 210,
+    height: 160,
+    zIndex: 11,
+    locked: false,
+    style: {
+      width: 210,
+      height: 160,
+      display: "flex",
+      flexDirection: "column",
+      gap: 18,
+      padding: { top: 18, right: 18, bottom: 18, left: 18 },
+      background: "rgba(255,255,255,0.58)",
+      borderColor: C.border,
+      borderWidth: 1,
+      borderRadius: 6,
+    },
+    children: [
+      textNode("starter-meta-project-label", "PROJECT", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        fontWeight: 650,
+        foreground: C.secondary,
+      }),
+      textNode("starter-meta-project-name", "Northstar", {
+        fontFamily: FONT.sans,
+        fontSize: 15,
+        fontWeight: 600,
+        foreground: C.primary,
+      }),
+      textNode("starter-meta-updated", "LAST UPDATED\nToday, 10:42 AM", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        lineHeight: 1.7,
+        foreground: C.secondary,
+      }),
+      textNode("starter-meta-status", "STATUS\nIn progress", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        lineHeight: 1.7,
+        foreground: C.accent,
+      }),
+    ],
+  };
+}
+
+function createPrincipleFrame(): FrameItem {
+  return {
+    id: "starter-frame-principle",
+    kind: "frame",
+    name: "Principle Card",
+    x: 845,
+    y: 92,
+    width: 300,
+    height: 190,
+    zIndex: 12,
+    locked: false,
+    style: {
+      width: 300,
+      height: 190,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      padding: { top: 24, right: 24, bottom: 24, left: 24 },
+      background: "#121214",
+      borderColor: "#25252A",
+      borderWidth: 1,
+      borderRadius: 6,
+    },
+    children: [
+      textNode("starter-principle-label", "PRINCIPLE", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        fontWeight: 650,
+        foreground: "#A6A6A6",
+      }),
+      textNode("starter-principle-title", "Clarity\nat scale.", {
+        fontFamily: FONT.serif,
+        fontSize: 34,
+        lineHeight: 1.02,
+        foreground: C.surface,
+      }),
+      textNode("starter-principle-body", "Design systems\nthat amplify impact.", {
+        fontFamily: FONT.sans,
+        fontSize: 12,
+        lineHeight: 1.45,
+        foreground: "#BDBDB7",
+      }),
+    ],
+  };
+}
+
+function createTasteSignalsFrame(): FrameItem {
+  return {
+    id: "starter-frame-taste-signals",
+    kind: "frame",
+    name: "02 / Taste Signals",
+    x: 80,
+    y: 430,
+    width: 340,
+    height: 300,
+    zIndex: 13,
+    locked: false,
+    style: {
+      width: 340,
+      height: 300,
+      display: "flex",
+      flexDirection: "column",
+      gap: 18,
+      padding: { top: 24, right: 24, bottom: 24, left: 24 },
+      background: "rgba(255,255,255,0.64)",
+      borderColor: C.border,
+      borderWidth: 1,
+      borderRadius: 6,
+    },
+    children: [
+      textNode("starter-taste-label", "02 / TASTE SIGNALS", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        fontWeight: 650,
+        foreground: C.secondary,
+      }),
+      textNode("starter-taste-title", "Shared taste.\nStronger products.", {
+        fontFamily: FONT.serif,
+        fontSize: 29,
+        lineHeight: 1.02,
+        foreground: C.primary,
+      }),
+      textNode("starter-taste-body", "Signals from research, culture,\nand our best work.", {
+        fontFamily: FONT.sans,
+        fontSize: 13,
+        lineHeight: 1.45,
+        foreground: C.secondary,
+      }),
+      frameNode("starter-taste-thumbnails", "Taste thumbnails", {
+        display: "grid",
+        gridTemplate: "1fr 1fr 1fr 1fr",
+        gap: 10,
+      }, [
+        swatchCard("starter-swatch-blue", C.accent),
+        swatchCard("starter-swatch-warm", "#FF7043"),
+        swatchCard("starter-swatch-noise", "#111111"),
+        swatchCard("starter-swatch-pale", "#BFD6FF"),
+      ]),
+    ],
+  };
+}
+
+function swatchCard(id: string, color: string): DesignNode {
+  return frameNode(id, "Signal", {
+    height: 70,
+    background: color,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 2,
+  });
+}
+
+function createTypeSystemFrame(): FrameItem {
+  return {
+    id: "starter-frame-type-system",
+    kind: "frame",
+    name: "03 / Type System",
+    x: 500,
+    y: 400,
+    width: 280,
+    height: 190,
+    zIndex: 14,
+    locked: false,
+    style: {
+      width: 280,
+      height: 190,
+      display: "flex",
+      flexDirection: "column",
+      gap: 16,
+      padding: { top: 20, right: 20, bottom: 20, left: 20 },
+      background: "rgba(255,255,255,0.58)",
+      borderColor: C.border,
+      borderWidth: 1,
+      borderRadius: 6,
+    },
+    children: [
+      textNode("starter-type-label", "03 / TYPE SYSTEM", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        fontWeight: 650,
+        foreground: C.secondary,
+      }),
+      frameNode("starter-type-specimens", "Specimens", {
+        display: "grid",
+        gridTemplate: "1fr 1fr",
+        gap: 24,
+        alignItems: "end",
+      }, [
+        textNode("starter-type-serif", "Aa", {
+          fontFamily: FONT.serif,
+          fontSize: 74,
+          lineHeight: 0.9,
+          foreground: C.primary,
+        }),
+        textNode("starter-type-sans", "Aa\nNeutral Sans", {
+          fontFamily: FONT.sans,
+          fontSize: 28,
+          lineHeight: 1.25,
+          foreground: C.primary,
+        }),
+      ]),
+      frameNode("starter-type-palette", "Palette", {
+        display: "grid",
+        gridTemplate: "1fr 1fr 1fr 1fr 1fr",
+        gap: 0,
+        height: 22,
+      }, [
+        swatchCard("starter-type-swatch-1", "#111111"),
+        swatchCard("starter-type-swatch-2", "#2A2A2A"),
+        swatchCard("starter-type-swatch-3", "#E7E3DD"),
+        swatchCard("starter-type-swatch-4", C.accent),
+        swatchCard("starter-type-swatch-5", "#FF7043"),
+      ]),
+    ],
+  };
+}
+
+function createLayoutTokensFrame(): FrameItem {
+  return {
+    id: "starter-frame-layout-tokens",
+    kind: "frame",
+    name: "04 / Layout Tokens",
+    x: 830,
+    y: 400,
+    width: 300,
+    height: 190,
+    zIndex: 15,
+    locked: false,
+    style: {
+      width: 300,
+      height: 190,
+      display: "grid",
+      gridTemplate: "0.7fr 1.3fr",
+      gap: 18,
+      padding: { top: 20, right: 20, bottom: 20, left: 20 },
+      background: "rgba(255,255,255,0.58)",
+      borderColor: C.border,
+      borderWidth: 1,
+      borderRadius: 6,
+    },
+    children: [
+      frameNode("starter-layout-list", "Token list", {
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }, [
+        textNode("starter-layout-label", "04 / LAYOUT TOKENS", {
+          fontFamily: FONT.mono,
+          fontSize: 9,
+          fontWeight: 650,
+          foreground: C.secondary,
+        }),
+        textNode("starter-layout-values", "8pt\n64px\n12\n1280", {
           fontFamily: FONT.sans,
           fontSize: 18,
-          lineHeight: 1.45,
-          foreground: "#D7D7D2",
+          lineHeight: 1.55,
+          foreground: C.primary,
         }),
       ]),
-      frameNode("starter-hero-loop", "Workflow loop", {
-        width: "fill",
-        height: "hug",
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
-      }, [
-        chip("starter-chip-ref", "REFERENCES"),
-        chip("starter-chip-synth", "SYNTHESIS"),
-        chip("starter-chip-canvas", "CANVAS"),
-        chip("starter-chip-handoff", "HANDOFF"),
-      ]),
+      frameNode("starter-layout-lines", "Layout grid", {
+        display: "grid",
+        gridTemplate: "1fr 1fr 1fr 1fr 1fr",
+        gap: 12,
+      }, Array.from({ length: 5 }).map((_, index) =>
+        frameNode(`starter-layout-line-${index}`, "Line", {
+          width: 1,
+          height: "fill",
+          background: "#D4CCC1",
+        })
+      )),
+    ],
+  };
+}
+
+function createTasteAlignmentFrame(): FrameItem {
+  return {
+    id: "starter-frame-taste-alignment",
+    kind: "frame",
+    name: "05 / Data Module",
+    x: 86,
+    y: 790,
+    width: 260,
+    height: 210,
+    zIndex: 16,
+    locked: false,
+    style: {
+      width: 260,
+      height: 210,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      padding: { top: 22, right: 22, bottom: 22, left: 22 },
+      background: "#121214",
+      borderColor: "#25252A",
+      borderWidth: 1,
+      borderRadius: 6,
+    },
+    children: [
+      textNode("starter-align-label", "05 / DATA MODULE", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        foreground: "#A6A6A6",
+      }),
+      textNode("starter-align-title", "Taste alignment", {
+        fontFamily: FONT.serif,
+        fontSize: 21,
+        foreground: C.surface,
+      }),
+      textNode("starter-align-score", "84%", {
+        fontFamily: FONT.sans,
+        fontSize: 40,
+        lineHeight: 1,
+        foreground: C.accent,
+      }),
+      textNode("starter-align-delta", "+12% vs last 30 days", {
+        fontFamily: FONT.mono,
+        fontSize: 10,
+        foreground: "#7AA3FF",
+      }),
     ],
   };
 }
@@ -347,187 +676,141 @@ function createSynthesisFrame(): FrameItem {
   return {
     id: "starter-frame-synthesis",
     kind: "frame",
-    name: "Synthesis Board",
-    x: 660,
-    y: 370,
-    width: 620,
-    height: 430,
-    zIndex: 11,
+    name: "06 / System Map",
+    x: 460,
+    y: 640,
+    width: 440,
+    height: 310,
+    zIndex: 17,
     locked: false,
     style: {
-      width: 620,
-      height: 430,
-      display: "grid",
-      gridTemplate: "1.15fr 0.85fr",
-      gap: 18,
+      width: 440,
+      height: 310,
+      display: "flex",
+      flexDirection: "column",
+      gap: 20,
       padding: { top: 24, right: 24, bottom: 24, left: 24 },
-      background: C.surface,
-      borderColor: C.border,
+      background: "rgba(255,255,255,0.42)",
+      borderColor: C.accent,
       borderWidth: 1,
-      borderRadius: 8,
+      borderStyle: "dashed",
+      borderRadius: 6,
     },
     children: [
-      frameNode("starter-synthesis-left", "Type and hierarchy", {
+      textNode("starter-synthesis-label", "06 / SYSTEM MAP", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        fontWeight: 650,
+        foreground: C.accent,
+      }),
+      frameNode("starter-synthesis-inputs", "Inputs", {
+        display: "grid",
+        gridTemplate: "1fr 1fr 1fr",
+        gap: 22,
+      }, [
+        systemPill("starter-synth-taste", "Taste\nsignals"),
+        systemPill("starter-synth-type", "Type\nsystem"),
+        systemPill("starter-synth-layout", "Layout\ntokens"),
+      ]),
+      frameNode("starter-synthesis-engine", "Synthesis engine", {
+        width: 210,
+        height: 70,
         display: "flex",
         flexDirection: "column",
-        gap: 18,
-        padding: { top: 18, right: 18, bottom: 18, left: 18 },
-        background: C.bg,
-        borderColor: C.border,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 4,
+        padding: { top: 10, right: 14, bottom: 10, left: 14 },
+        background: C.surface,
+        borderColor: C.accent,
         borderWidth: 1,
         borderRadius: 6,
+        alignSelf: "center",
       }, [
-        textNode("starter-synthesis-label", "Synthesis Board", {
+        textNode("starter-synth-engine-label", "SYSTEM ENGINE", {
           fontFamily: FONT.mono,
-          fontSize: 11,
-          fontWeight: 500,
-          letterSpacing: 0,
+          fontSize: 8,
           foreground: C.secondary,
         }),
-        textNode("starter-synthesis-title", "Restrained SaaS bones with editorial type pressure.", {
-          fontFamily: FONT.serif,
-          fontSize: 34,
+        textNode("starter-synth-engine-title", "Synthesis\nengine", {
+          fontFamily: FONT.sans,
+          fontSize: 18,
+          fontWeight: 650,
           lineHeight: 1.05,
-          foreground: C.primary,
+          foreground: C.accent,
         }),
-        dividerNode("starter-synthesis-rule"),
-        frameNode("starter-synthesis-fragments", "Fragments", {
-          display: "grid",
-          gridTemplate: "1fr 1fr",
-          gap: 12,
-        }, [
-          chip("starter-synthesis-frag-1", "THIN BORDERS"),
-          chip("starter-synthesis-frag-2", "CALM DENSITY"),
-          chip("starter-synthesis-frag-3", "BLUE SIGNAL"),
-          chip("starter-synthesis-frag-4", "SERIF MOMENTS"),
-        ]),
       ]),
-      frameNode("starter-synthesis-right", "UI fragments", {
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
+      frameNode("starter-synthesis-outputs", "Outputs", {
+        display: "grid",
+        gridTemplate: "1fr 1fr",
+        gap: 86,
       }, [
-        frameNode("starter-synthesis-card-1", "Metric fragment", {
-          height: 104,
-          padding: { top: 16, right: 16, bottom: 16, left: 16 },
-          background: C.primary,
-          borderRadius: 6,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-        }, [
-          textNode("starter-synthesis-metric-label", "REFERENCE WEIGHT", {
-            fontFamily: FONT.mono,
-            fontSize: 10,
-            foreground: "#D7D7D2",
-          }),
-          textNode("starter-synthesis-metric", "Primary", {
-            fontFamily: FONT.sans,
-            fontSize: 28,
-            fontWeight: 650,
-            foreground: C.surface,
-          }),
-        ]),
-        frameNode("starter-synthesis-diagram", "System diagram", {
-          height: 220,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          padding: { top: 14, right: 14, bottom: 14, left: 14 },
-          background: C.bg,
-          borderColor: C.border,
-          borderWidth: 1,
-          borderRadius: 6,
-        }, [
-          textNode("starter-synthesis-diagram-title", "Tokens -> Sections -> Proof", {
-            fontFamily: FONT.sans,
-            fontSize: 17,
-            fontWeight: 650,
-            foreground: C.primary,
-          }),
-          dividerNode("starter-synthesis-diagram-rule"),
-          chip("starter-synthesis-diagram-1", "palette"),
-          chip("starter-synthesis-diagram-2", "type scale"),
-          chip("starter-synthesis-diagram-3", "section grammar"),
-        ]),
+        systemPill("starter-synth-components", "Components\nlibrary"),
+        systemPill("starter-synth-handoff", "Handoff\nspecs"),
       ]),
     ],
   };
 }
 
-function createTasteFrame(): FrameItem {
-  const panel = (id: string, title: string, lines: string[]) =>
-    frameNode(id, title, {
-      width: "fill",
-      height: "hug",
+function systemPill(id: string, label: string): DesignNode {
+  return frameNode(id, label, {
+    minHeight: 54,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: { top: 12, right: 12, bottom: 12, left: 12 },
+    background: "rgba(255,255,255,0.72)",
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 5,
+  }, [
+    textNode(`${id}-text`, label, {
+      fontFamily: FONT.sans,
+      fontSize: 12,
+      fontWeight: 600,
+      lineHeight: 1.15,
+      foreground: C.primary,
+    }),
+  ]);
+}
+
+function createComponentFrame(): FrameItem {
+  return {
+    id: "starter-frame-component",
+    kind: "frame",
+    name: "06 / Component",
+    x: 470,
+    y: 1015,
+    width: 290,
+    height: 150,
+    zIndex: 18,
+    locked: false,
+    style: {
+      width: 290,
+      height: 150,
       display: "flex",
       flexDirection: "column",
-      gap: 10,
-      padding: { top: 16, right: 16, bottom: 16, left: 16 },
-      background: C.surface,
+      gap: 16,
+      padding: { top: 18, right: 18, bottom: 18, left: 18 },
+      background: "rgba(255,255,255,0.62)",
       borderColor: C.border,
       borderWidth: 1,
       borderRadius: 6,
-    }, [
-      textNode(`${id}-title`, title, {
-        fontFamily: FONT.mono,
-        fontSize: 10,
-        fontWeight: 600,
-        foreground: C.accent,
-      }),
-      ...lines.map((line, index) =>
-        textNode(`${id}-line-${index}`, line, {
-          fontFamily: FONT.sans,
-          fontSize: 15,
-          lineHeight: 1.35,
-          foreground: C.primary,
-        })
-      ),
-    ]);
-
-  return {
-    id: "starter-frame-taste-engine",
-    kind: "frame",
-    name: "Taste Engine",
-    x: 1350,
-    y: 80,
-    width: 520,
-    height: 520,
-    zIndex: 12,
-    locked: false,
-    style: {
-      width: 520,
-      height: 520,
-      display: "flex",
-      flexDirection: "column",
-      gap: 18,
-      padding: { top: 28, right: 28, bottom: 28, left: 28 },
-      background: C.bg,
-      borderColor: C.border,
-      borderWidth: 1,
-      borderRadius: 8,
     },
     children: [
-      textNode("starter-taste-title", "Your taste, amplified by AI.", {
-        fontFamily: FONT.serif,
-        fontSize: 42,
-        lineHeight: 1.02,
+      textNode("starter-component-label", "06 / COMPONENT", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        fontWeight: 650,
+        foreground: C.secondary,
+      }),
+      textNode("starter-component-title", "Button / Primary", {
+        fontFamily: FONT.sans,
+        fontSize: 17,
+        fontWeight: 650,
         foreground: C.primary,
       }),
-      panel("starter-taste-summary", "Taste Summary", [
-        "Restrained enterprise SaaS.",
-        "Spacious modular sections.",
-        "System-first thinking.",
-      ]),
-      panel("starter-taste-palette-type", "Palette + Type", [
-        "High-trust blue accent.",
-        "Editorial type contrast.",
-        "Clean thin borders.",
-      ]),
-      panel("starter-taste-avoid", "Avoid", [
-        "Dashboard clutter.",
-        "Rounded startup gimmicks.",
-      ]),
+      buttonNode("starter-component-button", "Label", true),
     ],
   };
 }
@@ -536,111 +819,86 @@ function createHandoffFrame(): FrameItem {
   return {
     id: "starter-frame-handoff",
     kind: "frame",
-    name: "Handoff Panel",
-    x: 80,
-    y: 1600,
-    width: 360,
-    height: 470,
-    zIndex: 13,
+    name: "07 / Handoff",
+    x: 825,
+    y: 1015,
+    width: 260,
+    height: 168,
+    zIndex: 19,
     locked: false,
     style: {
-      width: 360,
-      height: 470,
+      width: 260,
+      height: 168,
       display: "flex",
       flexDirection: "column",
-      gap: 18,
-      padding: { top: 26, right: 24, bottom: 24, left: 24 },
-      background: C.primary,
-      borderRadius: 8,
+      gap: 14,
+      padding: { top: 20, right: 20, bottom: 20, left: 20 },
+      background: "rgba(255,255,255,0.62)",
+      borderColor: C.border,
+      borderWidth: 1,
+      borderRadius: 6,
     },
     children: [
-      textNode("starter-handoff-title", "Real markup. No lock-in.", {
+      textNode("starter-handoff-label", "07 / HANDOFF", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        foreground: C.secondary,
+      }),
+      textNode("starter-handoff-title", "Ready for dev", {
         fontFamily: FONT.serif,
-        fontSize: 38,
-        lineHeight: 1.02,
-        foreground: C.surface,
+        fontSize: 24,
+        lineHeight: 1.05,
+        foreground: C.primary,
       }),
-      textNode("starter-handoff-copy", "Export production-ready structure, tokens, and responsive sections without leaving the canvas.", {
+      textNode("starter-handoff-list", "Specs complete\nTokens synced\nAssets ready", {
         fontFamily: FONT.sans,
-        fontSize: 15,
-        lineHeight: 1.5,
-        foreground: "#D7D7D2",
+        fontSize: 13,
+        lineHeight: 1.55,
+        foreground: C.primary,
       }),
-      frameNode("starter-handoff-code", "Code preview", {
-        width: "fill",
-        height: 210,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: { top: 16, right: 16, bottom: 16, left: 16 },
-        background: "#101010",
-        borderColor: "#2A2A2A",
-        borderWidth: 1,
-        borderRadius: 6,
-      }, [
-        textNode("starter-handoff-code-1", "export function LandingPage() {", {
-          fontFamily: FONT.mono,
-          fontSize: 12,
-          foreground: "#D7D7D2",
-        }),
-        textNode("starter-handoff-code-2", "  return <SystemProof />;", {
-          fontFamily: FONT.mono,
-          fontSize: 12,
-          foreground: "#D7D7D2",
-        }),
-        textNode("starter-handoff-code-3", "}", {
-          fontFamily: FONT.mono,
-          fontSize: 12,
-          foreground: "#D7D7D2",
-        }),
-      ]),
-      buttonNode("starter-handoff-button", "Export desktop", true),
+      textNode("starter-handoff-link", "Open handoff spec ->", {
+        fontFamily: FONT.sans,
+        fontSize: 12,
+        foreground: C.accent,
+      }),
     ],
   };
 }
 
 function createClosingFrame(): FrameItem {
   return {
-    id: "starter-frame-closing",
+    id: "starter-frame-output-proof",
     kind: "frame",
-    name: "Closing Card",
-    x: 2050,
-    y: 2020,
-    width: 375,
-    height: 260,
-    zIndex: 14,
+    name: "Output Proof",
+    x: 1160,
+    y: 760,
+    width: 210,
+    height: 170,
+    zIndex: 20,
     locked: false,
     style: {
-      width: 375,
-      height: 260,
+      width: 210,
+      height: 170,
       display: "flex",
       flexDirection: "column",
-      justifyContent: "center",
-      gap: 4,
-      padding: { top: 32, right: 32, bottom: 32, left: 32 },
-      background: C.surface,
+      gap: 8,
+      padding: { top: 20, right: 20, bottom: 20, left: 20 },
+      background: "rgba(255,255,255,0.6)",
       borderColor: C.border,
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 6,
     },
     children: [
-      textNode("starter-closing-1", "Taste.", {
-        fontFamily: FONT.serif,
-        fontSize: 54,
-        lineHeight: 0.95,
-        foreground: C.primary,
+      textNode("starter-output-label", "OUTPUT", {
+        fontFamily: FONT.mono,
+        fontSize: 9,
+        foreground: C.secondary,
       }),
-      textNode("starter-closing-2", "Canvas.", {
+      textNode("starter-output-title", "Taste.\nCanvas.\nHandoff.", {
         fontFamily: FONT.serif,
-        fontSize: 54,
-        lineHeight: 0.95,
+        fontSize: 31,
+        lineHeight: 1,
         foreground: C.primary,
-      }),
-      textNode("starter-closing-3", "Handoff.", {
-        fontFamily: FONT.serif,
-        fontSize: 54,
-        lineHeight: 0.95,
-        foreground: C.accent,
       }),
     ],
   };
@@ -1028,8 +1286,8 @@ function createArtboards(): ArtboardItem[] {
     {
       id: DESKTOP_ARTBOARD_ID,
       kind: "artboard",
-      x: 520,
-      y: 900,
+      x: 1420,
+      y: 660,
       width: 1440,
       height: 1380,
       zIndex: 20,
@@ -1049,8 +1307,8 @@ function createMobileProofFrame(): FrameItem {
     id: "starter-frame-mobile-proof",
     kind: "frame",
     name: "Mobile Proof - 375px",
-    x: 2050,
-    y: 900,
+    x: 2920,
+    y: 660,
     width: 375,
     height: 1040,
     zIndex: 21,
@@ -1074,37 +1332,37 @@ function createNotes(): NoteItem[] {
     {
       id: "starter-note-swap-reference",
       kind: "note",
-      x: 660,
-      y: 318,
-      width: 170,
+      x: 1015,
+      y: 710,
+      width: 150,
       height: 58,
       zIndex: 30,
       locked: false,
-      text: "Swap a reference",
+      text: "Consider consolidating primitive names.",
       color: C.surface,
     },
     {
       id: "starter-note-refine-section",
       kind: "note",
-      x: 1480,
-      y: 805,
+      x: 170,
+      y: 1065,
       width: 172,
       height: 58,
       zIndex: 31,
       locked: false,
-      text: "Refine a section",
+      text: "Refine hierarchy scale ramp",
       color: C.surface,
     },
     {
       id: "starter-note-export-desktop",
       kind: "note",
-      x: 118,
-      y: 1518,
+      x: 1120,
+      y: 1010,
       width: 170,
       height: 58,
       zIndex: 32,
       locked: false,
-      text: "Export desktop",
+      text: "Review spacing naming",
       color: C.surface,
     },
   ];
@@ -1115,10 +1373,10 @@ function createArrows(): ArrowItem[] {
     {
       id: "starter-arrow-refs-synthesis",
       kind: "arrow",
-      x: 920,
-      y: 310,
-      width: 70,
-      height: 50,
+      x: 420,
+      y: 560,
+      width: 76,
+      height: 24,
       zIndex: 33,
       locked: false,
       color: C.accent,
@@ -1126,9 +1384,9 @@ function createArrows(): ArrowItem[] {
     {
       id: "starter-arrow-synthesis-taste",
       kind: "arrow",
-      x: 1260,
-      y: 430,
-      width: 78,
+      x: 780,
+      y: 493,
+      width: 48,
       height: 24,
       zIndex: 34,
       locked: false,
@@ -1137,10 +1395,10 @@ function createArrows(): ArrowItem[] {
     {
       id: "starter-arrow-taste-proof",
       kind: "arrow",
-      x: 1500,
-      y: 610,
-      width: 90,
-      height: 24,
+      x: 665,
+      y: 590,
+      width: 24,
+      height: 56,
       zIndex: 35,
       locked: false,
       color: C.accent,
@@ -1148,9 +1406,9 @@ function createArrows(): ArrowItem[] {
     {
       id: "starter-arrow-proof-handoff",
       kind: "arrow",
-      x: 448,
-      y: 1700,
-      width: 72,
+      x: 760,
+      y: 1090,
+      width: 66,
       height: 24,
       zIndex: 36,
       locked: false,
@@ -1328,17 +1586,23 @@ export function createStarterCanvasProject(): {
 
   canvasState.items = [
     createHeroFrame(),
+    createProjectMetaFrame(),
+    createPrincipleFrame(),
     ...createReferences(),
+    createTasteSignalsFrame(),
+    createTypeSystemFrame(),
+    createLayoutTokensFrame(),
+    createTasteAlignmentFrame(),
     createSynthesisFrame(),
-    createTasteFrame(),
-    ...createArtboards(),
-    createMobileProofFrame(),
+    createComponentFrame(),
     createHandoffFrame(),
     createClosingFrame(),
+    ...createArtboards(),
+    createMobileProofFrame(),
     ...createNotes(),
     ...createArrows(),
   ];
-  canvasState.viewport = { pan: { x: 255, y: 50 }, zoom: 0.24 };
+  canvasState.viewport = { pan: { x: 94, y: 42 }, zoom: 0.66 };
   canvasState.activeBreakpoint = "desktop";
   canvasState.selection = {
     selectedItemIds: [DESKTOP_ARTBOARD_ID],
@@ -1404,7 +1668,7 @@ export function hydrateStarterCanvas(
     window.localStorage.getItem(STARTER_LAYOUT_LS_KEY) ?? "0",
     10
   );
-  if (storedVersion >= STARTER_CANVAS_LAYOUT_VERSION) return state;
+  if (storedVersion >= STARTER_CANVAS_LAYOUT_VERSION && state.items.length > 0) return state;
 
   const { canvasState } = createStarterCanvasProject();
   window.localStorage.setItem(STARTER_LAYOUT_LS_KEY, String(STARTER_CANVAS_LAYOUT_VERSION));

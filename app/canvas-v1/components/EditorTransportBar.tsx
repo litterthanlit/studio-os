@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * EditorTransportBar — single bottom pill: tools (cursor / hand / frame / text / prompt),
- * optional Generate. Replaces separate ToolPalette + BottomBarV3.
+ * EditorTransportBar — single bottom pill for canvas tools.
  */
 
 import * as React from "react";
@@ -14,7 +13,6 @@ import {
   Type,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { StudioButton } from "@/components/ui/studio-button";
 
 const TOOLS: Array<{
   id: string;
@@ -26,19 +24,17 @@ const TOOLS: Array<{
   { id: "hand", label: "Hand", shortcut: "H", icon: Hand },
   { id: "frame", label: "Frame", shortcut: "F", icon: LayoutTemplate },
   { id: "text", label: "Text", shortcut: "T", icon: Type },
-  { id: "prompt", label: "Prompt / chat", shortcut: "K", icon: MessageCircle },
+  { id: "prompt", label: "Direction", shortcut: "K", icon: MessageCircle },
 ];
 
 type EditorTransportBarProps = {
   activeTool: string;
   onToolChange: (tool: string) => void;
-  onGenerate?: () => void;
 };
 
 export function EditorTransportBar({
   activeTool,
   onToolChange,
-  onGenerate,
 }: EditorTransportBarProps) {
   return (
     <div
@@ -59,16 +55,6 @@ export function EditorTransportBar({
           />
         ))}
       </div>
-      {onGenerate && (
-        <StudioButton
-          type="button"
-          variant="primary"
-          className="min-h-10 shrink-0 px-4 py-2 text-[12px]"
-          onClick={onGenerate}
-        >
-          Generate
-        </StudioButton>
-      )}
     </div>
   );
 }

@@ -726,7 +726,14 @@ function CanvasItemDesignTree({
 
 // ─── Main Panel ──────────────────────────────────────────────────────────────
 
-export function LayersPanelV3({ projectId }: { projectId?: string }) {
+export function LayersPanelV3({
+  projectId,
+  embedded,
+}: {
+  projectId?: string;
+  /** When true, omit panel header (tabs live in EditorLeftPanel) and fill parent width. */
+  embedded?: boolean;
+}) {
   const { state, dispatch } = useCanvas();
   const activeBreakpoint = state.activeBreakpoint ?? "desktop";
   const { items, selection, components } = state;
@@ -1116,10 +1123,15 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
 
   return (
     <div
-      className="relative z-20 flex h-full min-h-0 w-[248px] min-w-[248px] max-w-[248px] shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--sidebar-bg)]"
+      className={cn(
+        "relative z-20 flex h-full min-h-0 shrink-0 flex-col bg-[var(--sidebar-bg)]",
+        embedded
+          ? "min-w-0 w-full max-w-none flex-1 border-r-0"
+          : "w-[248px] min-w-[248px] max-w-[248px] border-r border-[var(--border-subtle)]"
+      )}
       style={{ contain: "strict" }}
     >
-      {/* Framer-style: primary panel title + compact controls */}
+      {!embedded && (
       <div className="shrink-0 border-b border-[var(--border-subtle)] px-4 pt-3 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -1147,7 +1159,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                 className={cn(
                   "flex w-7 items-center justify-center transition-colors",
                   activeBreakpoint === "desktop"
-                    ? "bg-[#4B57DB] text-white"
+                    ? "bg-[var(--accent)] text-white"
                     : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 )}
               >
@@ -1160,7 +1172,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
                 className={cn(
                   "flex w-7 items-center justify-center border-l border-[var(--border-control)] transition-colors",
                   activeBreakpoint === "mobile"
-                    ? "bg-[#4B57DB] text-white"
+                    ? "bg-[var(--accent)] text-white"
                     : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 )}
               >
@@ -1170,6 +1182,7 @@ export function LayersPanelV3({ projectId }: { projectId?: string }) {
           </div>
         </div>
       </div>
+      )}
       {/* Scrollable content — isolated from the positioning shell above so
           scroll position can never shift the panel's top edge. */}
       <div

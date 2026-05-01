@@ -374,6 +374,129 @@ html[data-theme="light"] {
   background-size: 14px 14px;
 }
 
+/*
+ * Unified editor shell — always dark chrome + cobalt (not tied to global light theme).
+ * Previously only accent was scoped under [data-theme="light"], so panels inherited
+ * cream :root tokens and looked like the legacy editor.
+ */
+.editor-shell {
+  color-scheme: dark;
+  --accent: #2563ff;
+  --accent-hover: #1d4fe6;
+  --accent-light: rgba(37, 99, 255, 0.28);
+  --accent-subtle: rgba(37, 99, 255, 0.14);
+  --accent-rgb: 37, 99, 255;
+  --accent-pill: rgba(37, 99, 255, 0.2);
+  --button-primary-bg: #2563ff;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: transparent;
+  --button-secondary-text: #7aa3ff;
+  --button-secondary-border: #2563ff;
+  --sidebar-bg: #121218;
+  --card-bg: #16161c;
+  --border-subtle: #2a2a32;
+  --sidebar-border: #2a2a32;
+  --border-primary: #2a2a2a;
+  --border-secondary: #3a3a42;
+  --border-hover: #3d4a80;
+  --border-active: #2563ff;
+  --border-control: #3a3a42;
+  --text-primary: #f5f5f5;
+  --text-secondary: #c8c8c8;
+  --text-tertiary: #b8b8b8;
+  --text-muted: #8a8a8a;
+  --text-placeholder: #6b6b6b;
+  --section-label: #8a8a8a;
+  --surface: #1c1c1c;
+  --surface-hover: #2a2a2a;
+  --bg-primary: #0c0c14;
+  --bg-secondary: #121218;
+  --bg-tertiary: #14141c;
+  --bg-input: #2a2a2a;
+}
+
+.editor-shell .editor-shell-canvas {
+  --canvas-workspace: #f1ebe3;
+  --canvas-workspace-dot: rgba(26, 26, 26, 0.05);
+  background-image:
+    linear-gradient(rgba(26, 26, 26, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 26, 26, 0.035) 1px, transparent 1px),
+    radial-gradient(circle, rgba(26, 26, 26, 0.05) 0.65px, transparent 0.75px);
+  background-size: 48px 48px, 48px 48px, 12px 12px;
+  background-position: -1px -1px, -1px -1px, 0 0;
+}
+
+.editor-shell .editor-inspector {
+  --card-bg: #101014;
+  --surface: #15151a;
+  --surface-hover: #202027;
+}
+
+.editor-shell .editor-inspector [role="group"] {
+  margin: 0 !important;
+  padding-top: 0 !important;
+  border-top-color: #25252b !important;
+}
+
+.editor-shell .editor-inspector [role="group"] > * + * {
+  margin-top: 0 !important;
+}
+
+.editor-shell .editor-inspector details {
+  border-width: 0 0 1px 0 !important;
+  border-color: #25252b !important;
+  background: #101014 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.editor-shell .editor-inspector summary {
+  background: #101014 !important;
+  border-color: #25252b !important;
+  min-height: 42px !important;
+  padding: 12px 16px 10px !important;
+}
+
+.editor-shell .editor-inspector summary:hover {
+  background: #15151a !important;
+}
+
+.editor-shell .editor-inspector details > div {
+  background: #101014 !important;
+}
+
+.editor-shell .editor-inspector details > div > div {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+.editor-shell .editor-inspector input,
+.editor-shell .editor-inspector textarea,
+.editor-shell .editor-inspector select {
+  border-color: #303038 !important;
+  background-color: #19191f !important;
+  color: #eeeeee !important;
+  border-radius: 5px !important;
+  min-height: 28px !important;
+  font-size: 11px !important;
+}
+
+.editor-shell .editor-inspector button:not([class*="bg-\\[var\\(--accent\\)"]) {
+  border-color: #303038;
+}
+
+.editor-shell .editor-inspector h3 {
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+
+.editor-shell .editor-inspector label,
+.editor-shell .editor-inspector span,
+.editor-shell .editor-inspector button,
+.editor-shell .editor-inspector select {
+  line-height: 1.2;
+}
+
 /* ─── Tailwind v4 Color Tokens ──────────────────────────────────────────────── */
 
 @theme inline {

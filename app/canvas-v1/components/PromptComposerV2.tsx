@@ -21,7 +21,13 @@ import { TasteFeedbackDialog } from "./TasteFeedbackDialog";
 import { detectTasteEdits } from "@/lib/canvas/taste-edit-tracker";
 import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
-import { getArtboardStartX, getGenerationStage, getGenerationStageLabel } from "@/lib/canvas/unified-canvas-state";
+import {
+  getArtboardStartX,
+  getEffectiveReferenceWeight,
+  getGenerationStage,
+  getGenerationStageLabel,
+  getMoodboardReferenceSize,
+} from "@/lib/canvas/unified-canvas-state";
 import type {
   CanvasItem,
   ReferenceItem,
@@ -411,11 +417,11 @@ export function PromptComposerV2({
   // Weight-filtered and sorted references: muted excluded, primary first
   const weightedReferenceItems = React.useMemo(() => {
     const active = referenceItems.filter(
-      (ref) => (ref.weight || "default") !== "muted"
+      (ref) => getEffectiveReferenceWeight(ref) !== "muted"
     );
     return active.sort((a, b) => {
-      const wa = a.weight === "primary" ? 0 : 1;
-      const wb = b.weight === "primary" ? 0 : 1;
+      const wa = getEffectiveReferenceWeight(a) === "primary" ? 0 : 1;
+      const wb = getEffectiveReferenceWeight(b) === "primary" ? 0 : 1;
       return wa - wb;
     });
   }, [referenceItems]);
@@ -478,7 +484,7 @@ export function PromptComposerV2({
         .filter(Boolean);
 
       const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
-        acc[ref.imageUrl] = ref.weight || "default";
+        acc[ref.imageUrl] = getEffectiveReferenceWeight(ref);
         return acc;
       }, {});
 
@@ -733,7 +739,7 @@ export function PromptComposerV2({
         if (ref.compositionAnalysis) {
           compositionData.push({
             analysis: ref.compositionAnalysis,
-            weight: ref.weight ?? "default",
+            weight: getEffectiveReferenceWeight(ref),
             referenceIndex: i,
           });
           continue;
@@ -748,15 +754,27 @@ export function PromptComposerV2({
           });
           if (compRes.ok) {
             const analysis: CompositionAnalysis = await compRes.json();
-            // Cache on the reference item via dispatch
+            const effectiveWeight = getEffectiveReferenceWeight({
+              ...ref,
+              compositionAnalysis: analysis,
+            });
+            const moodboardSize = getMoodboardReferenceSize(
+              ref.width,
+              ref.height,
+              effectiveWeight
+            );
+            // Cache analysis and let high-confidence references take more visual space.
             dispatch({
               type: "UPDATE_ITEM",
               itemId: ref.id,
-              changes: { compositionAnalysis: analysis } as Partial<ReferenceItem>,
+              changes: {
+                compositionAnalysis: analysis,
+                ...(!ref.weight && effectiveWeight !== "default" ? moodboardSize : {}),
+              } as Partial<ReferenceItem>,
             });
             compositionData.push({
               analysis,
-              weight: ref.weight ?? "default",
+              weight: effectiveWeight,
               referenceIndex: i,
             });
           }
@@ -780,7 +798,7 @@ export function PromptComposerV2({
         });
         try {
           const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
-            acc[ref.imageUrl] = ref.weight || "default";
+            acc[ref.imageUrl] = getEffectiveReferenceWeight(ref);
             return acc;
           }, {});
 

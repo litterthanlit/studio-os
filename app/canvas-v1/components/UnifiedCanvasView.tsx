@@ -13,7 +13,11 @@ import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { getProjectState, PROJECT_STATE_UPDATED_EVENT } from "@/lib/project-store";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import { getArtboardStartX } from "@/lib/canvas/unified-canvas-state";
+import {
+  createMoodboardReferenceItem,
+  getArtboardStartX,
+  getMoodboardBounds,
+} from "@/lib/canvas/unified-canvas-state";
 import type { CanvasItem, ReferenceItem, ArtboardItem, FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
 import { useDrag } from "../hooks/useDrag";
 import { useResize } from "../hooks/useResize";
@@ -790,27 +794,22 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       );
       if (files.length === 0) return;
 
-      const canvasPos = screenToCanvas(e.clientX, e.clientY);
-
-      let offsetX = 0;
+      const pendingRefs: ReferenceItem[] = [];
       for (let i = 0; i < files.length; i++) {
         try {
           const dataUrl = await fileToDataUrl(files[i]);
           const dims = await getImageDimensions(dataUrl);
-          const refItem: ReferenceItem = {
+          const refItem: ReferenceItem = createMoodboardReferenceItem({
             id: uid("ref"),
-            kind: "reference",
-            x: canvasPos.x + offsetX,
-            y: canvasPos.y,
-            width: dims.width,
-            height: dims.height,
-            zIndex: items.length + i,
-            locked: false,
             imageUrl: dataUrl,
             title: files[i].name,
             source: "upload",
-          };
-          offsetX += dims.width + 20;
+            naturalWidth: dims.width,
+            naturalHeight: dims.height,
+            existingItems: [...items, ...pendingRefs],
+            zIndex: items.length + i,
+          });
+          pendingRefs.push(refItem);
           dispatch({ type: "PUSH_HISTORY", description: "Added reference" });
           dispatch({ type: "ADD_ITEM", item: refItem });
         } catch {
@@ -818,7 +817,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         }
       }
     },
-    [dispatch, items.length, screenToCanvas]
+    [dispatch, items]
   );
 
   // ── Clipboard paste support ────────────────────────────────────────
@@ -867,36 +866,24 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
       e.preventDefault();
 
-      // Paste at viewport center
-      const container = containerRef.current;
-      const centerX = container ? container.clientWidth / 2 : 500;
-      const centerY = container ? container.clientHeight / 2 : 400;
-      const canvasPos = {
-        x: (centerX - viewport.pan.x) / viewport.zoom,
-        y: (centerY - viewport.pan.y) / viewport.zoom,
-      };
-
-      let pasteOffsetX = 0;
+      const pendingRefs: ReferenceItem[] = [];
       for (let i = 0; i < imageItems.length; i++) {
         const file = imageItems[i].getAsFile();
         if (!file) continue;
         try {
           const dataUrl = await fileToDataUrl(file);
           const dims = await getImageDimensions(dataUrl);
-          const refItem: ReferenceItem = {
+          const refItem: ReferenceItem = createMoodboardReferenceItem({
             id: uid("ref"),
-            kind: "reference",
-            x: canvasPos.x + pasteOffsetX,
-            y: canvasPos.y,
-            width: dims.width,
-            height: dims.height,
-            zIndex: items.length + i,
-            locked: false,
             imageUrl: dataUrl,
             title: "Pasted image",
             source: "upload",
-          };
-          pasteOffsetX += dims.width + 20;
+            naturalWidth: dims.width,
+            naturalHeight: dims.height,
+            existingItems: [...items, ...pendingRefs],
+            zIndex: items.length + i,
+          });
+          pendingRefs.push(refItem);
           dispatch({ type: "PUSH_HISTORY", description: "Pasted reference" });
           dispatch({ type: "ADD_ITEM", item: refItem });
         } catch {
@@ -907,7 +894,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [containerRef, dispatch, items, items.length, viewport, state.selection.activeItemId, state.selection.selectedNodeId]);
+  }, [dispatch, items, items.length, state.selection.activeItemId, state.selection.selectedNodeId]);
 
   // ── Click on empty canvas → deselect ───────────────────────────────
 
@@ -951,6 +938,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   );
 
   // ── Render ─────────────────────────────────────────────────────────
+  const moodboardBounds = getMoodboardBounds(items);
 
   return (
     <div
@@ -1069,6 +1057,25 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             <p className="mt-1 font-serif text-[15px] text-[#1A1A1A]/35">Refs → taste → layout</p>
           </div>
         </div>
+        {moodboardBounds && (
+          <div
+            className="pointer-events-none absolute select-none rounded-[6px] border border-[#E5E5E0] bg-white/55"
+            style={{
+              left: moodboardBounds.x,
+              top: moodboardBounds.y,
+              width: moodboardBounds.width,
+              height: moodboardBounds.height,
+              zIndex: 0,
+            }}
+            aria-hidden
+          >
+            <div className="flex h-[38px] items-center border-b border-[#EFEFEC] px-3">
+              <span className="font-mono text-[10px] uppercase tracking-[1px] text-[#8A8A8A]">
+                Moodboard
+              </span>
+            </div>
+          </div>
+        )}
         {items.map((item) => {
           switch (item.kind) {
             case "reference":

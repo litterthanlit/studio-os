@@ -231,12 +231,16 @@ function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-const REFERENCE_CARD_WIDTH = 200;
-const REFERENCE_CARD_HEIGHT = 200;
+const REFERENCE_CARD_WIDTH = 180;
+const REFERENCE_CARD_HEIGHT = 220;
 const REFERENCE_GRID_COLUMNS = 3;
 const REFERENCE_GRID_GAP = 20;
 const REFERENCE_START_X = 100;
-const REFERENCE_START_Y = 100;
+const REFERENCE_START_Y = 146;
+export const MOODBOARD_X = 72;
+export const MOODBOARD_Y = 88;
+export const MOODBOARD_WIDTH = 660;
+export const MOODBOARD_HEADER_HEIGHT = 38;
 
 const ARTBOARD_START_X = 1200;
 const ARTBOARD_START_Y = 100;
@@ -260,6 +264,108 @@ export function getArtboardStartX(items: CanvasItem[]): number {
   }
 
   return Math.max(MIN_START_X, maxRefRight + BUFFER);
+}
+
+export function getEffectiveReferenceWeight(ref: ReferenceItem): "primary" | "default" | "muted" {
+  if (ref.weight) return ref.weight;
+  if (ref.compositionAnalysis?.referenceConfidence === "high") return "primary";
+  if (ref.compositionAnalysis?.referenceConfidence === "low") return "muted";
+  return "default";
+}
+
+export function getMoodboardReferenceSize(
+  width: number,
+  height: number,
+  weight: "primary" | "default" | "muted" = "default"
+): { width: number; height: number } {
+  const targetWidth = weight === "primary" ? 260 : weight === "muted" ? 140 : REFERENCE_CARD_WIDTH;
+  const aspect = width > 0 && height > 0 ? height / width : 1;
+  return {
+    width: targetWidth,
+    height: Math.max(120, Math.min(weight === "primary" ? 360 : 280, Math.round(targetWidth * aspect))),
+  };
+}
+
+export function getNextMoodboardPosition(
+  existingItems: CanvasItem[],
+  width: number
+): { x: number; y: number } {
+  const references = existingItems.filter((item): item is ReferenceItem => item.kind === "reference");
+  const colWidth = REFERENCE_CARD_WIDTH + REFERENCE_GRID_GAP;
+  const colHeights = Array.from({ length: REFERENCE_GRID_COLUMNS }, () => REFERENCE_START_Y);
+
+  for (const ref of references) {
+    const nearestCol = Math.max(
+      0,
+      Math.min(
+        REFERENCE_GRID_COLUMNS - 1,
+        Math.round((ref.x - REFERENCE_START_X) / colWidth)
+      )
+    );
+    colHeights[nearestCol] = Math.max(
+      colHeights[nearestCol],
+      ref.y + ref.height + REFERENCE_GRID_GAP
+    );
+  }
+
+  const span = width > REFERENCE_CARD_WIDTH ? 2 : 1;
+  let bestCol = 0;
+  let bestY = Number.POSITIVE_INFINITY;
+  for (let col = 0; col <= REFERENCE_GRID_COLUMNS - span; col++) {
+    const y = Math.max(...colHeights.slice(col, col + span));
+    if (y < bestY) {
+      bestY = y;
+      bestCol = col;
+    }
+  }
+
+  return {
+    x: REFERENCE_START_X + bestCol * colWidth,
+    y: bestY,
+  };
+}
+
+export function getMoodboardBounds(items: CanvasItem[]): { x: number; y: number; width: number; height: number } | null {
+  const references = items.filter((item): item is ReferenceItem => item.kind === "reference");
+  if (references.length === 0) return null;
+  const bottom = references.reduce((max, item) => Math.max(max, item.y + item.height), REFERENCE_START_Y);
+  return {
+    x: MOODBOARD_X,
+    y: MOODBOARD_Y,
+    width: MOODBOARD_WIDTH,
+    height: Math.max(420, bottom - MOODBOARD_Y + 42),
+  };
+}
+
+export function createMoodboardReferenceItem(args: {
+  id: string;
+  imageUrl: string;
+  title?: string;
+  source?: ReferenceItem["source"];
+  sourceUrl?: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  existingItems: CanvasItem[];
+  zIndex: number;
+  weight?: ReferenceItem["weight"];
+}): ReferenceItem {
+  const size = getMoodboardReferenceSize(args.naturalWidth, args.naturalHeight, args.weight ?? "default");
+  const position = getNextMoodboardPosition(args.existingItems, size.width);
+  return {
+    id: args.id,
+    kind: "reference",
+    x: position.x,
+    y: position.y,
+    width: size.width,
+    height: size.height,
+    zIndex: args.zIndex,
+    locked: false,
+    imageUrl: args.imageUrl,
+    title: args.title,
+    source: args.source,
+    sourceUrl: args.sourceUrl,
+    weight: args.weight,
+  };
 }
 
 function artboardHeight(breakpoint: Breakpoint): number {
@@ -306,22 +412,27 @@ function storedRefToCanvasItem(
   index: number,
   zIndexBase: number
 ): ReferenceItem {
-  const col = index % REFERENCE_GRID_COLUMNS;
-  const row = Math.floor(index / REFERENCE_GRID_COLUMNS);
-  return {
+  return createMoodboardReferenceItem({
     id: ref.id || uid("ref"),
-    kind: "reference",
-    x: REFERENCE_START_X + col * (REFERENCE_CARD_WIDTH + REFERENCE_GRID_GAP),
-    y: REFERENCE_START_Y + row * (REFERENCE_CARD_HEIGHT + REFERENCE_GRID_GAP),
-    width: REFERENCE_CARD_WIDTH,
-    height: REFERENCE_CARD_HEIGHT,
-    zIndex: zIndexBase + index,
-    locked: false,
     imageUrl: ref.imageUrl,
     title: ref.title,
     source: ref.source,
     sourceUrl: ref.sourceUrl,
-  };
+    naturalWidth: REFERENCE_CARD_WIDTH,
+    naturalHeight: REFERENCE_CARD_HEIGHT,
+    existingItems: Array.from({ length: index }, (_, i) => ({
+      id: `slot-${i}`,
+      kind: "reference" as const,
+      x: REFERENCE_START_X + (i % REFERENCE_GRID_COLUMNS) * (REFERENCE_CARD_WIDTH + REFERENCE_GRID_GAP),
+      y: REFERENCE_START_Y + Math.floor(i / REFERENCE_GRID_COLUMNS) * (REFERENCE_CARD_HEIGHT + REFERENCE_GRID_GAP),
+      width: REFERENCE_CARD_WIDTH,
+      height: REFERENCE_CARD_HEIGHT,
+      zIndex: zIndexBase + i,
+      locked: false,
+      imageUrl: "",
+    })),
+    zIndex: zIndexBase + index,
+  });
 }
 
 /**

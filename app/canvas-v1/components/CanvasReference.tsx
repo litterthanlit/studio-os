@@ -4,6 +4,7 @@ import * as React from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
+import { getEffectiveReferenceWeight } from "@/lib/canvas/unified-canvas-state";
 import type { ReferenceItem } from "@/lib/canvas/unified-canvas-state";
 import type { HandlePosition } from "../hooks/useResize";
 import { ResizeHandles } from "./ResizeHandles";
@@ -37,7 +38,8 @@ export function CanvasReference({
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const extractedColors = item.extracted?.colors ?? [];
 
-  const currentWeight = item.weight || "default";
+  const currentWeight = getEffectiveReferenceWeight(item);
+  const isAutoWeighted = !item.weight && currentWeight !== "default";
   const nextWeight =
     currentWeight === "default" ? "primary"
     : currentWeight === "primary" ? "muted"
@@ -75,7 +77,7 @@ export function CanvasReference({
           width: item.width,
           height: item.height,
           opacity: currentWeight === "muted" ? 0.4 : 1,
-          outline: currentWeight === "primary" ? "2px solid #D4A017" : undefined,
+          outline: currentWeight === "primary" ? "2px solid #4B57DB" : undefined,
         }}
         onPointerDown={(e) => onPointerDown?.(e, item.id, item.x, item.y)}
         onClick={(e) => {
@@ -106,9 +108,9 @@ export function CanvasReference({
         )}
 
         {/* Style ref badge — moved to top-left to avoid overlap with weight toggle */}
-        {item.isStyleRef && (
+        {(item.isStyleRef || isAutoWeighted) && (
           <div className="absolute top-2 left-2 rounded-[2px] bg-[#4B57DB] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-white">
-            Style
+            {item.isStyleRef ? "Style" : "AI"}
           </div>
         )}
 
@@ -121,7 +123,7 @@ export function CanvasReference({
           )}
           style={{
             background:
-              currentWeight === "primary" ? "#D4A017"
+              currentWeight === "primary" ? "#4B57DB"
               : currentWeight === "muted" ? "rgba(0,0,0,0.4)"
               : "rgba(0,0,0,0.3)",
           }}

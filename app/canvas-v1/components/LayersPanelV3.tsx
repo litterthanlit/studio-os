@@ -19,6 +19,7 @@ import type { DesignNode } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById } from "@/lib/canvas/design-node";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
 import type { ArtboardItem, ReferenceItem, NoteItem, FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
+import { createMoodboardReferenceItem } from "@/lib/canvas/unified-canvas-state";
 import { toPng } from "html-to-image";
 import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
 import { useLayersDragReorder, type DropTarget } from "@/app/canvas-v1/hooks/useLayersDragReorder";
@@ -926,30 +927,24 @@ export function LayersPanelV3({
           cacheBust: true,
         });
 
-        const minX = state.items.reduce((min, item) => Math.min(min, item.x), 0);
         const maxZ = state.items.reduce((max, item) => Math.max(max, item.zIndex), 0);
-        const existingRefCount = state.items.filter((i) => i.kind === "reference").length;
 
         const refId = `ref-${Math.random().toString(36).slice(2, 10)}`;
+        dispatch({ type: "PUSH_HISTORY", description: "Use as Reference" });
         dispatch({
           type: "ADD_ITEM",
-          item: {
+          item: createMoodboardReferenceItem({
             id: refId,
-            kind: "reference" as const,
-            x: minX - 400,
-            y: 100 + existingRefCount * 320,
-            width: 300,
-            height: 200,
-            zIndex: maxZ + 1,
-            locked: false,
             imageUrl: dataUrl,
             title: nodeName || "Generated Section",
             source: "generated" as const,
+            naturalWidth: nodeEl.offsetWidth || 300,
+            naturalHeight: nodeEl.offsetHeight || 200,
+            existingItems: state.items,
+            zIndex: maxZ + 1,
             weight: "primary" as const,
-          },
+          }),
         });
-
-        dispatch({ type: "PUSH_HISTORY", description: "Use as Reference" });
       } catch (err) {
         console.error("[UseAsRef] Screenshot failed:", err);
       }

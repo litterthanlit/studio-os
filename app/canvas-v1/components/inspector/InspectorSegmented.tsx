@@ -52,7 +52,7 @@ export function InspectorSegmented({
             key={opt.value}
             type="button"
             className={cn(
-              "flex-1 min-h-0 rounded-[4px] px-1.5 text-[11px] font-mono text-center transition-all duration-100 flex items-center justify-center",
+              "flex-1 min-h-0 rounded-[4px] px-1.5 text-[11px] font-medium text-center transition-all duration-100 flex items-center justify-center",
               isSelected
                 ? opt.icon
                   ? pillSelectedIconCls
@@ -92,7 +92,7 @@ export function InspectorSegmentedSmall({
             key={opt.value}
             type="button"
             className={cn(
-              "flex-1 rounded-[4px] px-1 text-[10px] font-mono text-center transition-all duration-100 flex items-center justify-center",
+              "flex-1 rounded-[4px] px-1 text-[10px] font-medium text-center transition-all duration-100 flex items-center justify-center",
               isSelected ? pillSelectedCls : pillIdleCls
             )}
             onClick={() => onChange(opt.value)}

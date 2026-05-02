@@ -545,11 +545,25 @@ html[data-theme="light"] {
   color: var(--inspector-control-text) !important;
   border-radius: 5px !important;
   min-height: 26px !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
+}
+
+.editor-shell .editor-inspector input:not([type="range"]):not([type="color"]):not([type="checkbox"]),
+.editor-shell .editor-inspector select {
+  height: 24px !important;
+  min-height: 24px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
 }
 
 .editor-shell .editor-inspector button:not([class*="bg-\\[var\\(--accent\\)"]) {
   border-color: var(--inspector-control-border);
+}
+
+.editor-shell .editor-inspector button {
+  font-size: 11px !important;
 }
 
 .editor-shell .editor-inspector h3 {
@@ -580,7 +594,7 @@ html[data-theme="light"] {
   .editor-shell .editor-inspector textarea,
   .editor-shell .editor-inspector select {
     min-height: 24px !important;
-    font-size: 12px !important;
+    font-size: 11px !important;
   }
 
   .editor-shell .editor-inspector h3 {

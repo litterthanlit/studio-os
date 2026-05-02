@@ -1140,23 +1140,23 @@ export function DesignNodeInspector({
               hasOverride={hasOverride("aspectRatio")}
               onResetOverride={() => resetOverride("aspectRatio")}
             >
-              <select
-                value={String(style.aspectRatio ?? "")}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  const val = v === "" ? undefined : v;
-                  applyImmediate({ aspectRatio: val }, `Set aspect ratio ${v || "auto"}`);
-                }}
-                className="h-7 px-1.5 text-[12px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-[#E5E5E0] dark:border-[#333333] rounded-lg text-[#1A1A1A] dark:text-[#D0D0D0] font-mono outline-none focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                <option value="">Auto</option>
-                <option value="16/9">16:9</option>
-                <option value="4/3">4:3</option>
-                <option value="1">1:1</option>
-                <option value="9/16">9:16</option>
-                <option value="3/2">3:2</option>
-              </select>
+              <div className="w-24">
+                <InspectorSelect
+                  value={String(style.aspectRatio ?? "")}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const val = v === "" ? undefined : v;
+                    applyImmediate({ aspectRatio: val }, `Set aspect ratio ${v || "auto"}`);
+                  }}
+                >
+                  <option value="">Auto</option>
+                  <option value="16/9">16:9</option>
+                  <option value="4/3">4:3</option>
+                  <option value="1">1:1</option>
+                  <option value="9/16">9:16</option>
+                  <option value="3/2">3:2</option>
+                </InspectorSelect>
+              </div>
             </InspectorFieldRow>
 
             {/* Max Width */}
@@ -1476,49 +1476,33 @@ export function DesignNodeInspector({
         <InspectorSectionCluster ariaLabel="Styles">
         <InspectorDrawerSection title="Styles">
           <div className="px-3 space-y-1 pb-2">
-            {/* Solid / Gradient — Framer-style segmented track */}
-            <div className="flex items-center gap-2 mb-0.5 min-h-7">
-              <span className="text-[11px] text-[#6B6B6B] dark:text-[#999999] w-10 shrink-0">Fill</span>
-              <div className="flex flex-1 min-w-0 rounded-lg bg-[#EBEBE8] dark:bg-[#2A2A2A] p-0.5 gap-0.5 h-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none">
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
-                    !primaryNode.style.gradient
-                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:bg-[#333333] dark:text-[#FFFFFF]"
-                      : "text-[#8A8A8A] hover:text-[#5C5C5C] dark:text-[#666666] dark:hover:text-[#D0D0D0]",
-                  )}
-                  onClick={() => applyImmediate({ gradient: undefined }, "Switched to solid fill")}
-                >
-                  Solid
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
-                    primaryNode.style.gradient
-                      ? "bg-white text-[#1A1A1A] shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:bg-[#333333] dark:text-[#FFFFFF]"
-                      : "text-[#8A8A8A] hover:text-[#5C5C5C] dark:text-[#666666] dark:hover:text-[#D0D0D0]",
-                  )}
-                  onClick={() => {
-                    if (!primaryNode.style.gradient) {
-                      applyImmediate({
-                        gradient: {
-                          type: "linear" as const,
-                          angle: 180,
-                          stops: [
-                            { color: primaryNode.style.background || "#000000", position: 0 },
-                            { color: "#ffffff", position: 100 },
-                          ],
-                        },
-                      }, "Switched to gradient fill");
-                    }
-                  }}
-                >
-                  Gradient
-                </button>
-              </div>
-            </div>
+            <InspectorFieldRow label="Fill">
+              <InspectorSegmented
+                value={primaryNode.style.gradient ? "gradient" : "solid"}
+                options={[
+                  { value: "solid", label: "Solid" },
+                  { value: "gradient", label: "Gradient" },
+                ]}
+                onChange={(mode) => {
+                  if (mode === "solid") {
+                    applyImmediate({ gradient: undefined }, "Switched to solid fill");
+                    return;
+                  }
+                  if (!primaryNode.style.gradient) {
+                    applyImmediate({
+                      gradient: {
+                        type: "linear" as const,
+                        angle: 180,
+                        stops: [
+                          { color: primaryNode.style.background || "#000000", position: 0 },
+                          { color: "#ffffff", position: 100 },
+                        ],
+                      },
+                    }, "Switched to gradient fill");
+                  }
+                }}
+              />
+            </InspectorFieldRow>
 
             {/* Text = glyph / inherited color; Frame or Fill = layer background (Framer-style). */}
             {showStylesTextColorRow && (
@@ -2002,17 +1986,14 @@ export function DesignNodeInspector({
               </div>
             </InspectorFieldRow>
 
-            {/* Blend Mode */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-[#6B6B6B] w-14">Blend</span>
-              <select
+            <InspectorFieldRow label="Blend">
+              <InspectorSelect
                 value={primaryNode.style.blendMode ?? "normal"}
                 onChange={(e) => {
                   const val = e.target.value;
                   updateStyle({ blendMode: val === "normal" ? undefined : (val as DesignNodeStyle["blendMode"]) });
                   history.flush();
                 }}
-                className="flex-1 border border-[#E5E5E0] rounded-lg bg-white px-2 py-1 text-[12px] focus:border-[#D1E4FC] focus:ring-1 focus:ring-[#D1E4FC]/40"
               >
                 <optgroup label="Common">
                   <option value="normal">Normal</option>
@@ -2034,8 +2015,8 @@ export function DesignNodeInspector({
                   <option value="color">Color</option>
                   <option value="luminosity">Luminosity</option>
                 </optgroup>
-              </select>
-            </div>
+              </InspectorSelect>
+            </InspectorFieldRow>
 
             <InspectorFieldRow
               label="Overflow"

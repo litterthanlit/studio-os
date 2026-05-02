@@ -11,7 +11,7 @@ export function Footer() {
         {/* Col 1 */}
         <div className="flex items-center gap-3 p-4 md:p-8">
           <LogoMark />
-          <span className="font-sans font-medium text-[16px] text-[#0C0C14]">studio OS</span>
+          <span className="studio-os-wordmark text-[16px] text-[#0C0C14]">studio OS</span>
         </div>
         {/* Col 2 */}
         <div className="flex flex-col gap-2 p-4 md:p-8 font-sans text-[13px] text-[#6B6B6B]">

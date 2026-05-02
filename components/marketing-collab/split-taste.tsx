@@ -26,7 +26,7 @@ export function SplitTaste() {
           </div>
           <div className="flex items-center gap-3 mt-10 md:mt-0">
             <LogoMark variant="onAccent" className="opacity-80" />
-            <span className="font-sans font-light tracking-wide text-white/60 text-sm">studio OS</span>
+            <span className="studio-os-wordmark text-sm text-white/60">studio OS</span>
           </div>
         </div>
 

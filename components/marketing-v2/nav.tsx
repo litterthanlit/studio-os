@@ -7,7 +7,7 @@ export function Nav() {
       <div className="w-full max-w-[1440px] mx-auto flex items-center justify-between pointer-events-auto">
         <div className="flex items-center gap-3">
           <LogoMark />
-          <span className="font-sans font-medium tracking-wide text-white text-[15px]">studio OS</span>
+          <span className="studio-os-wordmark text-[15px] text-white">studio OS</span>
         </div>
 
         <nav className="hidden md:flex items-center gap-8">

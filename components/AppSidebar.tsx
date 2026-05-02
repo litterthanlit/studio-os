@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Layers, Wand2, Settings, FolderOpen } from "lucide-react";
+import { Layers, Wand2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CanvasStage } from "@/lib/canvas/compose";
 
@@ -54,15 +54,13 @@ export function AppSidebar({ stage, onStageChange, availability }: AppSidebarPro
     >
       {/* Logo mark */}
       <div className="flex h-[56px] shrink-0 items-center px-[13px]">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center">
-          <FolderOpen size={20} strokeWidth={1} className="text-[#1A1A1A]" />
-        </div>
+        <img src="/studio-os-mark.svg" alt="" className="h-4 w-auto shrink-0" aria-hidden="true" />
         <motion.span
           animate={{ opacity: expanded ? 1 : 0 }}
           transition={{ duration: 0.15 }}
-          className="ml-3 whitespace-nowrap text-[13px] font-medium text-[#1A1A1A]"
+          className="studio-os-wordmark ml-3 whitespace-nowrap text-[13px] text-[#1A1A1A]"
         >
-          Studio OS
+          studio OS
         </motion.span>
       </div>
 

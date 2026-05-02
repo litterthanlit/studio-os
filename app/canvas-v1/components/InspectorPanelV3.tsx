@@ -70,20 +70,20 @@ function InspectorSelectionSummary({
   onRefineWithTaste,
 }: InspectorSelectionSummaryProps) {
   return (
-    <div className="shrink-0 border-b border-[#25252b] bg-[#101014] px-4 py-3">
+    <div className="shrink-0 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-4 py-3">
       <div className="mb-2.5 flex items-center justify-between">
-        <div className="text-[13px] font-semibold text-[#f2f2f2]">{sectionTitle}</div>
-        <Minus size={14} className="text-[#a1a1aa]" strokeWidth={1.8} />
+        <div className="text-[13px] font-semibold text-[var(--text-primary)]">{sectionTitle}</div>
+        <Minus size={14} className="text-[var(--text-muted)]" strokeWidth={1.8} />
       </div>
       <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border border-[#303038] bg-[#17171c] text-[var(--accent)]">
+        <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] text-[var(--accent)]">
           <Box size={13} strokeWidth={1.6} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-medium text-[#e8e8ed]">
+          <div className="truncate text-[12px] font-medium text-[var(--text-primary)]">
             {title}
           </div>
-          <div className="mt-1 truncate text-[10px] text-[#85858d]">
+          <div className="mt-1 truncate text-[10px] text-[var(--text-muted)]">
             {meta}
           </div>
         </div>
@@ -93,7 +93,7 @@ function InspectorSelectionSummary({
         <button
           type="button"
           onClick={onRefineWithTaste}
-          className="mt-3 flex h-7 w-full items-center justify-between rounded-[4px] border border-[#2f4fff]/45 bg-[#1538ff]/14 px-2.5 text-[10px] font-medium text-[#cbd6ff] transition-colors hover:bg-[#1538ff]/20"
+          className="mt-3 flex h-7 w-full items-center justify-between rounded-[4px] border border-[var(--accent)]/35 bg-[var(--accent-subtle)] px-2.5 text-[10px] font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-light)]"
         >
           <span className="flex items-center gap-2">
             <Sparkles size={13} strokeWidth={1.6} />
@@ -117,13 +117,13 @@ function InspectorControlStrip() {
   ];
 
   return (
-    <div className="grid h-11 shrink-0 grid-cols-6 border-b border-[#25252b] bg-[#111116] px-4 py-2">
+    <div className="grid h-11 shrink-0 grid-cols-6 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-4 py-2">
       {controls.map(({ label, icon: Icon }) => (
         <button
           key={label}
           type="button"
           title={label}
-          className="flex h-7 items-center justify-center rounded-[4px] text-[#b8b8c0] transition-colors hover:bg-[#1d1d24] hover:text-white"
+          className="flex h-7 items-center justify-center rounded-[4px] text-[var(--text-muted)] transition-colors hover:bg-[var(--inspector-surface-hover)] hover:text-[var(--text-primary)]"
         >
           <Icon size={14} strokeWidth={1.8} />
         </button>
@@ -753,7 +753,15 @@ export function InspectorPanelV3({
   return (
     <div
       ref={containerRef}
-      className="editor-inspector relative z-20 flex h-full min-h-0 w-[288px] min-w-[288px] max-w-[288px] shrink-0 flex-col border-l border-[#25252b] bg-[#101014]"
+      className="editor-inspector relative z-20 flex h-full min-h-0 w-[244px] min-w-[244px] max-w-[244px] shrink-0 flex-col border-l border-[var(--sidebar-border)] bg-[var(--inspector-bg)] 2xl:w-[288px] 2xl:min-w-[288px] 2xl:max-w-[288px]"
+      style={{
+        position: "fixed",
+        top: 48,
+        right: "var(--editor-viewport-right-inset, 0px)",
+        bottom: 0,
+        height: "auto",
+        zIndex: 40,
+      }}
     >
       {/* Tabs — shrink-0, never participates in flex distribution */}
       <InspectorTabs activeTab={activeTab} onTabChange={handleTabChange} />

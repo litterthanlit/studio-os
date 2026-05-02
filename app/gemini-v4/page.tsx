@@ -42,8 +42,8 @@ function Nav() {
       className="fixed top-0 w-full h-14 flex items-center justify-between px-6 bg-[#0C0C14]/80 backdrop-blur-md border-b border-white/10 z-50"
     >
       <div className="flex items-center gap-2">
-        <div className="w-5 h-5 bg-[#4B57DB] rounded-[4px] flex items-center justify-center text-[10px] font-bold text-white tracking-widest pl-0.5">S</div>
-        <span className="font-semibold text-sm tracking-tight text-white">Studio OS</span>
+        <img src="/studio-os-mark.svg" alt="" className="h-4 w-auto brightness-0 invert" aria-hidden="true" />
+        <span className="studio-os-wordmark text-sm text-white">studio OS</span>
       </div>
       
       <div className="hidden md:flex items-center gap-6">

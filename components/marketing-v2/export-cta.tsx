@@ -19,7 +19,7 @@ export function ExportCta() {
 
           <div className="flex items-center gap-4 mt-[100px] md:mt-0 pb-10 md:pb-0">
             <LogoMark variant="onAccent" />
-            <span className="font-sans font-light tracking-wide text-white text-lg">studio OS</span>
+            <span className="studio-os-wordmark text-lg text-white">studio OS</span>
           </div>
         </div>
 

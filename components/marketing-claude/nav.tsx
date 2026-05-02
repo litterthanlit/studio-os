@@ -37,8 +37,8 @@ export function Nav() {
             <rect x="0" y="0" width="57" height="11" rx="2" fill="rgb(75,87,219)" />
           </g>
         </svg>
-        <span className="text-[13px] font-semibold tracking-[-0.01em]">
-          Studio OS
+        <span className="studio-os-wordmark text-[13px]">
+          studio OS
         </span>
       </a>
       <div className="flex items-center gap-7">

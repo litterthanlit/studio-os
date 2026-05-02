@@ -48,9 +48,18 @@ function Nav() {
     <header className="pointer-events-none absolute inset-x-0 top-0 z-50">
       <div className="pointer-events-auto border-b border-white/[0.05] bg-[#010206]/50 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-5 md:h-16 md:px-8">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5"
+            style={{
+              fontFamily: '"Noto Serif", Georgia, serif',
+              fontWeight: 500,
+              letterSpacing: "-0.015em",
+              fontSynthesis: "none",
+            }}
+          >
             <LogoMark />
-            <span className="font-['Noto_Serif'] text-[14px] font-medium tracking-[-0.02em] text-[#FAFAFA] md:text-[15px]">
+            <span className="studio-os-wordmark text-[14px] text-[#FAFAFA] md:text-[15px]">
               studio OS
             </span>
           </Link>
@@ -1380,7 +1389,7 @@ export function CursorSite() {
         <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-5 md:flex-row md:items-center md:justify-between md:px-10">
           <div className="flex items-center gap-3">
             <LogoMark />
-            <span className="text-[15px] font-medium text-[#1B283D]">studio OS</span>
+            <span className="studio-os-wordmark text-[15px] text-[#1B283D]">studio OS</span>
           </div>
           <div className="flex flex-wrap gap-6 font-sans text-[13px] font-medium text-[#525252]">
             <Link href="/" className="underline-offset-4 transition-colors hover:underline">

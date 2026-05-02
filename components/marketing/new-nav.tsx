@@ -33,7 +33,7 @@ export function MarketingNav() {
             <rect x="0" y="0" width="57" height="11" rx="2" fill="rgb(75,87,219)" />
           </g>
         </svg>
-        <span className="mkt-nav-logo-text">Studio OS</span>
+        <span className="mkt-nav-logo-text studio-os-wordmark">studio OS</span>
       </a>
       <div className="flex items-center gap-7">
         <a className="mkt-nav-link" href="#how">

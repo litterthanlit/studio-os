@@ -57,7 +57,7 @@ export default function GeminiV2Page() {
           <div className="h-[4px] w-[70px] bg-[#4B57DB] rounded-[2px] opacity-60" />
           <div className="h-[4px] w-[60px] bg-[#4B57DB] rounded-[2px] opacity-40" />
         </div>
-        <div className="font-['Noto_Serif'] text-[18px] text-[#0C0C14] mb-4">studio OS</div>
+        <div className="studio-os-wordmark mb-4 text-[18px] text-[#0C0C14]">studio OS</div>
         <h1 className="font-['Noto_Serif'] text-[56px] text-[#0C0C14] leading-tight font-medium">The Integrated Workspace.</h1>
       </div>
 
@@ -105,7 +105,7 @@ export default function GeminiV2Page() {
                  <div className="h-[2px] w-5 bg-[#4B57DB] rounded opacity-80" />
                  <div className="h-[2px] w-6 bg-[#4B57DB] rounded opacity-60" />
               </div>
-              <span className="font-['Noto_Serif'] font-medium text-sm text-[#0C0C14]">studio OS</span>
+              <span className="studio-os-wordmark text-sm text-[#0C0C14]">studio OS</span>
             </div>
             <div className="flex gap-8 font-sans text-[11px] text-[#0C0C14]/60">
               <span className="text-[#0C0C14] font-semibold border-b border-[#0C0C14] pb-1">Workspace</span>

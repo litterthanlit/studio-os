@@ -63,9 +63,9 @@ export function Preloader() {
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.25 }}
-            className="mb-8 font-mono text-[10px] tracking-[0.3em] text-neutral-400 uppercase"
+            className="studio-os-wordmark mb-8 text-[14px] text-neutral-400"
           >
-            Studio OS
+            studio OS
           </motion.p>
 
           {/* Progress track */}

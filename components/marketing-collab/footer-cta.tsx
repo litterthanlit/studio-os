@@ -26,7 +26,7 @@ export function FooterCta() {
                 <div key={i} className="w-4 h-[2.5px] bg-white rounded-[1px]" style={{ opacity: o }} />
               ))}
             </div>
-            <span className="font-sans font-light text-white text-sm tracking-wide">studio OS</span>
+            <span className="studio-os-wordmark text-sm text-white">studio OS</span>
           </div>
         </div>
 

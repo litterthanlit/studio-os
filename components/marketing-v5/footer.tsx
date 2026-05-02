@@ -18,7 +18,7 @@ export function Footer() {
              {/* Crosshair top left */}
              <div className="absolute top-[-4px] left-[-4px] font-mono text-[8px] text-[#0C0C14]/30">+</div>
              <LogoMark />
-             <span className="font-sans font-medium text-lg text-[#0C0C14]">studio OS</span>
+             <span className="studio-os-wordmark text-lg text-[#0C0C14]">studio OS</span>
           </div>
 
           {/* Col 2 */}

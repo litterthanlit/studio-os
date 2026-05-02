@@ -10,16 +10,15 @@ export function MarketingFooter() {
 
       {/* ── Large faded wordmark watermark ── */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-12 select-none text-center font-bold leading-none text-neutral-900"
+        className="studio-os-wordmark pointer-events-none absolute inset-x-0 bottom-12 select-none text-center text-neutral-900"
         style={{
           fontSize: "clamp(36px, 18vw, 260px)",
           opacity: 0.028,
-          letterSpacing: "-0.04em",
           userSelect: "none",
         }}
         aria-hidden
       >
-        Studio OS
+        studio OS
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6">

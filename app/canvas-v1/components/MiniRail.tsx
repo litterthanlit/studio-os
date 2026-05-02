@@ -74,11 +74,13 @@ function RailButton({
   active,
   onClick,
   title,
+  className,
   children,
 }: {
   active?: boolean;
   onClick: () => void;
   title: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -86,11 +88,13 @@ function RailButton({
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
       className={cn(
-        "w-10 h-10 rounded-[6px] flex items-center justify-center transition-colors duration-150 cursor-pointer border-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40",
+        "flex size-9 items-center justify-center rounded-[6px] border-none bg-transparent transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 2xl:size-10",
         active
           ? "text-[var(--accent)]"
-          : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+          : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]",
+        className
       )}
     >
       {children}
@@ -101,17 +105,23 @@ function RailButton({
 function RailLink({
   href,
   title,
+  className,
   children,
 }: {
   href: string;
   title: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
       title={title}
-      className="w-10 h-10 rounded-[6px] flex items-center justify-center transition-colors duration-150 cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
+      aria-label={title}
+      className={cn(
+        "flex size-9 items-center justify-center rounded-[6px] text-[var(--text-muted)] transition-colors duration-150 cursor-pointer hover:text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 2xl:size-10",
+        className
+      )}
     >
       {children}
     </Link>
@@ -143,20 +153,26 @@ export function MiniRail({
   }, [projectId]);
 
   return (
-    <div className="w-full shrink-0 bg-[#111116] border-b-[0.5px] border-sidebar-border flex flex-row items-center justify-between gap-3 px-3 py-2 z-30 min-h-[54px]">
-      <div className="flex flex-row items-center gap-2 min-w-0 flex-1">
+    <div className="z-30 flex min-h-[48px] w-full min-w-0 max-w-full shrink-0 flex-row items-center justify-between gap-2 overflow-hidden border-b-[0.5px] border-sidebar-border bg-[var(--topbar-bg)] px-2 py-1.5 2xl:min-h-[54px] 2xl:gap-3 2xl:px-3 2xl:py-2">
+      <div className="flex min-w-0 flex-1 flex-row items-center gap-1.5 2xl:gap-2">
         {/* Studio OS logo mark */}
         <Link
           href="/home"
           title="Studio OS"
           aria-label="Studio OS Home"
-          className="flex items-center gap-2 shrink-0 mr-1 rounded-[6px] px-1.5 py-1 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+          className="mr-0.5 flex shrink-0 items-center gap-2.5 rounded-[6px] px-1.5 py-1 text-[var(--text-primary)] hover:bg-[var(--surface-hover)] 2xl:mr-1"
+          style={{
+            fontFamily: '"Noto Serif", Georgia, serif',
+            fontWeight: 500,
+            letterSpacing: "-0.015em",
+            fontSynthesis: "none",
+          }}
         >
-          <LogoMark size={22} />
-          <span>Studio OS</span>
+          <LogoMark size={30} />
+          <span className="studio-os-wordmark hidden lg:inline text-[13px]">studio OS</span>
         </Link>
 
-        <div className="hidden h-8 items-center gap-1 rounded-[5px] border-[0.5px] border-sidebar-border bg-[#18181e] px-2 text-[12px] text-[var(--text-secondary)] md:flex">
+        <div className="hidden h-8 items-center gap-1 rounded-[5px] border-[0.5px] border-sidebar-border bg-[var(--surface)] px-2 text-[12px] text-[var(--text-secondary)] 2xl:flex">
           <span className="truncate max-w-[150px]">{projectName}</span>
           <span className="text-[var(--text-muted)]">/</span>
           <span className="font-medium text-[var(--text-primary)]">System canvas</span>
@@ -190,8 +206,8 @@ export function MiniRail({
       </div>
 
       {/* Center search */}
-      <div className="hidden min-w-[240px] max-w-[440px] flex-[1.2] items-center justify-center md:flex">
-        <div className="flex h-9 w-full items-center gap-2 rounded-[6px] border-[0.5px] border-sidebar-border bg-[#1b1b20] px-3 text-[12px] text-[var(--text-muted)] shadow-sm">
+      <div className="hidden min-w-[220px] max-w-[380px] flex-[0.9] items-center justify-center 2xl:flex">
+        <div className="flex h-8 w-full items-center gap-2 rounded-[6px] border-[0.5px] border-sidebar-border bg-[var(--surface)] px-3 text-[12px] text-[var(--text-muted)] shadow-sm">
           <Search size={15} strokeWidth={1.5} className="shrink-0" />
           <span className="truncate">Search components, files, notes...</span>
           <span className="ml-auto font-mono text-[10px] text-[var(--text-muted)]">⌘K</span>
@@ -202,17 +218,18 @@ export function MiniRail({
       <div className="flex flex-row items-center gap-1 shrink-0">
         <button
           type="button"
-          className="hidden h-9 items-center gap-2 rounded-[5px] px-3 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] sm:flex"
+          className="hidden h-8 items-center gap-2 rounded-[5px] px-2.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] 2xl:flex"
         >
           <Share2 size={14} strokeWidth={1.5} />
           Share
         </button>
         <button
           type="button"
-          className="flex h-9 items-center gap-2 rounded-[5px] bg-[var(--accent)] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
+          className="flex h-8 items-center gap-1.5 rounded-[5px] bg-[var(--accent)] px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-[var(--accent-hover)] 2xl:gap-2 2xl:px-3 2xl:text-[12px]"
+          aria-label="Export"
         >
           <Download size={14} strokeWidth={1.5} />
-          Export
+          <span className="hidden lg:inline">Export</span>
         </button>
         {onCycleEditorTheme && (
           <RailButton
@@ -223,7 +240,7 @@ export function MiniRail({
             <ThemeIcon size={16} strokeWidth={1.5} />
           </RailButton>
         )}
-        <RailLink href="/home" title="Back to dashboard">
+        <RailLink href="/home" title="Back to dashboard" className="hidden 2xl:flex">
           <ChevronsRight size={16} strokeWidth={1.5} />
         </RailLink>
         <RailButton onClick={onOpenShortcuts ?? (() => {})} title="More" active={false}>

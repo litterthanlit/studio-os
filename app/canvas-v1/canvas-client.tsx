@@ -4029,7 +4029,7 @@ export function UnifiedCanvasPage({
 }) {
   return (
     <CanvasProvider projectId={projectId}>
-      <div className="relative flex h-full flex-col overflow-hidden">
+      <div className="relative flex h-full w-full min-w-0 flex-col overflow-hidden">
         <UnifiedCanvasView projectId={projectId} />
       </div>
     </CanvasProvider>

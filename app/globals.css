@@ -375,9 +375,8 @@ html[data-theme="light"] {
 }
 
 /*
- * Unified editor shell — always dark chrome + cobalt (not tied to global light theme).
- * Previously only accent was scoped under [data-theme="light"], so panels inherited
- * cream :root tokens and looked like the legacy editor.
+ * Unified editor shell — scoped editor chrome tokens.
+ * The editor can now switch light/dark independently while the canvas stays warm.
  */
 .editor-shell {
   color-scheme: dark;
@@ -392,6 +391,7 @@ html[data-theme="light"] {
   --button-secondary-bg: transparent;
   --button-secondary-text: #7aa3ff;
   --button-secondary-border: #2563ff;
+  --topbar-bg: #111116;
   --sidebar-bg: #121218;
   --card-bg: #16161c;
   --border-subtle: #2a2a32;
@@ -413,29 +413,92 @@ html[data-theme="light"] {
   --bg-secondary: #121218;
   --bg-tertiary: #14141c;
   --bg-input: #2a2a2a;
+  --inspector-bg: #101014;
+  --inspector-surface: #15151a;
+  --inspector-surface-hover: #202027;
+  --inspector-border: #25252b;
+  --inspector-control-bg: #19191f;
+  --inspector-control-border: #303038;
+  --inspector-control-text: #eeeeee;
+  --inspector-shadow: -8px 0 18px rgba(0, 0, 0, 0.18);
+}
+
+.editor-shell[data-editor-theme="light"] {
+  color-scheme: light;
+  --accent: #2563ff;
+  --accent-hover: #1d4fe6;
+  --accent-light: rgba(37, 99, 255, 0.18);
+  --accent-subtle: rgba(37, 99, 255, 0.09);
+  --accent-rgb: 37, 99, 255;
+  --accent-pill: rgba(37, 99, 255, 0.12);
+  --button-primary-bg: #2563ff;
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: transparent;
+  --button-secondary-text: #244fd7;
+  --button-secondary-border: rgba(37, 99, 255, 0.34);
+  --topbar-bg: #f8f5ee;
+  --sidebar-bg: #f5f1e9;
+  --card-bg: #fffdf8;
+  --border-subtle: #ddd7cc;
+  --sidebar-border: #d8d1c5;
+  --border-primary: #d5cec2;
+  --border-secondary: #c9c1b4;
+  --border-hover: #b8c6f1;
+  --border-active: #2563ff;
+  --border-control: #d2cabd;
+  --text-primary: #1c1b18;
+  --text-secondary: #4f4b45;
+  --text-tertiary: #686258;
+  --text-muted: #81796d;
+  --text-placeholder: #a59d91;
+  --section-label: #766f65;
+  --surface: #ebe6dc;
+  --surface-hover: #e4ded2;
+  --bg-primary: #f5f1e9;
+  --bg-secondary: #eee8de;
+  --bg-tertiary: #e8e1d5;
+  --bg-input: #fffdf8;
+  --inspector-bg: #f8f5ee;
+  --inspector-surface: #fffdf8;
+  --inspector-surface-hover: #eee8de;
+  --inspector-border: #d8d1c5;
+  --inspector-control-bg: #fffdf8;
+  --inspector-control-border: #d2cabd;
+  --inspector-control-text: #1c1b18;
+  --inspector-shadow: -8px 0 18px rgba(65, 52, 32, 0.08);
 }
 
 .editor-shell .editor-shell-canvas {
   --canvas-workspace: #f1ebe3;
-  --canvas-workspace-dot: rgba(26, 26, 26, 0.05);
-  background-image:
-    linear-gradient(rgba(26, 26, 26, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26, 26, 26, 0.035) 1px, transparent 1px),
-    radial-gradient(circle, rgba(26, 26, 26, 0.05) 0.65px, transparent 0.75px);
-  background-size: 48px 48px, 48px 48px, 12px 12px;
-  background-position: -1px -1px, -1px -1px, 0 0;
+  --canvas-workspace-dot: rgba(17, 17, 17, 0.045);
+  background-image: radial-gradient(
+    circle,
+    var(--canvas-workspace-dot) 0.8px,
+    transparent 0.9px
+  );
+  background-size: 3.5px 3.5px;
+  background-position: 0 0;
+}
+
+.editor-shell[data-editor-theme="dark"] .editor-shell-canvas {
+  --canvas-workspace-dot: rgba(26, 26, 26, 0.052);
+}
+
+.editor-shell[data-editor-theme="light"] .editor-shell-canvas {
+  --canvas-workspace-dot: rgba(17, 17, 17, 0.04);
 }
 
 .editor-shell .editor-inspector {
-  --card-bg: #101014;
-  --surface: #15151a;
-  --surface-hover: #202027;
+  --card-bg: var(--inspector-bg);
+  --surface: var(--inspector-surface);
+  --surface-hover: var(--inspector-surface-hover);
+  box-shadow: var(--inspector-shadow);
 }
 
 .editor-shell .editor-inspector [role="group"] {
   margin: 0 !important;
   padding-top: 0 !important;
-  border-top-color: #25252b !important;
+  border-top-color: var(--inspector-border) !important;
 }
 
 .editor-shell .editor-inspector [role="group"] > * + * {
@@ -444,25 +507,25 @@ html[data-theme="light"] {
 
 .editor-shell .editor-inspector details {
   border-width: 0 0 1px 0 !important;
-  border-color: #25252b !important;
-  background: #101014 !important;
+  border-color: var(--inspector-border) !important;
+  background: var(--inspector-bg) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 
 .editor-shell .editor-inspector summary {
-  background: #101014 !important;
-  border-color: #25252b !important;
+  background: var(--inspector-bg) !important;
+  border-color: var(--inspector-border) !important;
   min-height: 42px !important;
   padding: 12px 16px 10px !important;
 }
 
 .editor-shell .editor-inspector summary:hover {
-  background: #15151a !important;
+  background: var(--inspector-surface-hover) !important;
 }
 
 .editor-shell .editor-inspector details > div {
-  background: #101014 !important;
+  background: var(--inspector-bg) !important;
 }
 
 .editor-shell .editor-inspector details > div > div {
@@ -473,16 +536,16 @@ html[data-theme="light"] {
 .editor-shell .editor-inspector input,
 .editor-shell .editor-inspector textarea,
 .editor-shell .editor-inspector select {
-  border-color: #303038 !important;
-  background-color: #19191f !important;
-  color: #eeeeee !important;
+  border-color: var(--inspector-control-border) !important;
+  background-color: var(--inspector-control-bg) !important;
+  color: var(--inspector-control-text) !important;
   border-radius: 5px !important;
   min-height: 28px !important;
   font-size: 11px !important;
 }
 
 .editor-shell .editor-inspector button:not([class*="bg-\\[var\\(--accent\\)"]) {
-  border-color: #303038;
+  border-color: var(--inspector-control-border);
 }
 
 .editor-shell .editor-inspector h3 {
@@ -495,6 +558,42 @@ html[data-theme="light"] {
 .editor-shell .editor-inspector button,
 .editor-shell .editor-inspector select {
   line-height: 1.2;
+}
+
+@media (max-width: 1535px) {
+  .editor-shell .editor-inspector summary {
+    min-height: 38px !important;
+    padding: 10px 12px 8px !important;
+  }
+
+  .editor-shell .editor-inspector details > div > div {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .editor-shell .editor-inspector input,
+  .editor-shell .editor-inspector textarea,
+  .editor-shell .editor-inspector select {
+    min-height: 26px !important;
+    font-size: 10px !important;
+  }
+
+  .editor-shell .editor-inspector h3 {
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .editor-shell .editor-left-panel {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+  }
+
+  .editor-shell .editor-left-panel-content,
+  .editor-shell .editor-inspector {
+    display: none !important;
+  }
 }
 
 /* ─── Tailwind v4 Color Tokens ──────────────────────────────────────────────── */
@@ -605,6 +704,14 @@ body::after {
   z-index: 0;
   background-image: radial-gradient(circle, rgba(75, 87, 219, 0.03) 1.6px, transparent 1.6px);
   background-size: 32px 32px;
+}
+
+.studio-os-wordmark {
+  font-family: "Noto Serif", Georgia, serif !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1 !important;
+  font-synthesis: none;
 }
 
 ::selection {

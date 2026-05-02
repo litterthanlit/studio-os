@@ -90,9 +90,10 @@ function LeftTabButton({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       className={cn(
-        "flex h-10 w-10 items-center justify-center rounded-[6px] transition-colors",
+        "flex size-9 items-center justify-center rounded-[6px] transition-colors 2xl:size-10",
         active
           ? "bg-[var(--accent)]/15 text-[var(--accent)]"
           : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]"
@@ -173,10 +174,10 @@ export function EditorLeftPanel({
   const selectedNode = usePromptSelectedNode();
 
   return (
-    <div className="relative z-20 flex h-full min-h-0 w-[min(100%,292px)] min-w-[292px] max-w-[292px] shrink-0 border-r-[0.5px] border-[var(--sidebar-border)] bg-[var(--sidebar-bg)]">
+    <div className="editor-left-panel relative z-20 flex h-full min-h-0 w-[248px] min-w-[248px] max-w-[248px] shrink-0 border-r-[0.5px] border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] 2xl:w-[292px] 2xl:min-w-[292px] 2xl:max-w-[292px]">
       {/* Icon rail */}
       <nav
-        className="flex w-11 shrink-0 flex-col items-center gap-1 border-r-[0.5px] border-[var(--sidebar-border)] py-2"
+        className="flex w-10 shrink-0 flex-col items-center gap-1 border-r-[0.5px] border-[var(--sidebar-border)] py-2 2xl:w-11"
         aria-label="Editor modes"
       >
         <LeftTabButton
@@ -203,7 +204,7 @@ export function EditorLeftPanel({
       </nav>
 
       {/* Mode content */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="editor-left-panel-content flex min-w-0 flex-1 flex-col">
         {activeTab === "layers" && (
           <>
             <div className="flex shrink-0 items-center justify-between gap-2 border-b-[0.5px] border-[var(--border-subtle)] px-3 py-2">

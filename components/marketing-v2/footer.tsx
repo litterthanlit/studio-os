@@ -8,7 +8,7 @@ export function Footer() {
         {/* Left */}
         <div className="flex items-center gap-3">
           <LogoMark className="scale-75 origin-left" />
-          <span className="font-light tracking-wide text-[#0C0C14]/60">studio OS</span>
+          <span className="studio-os-wordmark text-[#0C0C14]/60">studio OS</span>
         </div>
 
         {/* Center Links */}

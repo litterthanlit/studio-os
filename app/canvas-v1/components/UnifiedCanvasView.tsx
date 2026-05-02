@@ -151,6 +151,46 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const [activeTool, setActiveTool] = React.useState("select");
   const [sectionLibraryInsertIndex, setSectionLibraryInsertIndex] =
     React.useState<number | null>(null);
+  const [viewportChrome, setViewportChrome] = React.useState({
+    width: null as number | null,
+    rightInset: 0,
+  });
+
+  React.useEffect(() => {
+    const updateViewportChrome = () => {
+      const visualViewport = window.visualViewport;
+      const layoutWidth = window.innerWidth;
+      const visibleWidth = visualViewport?.width ?? layoutWidth;
+      const offsetLeft = visualViewport?.offsetLeft ?? 0;
+
+      setViewportChrome({
+        width: Math.max(320, Math.round(visibleWidth)),
+        rightInset: Math.max(0, Math.round(layoutWidth - visibleWidth - offsetLeft)),
+      });
+    };
+
+    updateViewportChrome();
+    window.addEventListener("resize", updateViewportChrome);
+    window.visualViewport?.addEventListener("resize", updateViewportChrome);
+    window.visualViewport?.addEventListener("scroll", updateViewportChrome);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportChrome);
+      window.visualViewport?.removeEventListener("resize", updateViewportChrome);
+      window.visualViewport?.removeEventListener("scroll", updateViewportChrome);
+    };
+  }, []);
+
+  const shellViewportStyle = React.useMemo(
+    () =>
+      ({
+        "--editor-visible-width": viewportChrome.width ? `${viewportChrome.width}px` : "100dvw",
+        "--editor-viewport-right-inset": `${viewportChrome.rightInset}px`,
+        width: "var(--editor-visible-width)",
+        maxWidth: "var(--editor-visible-width)",
+      }) as React.CSSProperties,
+    [viewportChrome]
+  );
 
   // Marquee is no longer a tool — box-select uses Cursor (select) only.
   React.useEffect(() => {
@@ -884,8 +924,9 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
   return (
     <div
-      className="editor-shell flex h-full w-full min-h-0 flex-col bg-[var(--sidebar-bg)] text-[var(--text-primary)]"
-      data-theme="dark"
+      className="editor-shell flex h-full min-h-0 w-[100dvw] min-w-0 max-w-[100dvw] flex-col overflow-hidden bg-[var(--sidebar-bg)] text-[var(--text-primary)]"
+      style={shellViewportStyle}
+      data-theme={effectiveTheme}
       data-editor-theme={effectiveTheme}
     >
       <EditorShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
@@ -904,7 +945,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       />
 
       {/* Editor row: Layers | Canvas | Inspector */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+      <div className="editor-row relative flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden">
         {showLayers && (
           <EditorLeftPanel
             projectId={projectId}

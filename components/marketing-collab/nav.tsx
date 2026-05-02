@@ -5,7 +5,7 @@ export function Nav() {
     <nav className="w-full h-[72px] px-5 md:px-[60px] flex items-center justify-between z-50 bg-white/90 backdrop-blur-sm border-b border-[#0C0C14]/5 sticky top-0">
       <div className="flex items-center gap-2.5">
         <LogoMark />
-        <span className="font-sans font-medium tracking-tight text-[#0C0C14] text-[17px]">studio OS</span>
+        <span className="studio-os-wordmark text-[17px] text-[#0C0C14]">studio OS</span>
       </div>
       <div className="flex items-center gap-7 font-sans text-[13px] font-medium text-[#6B6B6B]">
         <a href="#comparison" className="hover:text-[#0C0C14] transition-colors hidden md:block">The difference</a>

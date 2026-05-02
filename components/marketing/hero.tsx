@@ -439,13 +439,8 @@ export function Hero() {
               <div className="flex w-44 shrink-0 flex-col border-r border-black/[0.06]" style={{ background: "#FAFAFA" }}>
                 {/* Logo row */}
                 <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2.5">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-[5px] bg-[#2430AD]">
-                    <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3">
-                      <rect x="2" y="2" width="3.2" height="8" rx="1" fill="white"/>
-                      <rect x="6.8" y="2" width="3.2" height="8" rx="1" fill="white"/>
-                    </svg>
-                  </div>
-                  <span className="text-[11px] font-semibold text-neutral-800">Studio OS</span>
+                  <img src="/studio-os-mark.svg" alt="" className="h-3.5 w-auto" aria-hidden="true" />
+                  <span className="studio-os-wordmark text-[11px] text-neutral-800">studio OS</span>
                 </div>
                 {/* Nav items */}
                 <div className="flex-1 px-1.5 py-2 space-y-0.5">

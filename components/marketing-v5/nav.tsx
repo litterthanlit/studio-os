@@ -6,7 +6,7 @@ export function Nav() {
     <nav className="w-full h-[80px] px-5 md:px-[60px] flex items-center justify-between z-50 bg-white/80 backdrop-blur-sm border-b border-[#0C0C14]/5 sticky top-0">
       <div className="flex items-center gap-3">
         <LogoMark />
-        <span className="font-sans font-medium tracking-tight text-[#0C0C14] text-xl">studio OS</span>
+        <span className="studio-os-wordmark text-xl text-[#0C0C14]">studio OS</span>
       </div>
 
       <div className="flex items-center gap-8 font-sans text-sm font-medium text-[#0C0C14]/70">

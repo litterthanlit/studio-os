@@ -262,9 +262,9 @@ function DashboardSidebarContent({
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-text-primary"
+                className="studio-os-wordmark overflow-hidden whitespace-nowrap text-[15px] text-text-primary"
               >
-                Studio OS
+                studio OS
               </motion.span>
             ) : null}
           </AnimatePresence>
@@ -521,9 +521,9 @@ function CanvasSidebarContent({
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap font-serif text-[15px] tracking-[-0.01em] text-text-primary"
+                className="studio-os-wordmark overflow-hidden whitespace-nowrap text-[15px] text-text-primary"
               >
-                Studio OS
+                studio OS
               </motion.span>
             ) : null}
           </AnimatePresence>

@@ -123,9 +123,8 @@ export function MarketingNav() {
               <LogoMark />
             </div>
             <span
-              className="text-[19px] md:text-[21px] font-semibold leading-none"
+              className="studio-os-wordmark text-[19px] md:text-[21px]"
               style={{
-                fontFamily: "var(--font-instrument-sans)",
                 background: "linear-gradient(180deg, #2430AD 0%, #6E79F5 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",

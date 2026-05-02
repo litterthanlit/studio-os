@@ -33,7 +33,7 @@ export function MarketingFooter() {
             <rect x="0" y="0" width="57" height="11" rx="2" fill="rgb(75,87,219)" />
           </g>
         </svg>
-        Studio OS
+        <span className="studio-os-wordmark">studio OS</span>
       </div>
       <div className="flex gap-5">
         <a className="mkt-footer-link" href="/privacy">

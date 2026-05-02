@@ -38,7 +38,7 @@ export function EditorTransportBar({
 }: EditorTransportBarProps) {
   return (
     <div
-      className="absolute bottom-[28px] left-1/2 z-30 flex min-h-[48px] -translate-x-1/2 items-center gap-2.5 rounded-[8px] border-[0.5px] border-border-subtle bg-card-bg px-3 py-2 shadow-sm"
+      className="absolute bottom-4 left-1/2 z-30 flex min-h-[42px] -translate-x-1/2 items-center gap-1.5 rounded-[8px] border-[0.5px] border-border-subtle bg-card-bg px-2 py-1.5 shadow-sm 2xl:bottom-[28px] 2xl:min-h-[48px] 2xl:gap-2.5 2xl:px-3 2xl:py-2"
       style={{ fontFamily: "'IBM Plex Mono', monospace" }}
     >
       <div
@@ -77,7 +77,7 @@ function TransportToolButton({
       aria-pressed={isActive}
       aria-label={tool.label}
       className={cn(
-        "flex h-10 w-10 items-center justify-center rounded-[6px] transition-colors",
+        "flex size-9 items-center justify-center rounded-[6px] transition-colors 2xl:size-10",
         isActive
           ? "bg-accent-light/30 text-accent"
           : "text-text-muted hover:bg-surface-hover hover:text-text-secondary"
@@ -85,7 +85,7 @@ function TransportToolButton({
       title={title}
       onClick={onClick}
     >
-      <Icon size={20} strokeWidth={1.5} />
+      <Icon size={18} strokeWidth={1.5} />
     </button>
   );
 }

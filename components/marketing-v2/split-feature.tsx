@@ -25,7 +25,7 @@ export function SplitFeature() {
           <div className="flex flex-col gap-6 mt-[60px]">
             <div className="flex items-center gap-4">
               <LogoMark variant="onAccent" />
-              <span className="font-sans font-light tracking-wide text-white text-lg">studio OS</span>
+              <span className="studio-os-wordmark text-lg text-white">studio OS</span>
             </div>
             <div className="font-mono text-white/50 text-xs mt-10">
               Deep Cobalt (#4B57DB) /<br/>

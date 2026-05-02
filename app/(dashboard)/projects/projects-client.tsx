@@ -23,10 +23,13 @@ import {
   listProjectReferences,
 } from "@/lib/project-store";
 import {
-  DEMO_PROJECT_ID,
   isDemoDismissed,
   dismissDemo,
 } from "@/lib/demo-project";
+import {
+  STARTER_CANVAS_PROJECT_ID,
+  persistStarterCanvas,
+} from "@/lib/canvas/starter-canvas";
 import {
   Dialog,
   DialogContent,
@@ -421,7 +424,10 @@ export function ProjectsPage() {
                 >
                   <div className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out hover:border-border hover:bg-card-bg/70">
                     <Link
-                      href={`/canvas?project=${DEMO_PROJECT_ID}`}
+                      href={`/canvas?project=${STARTER_CANVAS_PROJECT_ID}`}
+                      onClick={() => {
+                        persistStarterCanvas();
+                      }}
                       className="flex flex-1 items-center gap-4 min-w-0"
                     >
                       {/* Demo thumbnail */}

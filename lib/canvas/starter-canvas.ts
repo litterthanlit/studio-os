@@ -8,9 +8,11 @@ import {
 } from "@/lib/project-store";
 import type { DesignNode, DesignNodeStyle } from "./design-node";
 import {
+  createMoodboardReferenceItem,
   createEmptyCanvas,
   type ArtboardItem,
   type ArrowItem,
+  type CanvasItem,
   type FrameItem,
   type NoteItem,
   type ReferenceItem,
@@ -19,7 +21,7 @@ import {
 import type { SiteType } from "./templates";
 
 export const STARTER_CANVAS_PROJECT_ID = "starter-canvas";
-export const STARTER_CANVAS_LAYOUT_VERSION = 5;
+export const STARTER_CANVAS_LAYOUT_VERSION = 8;
 
 const STARTER_LAYOUT_LS_KEY = "studio-os:starter-canvas-layout-version";
 
@@ -228,51 +230,99 @@ function createReferences(): ReferenceItem[] {
       title: "Premium SaaS Landing",
       imageUrl: referenceSvg("landing"),
       tags: ["enterprise saas", "hero hierarchy", "product block", "high-trust blue"],
-      primary: true,
+      weight: "primary" as const,
+      confidence: "high" as const,
+      naturalWidth: 520,
+      naturalHeight: 680,
     },
     {
       id: "starter-ref-typography",
       title: "Typography Specimen",
       imageUrl: referenceSvg("type"),
       tags: ["editorial type", "modular scale", "thin rules", "serif contrast"],
+      weight: "default" as const,
+      confidence: "medium" as const,
+      naturalWidth: 520,
+      naturalHeight: 680,
     },
     {
       id: "starter-ref-components",
       title: "Component System",
       imageUrl: referenceSvg("system"),
       tags: ["component system", "thin borders", "tokens", "controls"],
+      weight: "default" as const,
+      confidence: "medium" as const,
+      naturalWidth: 520,
+      naturalHeight: 680,
     },
     {
       id: "starter-ref-product-module",
       title: "Product UI Module",
       imageUrl: referenceSvg("product"),
       tags: ["product UI", "metric module", "restrained data", "sparse dashboard"],
+      weight: "muted" as const,
+      confidence: "low" as const,
+      naturalWidth: 520,
+      naturalHeight: 680,
     },
   ];
 
-  return refs.map((ref, index) => ({
-    id: ref.id,
-    kind: "reference",
-    x: 1180 + (index % 2) * 112,
-    y: 92 + Math.floor(index / 2) * 142,
-    width: 96,
-    height: 126,
-    zIndex: index,
-    locked: false,
-    imageUrl: ref.imageUrl,
-    title: ref.title,
-    source: "generated",
-    annotation: ref.primary
-      ? "Primary style reference: restrained enterprise SaaS, crisp proof block, blue accent."
-      : undefined,
-    isStyleRef: ref.primary,
-    weight: ref.primary ? "primary" : "default",
-    extracted: {
-      colors: [C.primary, C.surface, C.accent, C.muted, C.bg],
-      fonts: ["Geist Sans", "Bespoke Serif", "IBM Plex Mono"],
-      tags: ref.tags,
-    },
-  }));
+  const placed: CanvasItem[] = [];
+
+  return refs.map((ref, index) => {
+    const item = createMoodboardReferenceItem({
+      id: ref.id,
+      imageUrl: ref.imageUrl,
+      title: ref.title,
+      source: "generated",
+      naturalWidth: ref.naturalWidth,
+      naturalHeight: ref.naturalHeight,
+      existingItems: placed,
+      zIndex: index + 1,
+      weight: ref.weight,
+    });
+
+    const next: ReferenceItem = {
+      ...item,
+      annotation:
+        ref.weight === "primary"
+          ? "AI composition confidence: high. Treated as the primary style reference."
+          : ref.weight === "muted"
+            ? "AI composition confidence: low. Muted so it does not dominate generation."
+            : "AI composition confidence: medium. Kept as supporting taste evidence.",
+      isStyleRef: ref.weight === "primary",
+      compositionAnalysis: {
+        referenceType: "screenshot",
+        referenceConfidence: ref.confidence,
+        era: "contemporary",
+        analyzedAt: new Date().toISOString(),
+        balance: ref.weight === "primary" ? "symmetric" : "asymmetric",
+        density: "balanced",
+        tension: ref.weight === "primary" ? "moderate" : "low",
+        keyCompositionalMove:
+          ref.weight === "primary"
+            ? "Clear enterprise SaaS hierarchy with product proof"
+            : ref.weight === "muted"
+              ? "Useful product data signal but too dashboard-adjacent"
+              : "Supporting system detail",
+        spacingSystem: "8px-grid",
+        typographicDensity: "balanced",
+        hierarchyClarity: ref.weight === "muted" ? "subtle" : "obvious",
+        displayTypePlacement: ref.weight === "primary" ? "isolated-whitespace" : "centered",
+        lineHeightCharacter: "balanced-readable",
+        letterSpacingIntent: "neutral",
+        headingToBodyRatio: ref.weight === "primary" ? "dramatic" : "moderate",
+      },
+      extracted: {
+        colors: [C.primary, C.surface, C.accent, C.muted, C.bg],
+        fonts: ["Geist Sans", "Bespoke Serif", "IBM Plex Mono"],
+        tags: ref.tags,
+      },
+    };
+
+    placed.push(next);
+    return next;
+  });
 }
 
 function createHeroFrame(): FrameItem {
@@ -280,7 +330,7 @@ function createHeroFrame(): FrameItem {
     id: "starter-frame-hero",
     kind: "frame",
     name: "01 / Cover",
-    x: 80,
+    x: 820,
     y: 92,
     width: 390,
     height: 276,
@@ -342,7 +392,7 @@ function createProjectMetaFrame(): FrameItem {
     id: "starter-frame-project-meta",
     kind: "frame",
     name: "Project Status",
-    x: 560,
+    x: 1230,
     y: 110,
     width: 210,
     height: 160,
@@ -394,7 +444,7 @@ function createPrincipleFrame(): FrameItem {
     id: "starter-frame-principle",
     kind: "frame",
     name: "Principle Card",
-    x: 845,
+    x: 1515,
     y: 92,
     width: 300,
     height: 190,
@@ -441,7 +491,7 @@ function createTasteSignalsFrame(): FrameItem {
     kind: "frame",
     name: "02 / Taste Signals",
     x: 80,
-    y: 430,
+    y: 760,
     width: 340,
     height: 300,
     zIndex: 13,
@@ -506,7 +556,7 @@ function createTypeSystemFrame(): FrameItem {
     id: "starter-frame-type-system",
     kind: "frame",
     name: "03 / Type System",
-    x: 500,
+    x: 820,
     y: 400,
     width: 280,
     height: 190,
@@ -571,7 +621,7 @@ function createLayoutTokensFrame(): FrameItem {
     id: "starter-frame-layout-tokens",
     kind: "frame",
     name: "04 / Layout Tokens",
-    x: 830,
+    x: 1150,
     y: 400,
     width: 300,
     height: 190,
@@ -1668,7 +1718,21 @@ export function hydrateStarterCanvas(
     window.localStorage.getItem(STARTER_LAYOUT_LS_KEY) ?? "0",
     10
   );
-  if (storedVersion >= STARTER_CANVAS_LAYOUT_VERSION && state.items.length > 0) return state;
+  const heroFrame = state.items.find((item) => item.id === "starter-frame-hero");
+  const productRef = state.items.find((item) => item.id === "starter-ref-product-module");
+  const hasCurrentMoodboardLayout =
+    heroFrame?.x === 820 &&
+    productRef?.kind === "reference" &&
+    productRef.weight === "muted" &&
+    productRef.x < 700;
+
+  if (
+    storedVersion >= STARTER_CANVAS_LAYOUT_VERSION &&
+    state.items.length > 0 &&
+    hasCurrentMoodboardLayout
+  ) {
+    return state;
+  }
 
   const { canvasState } = createStarterCanvasProject();
   window.localStorage.setItem(STARTER_LAYOUT_LS_KEY, String(STARTER_CANVAS_LAYOUT_VERSION));

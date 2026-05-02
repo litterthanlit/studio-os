@@ -19,7 +19,7 @@ import {
 import type { SiteType } from "./templates";
 
 export const STARTER_CANVAS_PROJECT_ID = "starter-canvas";
-export const STARTER_CANVAS_LAYOUT_VERSION = 4;
+export const STARTER_CANVAS_LAYOUT_VERSION = 5;
 
 const STARTER_LAYOUT_LS_KEY = "studio-os:starter-canvas-layout-version";
 
@@ -1602,7 +1602,7 @@ export function createStarterCanvasProject(): {
     ...createNotes(),
     ...createArrows(),
   ];
-  canvasState.viewport = { pan: { x: 94, y: 42 }, zoom: 0.66 };
+  canvasState.viewport = { pan: { x: 148, y: 76 }, zoom: 0.48 };
   canvasState.activeBreakpoint = "desktop";
   canvasState.selection = {
     selectedItemIds: [DESKTOP_ARTBOARD_ID],

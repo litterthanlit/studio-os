@@ -84,7 +84,7 @@ export function LayoutInspectorFramer({
 
   return (
     <InspectorDrawerSection title="Layout">
-      <div className="px-4 space-y-2 pb-1">
+      <div className="px-3 space-y-1 pb-2">
         <InspectorFieldRow label="Type" disabled={isForbiddenField("display")}>
           <InspectorSegmented
             value={display}
@@ -143,7 +143,7 @@ export function LayoutInspectorFramer({
         >
           <div
             className={cn(
-              "flex rounded-lg bg-[#EBEBE8] dark:bg-[#2A2A2A] p-1 gap-0.5 h-8 min-h-[32px] w-full shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none"
+              "flex rounded-md bg-[#EBEBE8] dark:bg-[#2A2A2A] p-0.5 gap-0.5 h-6 min-h-[24px] w-full shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none"
             )}
             role="group"
             aria-label="Align items"
@@ -241,7 +241,7 @@ export function LayoutInspectorFramer({
                   }}
                   onMouseUp={() => historyFlush()}
                   onKeyUp={() => historyFlush()}
-                  className="w-16 shrink-0 h-1 accent-[#4B57DB] cursor-pointer"
+                  className="w-14 shrink-0 h-1 accent-[#4B57DB] cursor-pointer"
                   aria-label="Gap"
                 />
               </div>
@@ -275,10 +275,10 @@ export function LayoutInspectorFramer({
               )}
               title={isForbiddenField("gridTemplate") ? "Controlled by master component" : undefined}
             >
-              <div className="flex items-start min-h-8 gap-3 py-1">
+              <div className="flex items-start min-h-7 gap-2.5 py-0.5">
                 <span
                   className={cn(
-                    "w-16 shrink-0 pt-0.5 text-[13px] font-normal flex items-start gap-1.5",
+                    "w-14 shrink-0 pt-1 text-[11px] font-normal flex items-start gap-1.5",
                     isForbiddenField("gridTemplate")
                       ? "text-[#A0A0A0]"
                       : "text-[#6B6B6B] dark:text-[#999999]"

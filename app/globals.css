@@ -516,8 +516,8 @@ html[data-theme="light"] {
 .editor-shell .editor-inspector summary {
   background: var(--inspector-bg) !important;
   border-color: var(--inspector-border) !important;
-  min-height: 42px !important;
-  padding: 12px 16px 10px !important;
+  min-height: 30px !important;
+  padding: 6px 12px 5px !important;
 }
 
 .editor-shell .editor-inspector summary:hover {
@@ -529,8 +529,12 @@ html[data-theme="light"] {
 }
 
 .editor-shell .editor-inspector details > div > div {
-  padding-left: 16px !important;
-  padding-right: 16px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+.editor-shell .editor-inspector {
+  font-size: 11px;
 }
 
 .editor-shell .editor-inspector input,
@@ -540,8 +544,8 @@ html[data-theme="light"] {
   background-color: var(--inspector-control-bg) !important;
   color: var(--inspector-control-text) !important;
   border-radius: 5px !important;
-  min-height: 28px !important;
-  font-size: 11px !important;
+  min-height: 26px !important;
+  font-size: 12px !important;
 }
 
 .editor-shell .editor-inspector button:not([class*="bg-\\[var\\(--accent\\)"]) {
@@ -549,8 +553,9 @@ html[data-theme="light"] {
 }
 
 .editor-shell .editor-inspector h3 {
-  font-size: 13px !important;
+  font-size: 11px !important;
   font-weight: 650 !important;
+  letter-spacing: 0 !important;
 }
 
 .editor-shell .editor-inspector label,
@@ -562,24 +567,24 @@ html[data-theme="light"] {
 
 @media (max-width: 1535px) {
   .editor-shell .editor-inspector summary {
-    min-height: 38px !important;
-    padding: 10px 12px 8px !important;
+    min-height: 28px !important;
+    padding: 5px 10px 4px !important;
   }
 
   .editor-shell .editor-inspector details > div > div {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
   }
 
   .editor-shell .editor-inspector input,
   .editor-shell .editor-inspector textarea,
   .editor-shell .editor-inspector select {
-    min-height: 26px !important;
-    font-size: 10px !important;
+    min-height: 24px !important;
+    font-size: 12px !important;
   }
 
   .editor-shell .editor-inspector h3 {
-    font-size: 12px !important;
+    font-size: 11px !important;
   }
 }
 

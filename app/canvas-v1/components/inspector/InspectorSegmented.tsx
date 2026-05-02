@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 const trackCls =
-  "bg-[#EBEBE8] dark:bg-[#2A2A2A] rounded-lg p-1 gap-0.5 h-8 min-h-[32px] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none";
+  "bg-[#EBEBE8] dark:bg-[#2A2A2A] rounded-md p-0.5 gap-0.5 h-6 min-h-[24px] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none";
 
 const pillSelectedCls =
   "bg-white text-[#1A1A1A] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.1)] dark:bg-[#333333] dark:text-[#FFFFFF]";
@@ -52,7 +52,7 @@ export function InspectorSegmented({
             key={opt.value}
             type="button"
             className={cn(
-              "flex-1 min-h-0 rounded-md px-1.5 text-[11px] font-mono text-center transition-all duration-100 flex items-center justify-center",
+              "flex-1 min-h-0 rounded-[4px] px-1.5 text-[11px] font-mono text-center transition-all duration-100 flex items-center justify-center",
               isSelected
                 ? opt.icon
                   ? pillSelectedIconCls
@@ -81,7 +81,7 @@ export function InspectorSegmentedSmall({
   return (
     <div
       className={cn(
-        "flex w-full bg-[#EBEBE8] dark:bg-[#2A2A2A] rounded-lg p-0.5 gap-0.5 h-7 min-h-[28px]",
+        "flex w-full bg-[#EBEBE8] dark:bg-[#2A2A2A] rounded-md p-0.5 gap-0.5 h-6 min-h-[24px]",
         className
       )}
     >
@@ -92,7 +92,7 @@ export function InspectorSegmentedSmall({
             key={opt.value}
             type="button"
             className={cn(
-              "flex-1 rounded-md px-1 text-[10px] font-mono text-center transition-all duration-100 flex items-center justify-center",
+              "flex-1 rounded-[4px] px-1 text-[10px] font-mono text-center transition-all duration-100 flex items-center justify-center",
               isSelected ? pillSelectedCls : pillIdleCls
             )}
             onClick={() => onChange(opt.value)}

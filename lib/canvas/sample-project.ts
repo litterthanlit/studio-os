@@ -180,7 +180,7 @@ export function createSampleProject(): {
 
   const canvasState = createEmptyCanvas();
   canvasState.items = [...references, desktopMain, mobileBoard, desktopSpotlight];
-  canvasState.viewport = { pan: { x: 400, y: 80 }, zoom: 0.35 };
+  canvasState.viewport = { pan: { x: 440, y: 108 }, zoom: 0.3 };
   canvasState.prompt.isOpen = false;
   canvasState.updatedAt = new Date().toISOString();
 

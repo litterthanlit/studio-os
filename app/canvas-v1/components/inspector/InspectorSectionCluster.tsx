@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Visual grouping for inspector — stacked paper drawers with breathing room between clusters.
+ * Visual grouping for inspector — tightly stacked editor sections.
  * Screen readers get a cluster label; the rail stays uncluttered.
  */
 
@@ -23,8 +23,8 @@ export function InspectorSectionCluster({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "space-y-2",
-        !isFirst && "border-t border-[var(--border-subtle)] pt-10 dark:border-[#2A2A2A]",
+        "space-y-0",
+        !isFirst && "border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]",
       )}
     >
       {children}

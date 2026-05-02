@@ -181,7 +181,7 @@ export function ExportTab({
 
   if (!rawTree) {
     return (
-      <div className="p-4">
+      <div className="px-3 py-3">
         <p className="text-[11px] text-text-muted">
           Export is available for V6 layouts. Generate a new site to use this feature.
         </p>
@@ -190,14 +190,14 @@ export function ExportTab({
   }
 
   return (
-    <div className="p-4 flex flex-col gap-3 h-full min-h-0">
+    <div className="flex h-full min-h-0 flex-col gap-2.5 px-3 py-3">
       <OnboardingHint
         hintKey="export-seen"
         text="Copy HTML, download a ZIP, or publish a read-only link (sign-in required)"
       />
 
       <div>
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono mb-1 block">
+        <span className="text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999] mb-1 block">
           Scope
         </span>
         <InspectorSegmented
@@ -213,7 +213,7 @@ export function ExportTab({
       </div>
 
       <div>
-        <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono mb-1 block">
+        <span className="text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999] mb-1 block">
           Output
         </span>
         <InspectorSegmented
@@ -230,7 +230,7 @@ export function ExportTab({
 
       {showBreakpointRow && (
         <div>
-          <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono mb-1 block">
+          <span className="text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999] mb-1 block">
             Breakpoint source
           </span>
           <InspectorSegmented
@@ -262,7 +262,7 @@ export function ExportTab({
 
       <div className="rounded-[4px] border border-[var(--border-primary)] bg-[var(--surface-secondary)] px-2.5 py-2">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666]">
+          <span className="text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999]">
             Publish preflight
           </span>
           <span className={preflight.ready ? "text-[10px] text-emerald-600 dark:text-emerald-400" : "text-[10px] text-amber-700 dark:text-amber-300"}>
@@ -339,7 +339,7 @@ export function ExportTab({
           </StudioButton>
 
           <div className="border-t border-[var(--border-primary)] pt-3 mt-1 space-y-2">
-            <span className="text-[10px] uppercase tracking-wide text-[#8A8A8A] dark:text-[#666666] font-mono block">
+            <span className="text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999] block">
               Publish
             </span>
             {opts.outputMode === "fragment" && (

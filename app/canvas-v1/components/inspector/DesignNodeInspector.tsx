@@ -271,7 +271,7 @@ function InstanceRootBanner({
   return (
     <div className="px-4 py-3 border-b border-[#EFEFEC]">
       <div className="flex items-center gap-2">
-        <span className="text-[13px] font-medium text-[#1A1A1A]">{context.master?.name}</span>
+        <span className="text-[12px] font-medium text-[#1A1A1A]">{context.master?.name}</span>
         <span className="text-[11px] text-[#A0A0A0]">Component Instance</span>
       </div>
       {overriddenMasterNodeCount > 0 ? (
@@ -321,7 +321,7 @@ function InstanceChildBanner({
   const hasOverrides = isNonEmptyOverride(context.overrides);
   return (
     <div className="px-4 py-2 border-b border-[#EFEFEC]">
-      <span className="text-[13px] text-[#1A1A1A]">{nodeName}</span>
+      <span className="text-[12px] text-[#1A1A1A]">{nodeName}</span>
       <span className="text-[11px] text-[#A0A0A0] ml-1">in {context.master?.name}</span>
       {hasOverrides && (
         <button onClick={onResetOverrides} className="text-[11px] text-[#4B57DB] ml-2 hover:underline">
@@ -832,7 +832,7 @@ export function DesignNodeInspector({
   }
 
   return (
-    <div data-inspector-first-section className="space-y-6 py-5">
+    <div data-inspector-first-section className="space-y-0 py-0">
       {/* ── Instance banners ──────────────────────────────────────────── */}
       {isInstanceRoot && instanceRootContext && instanceRootContext.instanceNode.componentRef && (
         <InstanceRootBanner
@@ -897,7 +897,7 @@ export function DesignNodeInspector({
       )}
 
       {isNonDesktop && (
-        <div className="px-4">
+        <div className="px-3">
           <BreakpointBadge breakpoint={breakpoint} width={BREAKPOINT_WIDTHS[breakpoint]} />
         </div>
       )}
@@ -906,7 +906,7 @@ export function DesignNodeInspector({
         <InspectorSectionCluster isFirst ariaLabel="Frame">
       {/* ── POSITION ─────────────────────────────────────────────────── */}
       <InspectorDrawerSection title="Position">
-        <div className="px-4 space-y-2.5 pb-4">
+        <div className="px-3 space-y-1 pb-2">
           <InspectorFieldRow label="Mode" disabled={isForbiddenField("position")}>
             <InspectorSegmented
               value={isBreakout ? "absolute" : "relative"}
@@ -920,7 +920,7 @@ export function DesignNodeInspector({
 
           {isBreakout && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <InspectorFieldRow
                   label="X"
                   hasOverride={hasOverride("x")}
@@ -970,7 +970,7 @@ export function DesignNodeInspector({
       {/* ── SIZE ──────────────────────────────────────────────────────── */}
       {sections.showSize && (
         <InspectorDrawerSection title="Size">
-          <div className="px-4 space-y-2.5 pb-4">
+          <div className="px-3 space-y-1 pb-2">
             {/* Width */}
             <InspectorFieldRow
               label="W"
@@ -1147,7 +1147,7 @@ export function DesignNodeInspector({
                   const val = v === "" ? undefined : v;
                   applyImmediate({ aspectRatio: val }, `Set aspect ratio ${v || "auto"}`);
                 }}
-                className="h-7 px-1.5 text-[13px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-[#E5E5E0] dark:border-[#333333] rounded-lg text-[#1A1A1A] dark:text-[#D0D0D0] font-mono outline-none focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
+                className="h-7 px-1.5 text-[12px] bg-[#F8F8F6] dark:bg-[#2A2A2A] border border-[#E5E5E0] dark:border-[#333333] rounded-lg text-[#1A1A1A] dark:text-[#D0D0D0] font-mono outline-none focus:border-[#4B57DB] focus:ring-1 focus:ring-[#4B57DB]/20"
                 style={{ fontFamily: "'IBM Plex Mono', monospace" }}
               >
                 <option value="">Auto</option>
@@ -1190,7 +1190,7 @@ export function DesignNodeInspector({
               />
             </InspectorFieldRow>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <InspectorFieldRow label="Min W" hasOverride={hasOverride("minWidth")} onResetOverride={() => resetOverride("minWidth")}>
                 <InspectorTextInput
                   value={style.minWidth != null ? String(style.minWidth) : ""}
@@ -1291,7 +1291,7 @@ export function DesignNodeInspector({
       {sections.showTypography && (
         <InspectorSectionCluster ariaLabel="Typography">
         <InspectorDrawerSection title="Typography">
-          <div className="px-4 space-y-2.5 pb-4">
+          <div className="px-3 space-y-1 pb-2">
             {/* Font Family */}
             <InspectorFieldRow 
               label="Font"
@@ -1325,7 +1325,7 @@ export function DesignNodeInspector({
             </InspectorFieldRow>
 
             {/* Weight + Size */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <InspectorFieldRow 
                 label="Weight"
                 hasOverride={hasOverride("fontWeight")} 
@@ -1367,7 +1367,7 @@ export function DesignNodeInspector({
             </div>
 
             {/* Line Height + Tracking */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <InspectorFieldRow 
                 label="Height"
                 hasOverride={hasOverride("lineHeight")} 
@@ -1436,7 +1436,7 @@ export function DesignNodeInspector({
             </InspectorFieldRow>
 
             {/* Font Style + Decoration */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <InspectorFieldRow 
                 label="Style"
                 hasOverride={hasOverride("fontStyle")} 
@@ -1475,11 +1475,11 @@ export function DesignNodeInspector({
       {(sections.showFill || sections.showAppearance) && (
         <InspectorSectionCluster ariaLabel="Styles">
         <InspectorDrawerSection title="Styles">
-          <div className="px-4 space-y-2.5 pb-4">
+          <div className="px-3 space-y-1 pb-2">
             {/* Solid / Gradient — Framer-style segmented track */}
-            <div className="flex items-center gap-3 mb-1 min-h-8">
-              <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999] w-10 shrink-0">Fill</span>
-              <div className="flex flex-1 min-w-0 rounded-lg bg-[#EBEBE8] dark:bg-[#2A2A2A] p-1 gap-0.5 h-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none">
+            <div className="flex items-center gap-2 mb-0.5 min-h-7">
+              <span className="text-[11px] text-[#6B6B6B] dark:text-[#999999] w-10 shrink-0">Fill</span>
+              <div className="flex flex-1 min-w-0 rounded-lg bg-[#EBEBE8] dark:bg-[#2A2A2A] p-0.5 gap-0.5 h-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none">
                 <button
                   type="button"
                   className={cn(
@@ -1588,8 +1588,8 @@ export function DesignNodeInspector({
             {primaryNode.type === "frame" && (
               <div className="pt-2">
                 {!style.coverImage ? (
-                  <div className="flex items-center justify-between h-8">
-                    <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Image</span>
+                  <div className="flex items-center justify-between h-7">
+                    <span className="text-[11px] text-[#6B6B6B] dark:text-[#999999]">Image</span>
                     <button
                       type="button"
                       onClick={() => applyImmediate({ coverImage: "https://", coverSize: "cover" }, "Added cover image")}
@@ -1601,7 +1601,7 @@ export function DesignNodeInspector({
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Image</span>
+                      <span className="text-[11px] text-[#6B6B6B] dark:text-[#999999]">Image</span>
                       <button
                         type="button"
                         onClick={() => applyImmediate({ coverImage: undefined, coverSize: undefined, coverPosition: undefined, scrimEnabled: undefined }, "Removed cover image")}
@@ -1630,7 +1630,7 @@ export function DesignNodeInspector({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       <InspectorFieldRow label="Size">
                         <InspectorSegmentedSmall
                           value={style.coverSize || "cover"}
@@ -1698,7 +1698,7 @@ export function DesignNodeInspector({
             )}
 
             <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
-              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span className="text-[11px] font-medium tracking-normal text-[var(--text-muted)]">
                 Effects
               </span>
             </div>
@@ -1756,7 +1756,7 @@ export function DesignNodeInspector({
             ))}
 
             <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
-              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span className="text-[11px] font-medium tracking-normal text-[var(--text-muted)]">
                 Layer
               </span>
             </div>
@@ -1917,8 +1917,8 @@ export function DesignNodeInspector({
             ) : (
               <>
                 {!hasBorder ? (
-                  <div className="flex items-center justify-between h-8">
-                    <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Border</span>
+                  <div className="flex items-center justify-between h-7">
+                    <span className="text-[11px] text-[#6B6B6B] dark:text-[#999999]">Border</span>
                     <button
                       type="button"
                       onClick={addBorder}
@@ -1930,7 +1930,7 @@ export function DesignNodeInspector({
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] text-[#6B6B6B] dark:text-[#999999]">Border</span>
+                      <span className="text-[11px] text-[#6B6B6B] dark:text-[#999999]">Border</span>
                       <button
                         type="button"
                         onClick={removeBorder}
@@ -2056,7 +2056,7 @@ export function DesignNodeInspector({
 
             {/* ── Clip mask (sub-block inside Styles) ───────────────── */}
             <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
-              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span className="text-[11px] font-medium tracking-normal text-[var(--text-muted)]">
                 Clip mask
               </span>
             </div>
@@ -2404,7 +2404,7 @@ export function DesignNodeInspector({
             })()}
 
             <div className="pt-3 mt-1 border-t border-[var(--border-subtle)] dark:border-[#2A2A2A]">
-              <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+              <span className="text-[11px] font-medium tracking-normal text-[var(--text-muted)]">
                 Selection colors
               </span>
             </div>
@@ -2434,7 +2434,7 @@ export function DesignNodeInspector({
       {sections.showSize && (
         <InspectorSectionCluster ariaLabel="Transform">
           <InspectorDrawerSection title="Transform">
-            <div className="px-4 space-y-2.5 pb-4">
+            <div className="px-3 space-y-1 pb-2">
               <p className="-mt-0.5 text-[11px] leading-snug text-[#8A8A8A] dark:text-[#888888]">
                 Rotate and scale how the layer looks on the canvas; origin is the pivot. Does not change layout size.
               </p>

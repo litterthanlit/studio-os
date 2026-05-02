@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type InspectorTabId = "design" | "css" | "export";
+export type InspectorTabId = "design" | "notes" | "export";
 
 type InspectorTabsProps = {
   activeTab: InspectorTabId;
@@ -10,8 +10,8 @@ type InspectorTabsProps = {
 };
 
 const tabs: Array<{ id: InspectorTabId; label: string }> = [
-  { id: "design", label: "Design" },
-  { id: "css", label: "Inspect" },
+  { id: "design", label: "Inspector" },
+  { id: "notes", label: "Notes" },
   { id: "export", label: "Export" },
 ];
 
@@ -31,7 +31,7 @@ export function InspectorTabs({ activeTab, onTabChange }: InspectorTabsProps) {
           id={`inspector-tab-${tab.id}`}
           onClick={() => onTabChange(tab.id)}
           className={cn(
-            "flex h-10 flex-1 cursor-pointer items-center justify-center border-r border-[var(--inspector-border)] px-3 text-[12px] font-medium transition-colors last:border-r-0",
+            "flex h-9 flex-1 cursor-pointer items-center justify-center border-r border-[var(--inspector-border)] px-2 text-[11px] font-semibold uppercase tracking-normal transition-colors last:border-r-0",
             activeTab === tab.id
               ? "bg-[var(--inspector-surface)] text-[var(--text-primary)]"
               : "bg-[var(--inspector-bg)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"

@@ -272,7 +272,7 @@ function artboardHeight(breakpoint: Breakpoint): number {
 export function createEmptyCanvas(): UnifiedCanvasState {
   return {
     schemaVersion: 4,
-    viewport: { pan: { x: 0, y: 0 }, zoom: 0.5 },
+    viewport: { pan: { x: 0, y: 0 }, zoom: 0.42 },
     items: [],
     components: [],
     activeBreakpoint: "desktop",
@@ -596,13 +596,13 @@ export function migrateToV3(projectId: string): UnifiedCanvasState {
     if (composeDoc) {
       state.viewport = {
         pan: composeDoc.pan || { x: 0, y: 0 },
-        zoom: composeDoc.zoom || 0.5,
+        zoom: composeDoc.zoom || 0.42,
       };
     } else {
-      state.viewport = { pan: { x: 0, y: 0 }, zoom: 0.5 };
+      state.viewport = { pan: { x: 0, y: 0 }, zoom: 0.42 };
     }
   } catch {
-    state.viewport = { pan: { x: 0, y: 0 }, zoom: 0.5 };
+    state.viewport = { pan: { x: 0, y: 0 }, zoom: 0.42 };
   }
 
   // Migrate prompt state

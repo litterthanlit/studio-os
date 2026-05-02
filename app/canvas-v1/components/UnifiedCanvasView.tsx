@@ -363,7 +363,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         setDropTargetArtboardId(null);
       }
     },
-    onDragCancel: (_itemId) => {
+    onDragCancel: () => {
       setDropTargetArtboardId(null);
       setDraggingId(null);
     },
@@ -450,6 +450,36 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     },
   });
   const { containerRef, handlePointerDown, spaceHeldRef, isPanningRef } = gestureHandlers;
+
+  React.useEffect(() => {
+    if (items.length === 0) return;
+    if (viewport.zoom <= 0.52 || viewport.zoom > 0.85) return;
+    if (typeof window === "undefined") return;
+
+    const storageKey = `studio-os:comfort-zoom-v2:${projectId}`;
+    if (window.localStorage.getItem(storageKey) === "done") return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const targetZoom = 0.48;
+    const center = {
+      x: container.clientWidth / 2,
+      y: container.clientHeight / 2,
+    };
+    const zoomRatio = targetZoom / viewport.zoom;
+
+    window.localStorage.setItem(storageKey, "done");
+    triggerDiscreteZoom();
+    dispatch({
+      type: "SET_VIEWPORT",
+      pan: {
+        x: center.x - (center.x - viewport.pan.x) * zoomRatio,
+        y: center.y - (center.y - viewport.pan.y) * zoomRatio,
+      },
+      zoom: targetZoom,
+    });
+  }, [containerRef, dispatch, items.length, projectId, triggerDiscreteZoom, viewport.pan.x, viewport.pan.y, viewport.zoom]);
 
   // ── Canvas-level draw tool commit handlers ─────────────────────────
   //
@@ -538,7 +568,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     const artboards = items.filter((i) => i.kind === "artboard" || i.kind === "frame" || i.kind === "text");
     if (artboards.length === 0) return;
 
-    const PADDING = 64;
+    const PADDING = 136;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const ab of artboards) {
       minX = Math.min(minX, ab.x);
@@ -554,7 +584,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     const viewW = container.clientWidth;
     const viewH = container.clientHeight;
-    const newZoom = Math.min((viewW - PADDING * 2) / contentW, (viewH - PADDING * 2) / contentH, 4);
+    const newZoom = Math.min((viewW - PADDING * 2) / contentW, (viewH - PADDING * 2) / contentH, 3);
     const clampedZoom = Math.max(0.1, Math.min(8, newZoom));
 
     const newPanX = (viewW - contentW * clampedZoom) / 2 - minX * clampedZoom;
@@ -578,12 +608,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
     if (selectedItemId) {
       const item = items.find((i) => i.id === selectedItemId);
       if (item) {
-        const PADDING = 64;
+        const PADDING = 124;
         const container = containerRef.current;
         if (!container) return;
         const viewW = container.clientWidth;
         const viewH = container.clientHeight;
-        const newZoom = Math.min((viewW - PADDING * 2) / item.width, (viewH - PADDING * 2) / item.height, 4);
+        const newZoom = Math.min((viewW - PADDING * 2) / item.width, (viewH - PADDING * 2) / item.height, 2.5);
         const clampedZoom = Math.max(0.1, Math.min(8, newZoom));
         const newPanX = (viewW - item.width * clampedZoom) / 2 - item.x * clampedZoom;
         const newPanY = (viewH - item.height * clampedZoom) / 2 - item.y * clampedZoom;
@@ -600,7 +630,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         const container = containerRef.current;
         const containerRect = container.getBoundingClientRect();
         const nodeRect = nodeEl.getBoundingClientRect();
-        const PADDING = 64;
+        const PADDING = 124;
         const viewW = container.clientWidth;
         const viewH = container.clientHeight;
         // Convert screen rect to canvas coords
@@ -608,7 +638,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         const nodeCanvasY = (nodeRect.top - containerRect.top - viewport.pan.y) / viewport.zoom;
         const nodeCanvasW = nodeRect.width / viewport.zoom;
         const nodeCanvasH = nodeRect.height / viewport.zoom;
-        const newZoom = Math.min((viewW - PADDING * 2) / nodeCanvasW, (viewH - PADDING * 2) / nodeCanvasH, 4);
+        const newZoom = Math.min((viewW - PADDING * 2) / nodeCanvasW, (viewH - PADDING * 2) / nodeCanvasH, 2.5);
         const clampedZoom = Math.max(0.1, Math.min(8, newZoom));
         const newPanX = (viewW - nodeCanvasW * clampedZoom) / 2 - nodeCanvasX * clampedZoom;
         const newPanY = (viewH - nodeCanvasH * clampedZoom) / 2 - nodeCanvasY * clampedZoom;

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * V3 Inspector Panel — tabbed right rail (Design | Inspect | Export).
+ * V3 Inspector Panel — tabbed right rail (Inspector | Notes | Export).
  */
 
 import * as React from "react";
@@ -14,12 +14,14 @@ import {
   ArrowRight,
   BarChart3,
   Box,
+  CheckCircle2,
+  MessageSquareText,
   Minus,
   Sparkles,
   SlidersHorizontal,
 } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-import { findNodeById, getNodeStyle, BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
+import { findNodeById, BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { DesignNodeInspector } from "./inspector/DesignNodeInspector";
@@ -35,7 +37,6 @@ import {
 import { AIPreviewBar } from "./AIPreviewBar";
 import { InspectorTabs, type InspectorTabId } from "./inspector/InspectorTabs";
 import { BreakpointBadge } from "./inspector/BreakpointBadge";
-import { CSSTab } from "./inspector/CSSTab";
 import { ExportTab } from "./inspector/ExportTab";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
@@ -47,7 +48,7 @@ import type {
   TextItem,
 } from "@/lib/canvas/unified-canvas-state";
 import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
-import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
+import type { PageNode } from "@/lib/canvas/compose";
 
 // ─── Shared classes ──────────────────────────────────────────────────────────
 
@@ -70,9 +71,11 @@ function InspectorSelectionSummary({
   onRefineWithTaste,
 }: InspectorSelectionSummaryProps) {
   return (
-    <div className="shrink-0 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-4 py-3">
-      <div className="mb-2.5 flex items-center justify-between">
-        <div className="text-[13px] font-semibold text-[var(--text-primary)]">{sectionTitle}</div>
+    <div className="shrink-0 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-3 py-2.5">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-[12px] font-semibold tracking-normal text-[var(--text-primary)]">
+          {sectionTitle}
+        </div>
         <Minus size={14} className="text-[var(--text-muted)]" strokeWidth={1.8} />
       </div>
       <div className="flex items-start gap-2.5">
@@ -93,7 +96,7 @@ function InspectorSelectionSummary({
         <button
           type="button"
           onClick={onRefineWithTaste}
-          className="mt-3 flex h-7 w-full items-center justify-between rounded-[4px] border border-[var(--accent)]/35 bg-[var(--accent-subtle)] px-2.5 text-[10px] font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-light)]"
+          className="mt-2.5 flex h-7 w-full items-center justify-between rounded-[4px] border border-[var(--accent)]/35 bg-[var(--accent-subtle)] px-2.5 text-[10px] font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-light)]"
         >
           <span className="flex items-center gap-2">
             <Sparkles size={13} strokeWidth={1.6} />
@@ -117,7 +120,7 @@ function InspectorControlStrip() {
   ];
 
   return (
-    <div className="grid h-11 shrink-0 grid-cols-6 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-4 py-2">
+    <div className="grid h-9 shrink-0 grid-cols-6 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-3 py-1.5">
       {controls.map(({ label, icon: Icon }) => (
         <button
           key={label}
@@ -128,6 +131,119 @@ function InspectorControlStrip() {
           <Icon size={14} strokeWidth={1.8} />
         </button>
       ))}
+    </div>
+  );
+}
+
+function HandoffReadinessPanel({
+  artboardCount,
+  referenceCount,
+  hasTokens,
+}: {
+  artboardCount: number;
+  referenceCount: number;
+  hasTokens: boolean;
+}) {
+  const rows = [
+    { label: "Specs", value: artboardCount > 0 ? "Complete" : "Missing", ready: artboardCount > 0 },
+    { label: "Tokens", value: hasTokens ? "Synced" : "Pending", ready: hasTokens },
+    { label: "Assets", value: referenceCount > 0 ? "Ready" : "Add refs", ready: referenceCount > 0 },
+  ];
+
+  return (
+    <div className="border-t border-[var(--inspector-border)] px-3 py-2.5">
+      <div className="mb-2 text-[11px] font-semibold tracking-normal text-[var(--text-muted)]">
+        Handoff readiness
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between text-[11px]">
+            <span className="flex items-center gap-2 text-[var(--text-secondary)]">
+              <CheckCircle2
+                size={13}
+                strokeWidth={1.8}
+                className={row.ready ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}
+              />
+              {row.label}
+            </span>
+            <span className={row.ready ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}>
+              {row.value}
+            </span>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="mt-2.5 h-7 w-full rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--inspector-surface-hover)]"
+      >
+        Open handoff spec
+      </button>
+    </div>
+  );
+}
+
+function InspectorNotesPanel({
+  selectionTitle,
+  selectionMeta,
+}: {
+  selectionTitle: string;
+  selectionMeta: string;
+}) {
+  const [draft, setDraft] = React.useState("");
+  const notes = [
+    {
+      id: "spacing",
+      author: "Alex R.",
+      body: "Consider refining token naming for spacing scale before handoff.",
+      time: "Today, 9:15 AM",
+    },
+    {
+      id: "taste",
+      author: "Studio OS",
+      body: "Taste alignment is strong. Typography and layout tokens are ready to consolidate.",
+      time: "System note",
+    },
+  ];
+
+  return (
+    <div className="px-3 py-3">
+      <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-normal text-[var(--text-muted)]">
+        <MessageSquareText size={13} strokeWidth={1.7} />
+        Context notes
+      </div>
+      <div className="mb-2 rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-surface)] px-2.5 py-2">
+        <div className="text-[11px] font-medium text-[var(--text-primary)]">{selectionTitle}</div>
+        <div className="mt-1 text-[10px] text-[var(--text-muted)]">{selectionMeta}</div>
+      </div>
+
+      <div className="space-y-1.5">
+        {notes.map((note) => (
+          <div
+            key={note.id}
+            className="rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-2.5 py-2"
+          >
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium text-[var(--text-primary)]">{note.author}</span>
+              <span className="text-[10px] text-[var(--text-muted)]">{note.time}</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{note.body}</p>
+          </div>
+        ))}
+      </div>
+
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Add selection note..."
+        className="mt-2.5 min-h-[60px] w-full resize-none rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] px-2.5 py-2 text-[11px] text-[var(--inspector-control-text)] outline-none placeholder:text-[var(--text-placeholder)] focus:border-[var(--accent)]"
+      />
+      <button
+        type="button"
+        className="mt-2 h-8 w-full rounded-[4px] bg-[var(--accent)] text-[11px] font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={!draft.trim()}
+      >
+        Add note
+      </button>
     </div>
   );
 }
@@ -200,7 +316,7 @@ function EmptySelection({ projectId }: { projectId?: string }) {
     <div>
       <InspectorSection label="Canvas">
         <InspectorLabel>Project</InspectorLabel>
-        <div className="text-[13px] text-text-primary mb-3">{projectName}</div>
+        <div className="text-[12px] text-text-primary mb-3">{projectName}</div>
 
         <InspectorLabel>Items</InspectorLabel>
         <div className="text-[12px] text-text-secondary mb-3">
@@ -230,7 +346,7 @@ function EmptySelection({ projectId }: { projectId?: string }) {
               dispatch({
                 type: "SET_VIEWPORT",
                 pan: { x: 0, y: 0 },
-                zoom: 0.5,
+                zoom: 0.42,
               });
             }}
           >
@@ -547,6 +663,10 @@ export function InspectorPanelV3({
     () => items.filter((item): item is ArtboardItem => item.kind === "artboard"),
     [items]
   );
+  const referenceCount = React.useMemo(
+    () => items.filter((item) => item.kind === "reference").length,
+    [items]
+  );
 
   // For canvas-level frame/text items, synthesize a minimal ArtboardItem so
   // DesignNodeInspector can handle them without any changes to that component.
@@ -581,11 +701,6 @@ export function InspectorPanelV3({
       ? findNodeById(activeArtboard.pageTree as PageNode, selection.selectedNodeId)
       : null;
 
-  const selectedDesignNode: DesignNode | null =
-    activeArtboard && selection.selectedNodeId && isV6Tree
-      ? findDesignNodeById(activeArtboard.pageTree as unknown as DesignNode, selection.selectedNodeId)
-      : null;
-
   // Get all selected DesignNodes for multi-select support.
   // For canvas-level frame/text items with no inner node selected, show the item root.
   const selectedDesignNodes: DesignNode[] = React.useMemo(() => {
@@ -612,16 +727,9 @@ export function InspectorPanelV3({
     return [];
   }, [activeArtboard, isV6Tree, selection.selectedNodeIds, selection.selectedNodeId, singleSelected]);
 
-  // ── Breakpoint badge + resolved style for CSS tab ──────────────────
+  // ── Breakpoint badge ───────────────────────────────────────────────
   const artboardBreakpoint = activeArtboard?.breakpoint ?? "desktop";
   const showBreakpointBadge = artboardBreakpoint !== "desktop";
-
-  const resolvedStyle: PageNodeStyle | null = React.useMemo(() => {
-    if (!activeArtboard) return null;
-    if (selectedNode) return getNodeStyle(selectedNode, activeArtboard.breakpoint);
-    if (selectedDesignNode) return selectedDesignNode.style as unknown as PageNodeStyle;
-    return null;
-  }, [selectedNode, selectedDesignNode, activeArtboard]);
 
   const selectionSummary = React.useMemo(() => {
     if (selectedDesignNodes.length > 1) {
@@ -778,7 +886,7 @@ export function InspectorPanelV3({
       />
 
       {/* Breakpoint badge (below tabs, non-desktop only) — shrink-0 */}
-      {showBreakpointBadge && activeArtboard && (
+      {activeTab === "design" && showBreakpointBadge && activeArtboard && (
         <div className="shrink-0">
           <BreakpointBadge
             breakpoint={artboardBreakpoint as "mobile"}
@@ -806,6 +914,11 @@ export function InspectorPanelV3({
             </AnimatePresence>
 
             <div>{inspectorContent}</div>
+            <HandoffReadinessPanel
+              artboardCount={artboardItems.length}
+              referenceCount={referenceCount}
+              hasTokens={Boolean(projectTokens)}
+            />
           </>
         ) : activeTab === "export" ? (
           <ExportTab
@@ -815,7 +928,10 @@ export function InspectorPanelV3({
             selectedNodeId={selection.selectedNodeId}
           />
         ) : (
-          <CSSTab resolvedStyle={resolvedStyle} />
+          <InspectorNotesPanel
+            selectionTitle={selectionSummary.title}
+            selectionMeta={selectionSummary.meta}
+          />
         )}
       </div>
     </div>

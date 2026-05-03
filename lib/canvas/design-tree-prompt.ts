@@ -5,15 +5,16 @@
 
 import type { DesignSystemTokens } from "./generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
+import type { IntentProfile } from "@/types/intent-profile";
 import type { DesignNode } from "./design-node";
 import {
   compileTasteToDirectives,
   directivesToPromptText,
-  type CompiledDirectives,
   type FidelityMode,
 } from "./directive-compiler";
 import { getArchetypeBanDescriptions } from "./design-archetype-bans";
 import { PRODUCT_PRIMITIVE_STYLE_TOKENS as PRIM } from "./design-component-library";
+import { deriveDesignKnobs, serializeDesignKnobsForPrompt, type DesignKnobVector } from "./design-knobs";
 
 // Re-export for consumers
 export type VariantMode = "safe" | "creative" | "alternative";
@@ -388,16 +389,27 @@ export function buildDesignTreePrompt(
   options?: {
     variantMode?: VariantMode;
     tasteProfile?: TasteProfile | null;
+    intentProfile?: IntentProfile | null;
+    knobVector?: DesignKnobVector;
     fidelityMode?: FidelityMode;
     compositionBlueprint?: string;  // NEW: output from buildCompositionBlueprint()
   }
 ): string {
   const tasteProfile = options?.tasteProfile;
+  const knobVector = options?.knobVector ?? deriveDesignKnobs({
+    tasteProfile,
+    intentProfile: options?.intentProfile ?? null,
+    fidelityMode: options?.fidelityMode ?? "balanced",
+  });
   const compiledDirectives = compileTasteToDirectives(
     tasteProfile,
     options?.fidelityMode ?? "balanced"
   );
   const tasteSection = directivesToPromptText(compiledDirectives);
+  const intentSection = options?.intentProfile
+    ? `\n## Intent Profile\n- summary: ${options.intentProfile.summary}\n- goal: ${options.intentProfile.businessGoal}\n- output type: ${options.intentProfile.outputType}\n- content priority: ${options.intentProfile.contentPriority.join(", ")}\n- must include: ${options.intentProfile.mustInclude.join(", ") || "none"}\n- must avoid: ${options.intentProfile.mustAvoid.join(", ") || "none"}\n- copy tone: ${options.intentProfile.copyTone}\n- literalness: ${options.intentProfile.literalness}\n`
+    : "";
+  const knobSection = `\n${serializeDesignKnobsForPrompt(knobVector)}\n`;
   const blueprintSection = options?.compositionBlueprint
     ? `\n${options.compositionBlueprint}\n`
     : "";
@@ -431,7 +443,7 @@ Frames are the building blocks. The page is a root frame whose children are sect
 Site name: ${siteName}
 ${archetypeGrammar}${banSection}
 
-${tasteSection}${blueprintSection}${accentMapping4A}
+${tasteSection}${intentSection}${knobSection}${blueprintSection}${accentMapping4A}
 ## DesignNode Schema
 
 \`\`\`

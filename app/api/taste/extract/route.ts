@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
 import { scoreImagesBatch } from "@/lib/ai/image-scorer";
+import { API_LIMITS, capStringArray, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 import type { TasteProfile } from "@/types/taste-profile";
 // Skill context is now inlined — no file system reads needed
 
@@ -663,13 +664,23 @@ function normalizeTasteProfile(
 
 // ── Route ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  console.log("[taste/extract] OPENROUTER_API_KEY present:", !!process.env.OPENROUTER_API_KEY);
-  console.log("[TASTE DEBUG] Context version:", TASTE_CONTEXT_VERSION);
-  console.log("[TASTE DEBUG] Skill context length:", getSkillContext().length, "chars");
   try {
-    const body = (await req.json()) as TasteExtractBody;
+    const guarded = await readGuardedJson<TasteExtractBody>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.aiRequestBytes,
+      rateLimit: { namespace: "taste-extract", limit: 30, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
+
+    logSafe("[taste/extract] request", {
+      hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+      contextVersion: TASTE_CONTEXT_VERSION,
+      authBypass: guarded.devBypass,
+    });
+
+    const body = guarded.body;
     const projectId = body.projectId?.trim();
-    const referenceUrls = (body.referenceUrls ?? []).filter(Boolean);
+    const referenceUrls = capStringArray(body.referenceUrls, API_LIMITS.maxReferenceUrls);
     const referenceWeights = body.referenceWeights ?? {};
     const existingTokens = body.existingTokens ?? null;
     const userPrompt = body.prompt?.trim() || undefined;
@@ -684,12 +695,20 @@ export async function POST(req: NextRequest) {
 
     const signature = buildSignature(referenceUrls, existingTokens, compositionContext);
     const cached = tasteCache.get(projectId);
-    console.log("[TASTE DEBUG] Cache check:", "project=" + projectId, "hit:", !!(cached && cached.signature === signature), "cacheExists:", !!cached, "sigMatch:", cached ? cached.signature === signature : "N/A");
+    logSafe("[TASTE DEBUG] Cache check", {
+      projectId,
+      hit: Boolean(cached && cached.signature === signature),
+      cacheExists: Boolean(cached),
+      signatureMatches: cached ? cached.signature === signature : null,
+    });
     if (cached && cached.signature === signature) {
-      console.log("[TASTE DEBUG] Returning CACHED profile for project:", projectId, "archetype:", cached.profile.archetypeMatch);
+      logSafe("[TASTE DEBUG] Returning cached profile", {
+        projectId,
+        archetype: cached.profile.archetypeMatch,
+      });
       return NextResponse.json(cached.profile);
     }
-    console.log("[TASTE DEBUG] Cache MISS — running fresh extraction for project:", projectId);
+    logSafe("[TASTE DEBUG] Cache miss", { projectId });
 
     const scoredMap = await scoreImagesBatch(
       referenceUrls.map((url, index) => ({ id: `${index}`, url })),
@@ -770,22 +789,18 @@ ${weightContext}
 Return compact JSON only. Do not pretty-print. Fill every field, but keep strings tight and specific.`;
 
     // ── Debug logging ──────────────────────────────────────────────
-    console.log("[TASTE DEBUG] System prompt length:", systemPrompt.length, "chars");
-    console.log("[TASTE DEBUG] Contains editorial-brand:", systemPrompt.includes("editorial-brand"));
-    console.log("[TASTE DEBUG] Contains detection signals:", systemPrompt.includes("Detection signals"));
-    console.log("[TASTE DEBUG] Contains disambiguation:", systemPrompt.includes("Archetype Disambiguation"));
-    console.log("[TASTE DEBUG] Contains scorer bias warning:", systemPrompt.includes("Ignore Scorer Bias"));
-    console.log("[TASTE DEBUG] User prompt received:", userPrompt ?? "(none)");
-    console.log("[TASTE DEBUG] Prompt archetype hints:", promptHints || "(none)");
-    console.log("[TASTE DEBUG] Scorer-derived hints:", scorerHints || "(none)");
-    console.log("[TASTE DEBUG] Image count sent to Sonnet:", imageContent.length);
-    console.log("[TASTE DEBUG] User message text (no images):", userMessageText.substring(0, 2000));
-    console.log(
-      `[taste/extract] Calling Sonnet 4.6 with ${Math.min(
-        referenceUrls.length,
-        5
-      )} images, system prompt ~${systemPrompt.length} chars`
-    );
+    logSafe("[TASTE DEBUG] Prompt metadata", {
+      systemPromptLength: systemPrompt.length,
+      hasEditorialContext: systemPrompt.includes("editorial-brand"),
+      hasDetectionSignals: systemPrompt.includes("Detection signals"),
+      hasDisambiguation: systemPrompt.includes("Archetype Disambiguation"),
+      hasScorerBiasWarning: systemPrompt.includes("Ignore Scorer Bias"),
+      hasUserPrompt: Boolean(userPrompt),
+      hasPromptHints: Boolean(promptHints),
+      hasScorerHints: Boolean(scorerHints),
+      imageCount: imageContent.length,
+      userMessageLength: userMessageText.length,
+    });
 
     const response = await router.chat.completions.create({
       model: SONNET_4_6,
@@ -812,10 +827,13 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
 
     const text = response.choices[0]?.message?.content ?? "";
     const finishReason = response.choices[0]?.finish_reason;
-    console.log(`[taste/extract] Sonnet responded: ${text.length} chars, finish_reason: ${finishReason}`);
+    logSafe("[taste/extract] Sonnet responded", {
+      responseLength: text.length,
+      finishReason,
+    });
 
     if (finishReason === "length") {
-      console.warn("[taste/extract] Sonnet hit max_tokens — response likely truncated");
+      warnSafe("[taste/extract] Sonnet hit max_tokens — response likely truncated");
     }
 
     let raw: Partial<TasteProfile> = {};
@@ -824,24 +842,34 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
       if (jsonMatch) {
         raw = JSON.parse(jsonMatch[0]) as Partial<TasteProfile>;
       } else {
-        console.error("[taste/extract] No JSON found in response. First 300 chars:", text.slice(0, 300));
+        logSafe("[taste/extract] No JSON found in response", { responsePreview: text.slice(0, 300) });
       }
     } catch (parseErr) {
-      console.error("[taste/extract] JSON parse failed:", parseErr instanceof Error ? parseErr.message : parseErr);
-      console.error("[taste/extract] Response tail (last 200 chars):", text.slice(-200));
+      warnSafe("[taste/extract] JSON parse failed", {
+        message: parseErr instanceof Error ? parseErr.message : String(parseErr),
+      });
+      logSafe("[taste/extract] Response tail", { responseTail: text.slice(-200) });
       // Fall through to normalization with empty raw — will use fallback values
     }
 
-    console.log("[TASTE DEBUG] Raw model archetype:", raw.archetypeMatch ?? "(missing)", "confidence:", raw.archetypeConfidence ?? "(missing)");
-    console.log("[TASTE DEBUG] Raw model sectionFlow:", raw.layoutBias?.sectionFlow ?? "(missing)", "imageTreatment:", raw.imageTreatment?.style ?? "(missing)");
+    logSafe("[TASTE DEBUG] Raw model summary", {
+      archetype: raw.archetypeMatch ?? "(missing)",
+      confidence: raw.archetypeConfidence ?? "(missing)",
+      sectionFlow: raw.layoutBias?.sectionFlow ?? "(missing)",
+      imageTreatment: raw.imageTreatment?.style ?? "(missing)",
+    });
 
     const profile = normalizeTasteProfile(raw, fallback, derivedConfidence);
 
-    console.log("[TASTE DEBUG] Final archetype:", profile.archetypeMatch, "confidence:", profile.archetypeConfidence);
-    console.log("[TASTE DEBUG] Avoid list:", JSON.stringify(profile.avoid));
-    console.log("[TASTE DEBUG] Section flow:", profile.layoutBias?.sectionFlow, "| hero:", profile.layoutBias?.heroStyle, "| density:", profile.layoutBias?.density);
-    console.log("[TASTE DEBUG] Image treatment style:", profile.imageTreatment?.style, "| sizing:", profile.imageTreatment?.sizing);
-    console.log("[TASTE DEBUG] Adjectives:", profile.adjectives?.join(", "));
+    logSafe("[TASTE DEBUG] Final profile summary", {
+      archetype: profile.archetypeMatch,
+      confidence: profile.archetypeConfidence,
+      sectionFlow: profile.layoutBias?.sectionFlow,
+      hero: profile.layoutBias?.heroStyle,
+      density: profile.layoutBias?.density,
+      imageTreatment: profile.imageTreatment?.style,
+      imageSizing: profile.imageTreatment?.sizing,
+    });
 
     tasteCache.set(projectId, { signature, profile });
     return NextResponse.json(profile);

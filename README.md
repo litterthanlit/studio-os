@@ -30,7 +30,7 @@ Read these before writing code:
 
 ## Architecture
 
-- **Framework:** Next.js 14, App Router, TypeScript
+- **Framework:** Next.js 16, App Router, TypeScript
 - **Canvas:** Infinite canvas with V6 DesignNode renderer (5 node types, live HTML/CSS)
 - **State:** `useReducer` with 50+ actions, snapshot undo/redo
 - **Storage:** localStorage-first, Supabase for auth + published exports

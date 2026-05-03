@@ -1,11 +1,14 @@
 import type { DesignNode } from "./design-node";
 import { walkDesignTree } from "./design-node";
+import { detectStructuralTasteEdits } from "./structural-edit-tracker";
 
 export type TasteEdit = {
   dimension: string;
   before: string | number;
   after: string | number;
   description: string;
+  confidence?: number;
+  suggestedOverride?: unknown;
 };
 
 /**
@@ -79,7 +82,23 @@ export function detectTasteEdits(
     });
   }
 
+  for (const structuralEdit of detectStructuralTasteEdits(currentTree, snapshotTree)) {
+    edits.push({
+      dimension: structuralEdit.dimension,
+      before: stringifyEditValue(structuralEdit.before),
+      after: stringifyEditValue(structuralEdit.after),
+      description: structuralEdit.description,
+      confidence: structuralEdit.confidence,
+      suggestedOverride: structuralEdit.suggestedOverride,
+    });
+  }
+
   return edits;
+}
+
+function stringifyEditValue(value: unknown): string | number {
+  if (typeof value === "number" || typeof value === "string") return value;
+  return JSON.stringify(value);
 }
 
 function collectFonts(tree: DesignNode): { heading?: string; body?: string } {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { API_LIMITS, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 import type { CompositionAnalysis, ReferenceType } from "@/types/composition-analysis";
 
 type AnalyzeCompositionBody = {
@@ -127,11 +128,21 @@ function validateCompositionAnalysis(raw: Partial<CompositionAnalysis>): Composi
 // ── Route ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as AnalyzeCompositionBody;
+    const guarded = await readGuardedJson<AnalyzeCompositionBody>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.compositionRequestBytes,
+      rateLimit: { namespace: "taste-composition", limit: 60, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
+
+    const body = guarded.body;
     const { imageUrl } = body;
 
     if (!imageUrl?.trim()) {
       return NextResponse.json({ error: "imageUrl is required" }, { status: 400 });
+    }
+    if (imageUrl.length > 4096) {
+      return NextResponse.json({ error: "imageUrl is too long" }, { status: 413 });
     }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -141,7 +152,11 @@ export async function POST(req: NextRequest) {
 
     const router = getRouter();
 
-    console.log("[taste/analyze-composition] Calling Sonnet 4.6 with image:", imageUrl.substring(0, 80));
+    logSafe("[taste/analyze-composition] Calling Sonnet 4.6", {
+      hasImageUrl: Boolean(imageUrl),
+      imageUrlLength: imageUrl.length,
+      authBypass: guarded.devBypass,
+    });
 
     const response = await router.chat.completions.create({
       model: SONNET_4_6,
@@ -168,10 +183,13 @@ export async function POST(req: NextRequest) {
 
     const text = response.choices[0]?.message?.content ?? "";
     const finishReason = response.choices[0]?.finish_reason;
-    console.log(`[taste/analyze-composition] Sonnet responded: ${text.length} chars, finish_reason: ${finishReason}`);
+    logSafe("[taste/analyze-composition] Sonnet responded", {
+      responseLength: text.length,
+      finishReason,
+    });
 
     if (finishReason === "length") {
-      console.warn("[taste/analyze-composition] Sonnet hit max_tokens — response may be truncated");
+      warnSafe("[taste/analyze-composition] Sonnet hit max_tokens — response may be truncated");
     }
 
     let raw: Partial<CompositionAnalysis> = {};
@@ -180,18 +198,24 @@ export async function POST(req: NextRequest) {
       if (jsonMatch) {
         raw = JSON.parse(jsonMatch[0]) as Partial<CompositionAnalysis>;
       } else {
-        console.error("[taste/analyze-composition] No JSON found in response. First 300 chars:", text.slice(0, 300));
+        logSafe("[taste/analyze-composition] No JSON found in response", {
+          responsePreview: text.slice(0, 300),
+        });
         return NextResponse.json({ error: "Model returned non-JSON response" }, { status: 502 });
       }
     } catch (parseErr) {
-      console.error("[taste/analyze-composition] JSON parse failed:", parseErr instanceof Error ? parseErr.message : parseErr);
-      console.error("[taste/analyze-composition] Response tail (last 200 chars):", text.slice(-200));
+      warnSafe("[taste/analyze-composition] JSON parse failed", {
+        message: parseErr instanceof Error ? parseErr.message : String(parseErr),
+      });
+      logSafe("[taste/analyze-composition] Response tail", { responseTail: text.slice(-200) });
       return NextResponse.json({ error: "Failed to parse model response" }, { status: 502 });
     }
 
     const validated = validateCompositionAnalysis(raw);
     if (!validated) {
-      console.error("[taste/analyze-composition] Validation failed — missing required fields. raw:", JSON.stringify(raw).slice(0, 500));
+      logSafe("[taste/analyze-composition] Validation failed", {
+        rawPreview: JSON.stringify(raw).slice(0, 500),
+      });
       return NextResponse.json({ error: "Model response missing required fields" }, { status: 502 });
     }
 
@@ -199,7 +223,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(validated);
   } catch (err) {
-    console.error("[taste/analyze-composition] Unexpected error:", err instanceof Error ? err.message : err);
+    warnSafe("[taste/analyze-composition] Unexpected error", {
+      message: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

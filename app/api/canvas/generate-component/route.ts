@@ -20,7 +20,16 @@ import {
 import type { SiteType } from "@/lib/canvas/templates";
 import { resolveMediaUrls } from "@/lib/canvas/media-resolver";
 import type { TasteProfile } from "@/types/taste-profile";
-import { callModel, getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { extractIntentProfile, type IntentProfile } from "@/types/intent-profile";
+import {
+  callModel,
+  describeModelFailure,
+  getRouter,
+  getV6TokenBudgets,
+  SONNET_4_6,
+  imageUrlBlock,
+  type ModelFailureInfo,
+} from "@/lib/ai/model-router";
 import { scoreRealtimeFidelity, type TasteFidelityScore } from "@/lib/canvas/taste-evaluator";
 
 // ── V6 DesignNode pipeline imports ──
@@ -30,6 +39,19 @@ import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validat
 import { resolveDesignMediaUrls } from "@/lib/canvas/design-media-resolver";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
 import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
+import { deriveDesignKnobs, type DesignKnobVector } from "@/lib/canvas/design-knobs";
+import {
+  buildTasteRetryPrompt,
+  repairDesignNodeTaste,
+  validateDesignNodeTaste,
+  type DesignTasteValidationResult,
+} from "@/lib/canvas/design-node-taste-validator";
+import {
+  passesDesignTasteScore,
+  scoreDesignNodeTaste,
+  type DesignNodeTasteScore,
+} from "@/lib/canvas/design-node-taste-scorer";
+import { API_LIMITS, capStringArray, logSafe, readGuardedJson } from "@/lib/security/api-guard";
 
 // ─── Truncated JSON Recovery ────────────────────────────────────────────────
 
@@ -82,20 +104,97 @@ function tryRecoverTruncatedJSON(raw: string): string | null {
   }
 }
 
+type V6TasteGate = {
+  validation: DesignTasteValidationResult;
+  score: DesignNodeTasteScore;
+  passed: boolean;
+  repaired: boolean;
+  attempts: number;
+  warnings: string[];
+};
+
+type V6GenerationDebug = {
+  attempted: boolean;
+  model: string;
+  strict: boolean;
+  maxTokens: {
+    base: number;
+    variant: number;
+    retry: number;
+  };
+  baseFinishReason?: string | null;
+  validationScore?: number;
+  tasteScore?: number;
+  retryAttempted: boolean;
+  retryFinishReason?: string | null;
+  fallbackUsed: boolean;
+  fallbackReason?: string;
+  failureKind?: ModelFailureInfo["kind"];
+  failureStatus?: number;
+};
+
+function parseDesignNodeResponse(raw: string, finishReason?: string | null): unknown {
+  let jsonStr = raw;
+  if (finishReason === "length") {
+    const recovered = tryRecoverTruncatedJSON(raw);
+    if (!recovered) throw new Error("Truncated and recovery failed");
+    jsonStr = recovered;
+  }
+  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found");
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    const recovered = tryRecoverTruncatedJSON(jsonStr);
+    if (!recovered) throw new Error("JSON parse failed");
+    return JSON.parse(recovered);
+  }
+}
+
+function evaluateV6TasteGate(args: {
+  tree: DesignNode;
+  tasteProfile: TasteProfile | null;
+  intentProfile: IntentProfile | null;
+  knobVector: DesignKnobVector;
+  fidelityMode: FidelityMode;
+}): Omit<V6TasteGate, "repaired" | "attempts" | "warnings"> {
+  const directives = compileTasteToDirectives(args.tasteProfile, args.fidelityMode);
+  const validation = validateDesignNodeTaste({
+    tree: args.tree,
+    tasteProfile: args.tasteProfile,
+    intentProfile: args.intentProfile,
+    knobVector: args.knobVector,
+    directives,
+    fidelityMode: args.fidelityMode,
+  });
+  const score = scoreDesignNodeTaste({
+    validation,
+    tasteProfile: args.tasteProfile,
+    intentProfile: args.intentProfile,
+    knobVector: args.knobVector,
+  });
+  return {
+    validation,
+    score,
+    passed: validation.violations.every((v) => v.severity !== "hard") && passesDesignTasteScore(score, args.fidelityMode),
+  };
+}
+
 // ─── Tree Debug Logging ─────────────────────────────────────────────────────
 
 function logTreeStructure(label: string, tree: PageNode): void {
   const sections = tree.children ?? [];
-  const structure = sections.map(s => {
-    const childTypes = s.children?.map(c => c.type).join(", ") ?? "no children";
-    const childCount = s.children?.length ?? 0;
-    const name = s.name || s.id || s.type;
-    const padding = s.style?.paddingY ?? "?";
-    const bg = s.style?.background ?? "none";
-    return `  ${name} (${childCount} children: ${childTypes}) [padding=${padding}, bg=${bg}]`;
-  }).join("\n");
-
-  console.log(`[TREE DEBUG] ${label}:\n  Sections: ${sections.length}\n${structure}`);
+  logSafe("[TREE DEBUG] Structure", {
+    label,
+    sectionCount: sections.length,
+    sections: sections.map((section) => ({
+      type: section.type,
+      childCount: section.children?.length ?? 0,
+      childTypes: section.children?.map((child) => child.type) ?? [],
+      paddingY: section.style?.paddingY,
+      hasBackground: Boolean(section.style?.background),
+    })),
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,7 +372,34 @@ function validateGeneratedPreviewCode(code: string): GeneratedCodeValidation {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const guarded = await readGuardedJson<{
+      prompt: string;
+      tokens: DesignSystemTokens;
+      sectionId?: SectionId;
+      existingSections?: string;
+      mode?: "single" | "variants";
+      siteType?: SiteType;
+      siteName?: string;
+      tasteProfile?: TasteProfile | null;
+      referenceUrls?: string[];
+      variantStrategy?: VariantMode;
+      regenerationIntent?: "more-like-this" | "different-approach";
+      fidelityMode?: FidelityMode;
+      useDesignNode?: boolean;
+      strictV6?: boolean;
+      compositionData?: Array<{
+        analysis: CompositionAnalysis;
+        weight: "primary" | "default" | "muted";
+        referenceIndex: number;
+      }>;
+    }>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.aiRequestBytes,
+      rateLimit: { namespace: "canvas-generate", limit: 20, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
+
+    const body = guarded.body;
     const {
       prompt,
       tokens,
@@ -288,37 +414,40 @@ export async function POST(req: NextRequest) {
       regenerationIntent,
       fidelityMode,
       useDesignNode,
+      strictV6,
       compositionData,
-    } = body as {
-      prompt: string;
-      tokens: DesignSystemTokens;
-      sectionId?: SectionId;
-      existingSections?: string;
-      mode?: "single" | "variants";
-      siteType?: SiteType;
-      siteName?: string;
-      tasteProfile?: TasteProfile | null;
-      referenceUrls?: string[];
-      variantStrategy?: VariantMode;
-      regenerationIntent?: "more-like-this" | "different-approach";
-      fidelityMode?: FidelityMode;
-      useDesignNode?: boolean;
-      compositionData?: Array<{
-        analysis: CompositionAnalysis;
-        weight: "primary" | "default" | "muted";
-        referenceIndex: number;
-      }>;
-    };
+    } = body;
 
-    console.log(`[GEN DEBUG] generate-component called: mode=${mode}, prompt="${prompt?.slice(0, 60)}...", tasteProfile=${tasteProfile ? "YES" : "NULL"}, referenceUrls=${referenceUrls?.length ?? 0}, OPENROUTER_API_KEY=${!!process.env.OPENROUTER_API_KEY}`);
+    const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
+    const cappedCompositionData = Array.isArray(compositionData)
+      ? compositionData.slice(0, API_LIMITS.maxReferenceUrls)
+      : undefined;
+    const v6Budgets = getV6TokenBudgets();
+    const strictV6Mode = Boolean(strictV6) || process.env.STUDIO_OS_STRICT_V6_QA === "true";
+
+    logSafe("[GEN DEBUG] generate-component called", {
+      mode,
+      hasPrompt: Boolean(prompt),
+      hasTasteProfile: Boolean(tasteProfile),
+      referenceCount: cappedReferenceUrls.length,
+      hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+      authBypass: guarded.devBypass,
+      strictV6: strictV6Mode,
+      v6TokenBudgets: v6Budgets,
+    });
     if (tasteProfile) {
-      console.log("[TASTE DEBUG] Received tasteProfile archetype:", tasteProfile.archetypeMatch, "confidence:", tasteProfile.archetypeConfidence);
-      console.log("[TASTE DEBUG] Received tasteProfile sectionFlow:", tasteProfile.layoutBias?.sectionFlow, "| hero:", tasteProfile.layoutBias?.heroStyle);
-      console.log("[TASTE DEBUG] Received tasteProfile avoid:", JSON.stringify(tasteProfile.avoid));
       const debugDirectives = compileTasteToDirectives(tasteProfile, fidelityMode ?? "balanced");
-      console.log("[TASTE DEBUG] Compiled directives hard count:", debugDirectives.hard.length, "| soft count:", debugDirectives.soft.length, "| avoid count:", debugDirectives.avoid.length);
+      logSafe("[TASTE DEBUG] Taste profile metadata", {
+        archetype: tasteProfile.archetypeMatch,
+        confidence: tasteProfile.archetypeConfidence,
+        sectionFlow: tasteProfile.layoutBias?.sectionFlow,
+        hero: tasteProfile.layoutBias?.heroStyle,
+        hardDirectiveCount: debugDirectives.hard.length,
+        softDirectiveCount: debugDirectives.soft.length,
+        avoidDirectiveCount: debugDirectives.avoid.length,
+      });
     } else {
-      console.log("[TASTE DEBUG] No tasteProfile received — generation will use fallback/template patterns only");
+      logSafe("[TASTE DEBUG] No tasteProfile received");
     }
 
     if (!prompt || !tokens) {
@@ -328,40 +457,102 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (strictV6Mode && !useDesignNode) {
+      return NextResponse.json(
+        {
+          error: "Strict V6 QA requires useDesignNode=true.",
+          generationResult: "v6-not-attempted",
+          fallbackUsed: false,
+        },
+        { status: 400 }
+      );
+    }
+
     if (mode === "variants") {
       const resolvedSiteName = siteName || inferSiteName(prompt);
+      let v6Debug: V6GenerationDebug | null = null;
+      let v6Failure: ModelFailureInfo | null = null;
 
       // ── V6 DesignNode Generation Path ──────────────────────────────────
-      if (useDesignNode && process.env.OPENROUTER_API_KEY) {
-        console.log(`[V6-GEN] Starting DesignNode generation for "${resolvedSiteName}"`);
+      if (useDesignNode) {
+        v6Debug = {
+          attempted: true,
+          model: SONNET_4_6,
+          strict: strictV6Mode,
+          maxTokens: {
+            base: v6Budgets.baseMaxTokens,
+            variant: v6Budgets.variantMaxTokens,
+            retry: v6Budgets.retryMaxTokens,
+          },
+          retryAttempted: false,
+          fallbackUsed: false,
+        };
 
+        if (!process.env.OPENROUTER_API_KEY) {
+          v6Failure = {
+            kind: "missing-key",
+            message: "OPENROUTER_API_KEY is not configured; V6 generation was not attempted.",
+          };
+          v6Debug.failureKind = v6Failure.kind;
+          v6Debug.fallbackReason = v6Failure.message;
+          if (strictV6Mode) {
+            return NextResponse.json({
+              error: "Strict V6 QA failed: OpenRouter key is missing.",
+              generationResult: "missing-key",
+              v6Debug,
+            }, { status: 500 });
+          }
+        }
+      }
+
+      if (useDesignNode && process.env.OPENROUTER_API_KEY) {
+        logSafe("[V6-GEN] Starting DesignNode generation", { siteName: resolvedSiteName });
+        const resolvedFidelityMode = fidelityMode ?? "balanced";
+        const intentProfile = extractIntentProfile({
+          prompt,
+          siteType,
+          references: cappedReferenceUrls.map((url, index) => ({
+            id: `reference-${index + 1}`,
+            annotation: url,
+          })),
+        });
         // Build composition blueprint if composition data provided
         let compositionBlueprint = "";
-        if (compositionData && compositionData.length > 0) {
+        if (cappedCompositionData && cappedCompositionData.length > 0) {
           compositionBlueprint = buildCompositionBlueprint({
-            compositions: compositionData,
+            compositions: cappedCompositionData,
             fidelityMode: fidelityMode ?? "balanced",
           });
           if (compositionBlueprint) {
-            console.log("[COMPOSITION] Blueprint generated, length:", compositionBlueprint.length);
+            logSafe("[COMPOSITION] Blueprint generated", { length: compositionBlueprint.length });
           }
         }
+        const knobVector = deriveDesignKnobs({
+          tasteProfile: tasteProfile ?? null,
+          intentProfile,
+          compositionData: cappedCompositionData,
+          compositionBlueprint,
+          fidelityMode: resolvedFidelityMode,
+        });
 
         const designPrompt = buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
           variantMode: "safe",
           tasteProfile: tasteProfile ?? null,
-          fidelityMode: fidelityMode ?? "balanced",
+          intentProfile,
+          knobVector,
+          fidelityMode: resolvedFidelityMode,
           compositionBlueprint,
         });
 
-        console.log(`[V6-GEN] Prompt length: ${designPrompt.length} chars`);
+        logSafe("[V6-GEN] Prompt built", { promptLength: designPrompt.length });
 
-        const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+        const referenceImageBlocks = cappedReferenceUrls
           .slice(0, 4)
           .map((url) => imageUrlBlock(url, "low"));
 
         // ── Generate base DesignNode tree ──
         let baseTree: DesignNode | null = null;
+        let baseTasteGate: V6TasteGate | null = null;
         try {
           const router = getRouter();
           const response = await router.chat.completions.create({
@@ -373,55 +564,130 @@ export async function POST(req: NextRequest) {
                 ...referenceImageBlocks,
               ],
             }],
-            max_tokens: 16000,
+            max_tokens: v6Budgets.baseMaxTokens,
             temperature: 0.5,
             response_format: { type: "json_object" },
           });
 
           const raw = response.choices[0]?.message?.content ?? "";
           const finishReason = response.choices[0]?.finish_reason;
-          console.log(`[V6-GEN] Response: ${raw.length} chars, finish_reason: ${finishReason}`);
+          if (v6Debug) v6Debug.baseFinishReason = finishReason;
+          logSafe(`[V6-GEN] Response: ${raw.length} chars, finish_reason: ${finishReason}`);
 
           if (raw.length === 0) throw new Error("Empty response");
 
-          // Handle truncation
-          let jsonStr = raw;
-          if (finishReason === "length") {
-            console.warn(`[V6-GEN] Truncated — attempting recovery`);
-            const recovered = tryRecoverTruncatedJSON(raw);
-            if (recovered) {
-              jsonStr = recovered;
-              console.log(`[V6-GEN] Recovery succeeded (${recovered.length} chars)`);
-            } else {
-              throw new Error("Truncated and recovery failed");
-            }
-          }
-
-          const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) throw new Error("No JSON found");
-
-          let parsed: unknown;
-          try {
-            parsed = JSON.parse(jsonMatch[0]);
-          } catch {
-            const recovered = tryRecoverTruncatedJSON(jsonStr);
-            if (recovered) parsed = JSON.parse(recovered);
-            else throw new Error("JSON parse failed");
-          }
+          if (finishReason === "length") console.warn(`[V6-GEN] Truncated — attempting recovery`);
+          const parsed = parseDesignNodeResponse(raw, finishReason);
 
           const validated = validateAndNormalizeDesignTree(parsed);
           if (!validated.ok) throw new Error(`Validation failed: ${validated.reason}`);
 
-          baseTree = validated.tree;
-          console.log(`[V6-GEN] Base tree validated: ${baseTree.children?.length ?? 0} sections`);
+          baseTree = await resolveDesignMediaUrls(validated.tree);
+          logSafe(`[V6-GEN] Base tree validated: ${baseTree.children?.length ?? 0} sections`);
+
+          let gate = evaluateV6TasteGate({
+            tree: baseTree,
+            tasteProfile: tasteProfile ?? null,
+            intentProfile,
+            knobVector,
+            fidelityMode: resolvedFidelityMode,
+          });
+          let repaired = false;
+          let attempts = 1;
+
+          if (!gate.passed && gate.validation.repairable) {
+            const repairedTree = repairDesignNodeTaste(baseTree, gate.validation, knobVector.color.palette);
+            const repairedGate = evaluateV6TasteGate({
+              tree: repairedTree,
+              tasteProfile: tasteProfile ?? null,
+              intentProfile,
+              knobVector,
+              fidelityMode: resolvedFidelityMode,
+            });
+            if (repairedGate.score.overall >= gate.score.overall) {
+              baseTree = repairedTree;
+              gate = repairedGate;
+              repaired = true;
+              logSafe(`[V6-GEN] Taste repair applied, score=${gate.score.overall}`);
+            }
+          }
+
+          if (!gate.passed) {
+            attempts = 2;
+            if (v6Debug) v6Debug.retryAttempted = true;
+            const retryPrompt = `${designPrompt}\n\n${buildTasteRetryPrompt(gate.validation)}`;
+            const retryResponse = await router.chat.completions.create({
+              model: SONNET_4_6,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: retryPrompt },
+                  ...referenceImageBlocks,
+                ],
+              }],
+              max_tokens: v6Budgets.retryMaxTokens,
+              temperature: 0.45,
+              response_format: { type: "json_object" },
+            });
+            const retryRaw = retryResponse.choices[0]?.message?.content ?? "";
+            if (v6Debug) v6Debug.retryFinishReason = retryResponse.choices[0]?.finish_reason;
+            const retryParsed = parseDesignNodeResponse(retryRaw, retryResponse.choices[0]?.finish_reason);
+            const retryValidated = validateAndNormalizeDesignTree(retryParsed);
+            if (retryValidated.ok) {
+              const retryTree = await resolveDesignMediaUrls(retryValidated.tree);
+              const retryGate = evaluateV6TasteGate({
+                tree: retryTree,
+                tasteProfile: tasteProfile ?? null,
+                intentProfile,
+                knobVector,
+                fidelityMode: resolvedFidelityMode,
+              });
+              if (retryGate.score.overall >= gate.score.overall) {
+                baseTree = retryTree;
+                gate = retryGate;
+                repaired = false;
+                logSafe(`[V6-GEN] Taste retry selected, score=${gate.score.overall}`);
+              }
+            }
+          }
+
+          baseTasteGate = {
+            ...gate,
+            repaired,
+            attempts,
+            warnings: gate.passed ? [] : gate.validation.violations.map((violation) => violation.message),
+          };
+          if (v6Debug) {
+            v6Debug.validationScore = gate.validation.score;
+            v6Debug.tasteScore = gate.score.overall;
+          }
         } catch (err) {
-          console.error(`[V6-GEN] Base generation failed:`, err instanceof Error ? err.message : err);
+          v6Failure = describeModelFailure(err);
+          if (v6Debug) {
+            v6Debug.failureKind = v6Failure.kind;
+            v6Debug.failureStatus = v6Failure.status;
+            v6Debug.fallbackReason = v6Failure.message;
+          }
+          console.error(`[V6-GEN] Base generation failed:`, v6Failure.message);
         }
 
         if (baseTree) {
-          // Resolve media
-          baseTree = await resolveDesignMediaUrls(baseTree);
-          console.log(`[V6-GEN] Media resolved`);
+          if (!baseTasteGate) {
+            const fallbackGate = evaluateV6TasteGate({
+              tree: baseTree,
+              tasteProfile: tasteProfile ?? null,
+              intentProfile,
+              knobVector,
+              fidelityMode: resolvedFidelityMode,
+            });
+            baseTasteGate = {
+              ...fallbackGate,
+              repaired: false,
+              attempts: 1,
+              warnings: fallbackGate.passed ? [] : fallbackGate.validation.violations.map((violation) => violation.message),
+            };
+          }
+          logSafe(`[V6-GEN] Media resolved and taste-gated`);
 
           // Derive pushed + restructured variants in parallel
           let pushedTree: DesignNode = JSON.parse(JSON.stringify(baseTree));
@@ -432,14 +698,14 @@ export async function POST(req: NextRequest) {
               callModel({
                 model: SONNET_4_6,
                 messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree, tasteProfile) }],
-                maxTokens: 16000,
+                maxTokens: v6Budgets.variantMaxTokens,
                 temperature: 0.4,
                 jsonMode: true,
               }),
               callModel({
                 model: SONNET_4_6,
                 messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree, tasteProfile) }],
-                maxTokens: 16000,
+                maxTokens: v6Budgets.variantMaxTokens,
                 temperature: 0.5,
                 jsonMode: true,
               }),
@@ -458,7 +724,7 @@ export async function POST(req: NextRequest) {
                   const v = validateAndNormalizeDesignTree(parsed);
                   if (v.ok) {
                     pushedTree = await resolveDesignMediaUrls(v.tree);
-                    console.log(`[V6-GEN] Pushed variant OK`);
+                    logSafe(`[V6-GEN] Pushed variant OK`);
                   }
                 }
               } catch (e) { console.warn(`[V6-GEN] Pushed variant failed:`, e); }
@@ -477,12 +743,27 @@ export async function POST(req: NextRequest) {
                   const v = validateAndNormalizeDesignTree(parsed);
                   if (v.ok) {
                     restructuredTree = await resolveDesignMediaUrls(v.tree);
-                    console.log(`[V6-GEN] Restructured variant OK`);
+                    logSafe(`[V6-GEN] Restructured variant OK`);
                   }
                 }
               } catch (e) { console.warn(`[V6-GEN] Restructured variant failed:`, e); }
             }
           }
+
+          const pushedTasteGate = evaluateV6TasteGate({
+            tree: pushedTree,
+            tasteProfile: tasteProfile ?? null,
+            intentProfile,
+            knobVector,
+            fidelityMode: resolvedFidelityMode,
+          });
+          const restructuredTasteGate = evaluateV6TasteGate({
+            tree: restructuredTree,
+            tasteProfile: tasteProfile ?? null,
+            intentProfile,
+            knobVector,
+            fidelityMode: resolvedFidelityMode,
+          });
 
           // Assemble response — same shape as PageNode variants
           const variants = [
@@ -497,6 +778,9 @@ export async function POST(req: NextRequest) {
               createdAt: new Date().toISOString(),
               strategy: "safe" as VariantMode,
               strategyLabel: "Faithful",
+              tasteGate: baseTasteGate,
+              intentProfile,
+              designKnobs: knobVector,
             },
             {
               id: `v6-pushed-${Date.now()}`,
@@ -509,6 +793,9 @@ export async function POST(req: NextRequest) {
               createdAt: new Date().toISOString(),
               strategy: "creative" as VariantMode,
               strategyLabel: "Pushed",
+              tasteGate: { ...pushedTasteGate, repaired: false, attempts: 1, warnings: pushedTasteGate.passed ? [] : pushedTasteGate.validation.violations.map((v) => v.message) },
+              intentProfile,
+              designKnobs: knobVector,
             },
             {
               id: `v6-restructured-${Date.now()}`,
@@ -521,13 +808,37 @@ export async function POST(req: NextRequest) {
               createdAt: new Date().toISOString(),
               strategy: "alternative" as VariantMode,
               strategyLabel: "Restructured",
+              tasteGate: { ...restructuredTasteGate, repaired: false, attempts: 1, warnings: restructuredTasteGate.passed ? [] : restructuredTasteGate.validation.violations.map((v) => v.message) },
+              intentProfile,
+              designKnobs: knobVector,
             },
           ];
 
-          console.log(`[V6-GEN] Complete — returning 3 DesignNode variants`);
-          return NextResponse.json({ siteName: resolvedSiteName, variants });
+          logSafe(`[V6-GEN] Complete — returning 3 DesignNode variants`);
+          return NextResponse.json({
+            siteName: resolvedSiteName,
+            generationResult: "v6",
+            fallbackUsed: false,
+            v6Debug,
+            variants,
+          });
         } else {
-          console.warn(`[V6-GEN] DesignNode generation failed — falling through to PageNode path`);
+          const fallbackReason = v6Failure?.message ?? "V6 returned no valid DesignNode tree.";
+          if (v6Debug) {
+            v6Debug.fallbackUsed = true;
+            v6Debug.fallbackReason = fallbackReason;
+          }
+          console.warn(`[V6-GEN] DesignNode generation failed — falling through to PageNode path: ${fallbackReason}`);
+          if (strictV6Mode) {
+            const status = v6Failure?.kind === "credit-exhaustion" ? 402 : 502;
+            return NextResponse.json({
+              error: "Strict V6 QA failed: no valid V6 output was produced.",
+              generationResult: v6Failure?.kind ?? "v6-failed",
+              fallbackUsed: false,
+              fallbackReason,
+              v6Debug,
+            }, { status });
+          }
         }
       }
       // ── End V6 DesignNode Path ──────────────────────────────────────────
@@ -554,7 +865,7 @@ export async function POST(req: NextRequest) {
       const baseSourcePrompt = buildTasteAwareVariantPrompt({
         prompt,
         tasteProfile: tasteProfile ?? null,
-        referenceUrls: Array.isArray(referenceUrls) ? referenceUrls : [],
+        referenceUrls: cappedReferenceUrls,
         strategy: VARIANT_STRATEGIES[0],
       });
 
@@ -582,7 +893,7 @@ export async function POST(req: NextRequest) {
       let restructuredValidationScore: number | undefined;
 
       if (apiKey) {
-        const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+        const referenceImageBlocks = cappedReferenceUrls
           .slice(0, 4)
           .map((url) => imageUrlBlock(url, "low"));
 
@@ -601,7 +912,12 @@ export async function POST(req: NextRequest) {
             );
             const imageBlocks = opts?.skipImages ? [] : referenceImageBlocks;
             const maxTok = opts?.maxTokensOverride ?? 16000;
-            console.log(`[GEN DEBUG] Calling Sonnet for BASE PageNode tree: temp=${temperature}, prompt=${treePrompt.length} chars, images=${imageBlocks.length}, max_tokens=${maxTok}`);
+            logSafe("[GEN DEBUG] Calling Sonnet for BASE PageNode tree", {
+              temperature,
+              promptLength: treePrompt.length,
+              imageCount: imageBlocks.length,
+              maxTokens: maxTok,
+            });
 
             const router = getRouter();
             const response = await router.chat.completions.create({
@@ -620,7 +936,7 @@ export async function POST(req: NextRequest) {
 
             const raw = response.choices[0]?.message?.content ?? "";
             const finishReason = response.choices[0]?.finish_reason;
-            console.log(`[GEN DEBUG] BASE tree response: ${raw.length} chars, finish_reason: ${finishReason}`);
+            logSafe(`[GEN DEBUG] BASE tree response: ${raw.length} chars, finish_reason: ${finishReason}`);
             if (raw.length === 0) throw new Error("Empty PageNode tree response");
 
             // Detect truncation
@@ -628,7 +944,7 @@ export async function POST(req: NextRequest) {
               console.warn(`[GEN DEBUG] BASE tree truncated (finish_reason=length) — attempting JSON recovery`);
               const recovered = tryRecoverTruncatedJSON(raw);
               if (recovered) {
-                console.log(`[GEN DEBUG] BASE tree JSON recovery succeeded (${recovered.length} chars)`);
+                logSafe(`[GEN DEBUG] BASE tree JSON recovery succeeded (${recovered.length} chars)`);
                 const parsed = JSON.parse(recovered);
                 const validation = validateAndNormalizePageTree(parsed);
                 if (validation.ok) return validation.tree as PageNode;
@@ -650,7 +966,7 @@ export async function POST(req: NextRequest) {
               // Try recovery on malformed but non-truncated JSON
               const recovered = tryRecoverTruncatedJSON(raw);
               if (recovered) {
-                console.log(`[GEN DEBUG] BASE tree JSON recovery succeeded on parse error (${recovered.length} chars)`);
+                logSafe(`[GEN DEBUG] BASE tree JSON recovery succeeded on parse error (${recovered.length} chars)`);
                 parsed = JSON.parse(recovered);
               } else {
                 throw new Error("JSON parse failed and recovery unsuccessful");
@@ -696,15 +1012,15 @@ export async function POST(req: NextRequest) {
           // ── Step 2: Validate + repair ──
           const validation = validateDirectiveCompliance(baseTree, compiledDirectives);
           baseValidationScore = validation.score;
-          console.log(`[GEN DEBUG] BASE validation: score=${validation.score}, violations=${validation.violations.length}, passed=${validation.passed}`);
+          logSafe(`[GEN DEBUG] BASE validation: score=${validation.score}, violations=${validation.violations.length}, passed=${validation.passed}`);
 
           // [TREE DEBUG] Log violation details
           if (validation.violations.length > 0) {
-            console.log(`[TREE DEBUG] BASE violations by type:`,
+            logSafe(`[TREE DEBUG] BASE violations by type:`,
               validation.violations.map(v => `${v.directive.dimension}: found=${v.found}, expected=${v.expected}`).join("; ")
             );
           } else {
-            console.log(`[TREE DEBUG] BASE violations: none`);
+            logSafe(`[TREE DEBUG] BASE violations: none`);
           }
 
           if (!validation.passed && validation.repairable) {
@@ -712,12 +1028,12 @@ export async function POST(req: NextRequest) {
             const totalNodes = countNodes(baseTree);
             baseTreeSource = repairCount / totalNodes > 0.3 ? "repaired" : "ai";
             baseTree = repairedTree;
-            console.log(`[GEN DEBUG] BASE repaired ${repairCount}/${totalNodes} nodes, source=${baseTreeSource}`);
+            logSafe(`[GEN DEBUG] BASE repaired ${repairCount}/${totalNodes} nodes, source=${baseTreeSource}`);
 
             // [TREE DEBUG] Log POST-REPAIR structure
             logTreeStructure("POST-REPAIR BASE", baseTree);
           } else if (!validation.passed) {
-            console.log(`[GEN DEBUG] BASE validation failed, not repairable. Using fallback.`);
+            logSafe(`[GEN DEBUG] BASE validation failed, not repairable. Using fallback.`);
             baseTree = fallbackTrees[0];
             baseTreeSource = "template";
           }
@@ -729,7 +1045,7 @@ export async function POST(req: NextRequest) {
           if (tasteProfile && baseTreeSource !== "template") {
             try {
               baseFidelityScore = await scoreRealtimeFidelity(baseTree, tasteProfile);
-              console.log(`[GEN DEBUG] BASE fidelity: overall=${baseFidelityScore.overall}, palette=${baseFidelityScore.palette}, type=${baseFidelityScore.typography}, density=${baseFidelityScore.density}, structure=${baseFidelityScore.structure}`);
+              logSafe(`[GEN DEBUG] BASE fidelity: overall=${baseFidelityScore.overall}, palette=${baseFidelityScore.palette}, type=${baseFidelityScore.typography}, density=${baseFidelityScore.density}, structure=${baseFidelityScore.structure}`);
             } catch (scoreErr) {
               console.warn("[GEN DEBUG] BASE taste scoring failed:", scoreErr);
             }
@@ -742,7 +1058,7 @@ export async function POST(req: NextRequest) {
             baseFidelityScore.overall < QUALITY_THRESHOLD &&
             baseTreeSource !== "template"
           ) {
-            console.log(`[GEN DEBUG] Quality gate FAILED: score=${baseFidelityScore.overall} < ${QUALITY_THRESHOLD}. Retrying with lower temperature.`);
+            logSafe(`[GEN DEBUG] Quality gate FAILED: score=${baseFidelityScore.overall} < ${QUALITY_THRESHOLD}. Retrying with lower temperature.`);
 
             const retryTree = await generateBaseTree(0.3);
             if (retryTree) {
@@ -762,7 +1078,7 @@ export async function POST(req: NextRequest) {
               if (tasteProfile) {
                 try {
                   retryScore = await scoreRealtimeFidelity(finalRetryTree, tasteProfile);
-                  console.log(`[GEN DEBUG] RETRY fidelity: overall=${retryScore.overall}`);
+                  logSafe(`[GEN DEBUG] RETRY fidelity: overall=${retryScore.overall}`);
                 } catch { /* keep original */ }
               }
 
@@ -773,13 +1089,13 @@ export async function POST(req: NextRequest) {
                 baseTreeSource = retrySource;
                 baseFidelityScore = retryScore;
                 baseValidationScore = retryValidation.score;
-                console.log(`[GEN DEBUG] Quality gate: RETRY wins (${retryScore.overall} > ${originalScore})`);
+                logSafe(`[GEN DEBUG] Quality gate: RETRY wins (${retryScore.overall} > ${originalScore})`);
               } else {
-                console.log(`[GEN DEBUG] Quality gate: ORIGINAL wins (keeping score=${baseFidelityScore.overall})`);
+                logSafe(`[GEN DEBUG] Quality gate: ORIGINAL wins (keeping score=${baseFidelityScore.overall})`);
               }
             }
           } else if (baseFidelityScore) {
-            console.log(`[GEN DEBUG] Quality gate PASSED: score=${baseFidelityScore.overall} >= ${QUALITY_THRESHOLD}`);
+            logSafe(`[GEN DEBUG] Quality gate PASSED: score=${baseFidelityScore.overall} >= ${QUALITY_THRESHOLD}`);
           }
         }
 
@@ -818,7 +1134,7 @@ export async function POST(req: NextRequest) {
                   console.warn(`[GEN DEBUG] PUSHED variant JSON parse failed — attempting recovery`);
                   const recovered = tryRecoverTruncatedJSON(rawPushed);
                   if (recovered) {
-                    console.log(`[GEN DEBUG] PUSHED variant JSON recovery succeeded (${recovered.length} chars)`);
+                    logSafe(`[GEN DEBUG] PUSHED variant JSON recovery succeeded (${recovered.length} chars)`);
                     parsed = JSON.parse(recovered);
                   } else {
                     throw new Error("PUSHED JSON parse failed and recovery unsuccessful");
@@ -844,7 +1160,7 @@ export async function POST(req: NextRequest) {
                   // Resolve photo intent strings to real image URLs
                   pushedTree = await resolveMediaUrls(pushedTree);
                   logTreeStructure("PUSHED variant", pushedTree);
-                  console.log(`[GEN DEBUG] PUSHED variant OK: validation=${pv.score}, source=${pushedTreeSource}`);
+                  logSafe(`[GEN DEBUG] PUSHED variant OK: validation=${pv.score}, source=${pushedTreeSource}`);
                 } else {
                   console.error(`[GEN DEBUG] PUSHED variant invalid: ${normalized.reason}`);
                 }
@@ -869,7 +1185,7 @@ export async function POST(req: NextRequest) {
                   console.warn(`[GEN DEBUG] RESTRUCTURED variant JSON parse failed — attempting recovery`);
                   const recovered = tryRecoverTruncatedJSON(rawRestructured);
                   if (recovered) {
-                    console.log(`[GEN DEBUG] RESTRUCTURED variant JSON recovery succeeded (${recovered.length} chars)`);
+                    logSafe(`[GEN DEBUG] RESTRUCTURED variant JSON recovery succeeded (${recovered.length} chars)`);
                     parsed = JSON.parse(recovered);
                   } else {
                     throw new Error("RESTRUCTURED JSON parse failed and recovery unsuccessful");
@@ -895,7 +1211,7 @@ export async function POST(req: NextRequest) {
                   // Resolve photo intent strings to real image URLs
                   restructuredTree = await resolveMediaUrls(restructuredTree);
                   logTreeStructure("RESTRUCTURED variant", restructuredTree);
-                  console.log(`[GEN DEBUG] RESTRUCTURED variant OK: validation=${rv.score}, source=${restructuredTreeSource}`);
+                  logSafe(`[GEN DEBUG] RESTRUCTURED variant OK: validation=${rv.score}, source=${restructuredTreeSource}`);
                 } else {
                   console.error(`[GEN DEBUG] RESTRUCTURED variant invalid: ${normalized.reason}`);
                 }
@@ -907,7 +1223,7 @@ export async function POST(req: NextRequest) {
             console.error(`[GEN DEBUG] RESTRUCTURED variant call failed:`, restructuredResult.reason instanceof Error ? restructuredResult.reason.message : restructuredResult.reason);
           }
         } else {
-          console.log(`[GEN DEBUG] Skipping derivation — base is template or no taste profile`);
+          logSafe(`[GEN DEBUG] Skipping derivation — base is template or no taste profile`);
         }
       }
 
@@ -961,9 +1277,16 @@ export async function POST(req: NextRequest) {
         },
       ];
 
-      console.log(`[GEN DEBUG] Final variants: base=${baseTreeSource}, pushed=${pushedTreeSource}, restructured=${restructuredTreeSource}`);
+      logSafe(`[GEN DEBUG] Final variants: base=${baseTreeSource}, pushed=${pushedTreeSource}, restructured=${restructuredTreeSource}`);
 
-      return NextResponse.json({ siteName: resolvedSiteName, variants });
+      return NextResponse.json({
+        siteName: resolvedSiteName,
+        generationResult: v6Failure?.kind ?? (v6Debug?.fallbackUsed ? "fallback" : "pagenode"),
+        fallbackUsed: v6Debug?.fallbackUsed ?? baseTreeSource === "template",
+        fallbackReason: v6Debug?.fallbackReason ?? (baseTreeSource === "template" ? "PageNode/template fallback used." : null),
+        v6Debug,
+        variants,
+      });
     }
 
     // ── Single section / full-page generation ────────────────────────────────
@@ -980,7 +1303,7 @@ export async function POST(req: NextRequest) {
       tasteProfile: tasteProfile ?? null,
       fidelityMode: fidelityMode ?? "balanced",
     });
-    const referenceImageBlocks = (Array.isArray(referenceUrls) ? referenceUrls : [])
+    const referenceImageBlocks = cappedReferenceUrls
       .slice(0, 4)
       .map((url) => imageUrlBlock(url, "low"));
 

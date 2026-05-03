@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ImageAnalysis } from "@/lib/canvas/analyze-images";
 import { analysisToTokens, tokensToMarkdown } from "@/lib/canvas/generate-system";
+import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { analysis } = body as {
+    const guarded = await readGuardedJson<{
       analysis: ImageAnalysis;
       mode?: string;
-    };
+    }>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.tokenRequestBytes,
+      rateLimit: { namespace: "canvas-generate-system", limit: 120, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
+
+    const { analysis } = guarded.body;
 
     if (!analysis) {
       return NextResponse.json({ error: "No analysis provided" }, { status: 400 });

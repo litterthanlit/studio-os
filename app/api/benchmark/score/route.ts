@@ -4,6 +4,7 @@ import { scoreDesignRealtimeFidelity } from "@/lib/canvas/design-taste-evaluator
 import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import type { TasteProfile } from "@/types/taste-profile";
+import { API_LIMITS, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 
 /**
  * POST /api/benchmark/score
@@ -27,10 +28,17 @@ function isDesignNode(tree: Record<string, unknown>): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const { pageTree, tasteProfile } = (await req.json()) as {
+    const guarded = await readGuardedJson<{
       pageTree: Record<string, unknown>;
       tasteProfile: TasteProfile;
-    };
+    }>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.aiRequestBytes,
+      rateLimit: { namespace: "benchmark-score", limit: 60, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
+
+    const { pageTree, tasteProfile } = guarded.body;
 
     if (!pageTree || !tasteProfile) {
       return NextResponse.json(
@@ -40,7 +48,10 @@ export async function POST(req: NextRequest) {
     }
 
     const designNode = isDesignNode(pageTree);
-    console.log(`[BENCHMARK SCORE] Tree type: ${designNode ? "DesignNode" : "PageNode"}`);
+    logSafe("[BENCHMARK SCORE] Tree type", {
+      treeType: designNode ? "DesignNode" : "PageNode",
+      authBypass: guarded.devBypass,
+    });
 
     const score = designNode
       ? await scoreDesignRealtimeFidelity(pageTree as unknown as DesignNode, tasteProfile)
@@ -49,7 +60,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(score);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Scoring failed";
-    console.error("[BENCHMARK SCORE]", message);
+    warnSafe("[BENCHMARK SCORE] failed", { message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

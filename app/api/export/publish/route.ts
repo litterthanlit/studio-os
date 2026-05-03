@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { createClient } from "@/lib/supabase/server";
-
-/** Max HTML size for one publish (2 MiB). */
-const MAX_HTML_BYTES = 2 * 1024 * 1024;
+import { API_LIMITS, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 
 /**
  * POST /api/export/publish
@@ -24,20 +22,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let body: { html?: unknown };
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-    }
+    const guarded = await readGuardedJson<{ html?: unknown }>(req, {
+      requireAuth: false,
+      maxBytes: API_LIMITS.publishRequestBytes,
+      rateLimit: { namespace: "export-publish", limit: 30, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
 
-    const html = typeof body.html === "string" ? body.html : "";
+    const html = typeof guarded.body.html === "string" ? guarded.body.html : "";
     if (html.length === 0) {
       return NextResponse.json({ error: "html is required" }, { status: 400 });
     }
-    if (html.length > MAX_HTML_BYTES) {
+    if (new TextEncoder().encode(html).length > API_LIMITS.publishRequestBytes) {
       return NextResponse.json(
-        { error: `HTML exceeds ${MAX_HTML_BYTES} bytes` },
+        { error: `HTML exceeds ${API_LIMITS.publishRequestBytes} bytes` },
         { status: 413 }
       );
     }
@@ -60,14 +58,19 @@ export async function POST(req: NextRequest) {
           { status: 503 }
         );
       }
-      console.error("[export/publish] insert:", error);
+      warnSafe("[export/publish] insert failed", {
+        code: error.code,
+        message: error.message,
+      });
       return NextResponse.json({ error: "Failed to publish" }, { status: 500 });
     }
 
     const publishUrl = `${req.nextUrl.origin}/published/${id}`;
     return NextResponse.json({ id, publishUrl });
   } catch (e) {
-    console.error("[export/publish] POST:", e);
+    warnSafe("[export/publish] POST failed", {
+      message: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json({ error: "Failed to publish" }, { status: 500 });
   }
 }

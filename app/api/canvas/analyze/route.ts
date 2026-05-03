@@ -5,6 +5,7 @@ import {
   type ImageAnalysis,
 } from "@/lib/canvas/analyze-images";
 import { getRouter, GEMINI_FLASH, imageUrlBlock } from "@/lib/ai/model-router";
+import { API_LIMITS, capStringArray, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 
 function fallbackAnalysis(images: string[]): ImageAnalysis {
   const usedImageCount = Math.min(images.length, 8);
@@ -60,10 +61,18 @@ function fallbackAnalysis(images: string[]): ImageAnalysis {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { images } = body as { images: string[] };
+    const guarded = await readGuardedJson<{ images?: string[] }>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.aiRequestBytes,
+      rateLimit: { namespace: "canvas-analyze", limit: 60, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
 
-    console.log(`[canvas/analyze] Received ${images?.length ?? 0} images, first image type: ${images?.[0]?.slice(0, 30)}...`);
+    const images = capStringArray(guarded.body.images, API_LIMITS.maxAnalysisImages);
+    logSafe("[canvas/analyze] request", {
+      imageCount: images.length,
+      authBypass: guarded.devBypass,
+    });
 
     if (!images || images.length === 0) {
       return NextResponse.json({ error: "No images provided" }, { status: 400 });
@@ -79,7 +88,7 @@ export async function POST(req: NextRequest) {
     const router = getRouter();
 
     // Cap at 8 images — quality gate inside the prompt handles the rest
-    const imageContent = images.slice(0, 8).map((img) => imageUrlBlock(img, "auto"));
+    const imageContent = images.map((img) => imageUrlBlock(img, "auto"));
 
     const response = await router.chat.completions.create({
       model: GEMINI_FLASH,
@@ -112,7 +121,10 @@ export async function POST(req: NextRequest) {
       analysis = JSON.parse(jsonMatch[0]) as ImageAnalysis;
     } catch (parseErr) {
       const parseMessage = parseErr instanceof Error ? parseErr.message : "Unknown parse error";
-      console.error(`[canvas/analyze] JSON parse failed: ${parseMessage}. Raw response (first 500 chars):`, text.slice(0, 500));
+      logSafe("[canvas/analyze] JSON parse failed", {
+        message: parseMessage,
+        responsePreview: text.slice(0, 500),
+      });
       return NextResponse.json(
         { error: `Failed to parse analysis response: ${parseMessage}`, raw: text.slice(0, 500) },
         { status: 500 }
@@ -142,9 +154,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ analysis });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Analysis failed";
-    const stack = err instanceof Error ? err.stack : "";
-    console.warn(`[canvas/analyze] Falling back after error: ${message}`);
-    if (stack) console.warn(`[canvas/analyze] Stack: ${stack}`);
+    warnSafe("[canvas/analyze] Falling back after error", { message });
+    logSafe("[canvas/analyze] Stack", { stack: err instanceof Error ? err.stack : "" });
     return NextResponse.json({ analysis: fallbackAnalysis([]), fallback: true });
   }
 }

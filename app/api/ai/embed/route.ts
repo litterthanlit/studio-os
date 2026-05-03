@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { generateEmbedding, buildEmbeddingText } from "@/lib/ai/embeddings";
 import { createClient } from "@/lib/supabase/server";
+import { API_LIMITS, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 
 type EmbedSingleBody = {
   referenceId: string;
@@ -51,24 +52,20 @@ async function embedAndStore(
 }
 
 export async function POST(req: NextRequest) {
-  let body: EmbedSingleBody | EmbedBatchBody;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const guarded = await readGuardedJson<EmbedSingleBody | EmbedBatchBody>(req, {
+    requireAuth: true,
+    maxBytes: API_LIMITS.tokenRequestBytes,
+    rateLimit: { namespace: "ai-embed", limit: 120, windowMs: 60 * 60 * 1000 },
+  });
+  if (!guarded.ok) return guarded.response;
+
+  const body = guarded.body;
 
   // ── Batch mode ──────────────────────────────────────────────────────────────
   if ("referenceIds" in body && Array.isArray(body.referenceIds)) {
-    const { referenceIds } = body;
+    const referenceIds = body.referenceIds.filter((id) => typeof id === "string").slice(0, 50);
     if (referenceIds.length === 0) {
       return NextResponse.json({ results: [] });
-    }
-    if (referenceIds.length > 50) {
-      return NextResponse.json(
-        { error: "Batch limit is 50 references" },
-        { status: 400 }
-      );
     }
 
     try {
@@ -101,7 +98,9 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ results });
     } catch (err) {
-      console.error("[embed] batch error:", err);
+      warnSafe("[embed] batch error", {
+        message: err instanceof Error ? err.message : String(err),
+      });
       return NextResponse.json(
         { error: "Batch embedding failed" },
         { status: 500 }

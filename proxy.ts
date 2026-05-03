@@ -1,10 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PREFIXES = ["/auth", "/onboarding", "/share"];
+const PUBLIC_PREFIXES = ["/auth", "/onboarding", "/share", "/published"];
+const PUBLIC_EXACT = ["/", "/privacy", "/robots.txt", "/sitemap.xml", "/manifest.webmanifest", "/icon.svg"];
 
 function isPublic(pathname: string): boolean {
-  return pathname === "/" || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isApi(pathname: string): boolean {
+  return pathname === "/api" || pathname.startsWith("/api/");
 }
 
 export async function proxy(request: NextRequest) {
@@ -50,6 +55,17 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     return response;
+  }
+
+  if (isApi(pathname)) {
+    return response;
+  }
+
+  if (!user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
   }
 
   return response;

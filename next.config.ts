@@ -6,9 +6,6 @@ const nextConfig: NextConfig = {
   distDir: distDir || ".next",
   // @react-pdf/renderer requires transpilation in Next.js App Router
   transpilePackages: ["@react-pdf/renderer"],
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     remotePatterns: [
       {

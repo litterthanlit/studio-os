@@ -298,7 +298,7 @@ function createReferences(): ReferenceItem[] {
         analyzedAt: new Date().toISOString(),
         balance: ref.weight === "primary" ? "symmetric" : "asymmetric",
         density: "balanced",
-        tension: ref.weight === "primary" ? "moderate" : "low",
+        tension: ref.weight === "primary" ? "moderate" : "relaxed",
         keyCompositionalMove:
           ref.weight === "primary"
             ? "Clear enterprise SaaS hierarchy with product proof"
@@ -585,7 +585,7 @@ function createTypeSystemFrame(): FrameItem {
         display: "grid",
         gridTemplate: "1fr 1fr",
         gap: 24,
-        alignItems: "end",
+        alignItems: "flex-end",
       }, [
         textNode("starter-type-serif", "Aa", {
           fontFamily: FONT.serif,
@@ -743,7 +743,6 @@ function createSynthesisFrame(): FrameItem {
       background: "rgba(255,255,255,0.42)",
       borderColor: C.accent,
       borderWidth: 1,
-      borderStyle: "dashed",
       borderRadius: 6,
     },
     children: [
@@ -775,7 +774,6 @@ function createSynthesisFrame(): FrameItem {
         borderColor: C.accent,
         borderWidth: 1,
         borderRadius: 6,
-        alignSelf: "center",
       }, [
         textNode("starter-synth-engine-label", "SYSTEM ENGINE", {
           fontFamily: FONT.mono,

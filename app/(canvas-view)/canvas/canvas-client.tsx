@@ -730,6 +730,7 @@ type SiteType =
   | "saas-landing"
   | "portfolio"
   | "agency"
+  | "culture-event"
   | "ecommerce"
   | "docs-site"
   | "blog";
@@ -739,6 +740,7 @@ const SITE_TYPE_OPTIONS: { value: SiteType; label: string; desc: string; icon: s
   { value: "saas-landing", label: "SaaS Landing",  desc: "Dark Linear-style product page",    icon: "◈" },
   { value: "portfolio",    label: "Portfolio",     desc: "Minimal warm editorial personal",   icon: "◉" },
   { value: "agency",       label: "Agency",        desc: "Bold high-contrast creative site",  icon: "⬡" },
+  { value: "culture-event", label: "Culture Event", desc: "Editorial event poster site",       icon: "▥" },
   { value: "ecommerce",    label: "E-commerce",    desc: "Clean premium product store",       icon: "⊕" },
   { value: "docs-site",    label: "Documentation", desc: "Developer-focused Vercel docs",     icon: "⊞" },
   { value: "blog",         label: "Blog",          desc: "Editorial serif publication",       icon: "◧" },

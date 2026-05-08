@@ -231,6 +231,38 @@ DO NOT USE:
 SECTION COUNT: 4-6 sections with strong visual personality.
 `;
 
+    case "culture-event":
+      return `
+## SECTION GRAMMAR — CULTURE EVENT
+
+You are generating a culture/event editorial site in the Vibecon family, NOT a SaaS landing page.
+
+DO NOT USE:
+- Feature card grids, metrics rows, logo bars, pricing tables, FAQ blocks
+- Rounded SaaS panels, dashboard mockups, centered product hero formulas
+- Generic AI hype copy
+
+USE INSTEAD:
+- Fixed grid rails: visible vertical and horizontal rules, hard section divisions, poster-like gutters
+- Oversized masthead: brand/event name in huge serif or display type, first-viewport dominant
+- Tiny utility nav: 2-3 lowercase links plus one vivid ticket pill
+- Event metadata blocks: city, venue, dates, theme, curator/sponsor
+- Lineup rhythm: speaker/program rows with date/type/meta plus strong editorial imagery
+- Media atmosphere: full-bleed abstract culture imagery or portraits, never product screenshots
+- Ticket poster CTA: oversized "get tickets" typography, venue/date metadata, one accent ticket action
+
+## PAGE-LEVEL COMPOSITION RULES
+
+1. **RAIL SYSTEM**: Use 1px borders/dividers between major zones. The page should feel plotted on a fixed event-poster grid.
+2. **TYPE CONTRAST**: Pair tiny 11-13px labels with 70-150px masthead/display type. Oversized masthead is mandatory.
+3. **LINEUP IS STRUCTURE**: If the brief mentions conference, festival, summit, talks, speakers, workshops, or tickets, include lineup rows. Do not turn speakers into cards.
+4. **CTA TREATMENT**: The ticket CTA is a poster section, not a SaaS CTA band. Use "tickets", "get tickets", or "tickets now"; avoid "start free trial" language.
+5. **COLOR**: Use stark black/white or cream/black with one vivid accent, commonly orange/red.
+
+SECTION COUNT: 5-8 sections: fixed rail nav, poster hero, about split, lineup rows, media interstitial, ticket poster, footer.
+COPY TONE: Event poster + festival program — direct, cultural, specific.
+`;
+
     case "culture-brand":
       return `
 ## SECTION GRAMMAR — CULTURE BRAND
@@ -299,6 +331,8 @@ function getArchetypeStructuralGuard(archetype: string | undefined): string {
       return "\nIMPORTANT: This is a minimal tech design. Do NOT add busy feature grids, testimonial carousels, or logo bars. Keep sections sparse and focused (3-5 total).";
     case "creative-portfolio":
       return "\nIMPORTANT: This is a creative portfolio design. Do NOT restructure into uniform card grids, corporate proof sections, or SaaS CTAs. Keep the visual personality and asymmetric layouts.";
+    case "culture-event":
+      return "\nIMPORTANT: This is a culture-event design. Do NOT restructure into SaaS cards, logo bars, stats, pricing, or centered product hero sections. Keep fixed grid rails, oversized masthead type, lineup rows, editorial media, and a ticket poster CTA.";
     case "culture-brand":
       return "\nIMPORTANT: This is a culture brand design. Do NOT restructure into clinical product sections or dense feature grids. Keep the warm, story-driven, photography-led composition.";
     case "experimental":

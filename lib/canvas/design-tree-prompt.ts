@@ -23,6 +23,7 @@ export type VariantMode = "safe" | "creative" | "alternative";
 function usesPremiumSaasProductGrammar(archetype: string | undefined): boolean {
   switch (archetype) {
     case "editorial-brand":
+    case "culture-event":
     case "minimal-tech":
     case "creative-portfolio":
     case "culture-brand":
@@ -268,6 +269,51 @@ Adapt this composition to match the brief and taste profile:
 - If the brief is a specific brand/product, the lookbook becomes that product's editorial
 `;
 
+    case "culture-event":
+      return `
+## SECTION GRAMMAR — CULTURE EVENT
+
+You are generating a culture/event editorial site in the Vibecon family, NOT a SaaS landing page.
+
+DO NOT USE:
+- Feature card grids, metrics rows, logo bars, pricing tables, FAQ blocks
+- Rounded SaaS panels, dashboard mockups, centered product hero formulas
+- Generic "Join the future" AI copy
+
+USE INSTEAD:
+- Fixed grid rails: visible vertical and horizontal rules, edge-to-edge section divisions, poster-like gutters
+- Oversized masthead: brand/event name in huge serif or display type, often pinned or first-viewport dominant
+- Tiny utility nav: 2-3 lowercase links plus one vivid ticket pill
+- Event metadata blocks: city, venue, dates, theme, curator/sponsor
+- Lineup rhythm: speaker rows with date/type/meta on one side and strong editorial imagery on the other
+- Media atmosphere: coverImage/photo/video-like abstract culture imagery, not product screenshots
+- Ticket section: a bold poster CTA with "get tickets", venue/date, and one restrained ticket action
+
+## CULTURE EVENT COMPOSITION RECIPES
+
+1. **Fixed rail nav** — frame row, height 120-160, border bottom, optional vertical divider at 50%. Left: huge event name text, 88-150px, serif/display, lineHeight .85. Right: tiny links 11-13px, lowercase, one accent pill for tickets.
+
+2. **Poster hero** — frame height 650-760, grid split or full poster. Use oversized masthead text and a compact metadata cluster: "a creative AI conference", "new york", "june 17-18, 2026". Add abstract coverImage elements if useful. No SaaS subtitle/CTA stack.
+
+3. **About split** — frame with fixed grid rails and border lines. One side: 56-96px headline like "code is the new creative". Other side: 16-20px editorial body, terse and culturally specific.
+
+4. **Lineup rows** — repeated section frames, each with top border, gridTemplate "1fr 1fr". Text side: small date/type labels, then a tight paragraph. Image side: portrait/editorial image, hard border, sharp corners. Rows should feel like a program poster, not cards.
+
+5. **Interstitial media** — full-bleed or rail-contained abstract photo/video-like section, 320-520px high, used as a visual pulse between text-heavy blocks.
+
+6. **Ticket poster** — tall section with horizontal rail lines. Oversized two-line heading: "get your / tickets now". Small venue/date metadata. One accent pill button. Keep it graphic and sparse.
+
+7. **Footer lockup** — minimal bottom bar with event name, curator/sponsor line, and one link. Low height, border top.
+
+PAGE RULES:
+- Section count: 5-8.
+- Palette: near-black/cream or stark white/black with one vivid accent, commonly orange/red.
+- Borders: sharp 1px rules are a signature, not decoration.
+- Typography: extreme contrast between tiny labels and huge masthead.
+- Copy tone: culturally literate, direct, specific. Write like an event poster and festival program.
+- Lineup is required when the brief mentions conference, festival, event, summit, speakers, talks, workshops, or tickets.
+`;
+
     case "experimental":
       return `
 ## SECTION GRAMMAR — EXPERIMENTAL
@@ -371,6 +417,8 @@ function getDesignArchetypeStructuralGuard(archetype: string | undefined): strin
       return "\nIMPORTANT: Minimal tech design. Do NOT add busy feature grids, testimonial carousels, or logo bars. Keep sparse and focused (3-5 sections).";
     case "creative-portfolio":
       return "\nIMPORTANT: Creative portfolio. Do NOT add uniform card grids, corporate proof sections, or SaaS CTAs. Keep visual personality and asymmetric layouts.";
+    case "culture-event":
+      return "\nIMPORTANT: This is a culture-event design. Do NOT restructure into SaaS cards, logo bars, stats, pricing, or centered product hero sections. Keep fixed grid rails, oversized masthead type, lineup rows, editorial media, and a ticket poster CTA.";
     case "culture-brand":
       return "\nIMPORTANT: Culture brand. Do NOT add clinical product sections or dense feature grids. Keep warm, story-driven composition.";
     case "experimental":

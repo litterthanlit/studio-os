@@ -24,6 +24,7 @@ export type SiteType =
   | "saas-landing"
   | "portfolio"
   | "agency"
+  | "culture-event"
   | "ecommerce"
   | "docs-site"
   | "blog";
@@ -88,6 +89,17 @@ const TOKENS: Record<SiteType, DesignTokens> = {
     accentFg: "#ffffff",
     border: "rgba(113,112,255,0.15)",
     fontDisplay: "'Inter', sans-serif",
+    fontBody: "'Inter', sans-serif",
+  },
+  "culture-event": {
+    bgPrimary: "#f7f1e8",
+    bgSecondary: "#0f0f0f",
+    textPrimary: "#111111",
+    textSecondary: "#5f5a52",
+    accent: "#ff3c00",
+    accentFg: "#ffffff",
+    border: "rgba(17,17,17,0.22)",
+    fontDisplay: "'Georgia', 'Times New Roman', serif",
     fontBody: "'Inter', sans-serif",
   },
   portfolio: {

@@ -168,6 +168,7 @@ const ALL_BANS: StylePatternBan[] = [
 
 const ARCHETYPE_BAN_MAP: Record<string, StylePatternBan[]> = {
   "editorial-brand": [uniformCardGrid, statsMetricsRow, logoBar, pricingPattern],
+  "culture-event": [uniformCardGrid, statsMetricsRow, logoBar, pricingPattern],
   "creative-portfolio": [uniformCardGrid, logoBar, pricingPattern],
   "minimal-tech": [uniformCardGrid, logoBar],
   "culture-brand": [pricingPattern, statsMetricsRow],

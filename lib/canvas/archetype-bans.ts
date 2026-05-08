@@ -9,6 +9,8 @@ export function getArchetypeBannedNodeTypes(archetype: string | undefined): stri
   switch (archetype) {
     case "editorial-brand":
       return ["feature-grid", "testimonial-grid", "pricing-grid", "metric-row", "logo-row"];
+    case "culture-event":
+      return ["feature-grid", "testimonial-grid", "pricing-grid", "metric-row", "logo-row"];
     case "minimal-tech":
       return ["testimonial-grid", "pricing-grid", "logo-row"];
     case "creative-portfolio":

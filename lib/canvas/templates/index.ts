@@ -21,6 +21,7 @@ export type SiteType =
   | "saas-landing"
   | "portfolio"
   | "agency"
+  | "culture-event"
   | "ecommerce"
   | "docs-site"
   | "blog";
@@ -30,6 +31,7 @@ export const SITE_TYPE_OPTIONS: { value: SiteType; label: string; description: s
   { value: "saas-landing", label: "SaaS Landing", description: "Dark, Linear-inspired product page" },
   { value: "portfolio", label: "Portfolio", description: "Minimal warm editorial personal site" },
   { value: "agency", label: "Agency", description: "Bold high-contrast creative agency" },
+  { value: "culture-event", label: "Culture Event", description: "Vibecon-style editorial event site" },
   { value: "ecommerce", label: "E-commerce", description: "Clean premium D2C product store" },
   { value: "docs-site", label: "Documentation", description: "Developer-focused Vercel-style docs" },
   { value: "blog", label: "Blog", description: "Editorial serif publication layout" },

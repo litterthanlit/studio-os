@@ -641,10 +641,11 @@ const SITE_TYPE_LABELS: Record<string, string> = {
   auto: "Auto",
   "saas-landing": "Landing",
   portfolio: "Portfolio",
+  "culture-event": "Event",
   blog: "Blog",
   docs: "Docs",
 };
-const QUICK_SITE_TYPES = ["auto", "saas-landing", "portfolio", "blog", "docs"] as const;
+const QUICK_SITE_TYPES = ["auto", "saas-landing", "culture-event", "portfolio", "blog"] as const;
 
 function GenerationSection({
   tokens,

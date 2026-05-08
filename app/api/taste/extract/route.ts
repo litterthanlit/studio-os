@@ -22,7 +22,7 @@ type TasteExtractBody = {
 const tasteCache = new Map<string, CachedTasteProfile>();
 
 // Bump this whenever getSkillContext() changes — forces cache invalidation
-const TASTE_CONTEXT_VERSION = 3;
+const TASTE_CONTEXT_VERSION = 4;
 
 // ── Inline skill context (condensed — previously loaded 10+ markdown files at ~700K tokens) ──
 
@@ -64,6 +64,13 @@ culture-brand:
   Detection signals: Warm photography featuring people, earth tones (terracotta, sage, cream, ochre), rounded corners and soft shapes, community/people imagery, warm sans-serif typography, generous padding with organic feel.
   Failure modes: Model uses warm colors but keeps SaaS structure. Culture brands need WARMTH in structure too — people-first imagery, story-driven sections, community feel. Not just orange on a feature grid.
 
+culture-event:
+  Description: Editorial event and culture conference design. Think Vibecon: fixed grid rails, huge masthead type, tiny utility nav, stark borders, vivid ticket accent, speaker/program rows, and media atmosphere. Used by conferences, festivals, summits, talks, launches, and culture programs.
+  Section patterns: Fixed rail nav, oversized poster hero, event metadata blocks, about split, lineup/speaker rows with imagery, abstract media interstitials, ticket poster CTA, minimal footer. Does NOT typically have: feature cards, metrics rows, logo bars, pricing tables, centered SaaS hero stacks.
+  Default avoid: SaaS feature grids, rounded dashboard panels, pricing sections, logo strips, generic AI hype copy, soft card-heavy layouts.
+  Detection signals: Giant brand/event masthead, small lowercase nav, grid/border rules, venue/date/ticket language, speaker lineup, poster-like scroll pacing, Vibecon-like event structure.
+  Failure modes: Model classifies it as editorial-brand then omits event-specific structure. Culture-event requires lineup/program rows, fixed grid rails, event metadata, and ticket CTA.
+
 experimental:
   Description: Rule-breaking avant-garde design with bold contrast, extreme typography, and unconventional navigation. Visual noise as intentional texture. Used by art institutions, experimental studios, fashion-forward brands, music labels, creative agencies pushing boundaries.
   Section patterns: Non-standard hero (overlapping elements, extreme type scale, unconventional composition), sections that break the container, mixed-direction layouts, interactive or scroll-triggered sections, minimal or hidden navigation. Does NOT typically have: standard grids, conventional hero patterns, pricing tables, structured feature lists, corporate proof sections.
@@ -103,7 +110,7 @@ Your job is to analyze visual references and produce a structured TasteProfile J
 
 ## Rules
 
-1. Identify the primary archetype from: premium-saas, editorial-brand, minimal-tech, creative-portfolio, culture-brand, experimental
+1. Identify the primary archetype from: premium-saas, editorial-brand, minimal-tech, creative-portfolio, culture-brand, culture-event, experimental
 2. Be specific and opinionated — generic output ("modern", "clean", "professional") is a failure
 3. Provide REAL hex color values derived from analyzing the references, not defaults or placeholders
 4. Recommend specific font pairings by name (e.g., "Inter + Newsreader"), never generic families
@@ -129,6 +136,7 @@ premium-saas is ONLY for references that show software products — feature grid
 If references show oversized serif type + full-bleed photography + asymmetric layouts + restrained palettes → editorial-brand, NOT premium-saas.
 If references show product screenshots + feature cards + pricing tables → premium-saas.
 If references show people/lifestyle photography + warm tones + rounded elements → culture-brand.
+If references show Vibecon-like fixed grid rails + huge masthead + event metadata + lineup/tickets → culture-event.
 If references show dark backgrounds + monospace type + terminal aesthetics → minimal-tech.
 If references show artistic photography + unusual grids + portfolio showcases → creative-portfolio.
 If references show overlapping elements + extreme type scale + broken containers → experimental.
@@ -173,6 +181,9 @@ function detectPromptArchetypeHints(prompt: string | undefined): string {
 
   if (/\b(editorial|magazine|publication|fashion|lookbook|spread|vogue|harper)\b/.test(lower)) {
     hints.push("STRONG SIGNAL: The user's prompt mentions editorial/magazine/fashion concepts. This strongly suggests editorial-brand archetype. Do NOT classify as premium-saas.");
+  }
+  if (/\b(vibecon|conference|festival|summit|event|lineup|speaker|talks?|workshops?|tickets?|venue)\b/.test(lower)) {
+    hints.push("STRONG SIGNAL: The user's prompt mentions event/conference/ticket concepts. This strongly suggests culture-event archetype with fixed grid rails, oversized masthead, lineup rows, and ticket CTA.");
   }
   if (/\b(saas|software|product|dashboard|app|platform|pricing)\b/.test(lower)) {
     hints.push("STRONG SIGNAL: The user's prompt mentions SaaS/software/product concepts. This strongly suggests premium-saas archetype.");
@@ -519,6 +530,44 @@ const ARCHETYPE_DEFAULTS: Record<string, {
       accentStrategy: "single-pop",
       saturation: "moderate",
       temperature: "warm",
+    },
+  },
+  "culture-event": {
+    layoutBias: {
+      density: "dense",
+      rhythm: "progressive",
+      heroStyle: "text-dominant",
+      sectionFlow: "editorial-grid",
+      gridBehavior: "strict",
+      whitespaceIntent: "structural",
+    },
+    imageTreatment: {
+      style: "editorial",
+      sizing: "mixed",
+      treatment: "high-contrast",
+      cornerRadius: "none",
+      borders: true,
+      shadow: "none",
+      aspectPreference: "mixed",
+    },
+    typographyTraits: {
+      scale: "dramatic",
+      headingTone: "editorial",
+      bodyTone: "neutral",
+      contrast: "extreme",
+      casePreference: "all-lowercase",
+    },
+    ctaTone: {
+      style: "editorial",
+      shape: "pill",
+      hierarchy: "primary-dominant",
+    },
+    colorBehavior: {
+      mode: "mixed",
+      palette: "neutral-plus-accent",
+      accentStrategy: "single-pop",
+      saturation: "vivid",
+      temperature: "neutral",
     },
   },
   "minimal-tech": {

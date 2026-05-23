@@ -147,9 +147,10 @@ export function MiniRail({
         ? Moon
         : Monitor;
 
-  const projectName = React.useMemo(() => {
-    if (!projectId) return "Project";
-    return getProjectById(projectId)?.name ?? "Project";
+  const [projectName, setProjectName] = React.useState("Project");
+
+  React.useEffect(() => {
+    setProjectName(projectId ? getProjectById(projectId)?.name ?? "Project" : "Project");
   }, [projectId]);
 
   return (

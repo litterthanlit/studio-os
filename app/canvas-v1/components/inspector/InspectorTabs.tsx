@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-export type InspectorTabId = "design" | "notes" | "export";
+export type InspectorTabId = "design" | "notes" | "agent" | "export";
 
 type InspectorTabsProps = {
   activeTab: InspectorTabId;
@@ -12,6 +12,7 @@ type InspectorTabsProps = {
 const tabs: Array<{ id: InspectorTabId; label: string }> = [
   { id: "design", label: "Inspector" },
   { id: "notes", label: "Notes" },
+  { id: "agent", label: "Agent" },
   { id: "export", label: "Export" },
 ];
 

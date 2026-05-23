@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { findNodeById, BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
+import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { findDesignNodeById } from "@/lib/canvas/design-node";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { DesignNodeInspector } from "./inspector/DesignNodeInspector";
@@ -38,6 +39,7 @@ import { AIPreviewBar } from "./AIPreviewBar";
 import { InspectorTabs, type InspectorTabId } from "./inspector/InspectorTabs";
 import { BreakpointBadge } from "./inspector/BreakpointBadge";
 import { ExportTab } from "./inspector/ExportTab";
+import { AgentDesignHarnessPanel } from "./AgentDesignHarnessPanel";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
 import type {
@@ -628,7 +630,11 @@ export function InspectorPanelV3({
 }: InspectorPanelV3Props) {
   const { state, dispatch } = useCanvas();
   const { selection, items, prompt } = state;
-  const projectTokens = projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null;
+  const [projectTokens, setProjectTokens] = React.useState<DesignSystemTokens | null>(null);
+
+  React.useEffect(() => {
+    setProjectTokens(projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null);
+  }, [projectId]);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -927,6 +933,8 @@ export function InspectorPanelV3({
             components={state.components}
             selectedNodeId={selection.selectedNodeId}
           />
+        ) : activeTab === "agent" ? (
+          <AgentDesignHarnessPanel projectId={projectId} />
         ) : (
           <InspectorNotesPanel
             selectionTitle={selectionSummary.title}

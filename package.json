@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run build",
     "proof:design-node-taste": "npx tsx scripts/design-node-taste-proof.ts",
+    "proof:agent-design-harness": "npx tsx scripts/agent-design-harness-proof.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "db:push": "supabase db push",
     "generate:marketing-images": "npx tsx scripts/generate-marketing-images.ts",

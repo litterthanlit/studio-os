@@ -3,6 +3,7 @@
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { ImageAnalysis } from "@/lib/canvas/analyze-images";
 import type { TasteProfile } from "@/types/taste-profile";
+import type { AgentDesignHarnessState } from "@/types/agent-design-harness";
 import type {
   CanvasStage,
   ComposeDocument,
@@ -69,6 +70,7 @@ export type ProjectCanvasState = {
   selectedVariantId?: string | null;
   composeDocument?: ComposeDocument | null;
   generatedSite?: StoredGeneratedSite | null;
+  agentHarness?: AgentDesignHarnessState;
 };
 
 export type ProjectState = {

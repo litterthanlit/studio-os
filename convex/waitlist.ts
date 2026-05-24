@@ -4,11 +4,13 @@ import { now } from "./auth";
 
 export const add = mutation({
   args: {
+    serviceSecret: v.string(),
     email: v.string(),
     source: v.optional(v.string()),
     ipHash: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
     const email = args.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("INVALID_EMAIL");
     const existing = await ctx.db
@@ -36,3 +38,8 @@ export const count = query({
     return entries.length;
   },
 });
+
+function assertServiceSecret(value: string) {
+  const expected = process.env.CONVEX_INTERNAL_API_SECRET;
+  if (!expected || value !== expected) throw new Error("FORBIDDEN");
+}

@@ -34,8 +34,13 @@ http.route({
         "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)),
       });
     }
+    const serviceSecret = process.env.CONVEX_INTERNAL_API_SECRET;
+    if (!serviceSecret) {
+      return json({ error: "Waitlist storage is not configured" }, 503);
+    }
     try {
       const result = await ctx.runMutation(api.waitlist.add, {
+        serviceSecret,
         email,
         source: "convex-http",
         ipHash: subjectKey,

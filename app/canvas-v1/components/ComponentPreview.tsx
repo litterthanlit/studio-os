@@ -380,7 +380,7 @@ export function ComponentPreview({ code, tokens, loading }: ComponentPreviewProp
                     ref={iframeRef}
                     srcDoc={iframeHTML}
                     className="w-full h-full border-0"
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox="allow-scripts"
                     title="Site Preview"
                   />
                 )}

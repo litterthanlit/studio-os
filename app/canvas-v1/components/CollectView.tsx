@@ -587,7 +587,7 @@ function CollectVariantCard({
               srcDoc={buildIframeHTML(variant.compiledCode, tokens, previewId)}
               className="absolute inset-0 w-full border-0 pointer-events-none"
               style={{ height: "100%", width: "100%" }}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               title={`Preview: ${variant.name}`}
             />
           </div>

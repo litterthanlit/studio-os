@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run build",
+    "security:regression": "npx tsx scripts/security-regression-check.ts",
     "proof:design-node-taste": "npx tsx scripts/design-node-taste-proof.ts",
     "proof:agent-design-harness": "npx tsx scripts/agent-design-harness-proof.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
@@ -40,7 +41,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.574.0",
     "nanoid": "^5.1.6",
-    "next": "16.1.6",
+    "next": "16.2.6",
     "next-themes": "^0.4.6",
     "openai": "^6.22.0",
     "react": "19.2.3",
@@ -58,9 +59,17 @@
     "@types/react-dom": "^19",
     "agentation": "^3.0.1",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "convex": {
+      "ws": "8.21.0"
+    },
+    "next": {
+      "postcss": "8.5.15"
+    }
   }
 }

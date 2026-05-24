@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { getRouter, GEMINI_FLASH } from "@/lib/ai/model-router";
+import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
 
 type ComposeAction =
   | "rewrite-copy"
@@ -9,6 +10,23 @@ type ComposeAction =
   | "restyle-section"
   | "regenerate-page"
   | "change-style";
+
+type ComposeBody = {
+  action?: unknown;
+  node?: PageNode;
+  prompt?: unknown;
+  tokens?: DesignSystemTokens;
+};
+
+function isComposeAction(value: unknown): value is ComposeAction {
+  return (
+    value === "rewrite-copy" ||
+    value === "regenerate-section" ||
+    value === "restyle-section" ||
+    value === "regenerate-page" ||
+    value === "change-style"
+  );
+}
 
 /** Validate and sanitize an AI-generated restyle object before it touches PageNodeStyle.
  *  Only known numeric/string/enum fields are passed through; unknown or wrong-typed
@@ -126,20 +144,17 @@ async function geminiEdit(
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const {
-      action,
-      node,
-      prompt,
-      tokens,
-    } = body as {
-      action: ComposeAction;
-      node: PageNode;
-      prompt: string;
-      tokens: DesignSystemTokens;
-    };
+    const guarded = await readGuardedJson<ComposeBody>(req, {
+      requireAuth: true,
+      maxBytes: API_LIMITS.aiRequestBytes,
+      rateLimit: { namespace: "canvas-compose", limit: 30, windowMs: 60 * 60 * 1000 },
+    });
+    if (!guarded.ok) return guarded.response;
 
-    if (!action || !node || !tokens) {
+    const { action, node, tokens } = guarded.body;
+    const prompt = typeof guarded.body.prompt === "string" ? guarded.body.prompt : "";
+
+    if (!isComposeAction(action) || !node || !tokens) {
       return NextResponse.json(
         { error: "Action, node, and tokens are required" },
         { status: 400 }

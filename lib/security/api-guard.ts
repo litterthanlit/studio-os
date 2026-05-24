@@ -12,6 +12,19 @@ type GuardOptions = {
   };
 };
 
+type RequestGuardOptions = Omit<GuardOptions, "maxBytes">;
+
+type RequestGuardResult =
+  | {
+      ok: true;
+      userId: string | null;
+      devBypass: boolean;
+    }
+  | {
+      ok: false;
+      response: NextResponse;
+    };
+
 type GuardResult<T> =
   | {
       ok: true;
@@ -37,19 +50,10 @@ export function isConvexAuthConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
 }
 
-export async function readGuardedJson<T>(
+export async function guardRequest(
   req: NextRequest,
-  options: GuardOptions
-): Promise<GuardResult<T>> {
-  const maxBytes = options.maxBytes ?? API_LIMITS.aiRequestBytes;
-  const contentLength = Number(req.headers.get("content-length") ?? 0);
-  if (contentLength > maxBytes) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "Request body too large" }, { status: 413 }),
-    };
-  }
-
+  options: RequestGuardOptions
+): Promise<RequestGuardResult> {
   let userId: string | null = null;
   const devBypass = isDevAuthBypassEnabled();
   if (options.requireAuth && !devBypass) {
@@ -90,6 +94,28 @@ export async function readGuardedJson<T>(
     }
   }
 
+  return { ok: true, userId, devBypass };
+}
+
+export async function readGuardedJson<T>(
+  req: NextRequest,
+  options: GuardOptions
+): Promise<GuardResult<T>> {
+  const maxBytes = options.maxBytes ?? API_LIMITS.aiRequestBytes;
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > maxBytes) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Request body too large" }, { status: 413 }),
+    };
+  }
+
+  const guarded = await guardRequest(req, {
+    requireAuth: options.requireAuth,
+    rateLimit: options.rateLimit,
+  });
+  if (!guarded.ok) return guarded;
+
   let raw = "";
   try {
     raw = await req.text();
@@ -108,7 +134,7 @@ export async function readGuardedJson<T>(
   }
 
   try {
-    return { ok: true, body: JSON.parse(raw) as T, userId, devBypass };
+    return { ok: true, body: JSON.parse(raw) as T, userId: guarded.userId, devBypass: guarded.devBypass };
   } catch {
     return {
       ok: false,

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
-import { consumeServerRouteLimit } from "@/lib/convex/server";
+import { NextRequest, NextResponse } from "next/server";
+import { guardRequest } from "@/lib/security/api-guard";
 
 const ARENA_API = "https://api.are.na/v2";
 
@@ -47,10 +47,16 @@ function extractImageUrl(block: ArenaBlock): string | null {
 }
 
 export async function GET(
-  _request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ channelSlug: string }> }
 ) {
   const { channelSlug } = await params;
+  const guarded = await guardRequest(req, {
+    requireAuth: true,
+    rateLimit: { namespace: "arena-channel", limit: 120, windowMs: 60 * 60 * 1000 },
+  });
+  if (!guarded.ok) return guarded.response;
+
   const token = process.env.ARENA_ACCESS_TOKEN;
   if (!token || token === "your_token_here") {
     return NextResponse.json(
@@ -63,22 +69,6 @@ export async function GET(
     return NextResponse.json(
       { error: "Channel slug is required" },
       { status: 400 }
-    );
-  }
-
-  const limited = await consumeServerRouteLimit({
-    namespace: "arena-channel",
-    subjectKey: `server:arena:${channelSlug}`,
-    limit: 120,
-    windowMs: 60 * 60 * 1000,
-    provider: "arena",
-    route: "arena-channel",
-    costCategory: "standard",
-  });
-  if (!limited.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } }
     );
   }
 

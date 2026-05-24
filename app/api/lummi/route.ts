@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import dns from "dns";
-import { NextResponse } from "next/server";
-import { consumeServerRouteLimit } from "@/lib/convex/server";
+import { NextRequest, NextResponse } from "next/server";
+import { guardRequest } from "@/lib/security/api-guard";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -108,24 +108,15 @@ function extractImages(data: unknown): LummiImage[] {
   return [];
 }
 
-function isNetworkLookupError(error: unknown): boolean {
-  const e = error as {
-    code?: string;
-    cause?: { code?: string; message?: string };
-    message?: string;
-  };
-  return (
-    e?.code === "ENOTFOUND" ||
-    e?.cause?.code === "ENOTFOUND" ||
-    e?.code === "EAI_AGAIN" ||
-    e?.cause?.code === "EAI_AGAIN" ||
-    e?.message?.includes("fetch failed") === true
-  );
-}
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const apiKey = process.env.LUMMI_API_KEY;
   const { searchParams } = new URL(req.url);
+
+  const guarded = await guardRequest(req, {
+    requireAuth: true,
+    rateLimit: { namespace: "lummi", limit: 120, windowMs: 60 * 60 * 1000 },
+  });
+  if (!guarded.ok) return guarded.response;
 
   // Config probe — lets the client decide whether to show the Stock tab
   if (searchParams.get("check") === "true") {
@@ -136,22 +127,6 @@ export async function GET(req: Request) {
     return NextResponse.json(
       { error: "LUMMI_API_KEY is not configured" },
       { status: 401 }
-    );
-  }
-
-  const limited = await consumeServerRouteLimit({
-    namespace: "lummi",
-    subjectKey: `ip:${getClientIp(req)}`,
-    limit: 120,
-    windowMs: 60 * 60 * 1000,
-    provider: "lummi",
-    route: "lummi",
-    costCategory: "standard",
-  });
-  if (!limited.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } }
     );
   }
 
@@ -251,9 +226,4 @@ export async function GET(req: Request) {
     ];
     return NextResponse.json({ images: sampleImages, total: sampleImages.length, degraded: true });
   }
-}
-
-function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || req.headers.get("x-real-ip") || "local";
 }

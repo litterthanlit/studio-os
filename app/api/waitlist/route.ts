@@ -146,7 +146,12 @@ export async function POST(req: NextRequest) {
     if (!convex) {
       return NextResponse.json({ error: "Waitlist storage is not configured" }, { status: 503 });
     }
+    const serviceSecret = process.env.CONVEX_INTERNAL_API_SECRET;
+    if (!serviceSecret) {
+      return NextResponse.json({ error: "Waitlist storage is not configured" }, { status: 503 });
+    }
     const stored = await convex.mutation(api.waitlist.add, {
+      serviceSecret,
       email: normalised,
       source: "next-api",
       ipHash: subjectKey,

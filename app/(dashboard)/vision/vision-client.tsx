@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import type { TagResult, TagTiers } from "@/lib/ai/tagger";
 import { buildEmbeddingText } from "@/lib/ai/embeddings";
 import {
@@ -537,46 +536,8 @@ export function VisionPage() {
     }
   }, [arenaOpen, arenaChannels.length, arenaLoading, loadArenaChannels]);
 
-  // Load references from Supabase; fall back to hardcoded seed data if empty
-  React.useEffect(() => {
-    async function loadFromSupabase() {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("references")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (error || !data || data.length === 0) return;
-
-        const mapped: Reference[] = data.map((row) => ({
-          id: row.id,
-          imageUrl: row.image_url,
-          board: (row.board_id ?? "All") as (typeof BOARDS)[number],
-          tags: {
-            style: row.style ? [row.style] : [],
-            colors: row.colors ?? [],
-            contentType: row.content_type ? [row.content_type] : [],
-            mood: row.mood ? [row.mood] : [],
-            ai: row.tags ?? [],
-            era: row.era ?? undefined,
-            composition: row.composition ?? undefined,
-            typography: row.typography ?? undefined,
-            tiers: row.tag_tiers ?? undefined,
-          },
-          createdAt: new Date(row.created_at),
-          notes: row.title ?? undefined,
-          source: row.source as Reference["source"],
-          curationStatus: (row.curation_status as CurationStatus) ?? null,
-        }));
-
-        setReferences(mapped);
-      } catch {
-        // Supabase not configured — keep using hardcoded seed data
-      }
-    }
-    loadFromSupabase();
-  }, []);
+  // Convex-backed personal references load through authenticated functions.
+  // Seed references remain available when auth is not configured.
 
   async function importArenaChannel(slug: string) {
     setArenaImporting(slug);

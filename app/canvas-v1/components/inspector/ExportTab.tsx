@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { nanoid } from "nanoid";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { InspectorSegmented } from "./InspectorSegmented";
 import { designNodeToHTML } from "@/lib/canvas/design-node-to-html";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
@@ -42,6 +45,7 @@ export function ExportTab({
   const [publishNeedsSignIn, setPublishNeedsSignIn] = React.useState(false);
   const [publishUrl, setPublishUrl] = React.useState<string | null>(null);
   const [linkCopied, setLinkCopied] = React.useState(false);
+  const publishExport = useMutation(api.publicContent.publishExport);
 
   const desktopArtboard = React.useMemo(
     () => artboards.find((a) => a.breakpoint === "desktop") ?? null,
@@ -138,35 +142,22 @@ export function ExportTab({
     setPublishError(null);
     setPublishNeedsSignIn(false);
     try {
-      const res = await fetch("/api/export/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ html: htmlString }),
+      const publicId = nanoid(12);
+      await publishExport({
+        publicId,
+        html: htmlString,
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        publishUrl?: string;
-      };
-      if (!res.ok) {
-        if (res.status === 401) {
-          setPublishNeedsSignIn(true);
-          return;
-        }
-        setPublishError(
-          typeof data.error === "string" ? data.error : "Publish failed"
-        );
-        return;
+      setPublishUrl(`${window.location.origin}/published/${publicId}`);
+    } catch (error) {
+      if (String(error).includes("UNAUTHENTICATED")) {
+        setPublishNeedsSignIn(true);
+      } else {
+        setPublishError("Publish failed.");
       }
-      if (data.publishUrl) {
-        setPublishUrl(data.publishUrl);
-      }
-    } catch {
-      setPublishError("Network error — try again.");
     } finally {
       setPublishLoading(false);
     }
-  }, [htmlString]);
+  }, [htmlString, publishExport]);
 
   const handleCopyPublishUrl = React.useCallback(async () => {
     if (!publishUrl) return;

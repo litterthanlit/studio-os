@@ -14,7 +14,7 @@ Benchmark proven: Raw 5/10, Harnessed 9/10, **Delta +4**.
 npm run dev                        # Dev server on port 3000
 npm run build                      # Production build (TS errors ignored via next.config.ts)
 npm run lint                       # ESLint 9 flat config
-npm run db:push                    # Push Supabase migrations
+npx convex dev                     # Run Convex backend in development
 npm run generate:marketing-images  # Fetch + crop Lummi images into public/marketing/
 npm run benchmark                  # Full benchmark: taste extraction + raw vs harnessed + scoring
 npm run benchmark:preflight        # Phase 1 only: taste extraction (no dev server needed)
@@ -27,11 +27,13 @@ No automated test suite. Manual browser testing is the primary verification meth
 Create `.env.local` with at minimum:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=your-project-ref
-NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder
+NEXT_PUBLIC_CONVEX_URL=
+CONVEX_DEPLOYMENT=
+CONVEX_INTERNAL_API_SECRET=
+PROVIDER_TOKEN_ENCRYPTION_KEY=
 ```
 
-If `NEXT_PUBLIC_SUPABASE_URL` contains `your-project-ref`, middleware bypasses auth — no real Supabase needed for UI work.
+Convex auth/provider configuration is deployment-specific. Local UI work can use `STUDIO_OS_DEV_AUTH_BYPASS=true`; protected Convex functions still require a real identity.
 
 External features degrade gracefully: `OPENROUTER_API_KEY` (AI generation), `OPENAI_API_KEY` (embeddings), `LUMMI_API_KEY` (stock photos), `RESEND_API_KEY` (waitlist emails).
 
@@ -45,7 +47,7 @@ app/
 ├── (canvas-view)/     # Fullscreen canvas — no sidebar
 ├── (marketing)/       # Public marketing site
 ├── api/               # Route handlers
-├── auth/              # Supabase auth callbacks
+├── auth/              # Auth entrypoints
 ├── onboarding/        # New user onboarding
 ├── share/             # Public share pages
 └── published/         # Published export pages
@@ -53,7 +55,7 @@ app/
 
 ### Data Layer
 
-All project data lives in **localStorage** under `studio-os:*` keys via `lib/project-store.ts`. No server round-trips for core features. Supabase is used only for authentication, taste embeddings, and published exports.
+Project data is migrating to **Convex**. `localStorage` under `studio-os:*` remains a cache/draft fallback through `lib/project-store.ts`; backend data, public shares, published export metadata, admin inspiration data, provider usage, and rate limits live in Convex.
 
 ### Canvas Data Model
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { api } from "@/convex/_generated/api";
+import { convexQuery } from "@/lib/convex/server";
 
 const ID_RE = /^[a-zA-Z0-9_-]{8,24}$/;
 
@@ -17,23 +18,12 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) {
+  const data = await convexQuery<{ html: string }>(api.publicContent.getPublishedExport, {
+    publicId: id,
+  });
+
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return new NextResponse("Publish not configured", { status: 503 });
-  }
-
-  const supabase = createClient(url, anon);
-  const { data, error } = await supabase
-    .from("published_exports")
-    .select("html")
-    .eq("id", id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[published] select:", error);
-    return new NextResponse("Not found", { status: 404 });
   }
   if (!data?.html) {
     return new NextResponse("Not found", { status: 404 });

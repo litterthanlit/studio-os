@@ -1,4 +1,3 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PREFIXES = ["/auth", "/onboarding", "/share", "/published"];
@@ -14,61 +13,19 @@ function isApi(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (isPublic(pathname) || isApi(pathname)) return NextResponse.next({ request });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (
-    !supabaseUrl ||
-    !supabaseKey ||
-    supabaseUrl.includes("your-project-ref")
-  ) {
-    return NextResponse.next({ request });
-  }
-
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (isPublic(pathname)) {
-    if (user && pathname.startsWith("/auth/login")) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/home";
-      return NextResponse.redirect(url);
-    }
-    return response;
-  }
-
-  if (isApi(pathname)) {
-    return response;
-  }
-
-  if (!user) {
+  // Real access control is enforced in Convex functions. Until a Convex auth
+  // provider is configured, production middleware must not pretend to validate
+  // user identity from client-controlled data.
+  if (process.env.NODE_ENV === "production" && process.env.STUDIO_OS_REQUIRE_AUTH === "true") {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  return response;
+  return NextResponse.next({ request });
 }
 
 export const config = {

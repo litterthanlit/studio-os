@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import dns from "dns";
 import { NextResponse } from "next/server";
+import { consumeServerRouteLimit } from "@/lib/convex/server";
 
 dns.setDefaultResultOrder("ipv4first");
 
@@ -138,6 +139,22 @@ export async function GET(req: Request) {
     );
   }
 
+  const limited = await consumeServerRouteLimit({
+    namespace: "lummi",
+    subjectKey: `ip:${getClientIp(req)}`,
+    limit: 120,
+    windowMs: 60 * 60 * 1000,
+    provider: "lummi",
+    route: "lummi",
+    costCategory: "standard",
+  });
+  if (!limited.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } }
+    );
+  }
+
   const query = searchParams.get("query") ?? "";
   const collection = searchParams.get("collection") ?? "";
   const limit = Math.min(Number(searchParams.get("limit") ?? "12"), 50);
@@ -234,4 +251,9 @@ export async function GET(req: Request) {
     ];
     return NextResponse.json({ images: sampleImages, total: sampleImages.length, degraded: true });
   }
+}
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || req.headers.get("x-real-ip") || "local";
 }

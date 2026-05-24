@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
 import { cn, safeRedirectPath } from "@/lib/utils";
 
 type State = "idle" | "loading" | "sent" | "error";
@@ -22,15 +21,8 @@ function GoogleButton({ next }: { next: string }) {
 
   async function handleGoogle() {
     if (state === "loading") return;
-    setState("loading");
-    const supabase = createClient();
-    const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: callbackUrl },
-    });
-    if (error) setState("error");
-    // On success, browser redirects to Google — no need to reset state
+    void next;
+    setState("error");
   }
 
   return (
@@ -80,20 +72,9 @@ function LoginContent() {
     setState("loading");
     setErrorMsg("");
 
-    const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: callbackUrl },
-    });
-
-    if (error) {
-      setState("error");
-      setErrorMsg(error.message);
-      return;
-    }
-    setState("sent");
+    void next;
+    setState("error");
+    setErrorMsg("Convex auth provider is not configured for this deployment yet.");
   }
 
   return (

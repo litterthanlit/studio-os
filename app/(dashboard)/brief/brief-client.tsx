@@ -16,7 +16,6 @@ import {
   getStoredProjects,
   type StoredProject,
 } from "@/components/new-project-modal";
-import { createClient } from "@/lib/supabase/client";
 
 // ─── Ideas types & storage ────────────────────────────────────────────────────
 
@@ -422,18 +421,7 @@ export function BriefPage() {
   }, [todayDate]);
 
   React.useEffect(() => {
-    async function fetchRefs() {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("references")
-          .select("id, image_url")
-          .order("created_at", { ascending: false })
-          .limit(5);
-        setRecentRefs(data ?? []);
-      } catch { /* ignore */ }
-    }
-    fetchRefs();
+    setRecentRefs([]);
   }, []);
 
   const handleTodayReminders = React.useCallback((ideas: Idea[]) => {

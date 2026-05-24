@@ -16,11 +16,14 @@ npm run dev                  # http://localhost:3000
 
 Minimum `.env.local`:
 ```
-NEXT_PUBLIC_SUPABASE_URL=your-project-ref
-NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder
+NEXT_PUBLIC_CONVEX_URL=
+CONVEX_DEPLOYMENT=
+CONVEX_INTERNAL_API_SECRET=
+CONVEX_ADMIN_EMAILS=
+PROVIDER_TOKEN_ENCRYPTION_KEY=
 ```
 
-With `your-project-ref` as the URL, auth is bypassed and the app runs on local data. Optional keys for full features: `OPENROUTER_API_KEY` (AI generation), `LUMMI_API_KEY` (stock photos), `OPENAI_API_KEY` (embeddings).
+Convex is the backend boundary for user data, admin functions, public shares, and durable provider limits. Optional keys for full features: `OPENROUTER_API_KEY` (AI generation), `LUMMI_API_KEY` (stock photos), `OPENAI_API_KEY` (embeddings), `RESEND_API_KEY` (waitlist email).
 
 ## For AI Agents
 
@@ -33,7 +36,7 @@ Read these before writing code:
 - **Framework:** Next.js 16, App Router, TypeScript
 - **Canvas:** Infinite canvas with V6 DesignNode renderer (5 node types, live HTML/CSS)
 - **State:** `useReducer` with 50+ actions, snapshot undo/redo
-- **Storage:** localStorage-first, Supabase for auth + published exports
+- **Storage:** Convex for backend data and durable limits; localStorage is only a local cache/draft fallback
 - **AI:** Multi-model via OpenRouter (Claude Sonnet 4.6, Gemini Flash)
 - **Taste Engine:** Reference extraction → directive compilation → constrained generation → feedback loop
 

@@ -1,7 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
+import { api } from "@/convex/_generated/api";
+import { convexQuery } from "@/lib/convex/server";
 
 type ShareSnapshot = {
   id: string;
@@ -27,16 +28,9 @@ type ShareData = {
 
 async function getShare(id: string): Promise<ShareData | null> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("shares")
-      .select("share_id, project_name, snapshot, created_at")
-      .eq("share_id", id)
-      .eq("is_active", true)
-      .single();
-
-    if (error || !data) return null;
-    return data as ShareData;
+    return await convexQuery<ShareData>(api.publicContent.getShareLink, {
+      shareId: id,
+    });
   } catch {
     return null;
   }

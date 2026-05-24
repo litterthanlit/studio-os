@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CloseIcon as X } from "@/components/ui/icon";
 import { AnimatePresence, motion } from "framer-motion";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { ColorPicker } from "@/components/color-picker";
 import {
   getProjects,
@@ -148,6 +149,7 @@ function NewProjectModalInner({
   const [color, setColor] = React.useState<string>(ACCENT_COLORS[0]);
   const nameRef = React.useRef<HTMLInputElement>(null);
   const modalRef = React.useRef<HTMLDivElement>(null);
+  const upsertProject = useMutation(api.projects.upsertBySlug);
 
   React.useEffect(() => {
     nameRef.current?.focus();
@@ -204,8 +206,7 @@ function NewProjectModalInner({
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Write to localStorage cache immediately (enables instant navigation
-    //    to the project room before Supabase responds)
+    // 1. Write to localStorage cache immediately.
     saveProject(project);
     window.dispatchEvent(new Event("projects-updated"));
 
@@ -213,22 +214,14 @@ function NewProjectModalInner({
     onClose();
     router.push(`/projects/${id}`);
 
-    // 2. Persist to Supabase in the background
+    // 2. Persist to Convex in the background
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const { error } = await supabase.from("projects").insert({
-          user_id: user.id,
-          name: project.name,
-          slug: id,
-          brief: project.brief || null,
-          color: project.color,
-        });
-        if (error) throw error;
-      }
+      await upsertProject({
+        slug: id,
+        name: project.name,
+        brief: project.brief || undefined,
+        color: project.color,
+      });
     } catch {
       onSyncError("Couldn't sync to cloud — saved locally");
     }

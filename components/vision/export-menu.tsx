@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { nanoid } from "nanoid";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
 import type { CollageLayout } from "@/lib/export/collage-export";
 
@@ -44,6 +47,7 @@ export function ExportMenu({
   const [shareUrl, setShareUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const createShareLink = useMutation(api.publicContent.createShareLink);
 
   // Close on outside click
   React.useEffect(() => {
@@ -99,25 +103,13 @@ export function ExportMenu({
     setStep("share-loading");
     onToast?.("Creating share link…", "loading");
     try {
-      const res = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ references: exportable, projectName }),
+      const shareId = nanoid(10);
+      await createShareLink({
+        shareId,
+        snapshot: exportable,
+        projectName,
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        // Not configured yet
-        if (res.status === 503 || res.status === 401) {
-          onToast?.("Share links require Supabase + the shares migration", "error");
-          setStep("idle");
-          return;
-        }
-        throw new Error(data.error ?? "Failed to create share");
-      }
-
-      const data = await res.json();
-      setShareUrl(data.shareUrl);
+      setShareUrl(`${window.location.origin}/share/${shareId}`);
       setStep("share-done");
       onToast?.("Share link ready ✓");
     } catch (e) {

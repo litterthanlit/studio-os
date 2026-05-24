@@ -6,6 +6,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Preloader } from "@/components/preloader";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { StudioConvexProvider } from "./convex-provider";
 
 export const metadata: Metadata = {
   title: {
@@ -82,12 +83,14 @@ export default function RootLayout({
         />
       </head>
       <body className={`${GeistSans.className} h-full`} suppressHydrationWarning>
-        <ThemeProvider>
-          <Preloader>
-            <div className="h-full">{children}</div>
-          </Preloader>
-          <SpeedInsights />
-        </ThemeProvider>
+        <StudioConvexProvider>
+          <ThemeProvider>
+            <Preloader>
+              <div className="h-full">{children}</div>
+            </Preloader>
+            <SpeedInsights />
+          </ThemeProvider>
+        </StudioConvexProvider>
       </body>
     </html>
   );

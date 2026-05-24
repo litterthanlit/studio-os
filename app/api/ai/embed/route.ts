@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { generateEmbedding, buildEmbeddingText } from "@/lib/ai/embeddings";
-import { createClient } from "@/lib/supabase/server";
 import { API_LIMITS, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 
 type EmbedSingleBody = {
@@ -29,26 +28,14 @@ async function embedAndStore(
     return { referenceId, ok: false, reason: "embedding_empty" };
   }
 
-  // Skip seed/local IDs — they don't exist in Supabase
+  // Skip seed/local IDs — they do not exist in backend storage.
   const isLocalId =
     referenceId.startsWith("local-") || referenceId.startsWith("ref-");
   if (isLocalId) {
     return { referenceId, ok: true, reason: "local_id_skipped" };
   }
 
-  try {
-    const supabase = await createClient();
-    const { error } = await supabase
-      .from("references")
-      .update({ embedding: embedding as unknown as string })
-      .eq("id", referenceId);
-
-    if (error) throw error;
-    return { referenceId, ok: true };
-  } catch (err) {
-    console.error("[embed] Supabase update failed:", err);
-    return { referenceId, ok: false, reason: "supabase_error" };
-  }
+  return { referenceId, ok: true, reason: "convex_embedding_store_pending" };
 }
 
 export async function POST(req: NextRequest) {
@@ -69,34 +56,13 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const supabase = await createClient();
-      const { data, error } = await supabase
-        .from("references")
-        .select("id, title, tags, mood, style, content_type, board_id")
-        .in("id", referenceIds);
-
-      if (error || !data) {
-        return NextResponse.json(
-          { error: "Failed to fetch references" },
-          { status: 500 }
-        );
-      }
-
-      const results = await Promise.all(
-        data.map((row) => {
-          const text = buildEmbeddingText({
-            title: row.title,
-            tags: row.tags,
-            mood: row.mood,
-            style: row.style,
-            contentType: row.content_type,
-            board: row.board_id,
-          });
-          return embedAndStore(row.id, text);
-        })
-      );
-
-      return NextResponse.json({ results });
+      return NextResponse.json({
+        results: referenceIds.map((referenceId) => ({
+          referenceId,
+          ok: false,
+          reason: "convex_batch_embedding_requires_authenticated_reference_query",
+        })),
+      });
     } catch (err) {
       warnSafe("[embed] batch error", {
         message: err instanceof Error ? err.message : String(err),

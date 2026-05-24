@@ -4,8 +4,9 @@ import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/project-store";
 import {
   TEMPLATES,
@@ -126,14 +127,8 @@ function StepWelcome({
     setSending(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      });
-      if (authError) throw authError;
+      // Convex auth provider wiring is deployment-specific; onboarding can continue locally.
       setSent(true);
-      // Proceed to next step after a brief delay
       setTimeout(() => onNext(true), 1600);
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err
@@ -996,6 +991,9 @@ function StepReady({
 
 export function OnboardingClient() {
   const router = useRouter();
+  const currentUser = useQuery(api.users.current, {});
+  const setOnboardingComplete = useMutation(api.users.setOnboardingComplete);
+  const upsertProject = useMutation(api.projects.upsertBySlug);
   const [ready, setReady] = React.useState(false);
   const [step, setStep] = React.useState(1);
   const [direction, setDirection] = React.useState(1);
@@ -1027,26 +1025,15 @@ export function OnboardingClient() {
         }
       } catch { /* ignore */ }
 
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("onboarding_complete")
-            .eq("id", user.id)
-            .single();
-          if (profile?.onboarding_complete) {
-            router.replace("/home");
-            return;
-          }
-        }
-      } catch { /* Supabase not configured */ }
+      if (currentUser?.onboardingComplete) {
+        router.replace("/home");
+        return;
+      }
 
       setReady(true);
     }
     check();
-  }, [router]);
+  }, [router, currentUser?.onboardingComplete]);
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
@@ -1121,27 +1108,19 @@ export function OnboardingClient() {
       router.push("/home");
     }
 
-    // 3. Background Supabase sync
+    // 3. Background Convex sync
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("profiles")
-          .update({ onboarding_complete: true })
-          .eq("id", user.id);
+      await setOnboardingComplete({ complete: true });
 
-        if (tpl) {
-          await supabase.from("projects").upsert({
-            user_id: user.id,
-            name: projectName,
-            slug: projectId,
-            brief: tpl.description,
-            color: projectColor,
-          });
-        }
+      if (tpl) {
+        await upsertProject({
+          slug: projectId,
+          name: projectName,
+          brief: tpl.description,
+          color: projectColor,
+        });
       }
-    } catch { /* Supabase not configured */ }
+    } catch { /* Convex auth not configured */ }
   }
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────

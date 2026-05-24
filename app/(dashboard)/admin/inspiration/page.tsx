@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface ScoredImage {
   id: string;
@@ -49,39 +51,25 @@ export default function AdminInspirationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [pinterestScoring, setPinterestScoring] = useState(false);
   const [pinterestResult, setPinterestResult] = useState<string | null>(null);
+  const queriedImages = useQuery(api.inspirationAdmin.list, { filter, minScore, limit: 100 });
+  const updateStatusMutation = useMutation(api.inspirationAdmin.updateStatus);
+  const batchScoreLummi = useAction(api.inspirationAdminActions.batchScoreLummi);
+  const listPinterestBoards = useAction(api.inspirationAdminActions.listPinterestBoards);
+  const importPinterestBoard = useAction(api.inspirationAdminActions.importPinterestBoard);
+  const scorePinterest = useAction(api.inspirationAdminActions.scorePinterest);
 
   useEffect(() => {
-    fetchImages();
-  }, [filter, minScore]);
-
-  async function fetchImages() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/inspiration/admin/list?filter=${filter}&minScore=${minScore}`);
-      const data = await res.json();
-      setImages(data.images || []);
-    } catch (error) {
-      console.error("[admin/inspiration] Fetch error:", error);
-    } finally {
+    if (queriedImages) {
+      setImages(queriedImages);
       setLoading(false);
     }
-  }
+  }, [queriedImages]);
 
   async function runBatchScore() {
     setBatchScoring(true);
     try {
-      const res = await fetch("/api/inspiration/admin/batch-score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: "lummi", useLummi: true, limit: 6 }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(`Error ${res.status}: ${data.error || "Unknown error"}`);
-      } else {
-        alert(`Scored ${data.scored}/${data.total} images · ${data.approved} approved (75+)`);
-      }
-      fetchImages();
+      const data = await batchScoreLummi({ useLummi: true, limit: 6 });
+      alert(`Scored ${data.scored}/${data.total} images · ${data.approved} approved (75+)`);
     } catch (error) {
       alert(`Batch scoring failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
@@ -93,14 +81,9 @@ export default function AdminInspirationPage() {
     setBoardsLoading(true);
     setBoardResult(null);
     try {
-      const res = await fetch("/api/inspiration/admin/list-boards");
-      const data = await res.json();
-      if (!res.ok) {
-        setBoardResult(`Error: ${data.error}`);
-      } else {
-        setBoards(data.boards || []);
-        if (data.boards?.length > 0) setSelectedBoardId(data.boards[0].id);
-      }
+      const data = await listPinterestBoards({});
+      setBoards(data.boards || []);
+      if (data.boards?.length > 0) setSelectedBoardId(data.boards[0].id);
     } catch (err) {
       setBoardResult(`Failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
@@ -114,19 +97,11 @@ export default function AdminInspirationPage() {
     setBoardResult(null);
     const board = boards.find((b) => b.id === selectedBoardId);
     try {
-      const res = await fetch("/api/inspiration/admin/import-pinterest-board", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ boardId: selectedBoardId, boardName: board?.name, limit: 5 }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setBoardResult(`Error: ${data.error}`);
-      } else if (data.scored === 0) {
+      const data = await importPinterestBoard({ boardId: selectedBoardId, boardName: board?.name, limit: 5 });
+      if (data.scored === 0) {
         setBoardResult(data.message || "No new pins scored");
       } else {
         setBoardResult(`✓ Scored ${data.scored} pins · ${data.approved} approved and added to Daily Inspiration`);
-        fetchImages();
       }
     } catch (err) {
       setBoardResult(`Failed: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -142,22 +117,13 @@ export default function AdminInspirationPage() {
     setPinterestResult(null);
 
     try {
-      const res = await fetch("/api/inspiration/admin/score-pinterest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery.trim(), limit: 5 }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setPinterestResult(`Error: ${data.error}`);
-      } else if (data.scored === 0) {
+      const data = await scorePinterest({ query: searchQuery.trim(), limit: 5 });
+      if (data.scored === 0) {
         setPinterestResult(data.message || "No new pins scored");
       } else {
         setPinterestResult(
           `✓ Scored ${data.scored} pins · ${data.approved} approved and added to Daily Inspiration`
         );
-        fetchImages();
       }
     } catch (error) {
       setPinterestResult(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -168,12 +134,7 @@ export default function AdminInspirationPage() {
 
   async function updateStatus(imageId: string, status: ScoredImage["curationStatus"]) {
     try {
-      const res = await fetch("/api/inspiration/admin/update-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageId, status }),
-      });
-      if (res.ok) fetchImages();
+      await updateStatusMutation({ imageId: imageId as never, status });
     } catch (error) {
       console.error("[admin/inspiration] Update error:", error);
     }

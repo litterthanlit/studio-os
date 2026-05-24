@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
+import { consumeServerRouteLimit } from "@/lib/convex/server";
 
 const ARENA_API = "https://api.are.na/v2";
 
@@ -62,6 +63,22 @@ export async function GET(
     return NextResponse.json(
       { error: "Channel slug is required" },
       { status: 400 }
+    );
+  }
+
+  const limited = await consumeServerRouteLimit({
+    namespace: "arena-channel",
+    subjectKey: `server:arena:${channelSlug}`,
+    limit: 120,
+    windowMs: 60 * 60 * 1000,
+    provider: "arena",
+    route: "arena-channel",
+    costCategory: "standard",
+  });
+  if (!limited.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } }
     );
   }
 

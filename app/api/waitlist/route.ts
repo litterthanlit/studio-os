@@ -1,31 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import { Resend } from "resend";
-
-// ─── Storage ────────────────────────────────────────────────────────────────
-// Use /tmp — the only writable directory on Vercel serverless functions.
-// This is ephemeral (resets on cold start) but acts as a fast dedup cache.
-// Resend audience is the real source of truth.
-const DATA_FILE = path.join("/tmp", "waitlist.json");
-
-async function readEntries(): Promise<string[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-async function writeEntries(entries: string[]): Promise<void> {
-  try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(entries, null, 2));
-  } catch {
-    // Non-fatal — Resend audience is the source of truth
-  }
-}
+import { api } from "@/convex/_generated/api";
+import { consumeServerRouteLimit, getConvexClient } from "@/lib/convex/server";
 
 // ─── Resend ──────────────────────────────────────────────────────────────────
 function getResend() {
@@ -148,22 +125,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
-    const entries = await readEntries();
-
-    if (entries.includes(normalised)) {
-      return NextResponse.json({ ok: true, alreadyRegistered: true });
+    const subjectKey = `ip:${getClientIp(req)}`;
+    const limited = await consumeServerRouteLimit({
+      namespace: "waitlist",
+      subjectKey,
+      limit: 10,
+      windowMs: 60 * 60 * 1000,
+      provider: "resend",
+      route: "waitlist",
+      costCategory: "free",
+    });
+    if (!limited.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } }
+      );
     }
 
-    // Save locally first
-    await writeEntries([...entries, normalised]);
+    const convex = getConvexClient();
+    if (!convex) {
+      return NextResponse.json({ error: "Waitlist storage is not configured" }, { status: 503 });
+    }
+    const stored = await convex.mutation(api.waitlist.add, {
+      email: normalised,
+      source: "next-api",
+      ipHash: subjectKey,
+    });
 
-    // Add to Resend audience + send confirmation (non-blocking)
-    await Promise.allSettled([
-      addToAudience(normalised),
-      sendConfirmationEmail(normalised),
-    ]);
+    if (!stored.alreadyRegistered) {
+      await Promise.allSettled([
+        addToAudience(normalised),
+        sendConfirmationEmail(normalised),
+      ]);
+    }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(stored);
   } catch (err) {
     console.error("[waitlist]", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -172,6 +168,13 @@ export async function POST(req: NextRequest) {
 
 // ─── GET /api/waitlist — count only ─────────────────────────────────────────
 export async function GET() {
-  const entries = await readEntries();
-  return NextResponse.json({ count: entries.length });
+  const convex = getConvexClient();
+  if (!convex) return NextResponse.json({ count: 0 });
+  const count = await convex.query(api.waitlist.count, {});
+  return NextResponse.json({ count });
+}
+
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || req.headers.get("x-real-ip") || "local";
 }

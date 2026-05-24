@@ -90,7 +90,7 @@ export default function PrivacyPage() {
               We do not sell, rent, or trade your personal information to third parties. We may share your information in the following limited circumstances:
             </p>
             <ul className="mt-3 space-y-1.5 pl-5 list-disc text-neutral-400">
-              <li><strong className="text-neutral-300">Service providers:</strong> We work with third-party vendors who assist in operating the Service (e.g., cloud hosting via Supabase, AI inference via OpenAI). These providers are contractually bound to keep your data confidential and may only use it to provide services to us.</li>
+              <li><strong className="text-neutral-300">Service providers:</strong> We work with third-party vendors who assist in operating the Service (e.g., backend hosting via Convex, AI inference via OpenAI). These providers are contractually bound to keep your data confidential and may only use it to provide services to us.</li>
               <li><strong className="text-neutral-300">Legal requirements:</strong> We may disclose your information if required to do so by law or in response to valid requests by public authorities.</li>
               <li><strong className="text-neutral-300">Business transfers:</strong> In the event of a merger, acquisition, or sale of assets, your information may be transferred. We will notify you before your data is transferred and becomes subject to a different privacy policy.</li>
               <li><strong className="text-neutral-300">With your consent:</strong> We may share your information with third parties when you have given us explicit consent to do so.</li>

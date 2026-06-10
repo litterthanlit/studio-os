@@ -22,6 +22,7 @@ export const AGENT_CONTEXT_TOOLS = [
   "get_taste_profile",
   "get_reference_intent",
   "get_design_contract",
+  "request_design",
   "get_screen_direction",
   "get_flow_direction",
   "get_design_tokens",
@@ -29,6 +30,7 @@ export const AGENT_CONTEXT_TOOLS = [
   "get_layout_constraints",
   "get_agent_acceptance_criteria",
   "get_visual_review_for_screenshot",
+  "submit_screenshot_for_review",
   "search_studio_os_context",
 ] as const;
 

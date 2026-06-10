@@ -440,7 +440,8 @@ export function buildDesignTreePrompt(
     intentProfile?: IntentProfile | null;
     knobVector?: DesignKnobVector;
     fidelityMode?: FidelityMode;
-    compositionBlueprint?: string;  // NEW: output from buildCompositionBlueprint()
+    compositionBlueprint?: string;
+    compositionContext?: string;
   }
 ): string {
   const tasteProfile = options?.tasteProfile;
@@ -460,6 +461,9 @@ export function buildDesignTreePrompt(
   const knobSection = `\n${serializeDesignKnobsForPrompt(knobVector)}\n`;
   const blueprintSection = options?.compositionBlueprint
     ? `\n${options.compositionBlueprint}\n`
+    : "";
+  const compositionContextSection = options?.compositionContext
+    ? `\n## Reference Composition Context\n${options.compositionContext}\n`
     : "";
   const archetypeGrammar = getDesignArchetypeGrammar(tasteProfile?.archetypeMatch);
 
@@ -491,7 +495,7 @@ Frames are the building blocks. The page is a root frame whose children are sect
 Site name: ${siteName}
 ${archetypeGrammar}${banSection}
 
-${tasteSection}${intentSection}${knobSection}${blueprintSection}${accentMapping4A}
+${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionContextSection}${accentMapping4A}
 ## DesignNode Schema
 
 \`\`\`

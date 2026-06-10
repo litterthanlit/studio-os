@@ -811,6 +811,7 @@ export function PromptComposerV2({
               referenceWeights,
               existingTokens: tokens,
               prompt: prompt.value?.trim() || undefined,
+              compositionContext: compositionContext || undefined,
             }),
           });
           if (tasteRes.ok) {

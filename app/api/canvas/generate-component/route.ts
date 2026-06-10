@@ -52,6 +52,7 @@ import {
   type DesignNodeTasteScore,
 } from "@/lib/canvas/design-node-taste-scorer";
 import { API_LIMITS, capStringArray, logSafe, readGuardedJson } from "@/lib/security/api-guard";
+import { runVisualRefineLoop } from "@/lib/canvas/visual-refine-loop";
 
 // ─── Truncated JSON Recovery ────────────────────────────────────────────────
 
@@ -125,6 +126,9 @@ type V6GenerationDebug = {
   baseFinishReason?: string | null;
   validationScore?: number;
   tasteScore?: number;
+  visualRefineAttempted?: boolean;
+  visualRefineApplied?: boolean;
+  visualScore?: number;
   retryAttempted: boolean;
   retryFinishReason?: string | null;
   fallbackUsed: boolean;
@@ -392,6 +396,7 @@ export async function POST(req: NextRequest) {
         weight: "primary" | "default" | "muted";
         referenceIndex: number;
       }>;
+      compositionContext?: string;
     }>(req, {
       requireAuth: true,
       maxBytes: API_LIMITS.aiRequestBytes,
@@ -416,9 +421,14 @@ export async function POST(req: NextRequest) {
       useDesignNode,
       strictV6,
       compositionData,
+      compositionContext,
     } = body;
 
     const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
+    const cappedCompositionContext =
+      typeof compositionContext === "string" && compositionContext.trim().length > 0
+        ? compositionContext.trim().slice(0, 8000)
+        : undefined;
     const cappedCompositionData = Array.isArray(compositionData)
       ? compositionData.slice(0, API_LIMITS.maxReferenceUrls)
       : undefined;
@@ -542,7 +552,13 @@ export async function POST(req: NextRequest) {
           knobVector,
           fidelityMode: resolvedFidelityMode,
           compositionBlueprint,
+          compositionContext: cappedCompositionContext,
         });
+        if (cappedCompositionContext) {
+          logSafe("[COMPOSITION] Context wired into generation prompt", {
+            length: cappedCompositionContext.length,
+          });
+        }
 
         logSafe("[V6-GEN] Prompt built", { promptLength: designPrompt.length });
 
@@ -660,6 +676,49 @@ export async function POST(req: NextRequest) {
           if (v6Debug) {
             v6Debug.validationScore = gate.validation.score;
             v6Debug.tasteScore = gate.score.overall;
+          }
+
+          if (baseTree && tasteProfile && cappedReferenceUrls.length > 0) {
+            if (v6Debug) v6Debug.visualRefineAttempted = true;
+            const visualRefine = await runVisualRefineLoop({
+              tree: baseTree,
+              tasteProfile,
+              referenceUrls: cappedReferenceUrls,
+              designPrompt,
+              referenceImageBlocks,
+              router,
+              retryMaxTokens: v6Budgets.retryMaxTokens,
+              fidelityMode: resolvedFidelityMode,
+              parseDesignNodeResponse,
+            });
+            if (visualRefine.refined) {
+              baseTree = visualRefine.tree;
+              gate = evaluateV6TasteGate({
+                tree: baseTree,
+                tasteProfile: tasteProfile ?? null,
+                intentProfile,
+                knobVector,
+                fidelityMode: resolvedFidelityMode,
+              });
+              baseTasteGate = {
+                ...gate,
+                repaired,
+                attempts,
+                warnings: gate.passed ? [] : gate.validation.violations.map((v) => v.message),
+              };
+              if (v6Debug) {
+                v6Debug.visualRefineApplied = true;
+                v6Debug.tasteScore = gate.score.overall;
+              }
+              logSafe("[V6-GEN] Visual refine applied", {
+                visualScore: visualRefine.visualScore?.overall,
+              });
+            } else if (visualRefine.visualScore && v6Debug) {
+              v6Debug.visualScore = visualRefine.visualScore.overall;
+              logSafe("[V6-GEN] Visual score passed threshold", {
+                visualScore: visualRefine.visualScore.overall,
+              });
+            }
           }
         } catch (err) {
           v6Failure = describeModelFailure(err);

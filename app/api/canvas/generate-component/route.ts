@@ -52,7 +52,11 @@ import {
   type DesignNodeTasteScore,
 } from "@/lib/canvas/design-node-taste-scorer";
 import { API_LIMITS, capStringArray, logSafe, readGuardedJson } from "@/lib/security/api-guard";
-import { runVisualRefineLoop } from "@/lib/canvas/visual-refine-loop";
+import {
+  guardDerivedVariantVisualScore,
+  runVisualRefineLoop,
+  type VisualRefineIteration,
+} from "@/lib/canvas/visual-refine-loop";
 
 // ─── Truncated JSON Recovery ────────────────────────────────────────────────
 
@@ -129,6 +133,12 @@ type V6GenerationDebug = {
   visualRefineAttempted?: boolean;
   visualRefineApplied?: boolean;
   visualScore?: number;
+  visualRefineIterations?: VisualRefineIteration[];
+  variantVisualScores?: Array<{
+    variant: "pushed" | "restructured";
+    score: number | null;
+    rederived?: boolean;
+  }>;
   retryAttempted: boolean;
   retryFinishReason?: string | null;
   fallbackUsed: boolean;
@@ -691,6 +701,9 @@ export async function POST(req: NextRequest) {
               fidelityMode: resolvedFidelityMode,
               parseDesignNodeResponse,
             });
+            if (v6Debug && visualRefine.iterations.length > 0) {
+              v6Debug.visualRefineIterations = visualRefine.iterations;
+            }
             if (visualRefine.refined) {
               baseTree = visualRefine.tree;
               gate = evaluateV6TasteGate({
@@ -709,9 +722,11 @@ export async function POST(req: NextRequest) {
               if (v6Debug) {
                 v6Debug.visualRefineApplied = true;
                 v6Debug.tasteScore = gate.score.overall;
+                v6Debug.visualScore = visualRefine.visualScore?.overall;
               }
               logSafe("[V6-GEN] Visual refine applied", {
                 visualScore: visualRefine.visualScore?.overall,
+                iterations: visualRefine.iterations.length,
               });
             } else if (visualRefine.visualScore && v6Debug) {
               v6Debug.visualScore = visualRefine.visualScore.overall;
@@ -806,6 +821,82 @@ export async function POST(req: NextRequest) {
                   }
                 }
               } catch (e) { console.warn(`[V6-GEN] Restructured variant failed:`, e); }
+            }
+
+            const baseVisualScore = v6Debug?.visualScore ?? null;
+            if (
+              baseVisualScore !== null &&
+              cappedReferenceUrls.length > 0
+            ) {
+              const parseVariantResponse = async (raw: string): Promise<DesignNode | null> => {
+                const jsonMatch = raw.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) return null;
+                let parsed: unknown;
+                try {
+                  parsed = JSON.parse(jsonMatch[0]);
+                } catch {
+                  const rec = tryRecoverTruncatedJSON(raw);
+                  if (!rec) return null;
+                  parsed = JSON.parse(rec);
+                }
+                const validated = validateAndNormalizeDesignTree(parsed);
+                if (!validated.ok) return null;
+                return resolveDesignMediaUrls(validated.tree);
+              };
+
+              const [pushedGuard, restructuredGuard] = await Promise.all([
+                guardDerivedVariantVisualScore({
+                  variant: "pushed",
+                  tree: pushedTree,
+                  baseVisualScore,
+                  referenceUrls: cappedReferenceUrls,
+                  tasteProfile,
+                  rederive: async () => {
+                    const raw = await callModel({
+                      model: SONNET_4_6,
+                      messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree, tasteProfile) }],
+                      maxTokens: v6Budgets.variantMaxTokens,
+                      temperature: 0.4,
+                      jsonMode: true,
+                    });
+                    return parseVariantResponse(raw);
+                  },
+                }),
+                guardDerivedVariantVisualScore({
+                  variant: "restructured",
+                  tree: restructuredTree,
+                  baseVisualScore,
+                  referenceUrls: cappedReferenceUrls,
+                  tasteProfile,
+                  rederive: async () => {
+                    const raw = await callModel({
+                      model: SONNET_4_6,
+                      messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree, tasteProfile) }],
+                      maxTokens: v6Budgets.variantMaxTokens,
+                      temperature: 0.5,
+                      jsonMode: true,
+                    });
+                    return parseVariantResponse(raw);
+                  },
+                }),
+              ]);
+
+              pushedTree = pushedGuard.tree;
+              restructuredTree = restructuredGuard.tree;
+              if (v6Debug) {
+                v6Debug.variantVisualScores = [
+                  {
+                    variant: "pushed",
+                    score: pushedGuard.visualScore,
+                    rederived: pushedGuard.rederived || undefined,
+                  },
+                  {
+                    variant: "restructured",
+                    score: restructuredGuard.visualScore,
+                    rederived: restructuredGuard.rederived || undefined,
+                  },
+                ];
+              }
             }
           }
 

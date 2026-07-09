@@ -35,7 +35,7 @@ import { scoreRealtimeFidelity, type TasteFidelityScore } from "@/lib/canvas/tas
 // ── V6 DesignNode pipeline imports ──
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { buildDesignTreePrompt, buildDesignPushedVariantPrompt, buildDesignRestructuredVariantPrompt } from "@/lib/canvas/design-tree-prompt";
-import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
+import { validateAndNormalizeDesignTree, validateAndNormalizeDesignSectionTree } from "@/lib/canvas/design-tree-validator";
 import { resolveDesignMediaUrls } from "@/lib/canvas/design-media-resolver";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
 import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
@@ -1439,7 +1439,193 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── Single section / full-page generation ────────────────────────────────
+    // ── V6 single-tree path (section regen) ──────────────────────────────────
+    if (useDesignNode) {
+      if (!process.env.OPENROUTER_API_KEY) {
+        return NextResponse.json(
+          { error: "OPENROUTER_API_KEY not configured. Add it to your .env.local file." },
+          { status: 500 }
+        );
+      }
+
+      const resolvedFidelityMode = fidelityMode ?? "balanced";
+      const intentProfile = extractIntentProfile({
+        prompt,
+        siteType,
+        references: cappedReferenceUrls.map((url, index) => ({
+          id: `reference-${index + 1}`,
+          annotation: url,
+        })),
+      });
+      let compositionBlueprint = "";
+      if (cappedCompositionData && cappedCompositionData.length > 0) {
+        compositionBlueprint = buildCompositionBlueprint({
+          compositions: cappedCompositionData,
+          fidelityMode: resolvedFidelityMode,
+        });
+      }
+      const knobVector = deriveDesignKnobs({
+        tasteProfile: tasteProfile ?? null,
+        intentProfile,
+        compositionData: cappedCompositionData,
+        compositionBlueprint,
+        fidelityMode: resolvedFidelityMode,
+      });
+
+      const designPrompt = prompt;
+      const referenceImageBlocks = cappedReferenceUrls
+        .slice(0, 4)
+        .map((url) => imageUrlBlock(url, "low"));
+
+      logSafe("[V6-SECTION] Starting section DesignNode generation", {
+        regenerationIntent,
+        hasTasteProfile: Boolean(tasteProfile),
+        referenceCount: cappedReferenceUrls.length,
+      });
+
+      try {
+        const router = getRouter();
+        const response = await router.chat.completions.create({
+          model: SONNET_4_6,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: designPrompt },
+              ...referenceImageBlocks,
+            ],
+          }],
+          max_tokens: v6Budgets.baseMaxTokens,
+          temperature: regenerationIntent === "different-approach" ? 0.6 : 0.5,
+          response_format: { type: "json_object" },
+        });
+
+        const raw = response.choices[0]?.message?.content ?? "";
+        const finishReason = response.choices[0]?.finish_reason;
+        if (raw.length === 0) throw new Error("Empty response");
+
+        const parsed = parseDesignNodeResponse(raw, finishReason);
+        const validated = validateAndNormalizeDesignSectionTree(parsed);
+        if (!validated.ok) throw new Error(`Validation failed: ${validated.reason}`);
+
+        let sectionTree = await resolveDesignMediaUrls(validated.tree);
+        let tasteGate: V6TasteGate | null = null;
+
+        if (tasteProfile) {
+          let gate = evaluateV6TasteGate({
+            tree: sectionTree,
+            tasteProfile,
+            intentProfile,
+            knobVector,
+            fidelityMode: resolvedFidelityMode,
+          });
+          let repaired = false;
+          let attempts = 1;
+
+          if (!gate.passed && gate.validation.repairable) {
+            const repairedTree = repairDesignNodeTaste(sectionTree, gate.validation, knobVector.color.palette);
+            const repairedGate = evaluateV6TasteGate({
+              tree: repairedTree,
+              tasteProfile,
+              intentProfile,
+              knobVector,
+              fidelityMode: resolvedFidelityMode,
+            });
+            if (repairedGate.score.overall >= gate.score.overall) {
+              sectionTree = repairedTree;
+              gate = repairedGate;
+              repaired = true;
+            }
+          }
+
+          if (!gate.passed) {
+            attempts = 2;
+            const retryPrompt = `${designPrompt}\n\n${buildTasteRetryPrompt(gate.validation)}`;
+            const retryResponse = await router.chat.completions.create({
+              model: SONNET_4_6,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: retryPrompt },
+                  ...referenceImageBlocks,
+                ],
+              }],
+              max_tokens: v6Budgets.retryMaxTokens,
+              temperature: 0.45,
+              response_format: { type: "json_object" },
+            });
+            const retryRaw = retryResponse.choices[0]?.message?.content ?? "";
+            const retryParsed = parseDesignNodeResponse(retryRaw, retryResponse.choices[0]?.finish_reason);
+            const retryValidated = validateAndNormalizeDesignSectionTree(retryParsed);
+            if (retryValidated.ok) {
+              const retryTree = await resolveDesignMediaUrls(retryValidated.tree);
+              const retryGate = evaluateV6TasteGate({
+                tree: retryTree,
+                tasteProfile,
+                intentProfile,
+                knobVector,
+                fidelityMode: resolvedFidelityMode,
+              });
+              if (retryGate.score.overall >= gate.score.overall) {
+                sectionTree = retryTree;
+                gate = retryGate;
+                repaired = false;
+              }
+            }
+          }
+
+          tasteGate = {
+            ...gate,
+            repaired,
+            attempts,
+            warnings: gate.passed ? [] : gate.validation.violations.map((violation) => violation.message),
+          };
+        }
+
+        const sectionLabel = sectionId ? `Regenerated section: ${sectionId}` : "Regenerated section";
+        const variants = [
+          {
+            id: `v6-section-${Date.now()}`,
+            name: sectionLabel,
+            pageTree: sectionTree,
+            pageTreeSource: "ai" as const,
+            description: sectionLabel,
+            previewImage: createVariantPreviewImage("Faithful", tokens),
+            sourcePrompt: prompt,
+            createdAt: new Date().toISOString(),
+            strategy: "safe" as VariantMode,
+            strategyLabel: regenerationIntent === "different-approach" ? "Different" : "Similar",
+            tasteGate,
+            intentProfile,
+            designKnobs: knobVector,
+          },
+        ];
+
+        logSafe("[V6-SECTION] Complete — returning DesignNode section variant");
+        return NextResponse.json({
+          generationResult: "v6",
+          fallbackUsed: false,
+          variants,
+        });
+      } catch (err) {
+        const failure = describeModelFailure(err);
+        console.error("[V6-SECTION] Section generation failed:", failure.message);
+        if (strictV6Mode) {
+          const status = failure.kind === "credit-exhaustion" ? 402 : 502;
+          return NextResponse.json({
+            error: "Strict V6 QA failed: section regeneration produced no valid DesignNode output.",
+            generationResult: failure.kind ?? "v6-failed",
+            fallbackUsed: false,
+            fallbackReason: failure.message,
+          }, { status });
+        }
+        return NextResponse.json(
+          { error: failure.message },
+          { status: failure.kind === "credit-exhaustion" ? 402 : 500 }
+        );
+      }
+    }
+
+    // ── Legacy TSX single section / full-page generation ─────────────────────
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(

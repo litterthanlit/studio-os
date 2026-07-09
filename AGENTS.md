@@ -291,7 +291,9 @@ These are patterns discovered during the project. Do not re-learn them.
 
 ### Current project state (update this section each major session)
 
-**Last updated:** 2026-04-09 (Harness UX 5 features shipped; canvas-level creation tools shipped; Track 10 shipped; effects stack landed)
+**Last updated:** 2026-07-09 (Phase 3 section-regen API fix shipped)
+
+- **Phase 3 (Section-regen API contract):** **SHIPPED**. `mode: "single"` + `useDesignNode: true` now runs V6 section generation (validation, media resolution, taste gate + retry — no visual refine loop) and returns `{ variants: [{ pageTree }] }` for `PromptComposerV2` and `LayersPanelV3`. Added `validateAndNormalizeDesignSectionTree` for single-section frames. Proof: `npm run proof:section-regen`.
 
 - **Track 4 (Direct Nested Selection):** COMPLETE. Framer-like selection cycling: Cmd+Click cycles depth, Cmd+Shift+Click cycles siblings, contextual hover preview, layers auto-expand to deep selections, keyboard shortcuts (Cmd+arrows, Shift+Escape), context menu selection nav. 9 commits, +1,277 lines.
 - **V5 Alpha (harness engine):** Shipped. Benchmark delta +4.

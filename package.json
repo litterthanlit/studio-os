@@ -14,6 +14,7 @@
     "proof:agent-design-harness": "npx tsx scripts/agent-design-harness-proof.ts",
     "proof:visual-loop-mcp": "npx tsx scripts/visual-loop-mcp-proof.ts",
     "proof:visual-loop-v2": "npx tsx scripts/visual-loop-v2-proof.ts",
+    "proof:section-regen": "npx tsx scripts/section-regen-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

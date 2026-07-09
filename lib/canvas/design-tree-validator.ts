@@ -454,6 +454,46 @@ export function validateAndNormalizeDesignTree(
   return { ok: true, tree: normalized as DesignNode };
 }
 
+/**
+ * Normalize a single section frame for section-level regeneration.
+ * Accepts either a wrapped page root or a lone section frame.
+ */
+export function validateAndNormalizeDesignSectionTree(
+  raw: unknown
+): { ok: true; tree: DesignNode } | { ok: false; reason: string } {
+  const fullPage = validateAndNormalizeDesignTree(raw);
+  if (fullPage.ok) {
+    const tree = fullPage.tree;
+    if (tree.children?.length === 1 && tree.children[0]?.type === "frame") {
+      return { ok: true, tree: tree.children[0] };
+    }
+    return fullPage;
+  }
+
+  if (!raw || typeof raw !== "object" || (raw as Record<string, unknown>).type !== "frame") {
+    return fullPage;
+  }
+
+  const wrapped = {
+    type: "frame",
+    id: "section-wrapper-root",
+    name: "Root",
+    style: { display: "flex", flexDirection: "column", width: 1280 },
+    children: [raw],
+  };
+  const wrappedResult = validateAndNormalizeDesignTree(wrapped);
+  if (!wrappedResult.ok) {
+    return wrappedResult;
+  }
+
+  const section = wrappedResult.tree.children?.[0];
+  if (!section || section.type !== "frame") {
+    return { ok: false, reason: "section normalization failed" };
+  }
+
+  return { ok: true, tree: section };
+}
+
 export function sanitizeUserStyle(style: Partial<DesignNodeStyle>): Partial<DesignNodeStyle> {
   const sanitized = { ...style };
   for (const [key, value] of Object.entries(sanitized)) {

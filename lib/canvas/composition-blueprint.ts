@@ -1,15 +1,21 @@
 import type { CompositionAnalysis } from "@/types/composition-analysis";
+import type { TasteProfile } from "@/types/taste-profile";
 
 type FidelityMode = "close" | "balanced" | "push";
 
+export type CompositionInput = {
+  analysis: CompositionAnalysis;
+  weight: "primary" | "default" | "muted";
+  referenceIndex: number;
+};
+
 type BlueprintInput = {
-  compositions: Array<{
-    analysis: CompositionAnalysis;
-    weight: "primary" | "default" | "muted";
-    referenceIndex: number;
-  }>;
+  compositions: CompositionInput[];
   fidelityMode: FidelityMode;
 };
+
+const MAX_BLUEPRINT_LINES = 40;
+const MAX_SECONDARY_INFLUENCES = 4;
 
 export function buildCompositionBlueprint(input: BlueprintInput): string {
   const { compositions, fidelityMode } = input;
@@ -80,16 +86,144 @@ export function buildCompositionBlueprint(input: BlueprintInput): string {
   lines.push(`KEY MOVE: ${analysis.keyCompositionalMove}`);
   lines.push("");
   lines.push(`FIDELITY: ${fidelityMode} — ${fidelityLabel}`);
+
+  const secondaries = getSecondaryCompositions(compositions, primary);
+  if (secondaries.length > 0) {
+    lines.push("");
+    lines.push("### SECONDARY INFLUENCES");
+    lines.push("Structure comes from the primary reference above. Borrow texture, mood, and rhythm from these:");
+    for (const secondary of secondaries) {
+      appendSecondaryReferenceInfluence(lines, secondary);
+    }
+  }
+
   lines.push("");
   lines.push("Where the COMPOSITION BLUEPRINT conflicts with archetype grammar, follow the blueprint.");
   lines.push("Where HARD taste directives conflict with the blueprint, follow the directive. SOFT directives yield to blueprint structure.");
 
-  return lines.join("\n");
+  return trimBlueprintLines(lines, MAX_BLUEPRINT_LINES);
+}
+
+function trimBlueprintLines(lines: string[], maxLines: number): string {
+  if (lines.length <= maxLines) {
+    return lines.join("\n");
+  }
+
+  const footerStart = lines.findIndex((line) =>
+    line.startsWith("Where the COMPOSITION BLUEPRINT conflicts")
+  );
+  const footer = footerStart >= 0 ? lines.slice(footerStart) : lines.slice(-2);
+  const body = footerStart >= 0 ? lines.slice(0, footerStart) : lines.slice(0, -2);
+  const trimmedBody = body.slice(0, Math.max(0, maxLines - footer.length));
+  return [...trimmedBody, ...footer].join("\n");
+}
+
+function getSecondaryCompositions(
+  compositions: CompositionInput[],
+  primary: CompositionInput
+): CompositionInput[] {
+  return compositions
+    .filter((entry) => entry.weight !== "muted" && entry.referenceIndex !== primary.referenceIndex)
+    .sort((a, b) => {
+      const weightRank = (weight: CompositionInput["weight"]) => (weight === "primary" ? 0 : 1);
+      const byWeight = weightRank(a.weight) - weightRank(b.weight);
+      if (byWeight !== 0) return byWeight;
+      return a.referenceIndex - b.referenceIndex;
+    })
+    .slice(0, MAX_SECONDARY_INFLUENCES);
+}
+
+function appendSecondaryReferenceInfluence(lines: string[], entry: CompositionInput): void {
+  const { analysis } = entry;
+  const weightLabel = entry.weight === "primary" ? "starred" : "default";
+  const refLabel = `Ref ${entry.referenceIndex + 1} (${analysis.referenceType}, ${weightLabel})`;
+
+  lines.push("");
+  lines.push(`${refLabel}: ${analysis.keyCompositionalMove}`);
+  lines.push(`- Spacing: ${formatSpacingSystem(analysis.spacingSystem)} | Typographic density: ${analysis.typographicDensity}`);
+
+  if (analysis.referenceType === "photograph" && analysis.photograph) {
+    lines.push(`- Palette mood: ${analysis.photograph.colorStory}; mood: ${analysis.photograph.mood}`);
+    return;
+  }
+
+  if (analysis.referenceType === "editorial" && analysis.editorial) {
+    lines.push(`- Editorial rhythm: ${analysis.editorial.pacing}, white space ${analysis.editorial.whiteSpaceStrategy}`);
+    return;
+  }
+
+  if (analysis.referenceType === "screenshot" && analysis.screenshot) {
+    lines.push(`- Component feel: ${analysis.screenshot.componentSignature.cornerStyle} corners, ${analysis.screenshot.componentSignature.buttonStyle} buttons`);
+    return;
+  }
+
+  lines.push(`- Balance: ${analysis.balance}, tension: ${analysis.tension}`);
+}
+
+function formatSpacingSystem(spacingSystem: CompositionAnalysis["spacingSystem"]): string {
+  switch (spacingSystem) {
+    case "4px-grid":
+      return "4px base";
+    case "8px-grid":
+      return "8px base";
+    case "organic":
+      return "organic spacing";
+    case "golden-ratio":
+      return "golden-ratio spacing";
+    case "chaotic-intentional":
+      return "intentional irregular spacing";
+    default:
+      return spacingSystem;
+  }
+}
+
+function mapTypeScale(analysis: CompositionAnalysis): TasteProfile["typeScale"] | undefined {
+  switch (analysis.headingToBodyRatio) {
+    case "dramatic":
+      return { display: 88, heading: 48, body: 18 };
+    case "moderate":
+      return { display: 56, heading: 36, body: 18 };
+    case "subtle":
+      return { display: 40, heading: 28, body: 16 };
+    default:
+      return undefined;
+  }
+}
+
+function mapMeasuredDensity(density: CompositionAnalysis["density"]): TasteProfile["measuredDensity"] | undefined {
+  switch (density) {
+    case "sparse":
+      return "sparse";
+    case "balanced":
+      return "balanced";
+    case "rich":
+      return "dense";
+    default:
+      return undefined;
+  }
+}
+
+export function deriveTasteStructureFromCompositions(
+  compositions: CompositionInput[]
+): Pick<TasteProfile, "spacingSystem" | "typeScale" | "measuredDensity"> {
+  const primary = selectPrimaryComposition(compositions);
+  if (!primary) return {};
+
+  const { analysis } = primary;
+  const spacingSystem = formatSpacingSystem(analysis.spacingSystem);
+  const typeScale = mapTypeScale(analysis);
+  const measuredDensity = mapMeasuredDensity(analysis.density);
+
+  return {
+    ...(spacingSystem ? { spacingSystem } : {}),
+    ...(typeScale ? { typeScale } : {}),
+    ...(measuredDensity ? { measuredDensity } : {}),
+  };
 }
 
 function selectPrimaryComposition(
-  compositions: BlueprintInput["compositions"]
-): BlueprintInput["compositions"][number] | null {
+  compositions: CompositionInput[]
+): CompositionInput | null {
   const starred = compositions
     .filter((c) => c.weight === "primary")
     .sort((a, b) => b.referenceIndex - a.referenceIndex);
@@ -120,7 +254,7 @@ function appendScreenshotBlueprint(lines: string[], a: CompositionAnalysis): voi
     lines.push(`- Grid: ${s.gridProportions.join(", ")}`);
   }
   lines.push(`- Navigation: ${s.navigationStyle}`);
-  lines.push(`- Spacing system: ${a.spacingSystem}`);
+  lines.push(`- Spacing system: ${formatSpacingSystem(a.spacingSystem)}`);
   lines.push(`- Density: ${a.density}, Balance: ${a.balance}`);
 
   lines.push("");

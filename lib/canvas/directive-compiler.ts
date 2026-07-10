@@ -36,6 +36,7 @@ const DIMENSION_HARDNESS: Record<string, "always-hard" | "hard-in-close" | "alwa
   temperature: "hard-in-close",
   typeScale: "hard-in-close",
   typeContrast: "hard-in-close",
+  spacingSystem: "always-hard",
   imageryStyle: "hard-in-close",
   imageSizing: "hard-in-close",
   sectionFlow: "hard-in-close",
@@ -151,13 +152,39 @@ export function compileTasteToDirectives(
     });
   }
 
-  allDirectives.push({
-    _dimKey: "typeScale",
-    dimension: "typeScale",
-    rule: `Type scale: ${taste.typographyTraits.scale}`,
-    value: taste.typographyTraits.scale,
-    source: "extracted",
-  });
+  if (taste.typeScale && (taste.typeScale.display || taste.typeScale.heading || taste.typeScale.body)) {
+    const sizeParts: string[] = [];
+    if (taste.typeScale.display) sizeParts.push(`display ${taste.typeScale.display}px`);
+    if (taste.typeScale.heading) sizeParts.push(`heading ${taste.typeScale.heading}px`);
+    if (taste.typeScale.body) sizeParts.push(`body ${taste.typeScale.body}px`);
+    result.hard.push({
+      dimension: "typeScale",
+      rule: `Type sizes MUST use: ${sizeParts.join("; ")}`,
+      value: taste.typeScale,
+      source: "extracted",
+    });
+  } else {
+    allDirectives.push({
+      _dimKey: "typeScale",
+      dimension: "typeScale",
+      rule: `Type scale: ${taste.typographyTraits.scale}`,
+      value: taste.typographyTraits.scale,
+      source: "extracted",
+    });
+  }
+
+  if (taste.spacingSystem) {
+    const baseMatch = taste.spacingSystem.match(/(\d+)px/);
+    const base = baseMatch ? Number(baseMatch[1]) : null;
+    result.hard.push({
+      dimension: "spacingSystem",
+      rule: base
+        ? `Section padding and vertical rhythm MUST use multiples of ${base}px (${taste.spacingSystem})`
+        : `Spacing system MUST follow ${taste.spacingSystem}`,
+      value: taste.spacingSystem,
+      source: "extracted",
+    });
+  }
 
   allDirectives.push({
     _dimKey: "typeContrast",

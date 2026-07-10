@@ -80,4 +80,13 @@ export type TasteProfile = {
   referenceCount: number;
   dominantReferenceType: "ui-screenshot" | "photography" | "poster" | "art" | "mixed";
   warnings: string[];
+
+  // Composition-derived structure (optional — populated from composition analysis)
+  spacingSystem?: string;
+  typeScale?: {
+    display?: number;
+    heading?: number;
+    body?: number;
+  };
+  measuredDensity?: string;
 };

@@ -812,6 +812,7 @@ export function PromptComposerV2({
               existingTokens: tokens,
               prompt: prompt.value?.trim() || undefined,
               compositionContext: compositionContext || undefined,
+              compositionData: compositionData.length > 0 ? compositionData : undefined,
             }),
           });
           if (tasteRes.ok) {

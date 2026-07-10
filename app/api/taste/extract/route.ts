@@ -3,6 +3,7 @@ import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
 import { scoreImagesBatch } from "@/lib/ai/image-scorer";
 import { API_LIMITS, capStringArray, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 import type { TasteProfile } from "@/types/taste-profile";
+import { deriveTasteStructureFromCompositions, type CompositionInput } from "@/lib/canvas/composition-blueprint";
 // Skill context is now inlined — no file system reads needed
 
 type CachedTasteProfile = {
@@ -16,7 +17,8 @@ type TasteExtractBody = {
   referenceWeights?: Record<string, string>;
   existingTokens?: unknown;
   prompt?: string;
-  compositionContext?: string;  // NEW: natural-language summary from composition analysis
+  compositionContext?: string;
+  compositionData?: CompositionInput[];
 };
 
 const tasteCache = new Map<string, CachedTasteProfile>();
@@ -258,13 +260,22 @@ function stableStringify(value: unknown): string {
 function buildSignature(
   referenceUrls: string[],
   existingTokens?: unknown,
-  compositionContext?: string
+  compositionContext?: string,
+  compositionData?: CompositionInput[]
 ) {
   return stableStringify({
     contextVersion: TASTE_CONTEXT_VERSION,
     referenceUrls: [...referenceUrls].sort(),
     existingTokens: existingTokens ?? null,
     compositionContext: compositionContext ?? null,
+    compositionData: compositionData?.map((entry) => ({
+      referenceIndex: entry.referenceIndex,
+      weight: entry.weight,
+      referenceType: entry.analysis.referenceType,
+      spacingSystem: entry.analysis.spacingSystem,
+      headingToBodyRatio: entry.analysis.headingToBodyRatio,
+      density: entry.analysis.density,
+    })) ?? null,
   });
 }
 
@@ -708,6 +719,9 @@ function normalizeTasteProfile(
       typeof raw.referenceCount === "number" ? raw.referenceCount : fallback.referenceCount,
     dominantReferenceType: raw.dominantReferenceType ?? fallback.dominantReferenceType,
     warnings: raw.warnings ?? [],
+    spacingSystem: raw.spacingSystem ?? fallback.spacingSystem,
+    typeScale: raw.typeScale ?? fallback.typeScale,
+    measuredDensity: raw.measuredDensity ?? fallback.measuredDensity,
   };
 }
 
@@ -734,6 +748,9 @@ export async function POST(req: NextRequest) {
     const existingTokens = body.existingTokens ?? null;
     const userPrompt = body.prompt?.trim() || undefined;
     const compositionContext = body.compositionContext;
+    const compositionData = Array.isArray(body.compositionData)
+      ? body.compositionData.slice(0, API_LIMITS.maxReferenceUrls)
+      : undefined;
 
     if (!projectId) {
       return NextResponse.json({ error: "projectId is required" }, { status: 400 });
@@ -742,7 +759,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "referenceUrls are required" }, { status: 400 });
     }
 
-    const signature = buildSignature(referenceUrls, existingTokens, compositionContext);
+    const signature = buildSignature(referenceUrls, existingTokens, compositionContext, compositionData);
     const cached = tasteCache.get(projectId);
     logSafe("[TASTE DEBUG] Cache check", {
       projectId,
@@ -908,7 +925,10 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
       imageTreatment: raw.imageTreatment?.style ?? "(missing)",
     });
 
-    const profile = normalizeTasteProfile(raw, fallback, derivedConfidence);
+    const profile = {
+      ...normalizeTasteProfile(raw, fallback, derivedConfidence),
+      ...(compositionData?.length ? deriveTasteStructureFromCompositions(compositionData) : {}),
+    };
 
     logSafe("[TASTE DEBUG] Final profile summary", {
       archetype: profile.archetypeMatch,

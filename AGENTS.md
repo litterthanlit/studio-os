@@ -291,8 +291,9 @@ These are patterns discovered during the project. Do not re-learn them.
 
 ### Current project state (update this section each major session)
 
-**Last updated:** 2026-07-09 (Phase 3 section-regen API fix shipped)
+**Last updated:** 2026-07-10 (Phase 2 multi-ref fusion + numeric taste structure shipped)
 
+- **Phase 2 (Multi-reference fusion + taste fidelity):** **SHIPPED**. Fused composition blueprint adds `### SECONDARY INFLUENCES` blocks for up to 4 non-muted secondaries (starred before default). `TasteProfile` gains optional `spacingSystem`, `typeScale`, `measuredDensity` derived from composition analyses via `deriveTasteStructureFromCompositions()`; wired through `/api/taste/extract` + `PromptComposerV2`. Numeric fields emit HARD directives in `directive-compiler`. Proof: `npm run proof:multi-ref-fusion`.
 - **Phase 3 (Section-regen API contract):** **SHIPPED**. `mode: "single"` + `useDesignNode: true` now runs V6 section generation (validation, media resolution, taste gate + retry — no visual refine loop) and returns `{ variants: [{ pageTree }] }` for `PromptComposerV2` and `LayersPanelV3`. Added `validateAndNormalizeDesignSectionTree` for single-section frames. Proof: `npm run proof:section-regen`.
 
 - **Track 4 (Direct Nested Selection):** COMPLETE. Framer-like selection cycling: Cmd+Click cycles depth, Cmd+Shift+Click cycles siblings, contextual hover preview, layers auto-expand to deep selections, keyboard shortcuts (Cmd+arrows, Shift+Escape), context menu selection nav. 9 commits, +1,277 lines.

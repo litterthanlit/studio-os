@@ -16,6 +16,7 @@
     "proof:visual-loop-v2": "npx tsx scripts/visual-loop-v2-proof.ts",
     "proof:section-regen": "npx tsx scripts/section-regen-proof.ts",
     "proof:multi-ref-fusion": "npx tsx scripts/multi-ref-fusion-proof.ts",
+    "proof:convex-canvas-sync": "npx tsx scripts/convex-canvas-sync-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

@@ -7,7 +7,7 @@ import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
-import { slugify } from "@/lib/project-store";
+import { slugify, setProjectConvexId } from "@/lib/project-store";
 import {
   TEMPLATES,
   TEMPLATE_LIST,
@@ -1113,12 +1113,13 @@ export function OnboardingClient() {
       await setOnboardingComplete({ complete: true });
 
       if (tpl) {
-        await upsertProject({
+        const convexProjectId = await upsertProject({
           slug: projectId,
           name: projectName,
           brief: tpl.description,
           color: projectColor,
         });
+        setProjectConvexId(projectId, convexProjectId);
       }
     } catch { /* Convex auth not configured */ }
   }

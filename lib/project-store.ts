@@ -17,6 +17,7 @@ export type StoredProject = {
   brief: string;
   color: string;
   createdAt: string;
+  convexProjectId?: string;
 };
 
 export type StoredProjectFont = {
@@ -160,12 +161,23 @@ export function uniqueProjectSlug(name: string): string {
 export function saveProject(project: StoredProject) {
   const storage = getStorage();
   if (!storage) return;
+  const existing = getProjects().find((item) => item.id === project.id);
+  const nextProject: StoredProject = {
+    ...project,
+    convexProjectId: project.convexProjectId ?? existing?.convexProjectId,
+  };
   const nextProjects = [
-    project,
+    nextProject,
     ...getProjects().filter((existing) => existing.id !== project.id),
   ];
   storage.setItem(PROJECTS_KEY, JSON.stringify(nextProjects));
   emit(PROJECTS_UPDATED_EVENT);
+}
+
+export function setProjectConvexId(projectId: string, convexProjectId: string) {
+  const project = getProjectById(projectId);
+  if (!project || project.convexProjectId === convexProjectId) return;
+  saveProject({ ...project, convexProjectId });
 }
 
 export function deleteProject(projectId: string) {

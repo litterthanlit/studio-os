@@ -35,6 +35,10 @@ import {
 import type { ComposeDocument, ComposeOverlay, GeneratedVariant } from "./compose";
 import { BREAKPOINT_WIDTHS } from "./compose";
 import { runAutoToHugMigration } from "./design-node-migration";
+import {
+  stripCanvasForPersistence,
+  touchLocalCanvasSyncMetadata,
+} from "./canvas-persistence";
 
 // ─── Core Types ──────────────────────────────────────────────────────────────
 
@@ -773,35 +777,7 @@ const CANVAS_V3_PREFIX = "studio-os:canvas-v3:";
 export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState): void {
   if (typeof window === "undefined") return;
 
-  // Strip compiledCode from artboards before saving
-  const strippedItems = state.items.map((item) => {
-    if (item.kind === "artboard" && item.compiledCode) {
-      return { ...item, compiledCode: null };
-    }
-    return item;
-  });
-
-  const toSave: UnifiedCanvasState = {
-    ...state,
-    items: strippedItems,
-    // Never persist an in-flight generation session. Reloads should reopen in
-    // a stable idle state, not with stale spinners or agent logs.
-    prompt: {
-      ...state.prompt,
-      isGenerating: false,
-      agentSteps: [],
-      generationResult: null,
-    },
-    // AI preview is transient session state — never persist
-    aiPreview: null,
-    // Master edit session is transient — never persist
-    masterEditSession: null,
-    // Variant preview is transient — never persist
-    variantPreview: null,
-    // Taste feedback loop — session-transient, never persist
-    generatedTreeSnapshot: undefined,
-    pendingTasteEdits: undefined,
-  };
+  const toSave = stripCanvasForPersistence(state);
 
   try {
     window.localStorage.setItem(
@@ -844,6 +820,8 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
   } catch {
     // Non-critical — legacy sync failure shouldn't block save
   }
+
+  touchLocalCanvasSyncMetadata(projectId);
 }
 
 /**

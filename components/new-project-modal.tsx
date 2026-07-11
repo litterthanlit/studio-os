@@ -12,6 +12,7 @@ import { ColorPicker } from "@/components/color-picker";
 import {
   getProjects,
   saveProject,
+  setProjectConvexId,
   getProjectCover as readProjectCover,
   setProjectCover as writeProjectCover,
   uniqueProjectSlug,
@@ -216,12 +217,13 @@ function NewProjectModalInner({
 
     // 2. Persist to Convex in the background
     try {
-      await upsertProject({
+      const convexProjectId = await upsertProject({
         slug: id,
         name: project.name,
         brief: project.brief || undefined,
         color: project.color,
       });
+      setProjectConvexId(id, convexProjectId);
     } catch {
       onSyncError("Couldn't sync to cloud — saved locally");
     }

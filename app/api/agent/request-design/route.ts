@@ -5,12 +5,13 @@ import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import { authorizeAgentRequest } from "@/lib/agent/agent-api-auth";
-import { API_LIMITS, capStringArray, readGuardedJson } from "@/lib/security/api-guard";
+import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
+import { generateV6DesignVariants } from "@/lib/canvas/generate-design-core";
 
 /**
  * POST /api/agent/request-design
  *
- * Agent-facing wrapper around /api/canvas/generate-component (V6 variants).
+ * Agent-facing V6 DesignNode variant generation.
  * Returns DesignNode trees + visual refine metadata when enabled.
  */
 export async function POST(req: NextRequest) {
@@ -45,39 +46,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "prompt and tokens are required" }, { status: 400 });
   }
 
-  const origin = req.nextUrl.origin;
-  const headers = new Headers({ "Content-Type": "application/json" });
-  const bearer = req.headers.get("authorization");
-  if (bearer) headers.set("authorization", bearer);
-  const serviceSecret = req.headers.get("x-studio-os-service-secret");
-  if (serviceSecret) headers.set("x-studio-os-service-secret", serviceSecret);
-
-  const generateRes = await fetch(`${origin}/api/canvas/generate-component`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      mode: "variants",
-      useDesignNode: true,
-      prompt: body.prompt.trim(),
-      tokens: body.tokens,
-      tasteProfile: body.tasteProfile ?? null,
-      referenceUrls: capStringArray(body.referenceUrls, API_LIMITS.maxReferenceUrls),
-      siteType: body.siteType,
-      siteName: body.siteName,
-      fidelityMode: body.fidelityMode ?? "balanced",
-      compositionData: body.compositionData,
-      compositionContext: body.compositionContext,
-    }),
+  const result = await generateV6DesignVariants({
+    prompt: body.prompt.trim(),
+    tokens: body.tokens,
+    tasteProfile: body.tasteProfile ?? null,
+    referenceUrls: body.referenceUrls,
+    siteType: body.siteType,
+    siteName: body.siteName,
+    fidelityMode: body.fidelityMode ?? "balanced",
+    compositionData: body.compositionData,
+    compositionContext: body.compositionContext,
   });
 
-  const data = await generateRes.json();
-  if (!generateRes.ok) {
-    return NextResponse.json(data, { status: generateRes.status });
+  if (result.ok) {
+    return NextResponse.json({
+      siteName: result.siteName,
+      generationResult: result.generationResult,
+      fallbackUsed: false,
+      v6Debug: result.v6Debug,
+      variants: result.variants,
+      agentSurface: "request_design",
+      toolsVersion: "2026-06-10",
+    });
+  }
+
+  if (result.strictError) {
+    return NextResponse.json({
+      error: result.strictError,
+      generationResult: result.generationResult ?? "v6-failed",
+      fallbackUsed: false,
+      fallbackReason: result.v6Debug.fallbackReason,
+      v6Debug: result.v6Debug,
+    }, { status: result.strictStatus ?? 502 });
   }
 
   return NextResponse.json({
-    ...data,
-    agentSurface: "request_design",
-    toolsVersion: "2026-06-10",
-  });
+    error: result.v6Failure?.message ?? "V6 generation failed",
+    generationResult: result.v6Failure?.kind ?? "v6-failed",
+    fallbackUsed: true,
+    fallbackReason: result.v6Debug.fallbackReason,
+    v6Debug: result.v6Debug,
+  }, { status: result.v6Failure?.kind === "credit-exhaustion" ? 402 : 502 });
 }

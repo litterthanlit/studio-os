@@ -156,3 +156,107 @@ function normalizeSlug(value: string) {
   if (!slug) throw new Error("INVALID_SLUG");
   return slug.slice(0, 80);
 }
+
+function assertServiceSecret(value: string) {
+  const expected = process.env.CONVEX_INTERNAL_API_SECRET;
+  if (!expected || value !== expected) throw new Error("FORBIDDEN");
+}
+
+export const assertProjectAccessForAgent = query({
+  args: {
+    projectId: v.id("projects"),
+    serviceSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
+    return { ok: true as const };
+  },
+});
+
+export const loadCanvasForAgent = query({
+  args: {
+    projectId: v.id("projects"),
+    serviceSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
+    return await ctx.db
+      .query("canvasDocuments")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .unique();
+  },
+});
+
+export const saveCanvasForAgent = mutation({
+  args: {
+    projectId: v.id("projects"),
+    state: v.any(),
+    expectedRevision: v.optional(v.number()),
+    schemaVersion: v.optional(v.number()),
+    serviceSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
+
+    const existing = await ctx.db
+      .query("canvasDocuments")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .unique();
+    const time = now();
+
+    if (existing) {
+      if (
+        typeof args.expectedRevision === "number" &&
+        args.expectedRevision !== existing.revision
+      ) {
+        throw new Error("CANVAS_REVISION_CONFLICT");
+      }
+      const nextRevision = existing.revision + 1;
+      await ctx.db.patch(existing._id, {
+        state: args.state,
+        schemaVersion: args.schemaVersion ?? existing.schemaVersion,
+        documentVersion: existing.documentVersion + 1,
+        revision: nextRevision,
+        lastSavedAt: time,
+        updatedAt: time,
+      });
+      await ctx.db.insert("canvasSnapshots", {
+        ownerId: project.ownerId,
+        projectId: args.projectId,
+        canvasDocumentId: existing._id,
+        revision: nextRevision,
+        state: args.state,
+        createdAt: time,
+      });
+      return { id: existing._id, revision: nextRevision };
+    }
+
+    const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
+      ownerId: project.ownerId,
+      projectId: args.projectId,
+      schemaVersion: args.schemaVersion ?? 1,
+      documentVersion: 1,
+      revision: 1,
+      state: args.state,
+      status: "active",
+      lastSavedAt: time,
+      createdAt: time,
+      updatedAt: time,
+    });
+    await ctx.db.insert("canvasSnapshots", {
+      ownerId: project.ownerId,
+      projectId: args.projectId,
+      canvasDocumentId,
+      revision: 1,
+      state: args.state,
+      createdAt: time,
+    });
+    return { id: canvasDocumentId, revision: 1 };
+  },
+});

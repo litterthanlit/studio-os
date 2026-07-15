@@ -28,10 +28,36 @@ function usesPremiumSaasProductGrammar(archetype: string | undefined): boolean {
     case "creative-portfolio":
     case "culture-brand":
     case "experimental":
+    case "app-dashboard":
+    case "app-mobile":
       return false;
     default:
       return true;
   }
+}
+
+/** Resolve which archetype grammar to use — intent routing overrides taste archetype for app UI. */
+export function resolveEffectiveArchetype(args: {
+  tasteArchetype?: string;
+  intentProfile?: IntentProfile | null;
+  prompt?: string;
+  breakpoint?: "desktop" | "mobile";
+}): string {
+  const { tasteArchetype, intentProfile, prompt = "", breakpoint } = args;
+  const text = prompt.toLowerCase();
+  const isMobile =
+    breakpoint === "mobile" ||
+    intentProfile?.outputType === "mobile-app-ui" ||
+    /\bmobile app\b|\b375px\b|\bios\b|\bandroid\b|\bphone ui\b|\btab bar\b/.test(text);
+
+  if (
+    intentProfile?.outputType === "web-app-ui" ||
+    intentProfile?.outputType === "mobile-app-ui"
+  ) {
+    return isMobile ? "app-mobile" : "app-dashboard";
+  }
+
+  return tasteArchetype ?? "premium-saas";
 }
 
 /** Phase 4A — prompt-only accent mapping; no runtime merge of insertable library. */
@@ -333,6 +359,80 @@ DO NOT USE:
 SECTION COUNT: 3-6 sections. Break expectations.
 `;
 
+    case "app-dashboard":
+      return `
+## SECTION GRAMMAR — APP DASHBOARD (DESKTOP SHELL)
+
+You are generating an IN-APP screen — NOT a marketing landing page.
+
+DO NOT USE these landing-page patterns:
+- Marketing hero with headline + subtext + dual CTA
+- Logo strip / social proof bar
+- Pricing tiers or "Start free trial" bands
+- Marketing footer with sitemap columns
+- Full-bleed coverImage heroes
+
+USE this app shell structure instead:
+1. **App shell root** — horizontal flex row, width fill, height fill (~900px), background ${PRIM.canvas}
+2. **Sidebar** — fixed-width frame (~240px), background ${PRIM.surface}, borderRight 1px ${PRIM.border}, vertical column:
+   - Logo / product name text at top
+   - Nav items as icon+label rows (small square tile + text label) — 5-7 items, one active state with ${PRIM.accentLight} background
+3. **Main column** — flex column fill:
+   - **Top bar** — horizontal row, height ~56px, padding 16/24, borderBottom 1px, space-between: page title text + trailing actions (ghost button + primary button)
+   - **Content area** — padding 24/32, flex column gap 24
+
+Content patterns inside the shell:
+- **Stat cards row** — grid repeat(3-4, 1fr), each cell = Stat Card primitive (label + big value + optional trend)
+- **Data table** — column frame: header row frame (grid columns, fontWeight 600, borderBottom) + 4-6 repeated row frames with same grid template
+- **Empty state** — centered column: muted icon frame + title text + body text + primary button
+- **Form sections** — label text + input-styled frame rows inside a card surface
+
+Screen types: dashboard overview, settings, billing, members/team, analytics, profile.
+
+COPY TONE: Product UI microcopy — concise labels, not marketing headlines.
+
+## APP DASHBOARD COMPOSITION EXAMPLE (study structure, generate fresh IDs and copy)
+
+[{"id":"app-root","type":"frame","name":"App Shell","style":{"width":"fill","height":900,"display":"flex","flexDirection":"row","background":"${PRIM.canvas}"},"children":[{"id":"sidebar","type":"frame","name":"Sidebar","style":{"width":240,"height":"fill","display":"flex","flexDirection":"column","gap":4,"padding":{"top":20,"right":12,"bottom":20,"left":12},"background":"${PRIM.surface}","borderColor":"${PRIM.border}","borderWidth":1},"children":[{"id":"sb-logo","type":"text","name":"Product","style":{"fontSize":15,"fontWeight":700,"padding":{"top":0,"right":0,"bottom":16,"left":8}},"content":{"text":"FitTrack"}},{"id":"nav-1","type":"frame","name":"Nav Dashboard","style":{"display":"flex","flexDirection":"row","alignItems":"center","gap":10,"padding":{"top":8,"right":8,"bottom":8,"left":8},"borderRadius":4,"background":"${PRIM.accentLight}"},"children":[{"id":"nav-1-icon","type":"frame","name":"Icon","style":{"width":22,"height":22,"borderRadius":4,"background":"${PRIM.accentLight}"},"children":[]},{"id":"nav-1-label","type":"text","name":"Label","style":{"fontSize":14,"fontWeight":500,"foreground":"${PRIM.text}"},"content":{"text":"Dashboard"}}]},{"id":"nav-2","type":"frame","name":"Nav Settings","style":{"display":"flex","flexDirection":"row","alignItems":"center","gap":10,"padding":{"top":8,"right":8,"bottom":8,"left":8},"borderRadius":4},"children":[{"id":"nav-2-icon","type":"frame","name":"Icon","style":{"width":22,"height":22,"borderRadius":4,"background":"${PRIM.borderSubtle}"},"children":[]},{"id":"nav-2-label","type":"text","name":"Label","style":{"fontSize":14,"fontWeight":500,"foreground":"${PRIM.muted}"},"content":{"text":"Settings"}}]}]},{"id":"main","type":"frame","name":"Main","style":{"width":"fill","height":"fill","display":"flex","flexDirection":"column"},"children":[{"id":"topbar","type":"frame","name":"Top Bar","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-between","alignItems":"center","padding":{"top":16,"right":24,"bottom":16,"left":24},"background":"${PRIM.surface}","borderColor":"${PRIM.border}","borderWidth":1},"children":[{"id":"tb-title","type":"text","name":"Title","style":{"fontSize":18,"fontWeight":600},"content":{"text":"Analytics"}},{"id":"tb-actions","type":"frame","name":"Actions","style":{"display":"flex","flexDirection":"row","gap":8},"children":[{"id":"tb-export","type":"button","name":"Export","style":{"background":"transparent","foreground":"${PRIM.muted}","borderWidth":0,"padding":{"top":8,"right":12,"bottom":8,"left":12},"fontSize":14},"content":{"text":"Export"}}]}]},{"id":"content","type":"frame","name":"Content","style":{"width":"fill","display":"flex","flexDirection":"column","gap":24,"padding":{"top":24,"right":32,"bottom":32,"left":32}},"children":[{"id":"stats","type":"frame","name":"Stats","style":{"display":"grid","gridTemplate":"repeat(3, 1fr)","gap":16},"children":[{"id":"stat-1","type":"frame","name":"Stat Card","style":{"display":"flex","flexDirection":"column","gap":4,"padding":20,"background":"${PRIM.surface}","borderColor":"${PRIM.border}","borderWidth":1,"borderRadius":6},"children":[{"id":"s1-l","type":"text","name":"Label","style":{"fontSize":12,"foreground":"${PRIM.muted}"},"content":{"text":"Active users"}},{"id":"s1-v","type":"text","name":"Value","style":{"fontSize":36,"fontWeight":700},"content":{"text":"12,847"}}]}]}]}]}]}]
+
+Adapt shell nav labels and content to the brief. Keep sidebar + topbar + content area structure.
+`;
+
+    case "app-mobile":
+      return `
+## SECTION GRAMMAR — MOBILE APP SCREEN (375px)
+
+You are generating a MOBILE APP screen at 375px width — NOT a responsive marketing page.
+
+DO NOT USE:
+- Desktop sidebar navigation
+- Marketing hero sections
+- Multi-column feature grids
+- Footer sitemap blocks
+- Pricing comparison tables
+
+USE this mobile shell:
+1. **Screen root** — flex column, width 375, height ~812, background ${PRIM.canvas}
+2. **Status-safe top** — padding top 48px (safe area), horizontal padding 16px
+3. **Screen header** — row: back chevron text or empty + screen title (fontSize 17, fontWeight 600) + optional action
+4. **Scrollable body** — flex column gap 16, padding 16, flexGrow 1
+5. **Bottom tab bar** — fixed bottom frame, height 56, borderTop 1px, flex row space-around, 4-5 tab items (icon square + label text, fontSize 10)
+
+Body patterns:
+- **List rows** — card or flat row frames: leading icon square + title + subtitle + trailing chevron text
+- **Form field** — column: label text (fontSize 12, muted) + input frame (height 44, border, borderRadius 2)
+- **Primary action** — full-width primary button pinned above tab bar or at bottom of form
+- **Empty state** — centered icon + message + button
+
+COPY TONE: Mobile product UI — short labels, action-oriented.
+
+## MOBILE APP COMPOSITION EXAMPLE (375px — study structure)
+
+[{"id":"mob-root","type":"frame","name":"Mobile Screen","style":{"width":375,"height":812,"display":"flex","flexDirection":"column","background":"${PRIM.canvas}"},"children":[{"id":"mob-header","type":"frame","name":"Header","style":{"width":"fill","display":"flex","flexDirection":"row","alignItems":"center","justifyContent":"center","padding":{"top":48,"right":16,"bottom":12,"left":16}},"children":[{"id":"mob-title","type":"text","name":"Title","style":{"fontSize":17,"fontWeight":600},"content":{"text":"Settings"}}]},{"id":"mob-body","type":"frame","name":"Body","style":{"width":"fill","display":"flex","flexDirection":"column","gap":12,"padding":{"top":8,"right":16,"bottom":16,"left":16},"flexGrow":1},"children":[{"id":"row-1","type":"frame","name":"List Row","style":{"display":"flex","flexDirection":"row","alignItems":"center","gap":12,"padding":16,"background":"${PRIM.surface}","borderColor":"${PRIM.border}","borderWidth":1,"borderRadius":6},"children":[{"id":"r1-t","type":"text","name":"Label","style":{"fontSize":15,"fontWeight":500,"flexGrow":1},"content":{"text":"Account"}},{"id":"r1-c","type":"text","name":"Chevron","style":{"fontSize":14,"foreground":"${PRIM.muted}"},"content":{"text":"›"}}]}]},{"id":"mob-tabs","type":"frame","name":"Tab Bar","style":{"width":"fill","display":"flex","flexDirection":"row","justifyContent":"space-around","alignItems":"center","height":56,"padding":{"top":8,"right":0,"bottom":8,"left":0},"background":"${PRIM.surface}","borderColor":"${PRIM.border}","borderWidth":1},"children":[{"id":"tab-1","type":"frame","name":"Tab Home","style":{"display":"flex","flexDirection":"column","alignItems":"center","gap":4},"children":[{"id":"t1-i","type":"frame","name":"Icon","style":{"width":24,"height":24,"borderRadius":4,"background":"${PRIM.accentLight}"},"children":[]},{"id":"t1-l","type":"text","name":"Label","style":{"fontSize":10,"foreground":"${PRIM.accent}"},"content":{"text":"Home"}}]}]}]}]
+
+Adapt tabs, rows, and copy to the brief. Keep header + body + tab bar structure.
+`;
+
     default: // premium-saas
       return `
 ## SECTION GRAMMAR — PRODUCT / SAAS
@@ -423,6 +523,10 @@ function getDesignArchetypeStructuralGuard(archetype: string | undefined): strin
       return "\nIMPORTANT: Culture brand. Do NOT add clinical product sections or dense feature grids. Keep warm, story-driven composition.";
     case "experimental":
       return "\nIMPORTANT: Experimental design. Do NOT normalize into safe centered layouts or standard SaaS ordering.";
+    case "app-dashboard":
+      return "\nIMPORTANT: App dashboard screen. Do NOT add marketing hero, logo strip, pricing table, or footer sitemap. Use sidebar + top bar + in-app content patterns (stat cards, data tables, forms).";
+    case "app-mobile":
+      return "\nIMPORTANT: Mobile app screen at 375px. Do NOT add desktop sidebar, marketing hero, or landing-page footer. Use mobile header + list rows/cards + bottom tab bar.";
     default:
       return "\nIMPORTANT: Product / SaaS page. Use PRODUCT UI PRIMITIVES for buttons, badges, cards, stat cards, alerts, avatars, fields, and dividers. Compose major sections using SAAS COMPOSITION RECIPES (top nav, hero, stats row, alert banner, grids of cards, pricing cards, footer). Do not invent alternate radii or arbitrary palette colors for those elements.";
   }
@@ -442,6 +546,7 @@ export function buildDesignTreePrompt(
     fidelityMode?: FidelityMode;
     compositionBlueprint?: string;
     compositionContext?: string;
+    breakpoint?: "desktop" | "mobile";
   }
 ): string {
   const tasteProfile = options?.tasteProfile;
@@ -465,15 +570,21 @@ export function buildDesignTreePrompt(
   const compositionContextSection = options?.compositionContext
     ? `\n## Reference Composition Context\n${options.compositionContext}\n`
     : "";
-  const archetypeGrammar = getDesignArchetypeGrammar(tasteProfile?.archetypeMatch);
+  const effectiveArchetype = resolveEffectiveArchetype({
+    tasteArchetype: tasteProfile?.archetypeMatch,
+    intentProfile: options?.intentProfile ?? null,
+    prompt,
+    breakpoint: options?.breakpoint,
+  });
+  const archetypeGrammar = getDesignArchetypeGrammar(effectiveArchetype);
 
-  const banDescriptions = getArchetypeBanDescriptions(tasteProfile?.archetypeMatch);
+  const banDescriptions = getArchetypeBanDescriptions(effectiveArchetype);
   const banSection =
     banDescriptions.length > 0
       ? `\n## BANNED STRUCTURAL PATTERNS\nDo NOT produce these patterns:\n${banDescriptions.map((b) => `- ${b}`).join("\n")}\n`
       : "";
 
-  const accentMapping4A = usesPremiumSaasProductGrammar(tasteProfile?.archetypeMatch)
+  const accentMapping4A = usesPremiumSaasProductGrammar(effectiveArchetype)
     ? `\n${buildProductPrimitiveAccentMapping4A(tokens)}\n`
     : "";
 

@@ -173,6 +173,8 @@ const ARCHETYPE_BAN_MAP: Record<string, StylePatternBan[]> = {
   "minimal-tech": [uniformCardGrid, logoBar],
   "culture-brand": [pricingPattern, statsMetricsRow],
   "experimental": [uniformCardGrid, pricingPattern, logoBar],
+  "app-dashboard": [logoBar, pricingPattern],
+  "app-mobile": [logoBar, pricingPattern],
   "premium-saas": [],
 };
 

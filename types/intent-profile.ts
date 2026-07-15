@@ -78,13 +78,15 @@ export function extractIntentProfile(args: {
                 ? "conversion"
                 : "unknown";
 
-  const outputType: IntentOutputType = businessGoal === "app-ui"
-    ? "web-app-ui"
-    : has(["component gallery", "components"])
-      ? "component-gallery"
-      : has(["component"])
-        ? "component"
-        : "marketing-site";
+  const outputType: IntentOutputType = has(["mobile app", "ios screen", "android", "tab bar", "375px", "phone ui"])
+    ? "mobile-app-ui"
+    : businessGoal === "app-ui"
+      ? "web-app-ui"
+      : has(["component gallery", "components"])
+        ? "component-gallery"
+        : has(["component"])
+          ? "component"
+          : "marketing-site";
 
   const contentPriority = [
     has(["portfolio", "work", "case study"]) ? "work samples" : "",

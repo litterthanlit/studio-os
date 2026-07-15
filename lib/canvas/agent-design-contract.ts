@@ -179,9 +179,9 @@ function buildAppStructure(context: ProjectContext, boards: ArtboardItem[]): App
   const screens = boards.map((board) => ({
     id: board.id,
     label: board.name,
-    routeId: slug(board.name),
+    routeId: board.screenRole ? slug(board.screenRole) : slug(board.name),
     breakpoint: board.breakpoint,
-    states: inferStates(board.name),
+    states: inferStates(board.screenRole ?? board.name),
   }));
   const routes = screens.map((screen) => ({
     id: screen.routeId,
@@ -308,15 +308,17 @@ function hierarchyForArtboard(board: ArtboardItem): string[] {
 function buildScreenDirections(boards: ArtboardItem[], refIntent: ReferenceIntent[], constraints: string[], rules: string[]): ScreenDirection[] {
   return boards.map((board) => ({
     screenId: board.id,
-    purpose: `${board.name} should express the approved direction as an editable ${board.breakpoint} screen.`,
+    purpose: board.screenPurpose ?? `${board.name} should express the approved direction as an editable ${board.breakpoint} screen.`,
     hierarchy: hierarchyForArtboard(board),
     referenceInfluences: refIntent.filter((ref) => ref.weight !== "muted").map((ref) => ref.title).slice(0, 4),
     layoutConstraints: constraints,
     componentRules: rules,
     contentRules: ["Keep copy specific to the project brief.", "Preserve approved hierarchy before adding new sections."],
-    states: inferStates(board.name),
+    states: inferStates(board.screenRole ?? board.name),
     acceptanceCriteria: [
-      "Implemented screenshot matches the approved artboard hierarchy.",
+      board.screenRole
+        ? `Screen role "${board.screenRole}" is implemented with the authored purpose.`
+        : "Implemented screenshot matches the approved artboard hierarchy.",
       "No new visual patterns are introduced outside the DesignContract.",
       "Responsive version preserves the same taste and composition logic.",
     ],

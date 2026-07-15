@@ -47,6 +47,7 @@ import { buildSectionContext } from "@/lib/canvas/section-context-builder";
 import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 import { summarizeCompositionsForTaste } from "@/lib/canvas/composition-blueprint";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
+import { extractIntentProfile } from "@/types/intent-profile";
 
 // ─── Helpers (copied from InspectorPanelV3) ─────────────────────────────────
 
@@ -88,6 +89,39 @@ function createArtboardItems(
     name: `${label} ${BREAKPOINT_WIDTHS[breakpoint]}`,
     pageTree: structuredClone(pageTree),
     compiledCode: compiledCode ?? null,
+  }));
+}
+
+function createScreenSetArtboardItems(
+  screens: Array<{
+    name: string;
+    pageTree: DesignNode;
+    screenRole?: string;
+    screenPurpose?: string;
+  }>,
+  siteId: string,
+  existingItems: CanvasItem[],
+  breakpoint: Breakpoint = "desktop",
+): ArtboardItem[] {
+  const startX = getArtboardStartX(existingItems);
+  const width = BREAKPOINT_WIDTHS[breakpoint];
+
+  return screens.map((screen, index) => ({
+    id: uid("artboard"),
+    kind: "artboard" as const,
+    x: startX + index * (width + ARTBOARD_GAP),
+    y: ARTBOARD_START_Y,
+    width,
+    height: artboardHeight(breakpoint),
+    zIndex: 1000 + index,
+    locked: false,
+    siteId,
+    breakpoint,
+    name: screen.name,
+    pageTree: structuredClone(screen.pageTree),
+    compiledCode: null,
+    ...(screen.screenRole ? { screenRole: screen.screenRole } : {}),
+    ...(screen.screenPurpose ? { screenPurpose: screen.screenPurpose } : {}),
   }));
 }
 
@@ -830,10 +864,18 @@ export function PromptComposerV2({
 
       // Step 3: Compose layout + generate component/site
       const analysisPrefix = imageUrls.length > 0 ? ["Analyzing references..."] : [];
+      const intentProfile = extractIntentProfile({
+        prompt: prompt.value.trim(),
+        siteType: prompt.siteType,
+      });
+      const isAppUiIntent =
+        intentProfile.outputType === "web-app-ui" ||
+        intentProfile.outputType === "mobile-app-ui";
+      const generationMode = isAppUiIntent ? "screens" : "variants";
 
       dispatch({
         type: "SET_PROMPT_STATUS",
-        agentSteps: [...analysisPrefix, "Composing layout..."],
+        agentSteps: [...analysisPrefix, isAppUiIntent ? "Planning app screens..." : "Composing layout..."],
       });
 
       // Timed split: transition from "composing" to "creating" after ~10s
@@ -841,7 +883,7 @@ export function PromptComposerV2({
       const creatingTimer = setTimeout(() => {
         dispatch({
           type: "SET_PROMPT_STATUS",
-          agentSteps: [...analysisPrefix, "Creating variations..."],
+          agentSteps: [...analysisPrefix, isAppUiIntent ? "Generating screens..." : "Creating variations..."],
         });
       }, 10_000);
 
@@ -849,7 +891,7 @@ export function PromptComposerV2({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: "variants",
+          mode: generationMode,
           prompt: prompt.value.trim(),
           tokens,
           referenceUrls: imageUrls,
@@ -872,13 +914,68 @@ export function PromptComposerV2({
 
       dispatch({
         type: "SET_PROMPT_STATUS",
-        agentSteps: [...analysisPrefix, "Creating variations...", "Building artboards..."],
+        agentSteps: [...analysisPrefix, isAppUiIntent ? "Building screen set..." : "Creating variations...", "Building artboards..."],
       });
 
       // Single-variant normalization
       const variants = Array.isArray(generateData.variants) ? generateData.variants : [];
       if (variants.length === 0) {
         throw new Error("No variants returned from generation");
+      }
+
+      const siteId = uid("site");
+      const nonArtboardItems = items.filter((item) => item.kind !== "artboard");
+
+      if (generationMode === "screens") {
+        const breakpoint: Breakpoint =
+          intentProfile.outputType === "mobile-app-ui" ? "mobile" : "desktop";
+        const artboards = createScreenSetArtboardItems(
+          variants.map((variant: {
+            name: string;
+            pageTree: DesignNode;
+            screenRole?: string;
+            screenPurpose?: string;
+          }) => ({
+            name: variant.name,
+            pageTree: variant.pageTree,
+            screenRole: variant.screenRole,
+            screenPurpose: variant.screenPurpose,
+          })),
+          siteId,
+          nonArtboardItems,
+          breakpoint,
+        );
+
+        const promptEntry: PromptRun = {
+          id: uid("run"),
+          createdAt: new Date().toISOString(),
+          prompt: prompt.value.trim(),
+          siteType: prompt.siteType,
+          referenceItemIds: referenceItems.map((ref) => ref.id),
+          siteId,
+          label: `${variants.length} screens — ${prompt.value.trim().slice(0, 30)}`,
+          artboards: snapshotArtboards(artboards),
+        };
+
+        dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
+
+        const snapshots: Record<string, DesignNode> = {};
+        for (const artboard of artboards) {
+          if (isDesignNodeTree(artboard.pageTree)) {
+            snapshots[artboard.id] = structuredClone(artboard.pageTree as DesignNode);
+          }
+        }
+        if (Object.keys(snapshots).length > 0) {
+          dispatch({ type: "SET_GENERATED_SNAPSHOT", snapshots });
+        }
+
+        dispatch({
+          type: "SET_PROMPT_STATUS",
+          isGenerating: false,
+          agentSteps: [],
+          generationResult: "success",
+        });
+        return;
       }
 
       const safeVariant = variants.find(
@@ -902,8 +999,6 @@ export function PromptComposerV2({
       }
 
       // Create artboard items (positions computed dynamically to avoid overlapping references)
-      const siteId = uid("site");
-      const nonArtboardItems = items.filter((item) => item.kind !== "artboard");
       const artboards = createArtboardItems(
         chosenVariant.pageTree,
         siteId,

@@ -47,6 +47,7 @@ import {
   type V6TasteGate,
   type V6GenerationDebug,
 } from "@/lib/canvas/generate-design-core";
+import { generateAppScreenSet } from "@/lib/canvas/generate-screen-set-core";
 
 // ─── Tree Debug Logging ─────────────────────────────────────────────────────
 
@@ -219,7 +220,7 @@ export async function POST(req: NextRequest) {
       tokens: DesignSystemTokens;
       sectionId?: SectionId;
       existingSections?: string;
-      mode?: "single" | "variants";
+      mode?: "single" | "variants" | "screens";
       siteType?: SiteType;
       siteName?: string;
       tasteProfile?: TasteProfile | null;
@@ -799,6 +800,59 @@ export async function POST(req: NextRequest) {
         fallbackUsed: v6Debug?.fallbackUsed ?? baseTreeSource === "template",
         fallbackReason: v6Debug?.fallbackReason ?? (baseTreeSource === "template" ? "PageNode/template fallback used." : null),
         v6Debug,
+        variants,
+      });
+    }
+
+    // ── V6 multi-screen app generation ─────────────────────────────────────
+    if (mode === "screens" && useDesignNode) {
+      const screenSetResult = await generateAppScreenSet({
+        prompt,
+        tokens,
+        siteName,
+        siteType,
+        tasteProfile,
+        referenceUrls: cappedReferenceUrls,
+        fidelityMode,
+        compositionData: cappedCompositionData,
+        compositionContext,
+      });
+
+      if (!screenSetResult.ok) {
+        const status = screenSetResult.failure?.kind === "credit-exhaustion" ? 402 : 502;
+        return NextResponse.json(
+          {
+            error: screenSetResult.error,
+            generationResult: screenSetResult.failure?.kind ?? "v6-failed",
+          },
+          { status: strictV6Mode ? status : 500 },
+        );
+      }
+
+      const variants = screenSetResult.screens.map((screen) => ({
+        id: `v6-screen-${screen.id}`,
+        name: screen.name,
+        pageTree: screen.pageTree,
+        pageTreeSource: "ai" as const,
+        description: screen.screenPurpose,
+        previewImage: createVariantPreviewImage(screen.name, tokens),
+        sourcePrompt: prompt,
+        createdAt: new Date().toISOString(),
+        strategy: "safe" as VariantMode,
+        strategyLabel: screen.name,
+        tasteGate: screen.tasteGate,
+        intentProfile: screenSetResult.intentProfile,
+        designKnobs: screenSetResult.designKnobs,
+        screenRole: screen.screenRole,
+        screenPurpose: screen.screenPurpose,
+      }));
+
+      return NextResponse.json({
+        siteName: screenSetResult.siteName,
+        generationResult: "v6-screens",
+        fallbackUsed: false,
+        plan: screenSetResult.plan,
+        effectiveArchetype: screenSetResult.effectiveArchetype,
         variants,
       });
     }

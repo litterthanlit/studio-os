@@ -133,6 +133,10 @@ export type ArtboardItem = BaseCanvasItem & {
   name: string;
   pageTree: PageNode | DesignNode;
   compiledCode?: string | null;
+  /** Authored screen role from multi-screen app generation (Phase 6). */
+  screenRole?: string;
+  /** Screen purpose summary from screen-set plan (Phase 6). */
+  screenPurpose?: string;
 };
 
 export type NoteItem = BaseCanvasItem & {

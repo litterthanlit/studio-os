@@ -136,6 +136,29 @@ mcpServer.registerTool(
 );
 
 mcpServer.registerTool(
+  "generate_screen_set",
+  {
+    description:
+      "Plan and generate multiple app screens (settings, billing, etc.) with shared shell context.",
+    inputSchema: {
+      projectId: z.string(),
+      prompt: z.string(),
+      breakpoint: z.enum(["desktop", "mobile"]).optional(),
+      fidelityMode: z.enum(["close", "balanced", "push"]).optional(),
+    },
+  },
+  async (args) => {
+    const result = await callStudioApi<Record<string, unknown>>(
+      "/api/agent/generate-screen-set",
+      args,
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+mcpServer.registerTool(
   "review_implementation",
   {
     description:

@@ -19,6 +19,8 @@ export type CanvasAgentOperation =
       x?: number;
       y?: number;
       siteId?: string;
+      screenRole?: string;
+      screenPurpose?: string;
     }
   | {
       type: "replace_artboard_tree";
@@ -49,6 +51,8 @@ export function buildCanvasSummary(state: UnifiedCanvasState) {
       name: artboard.name,
       breakpoint: artboard.breakpoint,
       siteId: artboard.siteId,
+      screenRole: artboard.screenRole ?? null,
+      screenPurpose: artboard.screenPurpose ?? null,
       sectionNames: isDesignNodeTree(artboard.pageTree)
         ? (artboard.pageTree.children ?? []).map((child) => child.name || child.id)
         : [],
@@ -110,6 +114,8 @@ export function applyCanvasAgentOperations(
         breakpoint,
         name: operation.name,
         pageTree: validated.tree,
+        ...(operation.screenRole ? { screenRole: operation.screenRole } : {}),
+        ...(operation.screenPurpose ? { screenPurpose: operation.screenPurpose } : {}),
       };
 
       state.items.push(artboard);

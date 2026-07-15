@@ -18,6 +18,7 @@
     "proof:multi-ref-fusion": "npx tsx scripts/multi-ref-fusion-proof.ts",
     "proof:convex-canvas-sync": "npx tsx scripts/convex-canvas-sync-proof.ts",
     "proof:agent-platform": "npx tsx scripts/agent-platform-proof.ts",
+    "proof:app-ui-capability": "npx tsx scripts/app-ui-capability-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

@@ -631,9 +631,19 @@ export function InspectorPanelV3({
   const { state, dispatch } = useCanvas();
   const { selection, items, prompt } = state;
   const [projectTokens, setProjectTokens] = React.useState<DesignSystemTokens | null>(null);
+  const [projectTasteProfile, setProjectTasteProfile] = React.useState<
+    import("@/types/taste-profile").TasteProfile | null
+  >(null);
 
   React.useEffect(() => {
-    setProjectTokens(projectId ? getProjectState(projectId).canvas?.designTokens ?? null : null);
+    if (!projectId) {
+      setProjectTokens(null);
+      setProjectTasteProfile(null);
+      return;
+    }
+    const projectState = getProjectState(projectId);
+    setProjectTokens(projectState.canvas?.designTokens ?? null);
+    setProjectTasteProfile(projectState.tasteProfile ?? null);
   }, [projectId]);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -932,6 +942,8 @@ export function InspectorPanelV3({
             artboards={artboardItems}
             components={state.components}
             selectedNodeId={selection.selectedNodeId}
+            designTokens={projectTokens}
+            tasteProfile={projectTasteProfile}
           />
         ) : activeTab === "agent" ? (
           <AgentDesignHarnessPanel projectId={projectId} />

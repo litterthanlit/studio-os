@@ -13,16 +13,21 @@ export type ExportOutputMode = "fragment" | "document";
 /** Which artboard's pageTree feeds export (desktop recommended default). */
 export type ExportBreakpointSource = "desktop" | "active";
 
+/** HTML inline styles or React + Tailwind TSX. */
+export type ExportFormat = "html" | "react-tailwind";
+
 export type ExportOptions = {
   scope: ExportScope;
   outputMode: ExportOutputMode;
   breakpointSource: ExportBreakpointSource;
+  format: ExportFormat;
 };
 
 export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   scope: "full",
   outputMode: "fragment",
   breakpointSource: "desktop",
+  format: "html",
 };
 
 /** Count http(s) image URLs in exported subtree (cover images + <img> src). */

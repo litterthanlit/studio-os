@@ -9,6 +9,7 @@ import {
 } from "@/lib/agent/canvas-agent-ops";
 import { agentLoadCanvas } from "@/lib/agent/convex-agent-client";
 import { designNodeToHTML } from "@/lib/canvas/design-node-to-html";
+import { designNodeToTSX } from "@/lib/canvas/design-node-to-tsx";
 import { normalizeRemoteCanvasState } from "@/lib/canvas/canvas-convex-sync";
 import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   const guarded = await readGuardedJson<{
     projectId: string;
     artboardId: string;
-    format?: "designnode" | "html";
+    format?: "designnode" | "html" | "tsx";
   }>(req, {
     requireAuth: false,
     maxBytes: API_LIMITS.aiRequestBytes,
@@ -55,6 +56,28 @@ export async function POST(req: NextRequest) {
         artboardId,
         format,
         html,
+        summary: buildCanvasSummary(canvasState),
+      });
+    }
+
+    if (format === "tsx") {
+      const artboard = canvasState.items.find(
+        (item) => item.kind === "artboard" && item.id === artboardId,
+      );
+      const componentName =
+        artboard && artboard.kind === "artboard"
+          ? artboard.name.replace(/[^a-zA-Z0-9]+/g, "") || "StudioExport"
+          : "StudioExport";
+      const safeName = /^[A-Z]/.test(componentName)
+        ? componentName
+        : `Studio${componentName}`;
+      const tsx = designNodeToTSX(tree, { componentName: safeName });
+      return NextResponse.json({
+        projectId,
+        artboardId,
+        format,
+        tsx,
+        componentName: safeName,
         summary: buildCanvasSummary(canvasState),
       });
     }

@@ -99,11 +99,11 @@ mcpServer.registerTool(
 mcpServer.registerTool(
   "get_screen_design",
   {
-    description: "Get a screen artboard as DesignNode JSON or rendered HTML.",
+    description: "Get a screen artboard as DesignNode JSON, rendered HTML, or React + Tailwind TSX.",
     inputSchema: {
       projectId: z.string(),
       artboardId: z.string(),
-      format: z.enum(["designnode", "html"]).optional(),
+      format: z.enum(["designnode", "html", "tsx"]).optional(),
     },
   },
   async (args) => {

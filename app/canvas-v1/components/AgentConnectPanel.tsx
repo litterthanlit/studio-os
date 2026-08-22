@@ -13,7 +13,10 @@ type AgentConnectPanelProps = {
 };
 
 export function AgentConnectPanel({ projectId }: AgentConnectPanelProps) {
-  const currentUser = useQuery(api.users.current, {});
+  const currentUser = useQuery(
+    api.users.current,
+    isConvexCanvasSyncConfigured() ? {} : "skip",
+  );
   const convexEnabled = isConvexCanvasSyncConfigured() && Boolean(currentUser);
   const convexProjectId = useConvexProjectId(projectId ?? "", Boolean(projectId) && convexEnabled);
   const [copied, setCopied] = React.useState(false);

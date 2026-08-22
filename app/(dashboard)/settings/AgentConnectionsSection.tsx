@@ -10,6 +10,7 @@ import {
   buildCursorMcpConfig,
   formatJsonSnippet,
 } from "@/lib/agent/mcp-config-snippets";
+import { isConvexCanvasSyncConfigured } from "@/lib/canvas/canvas-convex-sync";
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -67,9 +68,10 @@ function CopyBlock({
 }
 
 export function AgentConnectionsSection() {
-  const currentUser = useQuery(api.users.current, {});
-  const tokens = useQuery(api.agentTokens.listMine, currentUser ? {} : "skip");
-  const projects = useQuery(api.projects.listMine, currentUser ? {} : "skip");
+  const convexReady = isConvexCanvasSyncConfigured();
+  const currentUser = useQuery(api.users.current, convexReady ? {} : "skip");
+  const tokens = useQuery(api.agentTokens.listMine, convexReady && currentUser ? {} : "skip");
+  const projects = useQuery(api.projects.listMine, convexReady && currentUser ? {} : "skip");
   const createToken = useMutation(api.agentTokens.create);
   const revokeToken = useMutation(api.agentTokens.revoke);
 
@@ -124,25 +126,11 @@ export function AgentConnectionsSection() {
     }
   }
 
-  if (currentUser === undefined) {
+  if (convexReady && currentUser === undefined) {
     return <p className="text-[13px] text-text-muted">Loading agent connections…</p>;
   }
 
-  if (!currentUser) {
-    return (
-      <div>
-        <p className="text-[13px] text-text-secondary">
-          Sign in to generate a personal token and connect Cursor, Claude Code, or Codex to the live canvas.
-        </p>
-        <a
-          href="/auth/login?next=/settings"
-          className="mt-3 inline-flex rounded-[4px] bg-button-primary-bg px-3 py-2 text-[12px] font-medium text-button-primary-text transition-colors hover:bg-accent-hover"
-        >
-          Sign in
-        </a>
-      </div>
-    );
-  }
+  const signedIn = Boolean(currentUser);
 
   return (
     <div className="space-y-5">
@@ -155,86 +143,104 @@ export function AgentConnectionsSection() {
         </FieldHint>
       </div>
 
-      <div>
-        <FieldLabel>Token name</FieldLabel>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="w-40 border border-border rounded-[2px] bg-bg-input px-3 py-2 text-[13px] text-text-primary outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
-          />
-          <select
-            value={projectId}
-            onChange={(event) => setProjectId(event.target.value)}
-            className="min-w-[180px] border border-border rounded-[2px] bg-bg-input px-3 py-2 text-[13px] text-text-primary outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
-          >
-            <option value="">All projects</option>
-            {(projects ?? []).map((project: { _id: string; name: string; slug: string }) => (
-              <option key={project._id} value={project._id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={busy}
-            className="rounded-[4px] bg-button-primary-bg px-3 py-2 text-[12px] font-medium text-button-primary-text transition-colors hover:bg-accent-hover disabled:opacity-50"
-          >
-            {busy ? "Generating…" : "Generate token"}
-          </button>
-        </div>
-      </div>
-
-      {error && <p className="text-[12px] text-red-600">{error}</p>}
-
-      {plaintext && (
+      {!signedIn && (
         <div>
-          <FieldLabel>New token</FieldLabel>
-          <FieldHint>Copy this now. It cannot be shown again.</FieldHint>
-          <pre className="mt-2 overflow-auto rounded-[4px] border border-[#4B57DB] bg-white p-3 text-[11px] font-mono text-text-primary">
-            {plaintext}
-          </pre>
+          <p className="text-[13px] text-text-secondary">
+            Sign in to generate a personal token. You can still copy the client snippets with a placeholder.
+          </p>
+          <a
+            href="/auth/login?next=/settings"
+            className="mt-3 inline-flex rounded-[4px] bg-button-primary-bg px-3 py-2 text-[12px] font-medium text-button-primary-text transition-colors hover:bg-accent-hover"
+          >
+            Sign in
+          </a>
         </div>
       )}
 
-      <div>
-        <FieldLabel>Active tokens</FieldLabel>
-        {(tokens ?? []).length === 0 ? (
-          <p className="text-[12px] text-text-muted">No tokens yet.</p>
-        ) : (
-          <ul className="divide-y divide-border rounded-[4px] border border-border">
-            {(tokens ?? []).map((token: {
-              _id: Id<"agentTokens">;
-              name: string;
-              prefix: string;
-              projectId?: string;
-              createdAt: number;
-              lastUsedAt?: number;
-            }) => {
-              const bound = (projects ?? []).find((project: { _id: string }) => project._id === token.projectId);
-              return (
-                <li key={token._id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <div className="min-w-0">
-                    <div className="text-[13px] text-text-primary">{token.name}</div>
-                    <div className="mt-0.5 font-mono text-[11px] text-text-muted">
-                      {token.prefix}…{bound ? ` · ${bound.name}` : " · all projects"}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleRevoke(token._id)}
-                    className="shrink-0 text-[12px] text-red-500 transition-colors hover:text-red-600"
-                  >
-                    Revoke
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      {signedIn && (
+        <>
+          <div>
+            <FieldLabel>Token name</FieldLabel>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="w-40 border border-border rounded-[2px] bg-bg-input px-3 py-2 text-[13px] text-text-primary outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
+              />
+              <select
+                value={projectId}
+                onChange={(event) => setProjectId(event.target.value)}
+                className="min-w-[180px] border border-border rounded-[2px] bg-bg-input px-3 py-2 text-[13px] text-text-primary outline-none transition-colors focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40"
+              >
+                <option value="">All projects</option>
+                {(projects ?? []).map((project: { _id: string; name: string; slug: string }) => (
+                  <option key={project._id} value={project._id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void handleCreate()}
+                disabled={busy}
+                className="rounded-[4px] bg-button-primary-bg px-3 py-2 text-[12px] font-medium text-button-primary-text transition-colors hover:bg-accent-hover disabled:opacity-50"
+              >
+                {busy ? "Generating…" : "Generate token"}
+              </button>
+            </div>
+          </div>
+
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+
+          {plaintext && (
+            <div>
+              <FieldLabel>New token</FieldLabel>
+              <FieldHint>Copy this now. It cannot be shown again.</FieldHint>
+              <pre className="mt-2 overflow-auto rounded-[4px] border border-[#4B57DB] bg-white p-3 text-[11px] font-mono text-text-primary">
+                {plaintext}
+              </pre>
+            </div>
+          )}
+
+          <div>
+            <FieldLabel>Active tokens</FieldLabel>
+            {(tokens ?? []).length === 0 ? (
+              <p className="text-[12px] text-text-muted">No tokens yet.</p>
+            ) : (
+              <ul className="divide-y divide-border rounded-[4px] border border-border">
+                {(tokens ?? []).map((token: {
+                  _id: Id<"agentTokens">;
+                  name: string;
+                  prefix: string;
+                  projectId?: string;
+                  createdAt: number;
+                  lastUsedAt?: number;
+                }) => {
+                  const bound = (projects ?? []).find((project: { _id: string }) => project._id === token.projectId);
+                  return (
+                    <li key={token._id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                      <div className="min-w-0">
+                        <div className="text-[13px] text-text-primary">{token.name}</div>
+                        <div className="mt-0.5 font-mono text-[11px] text-text-muted">
+                          {token.prefix}…{bound ? ` · ${bound.name}` : " · all projects"}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleRevoke(token._id)}
+                        className="shrink-0 text-[12px] text-red-500 transition-colors hover:text-red-600"
+                      >
+                        Revoke
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
 
       <CopyBlock
         label="Cursor"

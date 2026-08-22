@@ -6,12 +6,17 @@ import { getConvexClient } from "@/lib/convex/server";
 export type AgentConvexAuth = {
   bearerToken?: string | null;
   serviceSecret?: string | null;
+  actingUserId?: string | null;
 };
+
+function usesOwnerScopedAgentAuth(auth: AgentConvexAuth): boolean {
+  return Boolean(auth.actingUserId && auth.serviceSecret);
+}
 
 export function createAgentConvexClient(auth: AgentConvexAuth): ConvexHttpClient | null {
   const client = getConvexClient();
   if (!client) return null;
-  if (auth.bearerToken) {
+  if (auth.bearerToken && !usesOwnerScopedAgentAuth(auth)) {
     client.setAuth(auth.bearerToken);
   }
   return client;
@@ -20,10 +25,17 @@ export function createAgentConvexClient(auth: AgentConvexAuth): ConvexHttpClient
 export async function agentListProjects(auth: AgentConvexAuth) {
   const client = createAgentConvexClient(auth);
   if (!client) throw new Error("Convex is not configured");
-  if (!auth.bearerToken) {
-    throw new Error("Bearer token required to list projects");
-  }
+
   try {
+    if (usesOwnerScopedAgentAuth(auth)) {
+      return await client.query(api.projects.listMineForUserAgent, {
+        actingUserId: auth.actingUserId as Id<"users">,
+        serviceSecret: auth.serviceSecret!,
+      });
+    }
+    if (!auth.bearerToken) {
+      throw new Error("Bearer token required to list projects");
+    }
     return await client.query(api.projects.listMine, {});
   } finally {
     client.clearAuth();
@@ -38,6 +50,13 @@ export async function agentLoadCanvas(
   if (!client) throw new Error("Convex is not configured");
 
   try {
+    if (usesOwnerScopedAgentAuth(auth)) {
+      return await client.query(api.projects.loadCanvasForUserAgent, {
+        projectId,
+        actingUserId: auth.actingUserId as Id<"users">,
+        serviceSecret: auth.serviceSecret!,
+      });
+    }
     if (auth.serviceSecret) {
       return await client.query(api.projects.loadCanvasForAgent, {
         projectId,
@@ -66,6 +85,16 @@ export async function agentSaveCanvas(
   if (!client) throw new Error("Convex is not configured");
 
   try {
+    if (usesOwnerScopedAgentAuth(auth)) {
+      return await client.mutation(api.projects.saveCanvasForUserAgent, {
+        projectId: args.projectId,
+        actingUserId: auth.actingUserId as Id<"users">,
+        state: args.state,
+        expectedRevision: args.expectedRevision,
+        schemaVersion: args.schemaVersion,
+        serviceSecret: auth.serviceSecret!,
+      });
+    }
     if (auth.serviceSecret) {
       return await client.mutation(api.projects.saveCanvasForAgent, {
         projectId: args.projectId,
@@ -97,6 +126,14 @@ export async function agentAssertProjectAccess(
   if (!client) throw new Error("Convex is not configured");
 
   try {
+    if (usesOwnerScopedAgentAuth(auth)) {
+      await client.query(api.projects.assertProjectAccessForUserAgent, {
+        projectId,
+        actingUserId: auth.actingUserId as Id<"users">,
+        serviceSecret: auth.serviceSecret!,
+      });
+      return;
+    }
     if (auth.serviceSecret) {
       await client.query(api.projects.assertProjectAccessForAgent, {
         projectId,

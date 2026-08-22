@@ -310,4 +310,17 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_status", ["status"])
     .index("by_created", ["createdAt"]),
+
+  agentTokens: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    tokenHash: v.string(),
+    prefix: v.string(),
+    projectId: v.optional(v.id("projects")),
+    lastUsedAt: v.optional(timestamp),
+    createdAt: timestamp,
+    revokedAt: v.optional(timestamp),
+  })
+    .index("by_user", ["userId"])
+    .index("by_hash", ["tokenHash"]),
 });

@@ -24,7 +24,14 @@ export async function POST(req: NextRequest) {
   });
   if (!guarded.ok) return guarded.response;
 
-  if (auth.devBypass || auth.serviceSecret) {
+  if (auth.devBypass && !auth.actingUserId) {
+    return NextResponse.json({
+      projects: [],
+      note: "list_projects requires a user Bearer token",
+    });
+  }
+
+  if (auth.serviceSecret && !auth.actingUserId) {
     return NextResponse.json({
       projects: [],
       note: "list_projects requires a user Bearer token",

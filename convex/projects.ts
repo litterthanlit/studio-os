@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import { canReadProject, canWriteProject, now, requireUser, writeAuditLog } from "./auth";
 
 export const listMine = query({
@@ -162,6 +164,82 @@ function assertServiceSecret(value: string) {
   if (!expected || value !== expected) throw new Error("FORBIDDEN");
 }
 
+async function persistCanvasState(
+  ctx: MutationCtx,
+  project: Doc<"projects">,
+  args: {
+    state: unknown;
+    expectedRevision?: number;
+    schemaVersion?: number;
+  },
+) {
+  const existing = await ctx.db
+    .query("canvasDocuments")
+    .withIndex("by_project", (q) => q.eq("projectId", project._id))
+    .unique();
+  const time = now();
+
+  if (existing) {
+    if (
+      typeof args.expectedRevision === "number" &&
+      args.expectedRevision !== existing.revision
+    ) {
+      throw new Error("CANVAS_REVISION_CONFLICT");
+    }
+    const nextRevision = existing.revision + 1;
+    await ctx.db.patch(existing._id, {
+      state: args.state,
+      schemaVersion: args.schemaVersion ?? existing.schemaVersion,
+      documentVersion: existing.documentVersion + 1,
+      revision: nextRevision,
+      lastSavedAt: time,
+      updatedAt: time,
+    });
+    await ctx.db.insert("canvasSnapshots", {
+      ownerId: project.ownerId,
+      projectId: project._id,
+      canvasDocumentId: existing._id,
+      revision: nextRevision,
+      state: args.state,
+      createdAt: time,
+    });
+    return { id: existing._id, revision: nextRevision };
+  }
+
+  const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
+    ownerId: project.ownerId,
+    projectId: project._id,
+    schemaVersion: args.schemaVersion ?? 1,
+    documentVersion: 1,
+    revision: 1,
+    state: args.state,
+    status: "active",
+    lastSavedAt: time,
+    createdAt: time,
+    updatedAt: time,
+  });
+  await ctx.db.insert("canvasSnapshots", {
+    ownerId: project.ownerId,
+    projectId: project._id,
+    canvasDocumentId,
+    revision: 1,
+    state: args.state,
+    createdAt: time,
+  });
+  return { id: canvasDocumentId, revision: 1 };
+}
+
+async function requireOwnedProjectForUserAgent(
+  ctx: QueryCtx | MutationCtx,
+  projectId: Id<"projects">,
+  actingUserId: Id<"users">,
+) {
+  const project = await ctx.db.get(projectId);
+  if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
+  if (project.ownerId !== actingUserId) throw new Error("PROJECT_FORBIDDEN");
+  return project;
+}
+
 export const assertProjectAccessForAgent = query({
   args: {
     projectId: v.id("projects"),
@@ -199,64 +277,99 @@ export const saveCanvasForAgent = mutation({
     schemaVersion: v.optional(v.number()),
     serviceSecret: v.string(),
   },
+  returns: v.object({
+    id: v.id("canvasDocuments"),
+    revision: v.number(),
+  }),
   handler: async (ctx, args) => {
     assertServiceSecret(args.serviceSecret);
     const project = await ctx.db.get(args.projectId);
     if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
+    return await persistCanvasState(ctx, project, args);
+  },
+});
 
-    const existing = await ctx.db
+const projectListItem = v.object({
+  _id: v.id("projects"),
+  name: v.string(),
+  slug: v.string(),
+  brief: v.optional(v.string()),
+  updatedAt: v.number(),
+});
+
+export const listMineForUserAgent = query({
+  args: {
+    actingUserId: v.id("users"),
+    serviceSecret: v.string(),
+  },
+  returns: v.array(projectListItem),
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const user = await ctx.db.get(args.actingUserId);
+    if (!user || user.status !== "active") throw new Error("UNAUTHORIZED");
+    const rows = await ctx.db
+      .query("projects")
+      .withIndex("by_owner", (q) => q.eq("ownerId", args.actingUserId))
+      .collect();
+    return rows
+      .filter((project) => project.status !== "deleted")
+      .map((project) => ({
+        _id: project._id,
+        name: project.name,
+        slug: project.slug,
+        brief: project.brief,
+        updatedAt: project.updatedAt,
+      }));
+  },
+});
+
+export const assertProjectAccessForUserAgent = query({
+  args: {
+    projectId: v.id("projects"),
+    actingUserId: v.id("users"),
+    serviceSecret: v.string(),
+  },
+  returns: v.object({ ok: v.literal(true) }),
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    await requireOwnedProjectForUserAgent(ctx, args.projectId, args.actingUserId);
+    return { ok: true as const };
+  },
+});
+
+export const loadCanvasForUserAgent = query({
+  args: {
+    projectId: v.id("projects"),
+    actingUserId: v.id("users"),
+    serviceSecret: v.string(),
+  },
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    await requireOwnedProjectForUserAgent(ctx, args.projectId, args.actingUserId);
+    return await ctx.db
       .query("canvasDocuments")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .unique();
-    const time = now();
+  },
+});
 
-    if (existing) {
-      if (
-        typeof args.expectedRevision === "number" &&
-        args.expectedRevision !== existing.revision
-      ) {
-        throw new Error("CANVAS_REVISION_CONFLICT");
-      }
-      const nextRevision = existing.revision + 1;
-      await ctx.db.patch(existing._id, {
-        state: args.state,
-        schemaVersion: args.schemaVersion ?? existing.schemaVersion,
-        documentVersion: existing.documentVersion + 1,
-        revision: nextRevision,
-        lastSavedAt: time,
-        updatedAt: time,
-      });
-      await ctx.db.insert("canvasSnapshots", {
-        ownerId: project.ownerId,
-        projectId: args.projectId,
-        canvasDocumentId: existing._id,
-        revision: nextRevision,
-        state: args.state,
-        createdAt: time,
-      });
-      return { id: existing._id, revision: nextRevision };
-    }
-
-    const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
-      ownerId: project.ownerId,
-      projectId: args.projectId,
-      schemaVersion: args.schemaVersion ?? 1,
-      documentVersion: 1,
-      revision: 1,
-      state: args.state,
-      status: "active",
-      lastSavedAt: time,
-      createdAt: time,
-      updatedAt: time,
-    });
-    await ctx.db.insert("canvasSnapshots", {
-      ownerId: project.ownerId,
-      projectId: args.projectId,
-      canvasDocumentId,
-      revision: 1,
-      state: args.state,
-      createdAt: time,
-    });
-    return { id: canvasDocumentId, revision: 1 };
+export const saveCanvasForUserAgent = mutation({
+  args: {
+    projectId: v.id("projects"),
+    actingUserId: v.id("users"),
+    state: v.any(),
+    expectedRevision: v.optional(v.number()),
+    schemaVersion: v.optional(v.number()),
+    serviceSecret: v.string(),
+  },
+  returns: v.object({
+    id: v.id("canvasDocuments"),
+    revision: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    assertServiceSecret(args.serviceSecret);
+    const project = await requireOwnedProjectForUserAgent(ctx, args.projectId, args.actingUserId);
+    return await persistCanvasState(ctx, project, args);
   },
 });

@@ -260,6 +260,7 @@ async function mcpRpc(body: unknown, headers: Record<string, string> = {}) {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json, text/event-stream",
+        "MCP-Protocol-Version": "2024-11-05",
         ...headers,
       },
       body: JSON.stringify(body),
@@ -275,10 +276,17 @@ async function mcpRpc(body: unknown, headers: Record<string, string> = {}) {
   }
 }
 
-function parseMcpJson(text: string): { result?: { tools?: Array<{ name: string }> } } | null {
+function parseMcpJson(text: string): {
+  result?: {
+    tools?: Array<{ name: string }>;
+    serverInfo?: { name?: string };
+    protocolVersion?: string;
+  };
+  error?: { message?: string };
+} | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
-  const jsonLine = trimmed.startsWith("data:")
+  const jsonLine = trimmed.includes("data:")
     ? trimmed
         .split("\n")
         .filter((line) => line.startsWith("data:"))
@@ -287,7 +295,14 @@ function parseMcpJson(text: string): { result?: { tools?: Array<{ name: string }
     : trimmed;
   if (!jsonLine) return null;
   try {
-    return JSON.parse(jsonLine) as { result?: { tools?: Array<{ name: string }> } };
+    return JSON.parse(jsonLine) as {
+      result?: {
+        tools?: Array<{ name: string }>;
+        serverInfo?: { name?: string };
+        protocolVersion?: string;
+      };
+      error?: { message?: string };
+    };
   } catch {
     return null;
   }
@@ -332,6 +347,8 @@ async function testMcpInitializeAndToolsList() {
   }
 
   assert.ok(unauthed.response.ok, `MCP initialize failed: ${unauthed.response.status} ${unauthed.text}`);
+  const initialized = parseMcpJson(unauthed.text);
+  assert.equal(initialized?.result?.serverInfo?.name, "studio-os");
   const sessionId = unauthed.response.headers.get("mcp-session-id");
   const sessionHeaders = sessionId ? { "mcp-session-id": sessionId } : {};
   await mcpRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, sessionHeaders);
@@ -339,17 +356,11 @@ async function testMcpInitializeAndToolsList() {
     { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
     sessionHeaders,
   );
-  if (listed.unavailable) return;
-  if (!listed.response.ok) {
-    console.log(`[proof:agent-platform] tools/list returned ${listed.response.status} — initialize succeeded`);
-    return;
-  }
+  assert.ok(!listed.unavailable, "MCP tools/list became unavailable after initialize");
+  assert.ok(listed.response.ok, `MCP tools/list failed: ${listed.response.status} ${listed.text}`);
   const payload = parseMcpJson(listed.text);
   const names = payload?.result?.tools?.map((tool) => tool.name) ?? [];
-  if (names.length === 0) {
-    console.log("[proof:agent-platform] tools/list parsed empty — initialize still succeeded");
-    return;
-  }
+  assert.ok(names.length > 0, `tools/list parsed empty: ${listed.text.slice(0, 400)}`);
   for (const name of ["get_canvas", "get_node", "patch_node", "move_item", "select_on_canvas", "delete_item", "write_canvas"]) {
     assert.ok(names.includes(name), `missing MCP tool ${name}`);
   }

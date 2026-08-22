@@ -19,6 +19,7 @@ import {
   InspectorTextInput,
 } from "./inspector/InspectorField";
 import { StudioButton } from "@/components/ui/studio-button";
+import { AgentConnectPanel } from "./AgentConnectPanel";
 
 type AgentDesignHarnessPanelProps = {
   projectId?: string;
@@ -187,6 +188,8 @@ export function AgentDesignHarnessPanel({ projectId }: AgentDesignHarnessPanelPr
 
   return (
     <div className="flex min-h-0 flex-col gap-3 px-3 py-3">
+      <AgentConnectPanel projectId={projectId} />
+
       <div className="rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-surface)] px-2.5 py-2">
         <div className="mb-1 flex items-center gap-2 text-[12px] font-medium text-[var(--text-primary)]">
           <ShieldCheck size={14} strokeWidth={1.7} />

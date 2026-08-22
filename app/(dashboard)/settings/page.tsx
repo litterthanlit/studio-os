@@ -10,6 +10,7 @@ import {
   type EditorThemePreference,
 } from "@/lib/editor-theme-preference";
 import { readStoredProfile, writeStoredProfile } from "@/lib/profile-store";
+import { AgentConnectionsSection } from "./AgentConnectionsSection";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -310,6 +311,10 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+          <div className="border-t border-border pt-5">
+            <div className="mb-3 text-[13px] text-text-primary">Agents</div>
+            <AgentConnectionsSection />
+          </div>
         </SectionGroup>
 
         {/* ── Data ── */}

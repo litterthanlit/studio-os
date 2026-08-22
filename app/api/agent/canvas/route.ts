@@ -6,6 +6,7 @@ import {
 import {
   applyCanvasAgentOperations,
   buildCanvasSummary,
+  getCanvasNode,
   type CanvasAgentOperation,
 } from "@/lib/agent/canvas-agent-ops";
 import {
@@ -22,12 +23,15 @@ import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
  * POST /api/agent/canvas
  *
  * Read: { action: "get", projectId }
+ * Node: { action: "get_node", projectId, itemId, nodeId }
  * Write: { action: "write", projectId, operations, expectedRevision? }
  */
 export async function POST(req: NextRequest) {
   const guarded = await readGuardedJson<{
-    action: "get" | "write";
+    action: "get" | "get_node" | "write";
     projectId: string;
+    itemId?: string;
+    nodeId?: string;
     operations?: CanvasAgentOperation[];
     expectedRevision?: number;
     tasteProfile?: TasteProfile | null;
@@ -39,8 +43,16 @@ export async function POST(req: NextRequest) {
   });
   if (!guarded.ok) return guarded.response;
 
-  const { action, projectId, operations, expectedRevision, tasteProfile, designTokens } =
-    guarded.body;
+  const {
+    action,
+    projectId,
+    itemId,
+    nodeId,
+    operations,
+    expectedRevision,
+    tasteProfile,
+    designTokens,
+  } = guarded.body;
 
   if (!projectId) {
     return NextResponse.json({ error: "projectId is required" }, { status: 400 });
@@ -70,6 +82,30 @@ export async function POST(req: NextRequest) {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load canvas";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
+  if (action === "get_node") {
+    if (!itemId || !nodeId) {
+      return NextResponse.json({ error: "itemId and nodeId are required" }, { status: 400 });
+    }
+    try {
+      const doc = await agentLoadCanvas(convexAuth, auth.projectId!);
+      const canvasState = doc?.state
+        ? normalizeRemoteCanvasState(doc.state)
+        : normalizeRemoteCanvasState(null);
+      const result = getCanvasNode(canvasState, itemId, nodeId);
+      if (!result) {
+        return NextResponse.json({ error: "Node not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        projectId,
+        revision: doc?.revision ?? null,
+        ...result,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load node";
       return NextResponse.json({ error: message }, { status: 502 });
     }
   }
@@ -114,5 +150,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ error: "action must be get or write" }, { status: 400 });
+  return NextResponse.json({ error: "action must be get, get_node, or write" }, { status: 400 });
 }

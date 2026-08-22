@@ -78,6 +78,7 @@ export function CanvasProvider({
   const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const convexSaveInFlightRef = useRef(false);
   const convexRetryPendingRef = useRef(false);
+  const skipConvexSaveRef = useRef(false);
 
   const loadedItemCountRef = useRef(-1);
   const loadedForProjectRef = useRef<string | null>(null);
@@ -246,6 +247,11 @@ export function CanvasProvider({
       saveUnifiedCanvas(projectId, nextState);
       pendingConvexStateRef.current = nextState;
 
+      if (skipConvexSaveRef.current) {
+        skipConvexSaveRef.current = false;
+        return;
+      }
+
       if (convexSaveTimerRef.current) {
         clearTimeout(convexSaveTimerRef.current);
       }
@@ -287,15 +293,45 @@ export function CanvasProvider({
     };
   }, [convexProjectId, convexSyncEnabled, flushConvexSave, projectId]);
 
-  // Detect external canvas updates while the editor is open.
+  // Auto-apply newer Convex revisions from agents. Toast only when a local
+  // save is in flight or master-edit would make a silent apply unsafe.
   useEffect(() => {
     if (!convexSyncEnabled || !remoteDoc || !hasInitialReconciledRef.current) return;
-    if (
-      shouldPromptExternalReload(appliedRemoteRevisionRef.current, remoteDoc.revision)
-    ) {
-      setExternalUpdateVisible(true);
+    if (!shouldPromptExternalReload(appliedRemoteRevisionRef.current, remoteDoc.revision)) {
+      return;
     }
-  }, [convexSyncEnabled, remoteDoc, remoteDoc?.revision]);
+
+    const hasPendingLocalSave =
+      convexSaveInFlightRef.current ||
+      convexRetryPendingRef.current ||
+      convexSaveTimerRef.current != null ||
+      saveTimerRef.current != null;
+
+    if (hasPendingLocalSave || latestStateRef.current.masterEditSession) {
+      setExternalUpdateVisible(true);
+      return;
+    }
+
+    if (!remoteDoc.state) {
+      setExternalUpdateVisible(true);
+      return;
+    }
+
+    skipConvexSaveRef.current = true;
+    const nextState = normalizeRemoteCanvasState(remoteDoc.state);
+    loadedItemCountRef.current = nextState.items.length;
+    dispatch({ type: "APPLY_REMOTE_STATE", state: nextState });
+    saveUnifiedCanvas(projectId, nextState);
+    pendingConvexStateRef.current = nextState;
+    appliedRemoteRevisionRef.current = remoteDoc.revision;
+    convexRevisionRef.current = remoteDoc.revision;
+    saveCanvasSyncMetadata(projectId, {
+      revision: remoteDoc.revision,
+      savedAt: remoteDoc.lastSavedAt || remoteDoc.updatedAt,
+      source: "remote",
+    });
+    setExternalUpdateVisible(false);
+  }, [convexSyncEnabled, projectId, remoteDoc, remoteDoc?.revision]);
 
   useEffect(() => {
     if (!convexSyncEnabled || !convexProjectId) return;
@@ -320,7 +356,9 @@ export function CanvasProvider({
     }
 
     const nextState = normalizeRemoteCanvasState(remoteDoc.state);
-    applyLoadedState(nextState);
+    skipConvexSaveRef.current = true;
+    loadedItemCountRef.current = nextState.items.length;
+    dispatch({ type: "APPLY_REMOTE_STATE", state: nextState });
     saveUnifiedCanvas(projectId, nextState);
     appliedRemoteRevisionRef.current = remoteDoc.revision;
     convexRevisionRef.current = remoteDoc.revision;
@@ -330,7 +368,7 @@ export function CanvasProvider({
       source: "remote",
     });
     setExternalUpdateVisible(false);
-  }, [applyLoadedState, projectId, remoteDoc]);
+  }, [projectId, remoteDoc]);
 
   const contextValue: CanvasContextValue = {
     state: extractCanvasState(reducerState),

@@ -173,6 +173,7 @@ export type CanvasAction =
 
   // Persistence
   | { type: "LOAD_STATE"; state: UnifiedCanvasState }
+  | { type: "APPLY_REMOTE_STATE"; state: UnifiedCanvasState }
 
   // Taste feedback loop
   | { type: "SET_GENERATED_SNAPSHOT"; snapshots: Record<string, import("./design-node").DesignNode> }
@@ -712,7 +713,7 @@ function updateItemTree(
 // Actions that should NOT auto-accept an active AI preview
 const AI_PREVIEW_SAFE_ACTIONS = new Set([
   "START_AI_PREVIEW", "ACCEPT_AI_PREVIEW", "RESTORE_AI_PREVIEW",
-  "SET_VIEWPORT", "LOAD_STATE", "UNDO", "REDO", "PUSH_HISTORY",
+  "SET_VIEWPORT", "LOAD_STATE", "APPLY_REMOTE_STATE", "UNDO", "REDO", "PUSH_HISTORY",
   "SET_PROMPT", "SET_SITE_TYPE", "TOGGLE_PROMPT_PANEL", "SET_SPLIT_RATIO",
   "SET_PROMPT_STATUS", "ADD_PROMPT_HISTORY", "REPLACE_SITE", "RESTORE_SITE",
 ]);
@@ -3210,6 +3211,26 @@ export function canvasReducer(
         history: state.history, // Preserve in-memory history stack across loads
         masterEditSession: null, // Never restore transient master edit state
         variantPreview: null, // Never restore transient variant preview state
+      };
+    }
+
+    case "APPLY_REMOTE_STATE": {
+      return {
+        ...action.state,
+        selection: {
+          ...action.state.selection,
+          selectedNodeIds: action.state.selection.selectedNodeIds ?? [],
+        },
+        aiPreview: null,
+        history: pushHistory(
+          state.history,
+          "Agent canvas update",
+          state.items,
+          state.selection,
+          state.components
+        ),
+        masterEditSession: null,
+        variantPreview: null,
       };
     }
 

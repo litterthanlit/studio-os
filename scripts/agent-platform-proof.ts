@@ -10,9 +10,17 @@ import {
   getCanvasNode,
 } from "../lib/agent/canvas-agent-ops";
 import {
+  CURSOR_CONNECT_TOKEN_NAME,
+  CURSOR_PLUGIN_LOCAL_PATH,
+  CURSOR_PLUGIN_SOURCE_PATH,
+  STUDIO_OS_API_TOKEN_ENV,
   buildClaudeCodeMcpConfig,
   buildCodexMcpConfig,
   buildCursorMcpConfig,
+  buildCursorPluginCopyCommand,
+  buildCursorPluginEnvCommand,
+  buildCursorPluginInstallScript,
+  buildCursorPluginSymlinkCommand,
 } from "../lib/agent/mcp-config-snippets";
 import { isAgentPersonalAccessToken } from "../lib/agent/agent-token";
 import { validateAndNormalizeDesignTree } from "../lib/canvas/design-tree-validator";
@@ -169,8 +177,28 @@ function testMcpSnippets() {
   const claude = buildClaudeCodeMcpConfig(url, token);
   assert.equal(claude.mcpServers["studio-os"].type, "http");
   const codex = buildCodexMcpConfig(url);
-  assert.ok(codex.includes('bearer_token_env_var = "STUDIO_OS_API_TOKEN"'));
+  assert.ok(codex.includes(`bearer_token_env_var = "${STUDIO_OS_API_TOKEN_ENV}"`));
   assert.ok(codex.includes(url));
+
+  assert.equal(CURSOR_PLUGIN_SOURCE_PATH, "extensions/cursor");
+  assert.equal(CURSOR_PLUGIN_LOCAL_PATH, "~/.cursor/plugins/local/studio-os");
+  assert.equal(CURSOR_CONNECT_TOKEN_NAME, "Cursor");
+  const symlink = buildCursorPluginSymlinkCommand();
+  assert.match(symlink, /extensions\/cursor/);
+  assert.match(symlink, /~\/\.cursor\/plugins\/local\/studio-os/);
+  assert.match(symlink, /ln -sfn/);
+  assert.doesNotMatch(symlink, /cursor\.com\/marketplace/);
+  const copy = buildCursorPluginCopyCommand();
+  assert.match(copy, /cp -R extensions\/cursor/);
+  const env = buildCursorPluginEnvCommand(token);
+  assert.equal(env, `export ${STUDIO_OS_API_TOKEN_ENV}='${token}'`);
+  const emptyEnv = buildCursorPluginEnvCommand();
+  assert.equal(emptyEnv, `export ${STUDIO_OS_API_TOKEN_ENV}=`);
+  assert.doesNotMatch(emptyEnv, /sos_live_/);
+  const install = buildCursorPluginInstallScript(token);
+  assert.match(install, /ln -sfn/);
+  assert.match(install, new RegExp(STUDIO_OS_API_TOKEN_ENV));
+  assert.ok(install.includes(token));
 }
 
 async function fetchJson(path: string, body: unknown, headers: Record<string, string> = {}) {

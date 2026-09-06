@@ -2,9 +2,20 @@
 
 This Cloud Agent environment does **not** run the Cursor IDE. Local install and MCP handshake must be confirmed on a machine with Cursor. Use the checks below as PASS criteria before merge.
 
+## In-app Connect Cursor (browser QA)
+
+Happy path is canvas, not Settings MCP paste.
+
+1. Sign in, open a Convex-synced project (`/canvas?project=…`).
+2. Right inspector → **Agent**. **Connect Cursor** is the primary action when a `projectId` exists.
+3. Click it: mints a project-bound token named Cursor (`api.agentTokens.create`). Token is shown once.
+4. Copy buttons cover the token, symlink, copy-instead, `export STUDIO_OS_API_TOKEN=…`, and the combined install script.
+5. Commands must reference `extensions/cursor` → `~/.cursor/plugins/local/studio-os` and `STUDIO_OS_API_TOKEN`.
+6. Quiet link: **Manage tokens in Settings**. Settings keeps list/revoke; Cursor install is the plugin path (Claude/Codex stay snippets).
+
 ## Local install (human / Cursor IDE)
 
-From `extensions/cursor`:
+From a studio-os repo root:
 
 ```bash
 mkdir -p ~/.cursor/plugins/local

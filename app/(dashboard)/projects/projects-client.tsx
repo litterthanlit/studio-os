@@ -211,6 +211,11 @@ function ProjectRow({
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[14px] font-medium text-text-primary">
             {project.name}
+            {project.isDemo ? (
+              <span className="ml-2 font-mono text-[10px] uppercase tracking-[1px] text-text-muted">
+                Demo
+              </span>
+            ) : null}
           </span>
           <span className="text-[11px] text-text-muted">
             {project.lastActivity} · {project.references} refs

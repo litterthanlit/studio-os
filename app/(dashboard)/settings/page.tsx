@@ -11,6 +11,7 @@ import {
 } from "@/lib/editor-theme-preference";
 import { readStoredProfile, writeStoredProfile } from "@/lib/profile-store";
 import { AgentConnectionsSection } from "./AgentConnectionsSection";
+import { SettingsAccountAuth } from "./SettingsAccountAuth";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -230,6 +231,7 @@ export default function SettingsPage() {
       <div className="space-y-12">
         {/* ── Account ── */}
         <SectionGroup label="Account">
+          <SettingsAccountAuth />
           <div>
             <FieldLabel>Name</FieldLabel>
             <div className="flex items-center gap-2">

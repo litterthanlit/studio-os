@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { getPublicConvexUrl } from "@/lib/convex/is-configured";
 
 export function getConvexClient() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const url = getPublicConvexUrl();
   if (!url) return null;
   return new ConvexHttpClient(url);
 }

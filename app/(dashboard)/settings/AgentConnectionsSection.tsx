@@ -87,9 +87,9 @@ export function AgentConnectionsSection() {
   }, []);
 
   const mcpUrl = `${origin || "https://studio-os.io"}/api/mcp`;
-  const snippetToken = plaintext ?? "sos_live_YOUR_TOKEN";
-  const cursorSnippet = formatJsonSnippet(buildCursorMcpConfig(mcpUrl, snippetToken));
-  const claudeSnippet = formatJsonSnippet(buildClaudeCodeMcpConfig(mcpUrl, snippetToken));
+  const snippetToken = plaintext;
+  const cursorSnippet = snippetToken ? formatJsonSnippet(buildCursorMcpConfig(mcpUrl, snippetToken)) : "";
+  const claudeSnippet = snippetToken ? formatJsonSnippet(buildClaudeCodeMcpConfig(mcpUrl, snippetToken)) : "";
   const codexSnippet = buildCodexMcpConfig(mcpUrl);
 
   async function handleCreate() {
@@ -146,7 +146,7 @@ export function AgentConnectionsSection() {
       {!signedIn && (
         <div>
           <p className="text-[13px] text-text-secondary">
-            Sign in to generate a personal token. You can still copy the client snippets with a placeholder.
+            Sign in to generate a personal token and see real Convex project ids. Snippets stay empty until a token exists.
           </p>
           <a
             href="/auth/login?next=/settings"
@@ -192,6 +192,34 @@ export function AgentConnectionsSection() {
           </div>
 
           {error && <p className="text-[12px] text-red-600">{error}</p>}
+
+          {(projects ?? []).length > 0 ? (
+            <div>
+              <FieldLabel>Convex project ids</FieldLabel>
+              <FieldHint>Use the bound-token path below, or paste this id into get_canvas / patch_node.</FieldHint>
+              <ul className="mt-2 divide-y divide-border rounded-[4px] border border-border">
+                {(projects ?? []).map((project: { _id: string; name: string; slug: string }) => (
+                  <li key={project._id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-[13px] text-text-primary">{project.name}</div>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-text-muted">{project._id}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void copyText(project._id)}
+                      className="shrink-0 rounded-[4px] border border-border px-2 py-1 text-[11px] text-text-secondary hover:border-border-hover hover:text-accent"
+                    >
+                      Copy id
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-[12px] text-text-muted">
+              No Convex projects yet. Create a project while signed in to mint a project id.
+            </p>
+          )}
 
           {plaintext && (
             <div>
@@ -242,21 +270,29 @@ export function AgentConnectionsSection() {
         </>
       )}
 
-      <CopyBlock
-        label="Cursor"
-        hint="~/.cursor/mcp.json"
-        value={cursorSnippet}
-      />
-      <CopyBlock
-        label="Claude Code"
-        hint='Must include "type": "http" or Claude treats it as stdio.'
-        value={claudeSnippet}
-      />
-      <CopyBlock
-        label="Codex"
-        hint='~/.codex/config.toml — then export STUDIO_OS_API_TOKEN with the token value.'
-        value={codexSnippet}
-      />
+      {snippetToken ? (
+        <>
+          <CopyBlock
+            label="Cursor"
+            hint="~/.cursor/mcp.json"
+            value={cursorSnippet}
+          />
+          <CopyBlock
+            label="Claude Code"
+            hint='Must include "type": "http" or Claude treats it as stdio.'
+            value={claudeSnippet}
+          />
+          <CopyBlock
+            label="Codex"
+            hint='~/.codex/config.toml — then export STUDIO_OS_API_TOKEN with the token value.'
+            value={codexSnippet}
+          />
+        </>
+      ) : (
+        <p className="text-[12px] text-text-muted">
+          Generate a token to copy MCP snippets. Placeholder tokens are not shown.
+        </p>
+      )}
     </div>
   );
 }

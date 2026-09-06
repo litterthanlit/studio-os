@@ -1,3 +1,4 @@
+import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -33,20 +34,27 @@ const referenceSource = v.union(
 );
 
 export default defineSchema({
+  ...authTables,
   users: defineTable({
-    tokenIdentifier: v.string(),
-    subject: v.string(),
-    email: v.optional(v.string()),
     name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    tokenIdentifier: v.optional(v.string()),
+    subject: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
-    onboardingComplete: v.boolean(),
-    status: v.union(v.literal("active"), v.literal("disabled")),
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    onboardingComplete: v.optional(v.boolean()),
+    status: v.optional(v.union(v.literal("active"), v.literal("disabled"))),
+    createdAt: v.optional(timestamp),
+    updatedAt: v.optional(timestamp),
   })
+    .index("email", ["email"])
+    .index("phone", ["phone"])
     .index("by_token", ["tokenIdentifier"])
-    .index("by_subject", ["subject"])
-    .index("by_email", ["email"]),
+    .index("by_subject", ["subject"]),
 
   roles: defineTable({
     userId: v.id("users"),

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 interface ScoredImage {
   id: string;
@@ -51,7 +52,10 @@ export default function AdminInspirationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [pinterestScoring, setPinterestScoring] = useState(false);
   const [pinterestResult, setPinterestResult] = useState<string | null>(null);
-  const queriedImages = useQuery(api.inspirationAdmin.list, { filter, minScore, limit: 100 });
+  const queriedImages = useQuery(
+    api.inspirationAdmin.list,
+    isConvexConfigured() ? { filter, minScore, limit: 100 } : "skip",
+  );
   const updateStatusMutation = useMutation(api.inspirationAdmin.updateStatus);
   const batchScoreLummi = useAction(api.inspirationAdminActions.batchScoreLummi);
   const listPinterestBoards = useAction(api.inspirationAdminActions.listPinterestBoards);

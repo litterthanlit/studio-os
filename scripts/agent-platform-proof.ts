@@ -350,7 +350,9 @@ async function testMcpInitializeAndToolsList() {
   const initialized = parseMcpJson(unauthed.text);
   assert.equal(initialized?.result?.serverInfo?.name, "studio-os");
   const sessionId = unauthed.response.headers.get("mcp-session-id");
-  const sessionHeaders = sessionId ? { "mcp-session-id": sessionId } : {};
+  const sessionHeaders: Record<string, string> = sessionId
+    ? { "mcp-session-id": sessionId }
+    : {};
   await mcpRpc({ jsonrpc: "2.0", method: "notifications/initialized" }, sessionHeaders);
   const listed = await mcpRpc(
     { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },

@@ -160,7 +160,7 @@ export function compileTasteToDirectives(
     result.hard.push({
       dimension: "typeScale",
       rule: `Type sizes MUST use: ${sizeParts.join("; ")}`,
-      value: taste.typeScale,
+      value: sizeParts.join("; "),
       source: "extracted",
     });
   } else {

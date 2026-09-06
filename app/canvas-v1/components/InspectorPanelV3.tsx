@@ -643,7 +643,7 @@ export function InspectorPanelV3({
     }
     const projectState = getProjectState(projectId);
     setProjectTokens(projectState.canvas?.designTokens ?? null);
-    setProjectTasteProfile(projectState.tasteProfile ?? null);
+    setProjectTasteProfile(projectState.canvas?.tasteProfile ?? null);
   }, [projectId]);
 
   const containerRef = React.useRef<HTMLDivElement>(null);

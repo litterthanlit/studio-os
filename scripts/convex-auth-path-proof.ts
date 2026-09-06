@@ -85,12 +85,23 @@ function testProjectCreateAwaitsConvex() {
 function testAgentUiTruth() {
   const settings = read("app/(dashboard)/settings/AgentConnectionsSection.tsx");
   assert.doesNotMatch(settings, /sos_live_YOUR_TOKEN/);
-  assert.match(settings, /Generate a token to copy MCP snippets/);
   assert.match(settings, /Convex project ids/);
+  assert.match(settings, /CURSOR_PLUGIN_SOURCE_PATH/);
+  assert.match(settings, /STUDIO_OS_API_TOKEN/);
+  assert.match(settings, /CURSOR_PLUGIN_LOCAL_PATH/);
+  assert.doesNotMatch(settings, /cursor\.com\/marketplace/);
+  assert.match(settings, /Generate a token to copy Claude and Codex snippets/);
 
   const panel = read("app/canvas-v1/components/AgentConnectPanel.tsx");
-  assert.match(panel, /Sign in to sync/);
+  assert.match(panel, /Connect Cursor/);
+  assert.match(panel, /Sign in to connect Cursor/);
+  assert.match(panel, /CURSOR_CONNECT_TOKEN_NAME/);
+  assert.match(panel, /CURSOR_PLUGIN_SOURCE_PATH/);
+  assert.match(panel, /api\.agentTokens\.create/);
+  assert.match(panel, /STUDIO_OS_API_TOKEN/);
+  assert.doesNotMatch(panel, /Open Settings to generate a token/);
   assert.doesNotMatch(panel, /this project id/);
+  assert.doesNotMatch(panel, /cursor\.com\/marketplace/);
 }
 
 function testHomeSidebarNotFake() {

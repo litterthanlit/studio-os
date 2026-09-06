@@ -25,7 +25,7 @@ Organize every call around these records. Treat extra fields as opaque; do not f
 
 ## Steps
 
-1. **Ensure the token is configured.** The user mints `sos_live_…` in Studio OS **Settings → Agent connections** (Convex `agentTokens`). Paste it into Plugins → Configure as `STUDIO_OS_API_TOKEN`, or export the same name in the environment. Prefer a **project-bound** token. Never invent or commit a token.
+1. **Ensure the token is configured.** The user mints a **project-bound** `sos_live_…` token from canvas **Agent → Connect Cursor** (Convex `agentTokens.create`, name Cursor). Settings → Agent connections is for list/revoke. Set `STUDIO_OS_API_TOKEN` in the environment or paste it into Plugins → Configure. Never invent or commit a token.
 2. **Resolve the project.** If the token is unbound, call `list_projects` and use `Project.id`. If the token is bound, skip `projectId` on every tool.
 3. **Read compact canvas.** Call `get_canvas` (omit `includeState` unless the full JSON is required). Use `Canvas.summary` item ids / artboard ids; keep `revision` for later writes.
 4. **Edit nodes, not guesses.** Call `get_node` with `itemId` + `nodeId` from the summary. Change only returned fields via `patch_node` (`style`, `content`, `name`) or `write_canvas` operations (`patch_node`, `move_item`, `select_on_canvas`, `delete_item`, …).

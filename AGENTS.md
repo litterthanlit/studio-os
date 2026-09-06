@@ -1,7 +1,8 @@
 # AGENTS.md — Studio OS Agent Roles
 
 This file defines how AI agents should operate when working on Studio OS.
-Read this before doing anything.
+
+**Read `SESSION.md` first** (current resume). This file is roles and history. Do not start from `extensions/cursor/`.
 
 ---
 
@@ -174,12 +175,10 @@ When dispatching an implementation agent:
 
 Before making any recommendation, read these in order:
 
-1. **This file** — role definitions
-2. **Project memory / checkpoint files (if present)** — project history and key decisions
-3. **Spec** at `docs/superpowers/specs/2026-03-23-v6-renderer-architecture-design.md` — current architecture
-4. **Gate result** at `docs/superpowers/plans/v6-gate-result.md` — proof gate status
-5. **HANDOFF-CHECKPOINT.md** — full project history and current state
-6. **studio-os/CLAUDE.md** — codebase guide, file map, design system, constraints
+1. **`SESSION.md`** — current resume, invariants, canonical paths (read first)
+2. **This file** — role definitions
+3. **`CLAUDE.md`** — codebase guide, file map, design system, constraints
+4. Proof scripts in `package.json` (`proof:*`) for the area you are changing
 
 ### What you do
 
@@ -291,7 +290,9 @@ These are patterns discovered during the project. Do not re-learn them.
 
 ### Current project state (update this section each major session)
 
-**Last updated:** 2026-07-16 (Phase 7 code-grade export shipped)
+**Live resume:** [`SESSION.md`](./SESSION.md) — update that file at the end of a session, then run `npm run proof:session-continuity`. Do not treat this dump as current.
+
+**Last dump:** 2026-07-16 (Phase 7 code-grade export shipped). Later landings (Convex canvas, agent MCP, Cursor plugin) are in `SESSION.md` and `git log`.
 
 - **Phase 7 (Code-grade export):** **SHIPPED**. `designNodeToTSX` converts DesignNode trees to React + Tailwind TSX with inline-style escape hatch for gradients, clip-paths, and exact px. `design-tokens-export.ts` emits `tokens.css` + `tailwind.tokens.js`; ZIP export includes `Component.tsx` + token artifacts. ExportTab format selector adds "React + Tailwind"; MCP/API `get_screen_design(format:"tsx")` returns compilable TSX. Proof: `npm run proof:code-export`.
 - **Phase 6 (App-UI design capability):** **SHIPPED**. App-shell archetype grammars (`app-dashboard`, `app-mobile`) with intent routing when `outputType` is `web-app-ui`/`mobile-app-ui`. Multi-screen generation mode `screens` plans 2-5 screens with shared shell context (`lib/canvas/generate-screen-set-core.ts`); one artboard per screen with `screenRole`/`screenPurpose` metadata. Exposed in prompt panel (auto when app-ui intent detected), `/api/canvas/generate-component?mode=screens`, `/api/agent/generate-screen-set`, MCP `generate_screen_set`. Design contract `AppStructure` uses authored screen metadata when present. Proof: `npm run proof:app-ui-capability`. Manual P6 QA pending (live dashboard + 3-screen flow generation).
@@ -405,8 +406,10 @@ The COO / Architect asks Nick before:
 
 ## How sessions should start
 
+**Always:** read `SESSION.md` first (current resume). Then `CLAUDE.md` before writing code. Do not start from `extensions/cursor/`.
+
 **If Nick says "let's start the day" / "morning" / "daily briefing":**
-→ Run the Morning Routine from workflow/CLAUDE.md
+→ Read `SESSION.md`, then this file's CEO path. The old morning-routine doc is gone.
 
 **If Nick says "what's the move" / "CEO" / "what should we do next":**
 → Activate **CEO**. Read state docs. Diagnose. Recommend.
@@ -458,3 +461,4 @@ The COO / Architect asks Nick before:
 | 2026-04-10 | **Responsive Editing Tier 2 — code complete.** Framer-style breakpoint switcher (Desktop/Mobile toggle in transport bar). One artboard per site (clean break from two-artboard model). `activeBreakpoint` on global canvas state. AI generation produces `responsiveOverrides.mobile` in single pass (differentiator). Validator normalizes responsive overrides. Old project migration auto-merges on load. Export media query uses `BREAKPOINT_WIDTHS` constant. `updateArtboardsForSite()` sync removed. 11 commits. QA pending. |
 | 2026-04-10 (session 2) | **Reference Understanding — code complete.** Two-stage composition analysis pipeline. Vision model analyzes reference structure (screenshots, photographs, editorial, posters). CompositionAnalysis type, `/api/taste/analyze-composition` vision route, composition-aware taste extraction, blueprint compiler (starred-overrides, type-specific output), `## COMPOSITION BLUEPRINT` prompt section, client-side caching on ReferenceItem. 8 commits, 3 new files. QA pending (needs API credits). |
 | 2026-04-10 (session 3) | **Grid Maturity + Inspector Polish (Tier 3) — code complete.** Web-native validator expansion (CSS grid up to 12 cols, auto-fill/auto-fit/minmax, string borderRadius "8 0 8 0", string gap "16 24", overflow enum). Source flag (`user`/`generated`) for escape hatch. 7 new inspector controls: individual corner radii, overflow, flex grow/shrink, aspect ratio, max width, object fit, scrim. Grid presets 6→10. Grid template rows. Split column/row gaps. 9 commits. QA pending. |
+| 2026-09-06 | **Coding-agent session continuity.** `SESSION.md` is the in-repo resume (replaces the missing checkpoint). Entry docs point here first; `npm run proof:session-continuity` fails if that contract drifts. Plugin folder is MCP-only. |

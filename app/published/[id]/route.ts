@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { convexQuery } from "@/lib/convex/server";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 const ID_RE = /^[a-zA-Z0-9_-]{8,24}$/;
 const PUBLISHED_EXPORT_CSP = [
@@ -30,13 +31,14 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  if (!isConvexConfigured()) {
+    return new NextResponse("Publish not configured", { status: 503 });
+  }
+
   const data = await convexQuery<{ html: string }>(api.publicContent.getPublishedExport, {
     publicId: id,
   });
 
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-    return new NextResponse("Publish not configured", { status: 503 });
-  }
   if (!data?.html) {
     return new NextResponse("Not found", { status: 404 });
   }

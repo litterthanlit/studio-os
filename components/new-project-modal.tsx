@@ -5,14 +5,14 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CloseIcon as X } from "@/components/ui/icon";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 import { cn } from "@/lib/utils";
 import { ColorPicker } from "@/components/color-picker";
 import {
   getProjects,
   saveProject,
-  setProjectConvexId,
   getProjectCover as readProjectCover,
   setProjectCover as writeProjectCover,
   uniqueProjectSlug,
@@ -150,7 +150,12 @@ function NewProjectModalInner({
   const [color, setColor] = React.useState<string>(ACCENT_COLORS[0]);
   const nameRef = React.useRef<HTMLInputElement>(null);
   const modalRef = React.useRef<HTMLDivElement>(null);
+  const convexReady = isConvexConfigured();
+  const currentUser = useQuery(api.users.current, convexReady ? {} : "skip");
+  const storeCurrent = useMutation(api.users.storeCurrent);
   const upsertProject = useMutation(api.projects.upsertBySlug);
+  const [creating, setCreating] = React.useState(false);
+  const [formError, setFormError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     nameRef.current?.focus();
@@ -164,9 +169,9 @@ function NewProjectModalInner({
         return;
       }
       if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
-        if (name.trim()) {
+        if (name.trim() && !creating) {
           e.preventDefault();
-          handleCreate();
+          void handleCreate();
         }
         return;
       }
@@ -194,10 +199,22 @@ function NewProjectModalInner({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, onClose]);
+  }, [name, creating, onClose]);
 
   async function handleCreate() {
-    if (!name.trim()) return;
+    if (!name.trim() || creating) return;
+    setFormError(null);
+
+    if (convexReady && currentUser === undefined) {
+      setFormError("Checking sign-in…");
+      return;
+    }
+
+    if (convexReady && !currentUser) {
+      setFormError("Sign in to create a project that agents can connect to.");
+      return;
+    }
+
     const id = uniqueProjectSlug(name);
     const project: StoredProject = {
       id,
@@ -207,25 +224,37 @@ function NewProjectModalInner({
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Write to localStorage cache immediately.
-    saveProject(project);
-    window.dispatchEvent(new Event("projects-updated"));
+    if (!convexReady) {
+      saveProject(project);
+      window.dispatchEvent(new Event("projects-updated"));
+      onSyncError("Saved locally — cloud sync isn’t configured for this deployment.");
+      onClose();
+      router.push(`/projects/${id}`);
+      return;
+    }
 
-    // Close and navigate right away — don't wait for the network
-    onClose();
-    router.push(`/projects/${id}`);
-
-    // 2. Persist to Convex in the background
+    setCreating(true);
     try {
+      await storeCurrent({});
       const convexProjectId = await upsertProject({
         slug: id,
         name: project.name,
         brief: project.brief || undefined,
         color: project.color,
       });
-      setProjectConvexId(id, convexProjectId);
-    } catch {
-      onSyncError("Couldn't sync to cloud — saved locally");
+      saveProject({ ...project, convexProjectId });
+      window.dispatchEvent(new Event("projects-updated"));
+      onClose();
+      router.push(`/projects/${id}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("UNAUTHENTICATED") || message.includes("UNAUTHORIZED")) {
+        setFormError("Sign in to create a project that agents can connect to.");
+      } else {
+        setFormError(message || "Couldn’t create the cloud project. Try again.");
+      }
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -340,6 +369,17 @@ function NewProjectModalInner({
             </div>
           </div>
 
+          {formError ? (
+            <div className="px-5 pb-2 text-[12px] text-red-500">
+              {formError}{" "}
+              {formError.includes("Sign in") ? (
+                <a href="/auth/login?next=/home" className="text-[#4B57DB] hover:underline">
+                  Sign in
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-card-border px-5 py-4">
             <p className="text-[10px] text-text-muted">
@@ -354,16 +394,16 @@ function NewProjectModalInner({
             </p>
             <button
               type="button"
-              onClick={handleCreate}
-              disabled={!name.trim()}
+              onClick={() => void handleCreate()}
+              disabled={!name.trim() || creating || Boolean(convexReady && currentUser === undefined)}
               className={cn(
-                "px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150 rounded-lg",
-                name.trim()
+                "px-4 py-2 text-sm font-medium transition-[opacity,background-color] duration-150 rounded-[4px]",
+                name.trim() && !creating
                   ? "cursor-pointer bg-button-primary-bg text-button-primary-text hover:opacity-90"
                   : "cursor-not-allowed bg-bg-tertiary text-text-muted"
               )}
             >
-              Create
+              {creating ? "Creating…" : "Create"}
             </button>
           </div>
         </motion.div>

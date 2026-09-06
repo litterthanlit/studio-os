@@ -1,14 +1,25 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
-import { adminEmails, now, requireIdentity, requireUser } from "./auth";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+  getCurrentUser,
+  now,
+  requireIdentity,
+  requireUser,
+  syncStudioUserRecord,
+} from "./authHelpers";
 
 export const storeCurrent = mutation({
   args: {},
+  returns: v.id("users"),
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx);
+    const authUserId = await getAuthUserId(ctx);
+    if (authUserId) {
+      await syncStudioUserRecord(ctx, authUserId, identity);
+      return authUserId;
+    }
+
     const time = now();
     const email = identity.email?.toLowerCase();
     const existing = await ctx.db
@@ -17,14 +28,7 @@ export const storeCurrent = mutation({
       .unique();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        subject: identity.subject,
-        email,
-        name: identity.name,
-        avatarUrl: identity.pictureUrl,
-        updatedAt: time,
-      });
-      await ensureAllowlistedAdminRole(ctx, existing._id, email, time);
+      await syncStudioUserRecord(ctx, existing._id, identity);
       return existing._id;
     }
 
@@ -39,7 +43,7 @@ export const storeCurrent = mutation({
       createdAt: time,
       updatedAt: time,
     });
-    await ensureAllowlistedAdminRole(ctx, userId, email, time);
+    await syncStudioUserRecord(ctx, userId, identity);
     return userId;
   },
 });
@@ -47,12 +51,7 @@ export const storeCurrent = mutation({
 export const current = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-    return await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .unique();
+    return await getCurrentUser(ctx);
   },
 });
 
@@ -67,27 +66,3 @@ export const setOnboardingComplete = mutation({
     return { ok: true };
   },
 });
-
-async function ensureAllowlistedAdminRole(
-  ctx: MutationCtx,
-  userId: Id<"users">,
-  email: string | undefined,
-  time: number
-) {
-  if (!email || !adminEmails().has(email)) return;
-  const existingRole = await ctx.db
-    .query("roles")
-    .withIndex("by_user_role", (q: any) => q.eq("userId", userId).eq("role", "admin"))
-    .unique();
-  if (existingRole) {
-    await ctx.db.patch(existingRole._id, { updatedAt: time });
-    return;
-  }
-  await ctx.db.insert("roles", {
-    userId,
-    role: "admin",
-    source: "allowlist",
-    createdAt: time,
-    updatedAt: time,
-  });
-}

@@ -3,12 +3,13 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { canReadProject, canWriteProject, now, requireUser, writeAuditLog } from "./auth";
+import { canReadProject, canWriteProject, getCurrentUser, now, requireUser, writeAuditLog } from "./auth";
 
 export const listMine = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireUser(ctx);
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
     return await ctx.db
       .query("projects")
       .withIndex("by_owner", (q) => q.eq("ownerId", user._id))

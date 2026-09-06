@@ -36,7 +36,7 @@ export function AgentConnectPanel({ projectId }: AgentConnectPanelProps) {
   return (
     <InspectorSection label="Connect">
       <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-        Paste the snippet from Settings into Cursor, Claude Code, or Codex. Then call get_canvas and patch_node with this project id.
+        Generate a token in Settings, then call get_canvas and patch_node with the Convex project id below. Bound tokens skip pasting the id.
       </p>
 
       <div className="mt-2">
@@ -45,7 +45,7 @@ export function AgentConnectPanel({ projectId }: AgentConnectPanelProps) {
         </div>
         <div className="flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded-[2px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] px-2 py-1.5 font-mono text-[11px] text-[var(--inspector-control-text)]">
-            {displayId || (currentUser ? "Not synced yet" : "Sign in to sync")}
+            {displayId || (currentUser ? "Not synced yet — create/reopen this project while signed in" : "Sign in to sync")}
           </code>
           <StudioButton
             type="button"
@@ -59,12 +59,21 @@ export function AgentConnectPanel({ projectId }: AgentConnectPanelProps) {
         </div>
       </div>
 
-      <a
-        href="/settings"
-        className="mt-2 inline-flex text-[11px] text-[#4B57DB] hover:underline"
-      >
-        Open Settings to generate a token
-      </a>
+      {!displayId && !currentUser ? (
+        <a
+          href="/auth/login?next=/settings"
+          className="mt-2 inline-flex text-[11px] text-[#4B57DB] hover:underline"
+        >
+          Sign in to sync this project
+        </a>
+      ) : (
+        <a
+          href="/settings"
+          className="mt-2 inline-flex text-[11px] text-[#4B57DB] hover:underline"
+        >
+          Open Settings to generate a token
+        </a>
+      )}
     </InspectorSection>
   );
 }

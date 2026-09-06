@@ -1,6 +1,7 @@
 import type { UnifiedCanvasState } from "./unified-canvas-state";
 import { createEmptyCanvas } from "./unified-canvas-state";
 import type { CanvasSyncMetadata } from "./canvas-persistence";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 export type RemoteCanvasDocument = {
   revision: number;
@@ -133,5 +134,5 @@ export function shouldPromptExternalReload(
 }
 
 export function isConvexCanvasSyncConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
+  return isConvexConfigured();
 }

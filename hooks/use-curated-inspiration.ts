@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 export interface InspirationImage {
   id: string;
@@ -45,8 +46,11 @@ export function useCuratedInspiration(options: UseCuratedInspirationOptions = {}
   const [error, setError] = useState<string | null>(null);
   const [collection, setCollection] = useState<string>("");
   const [isScored, setIsScored] = useState(false);
-  const publicImages = useQuery(api.inspiration.listPublic, { limit, minScore });
-  const likes = useQuery(api.inspiration.listLikes, {});
+  const publicImages = useQuery(
+    api.inspiration.listPublic,
+    isConvexConfigured() ? { limit, minScore } : "skip",
+  );
+  const likes = useQuery(api.inspiration.listLikes, isConvexConfigured() ? {} : "skip");
   const likeMutation = useMutation(api.inspiration.like);
   const unlikeMutation = useMutation(api.inspiration.unlike);
 

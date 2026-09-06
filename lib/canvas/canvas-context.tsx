@@ -87,7 +87,7 @@ export function CanvasProvider({
   const convexRevisionRef = useRef<number | null>(null);
   const pendingConvexStateRef = useRef<UnifiedCanvasState | null>(null);
 
-  const currentUser = useQuery(api.users.current, {});
+  const currentUser = useQuery(api.users.current, isConvexCanvasSyncConfigured() ? {} : "skip");
   const convexSyncEnabled = isConvexCanvasSyncConfigured() && Boolean(currentUser);
   const convexProjectId = useConvexProjectId(projectId, convexSyncEnabled);
   const remoteDoc = useQuery(

@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
 import { slugify, setProjectConvexId } from "@/lib/project-store";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 import {
   TEMPLATES,
   TEMPLATE_LIST,
@@ -991,7 +992,9 @@ function StepReady({
 
 export function OnboardingClient() {
   const router = useRouter();
-  const currentUser = useQuery(api.users.current, {});
+  const convexReady = isConvexConfigured();
+  const currentUser = useQuery(api.users.current, convexReady ? {} : "skip");
+  const storeCurrent = useMutation(api.users.storeCurrent);
   const setOnboardingComplete = useMutation(api.users.setOnboardingComplete);
   const upsertProject = useMutation(api.projects.upsertBySlug);
   const [ready, setReady] = React.useState(false);
@@ -1099,7 +1102,25 @@ export function OnboardingClient() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(onboarding));
     } catch { /* ignore */ }
 
-    // 2. Navigate immediately
+    if (convexReady && currentUser) {
+      try {
+        await storeCurrent({});
+        await setOnboardingComplete({ complete: true });
+
+        if (tpl) {
+          const convexProjectId = await upsertProject({
+            slug: projectId,
+            name: projectName,
+            brief: tpl.description,
+            color: projectColor,
+          });
+          setProjectConvexId(projectId, convexProjectId);
+        }
+      } catch {
+        /* local onboarding still completed */
+      }
+    }
+
     if (destination === "demo") {
       router.push("/projects/studio-os-demo");
     } else if (tpl) {
@@ -1107,21 +1128,6 @@ export function OnboardingClient() {
     } else {
       router.push("/home");
     }
-
-    // 3. Background Convex sync
-    try {
-      await setOnboardingComplete({ complete: true });
-
-      if (tpl) {
-        const convexProjectId = await upsertProject({
-          slug: projectId,
-          name: projectName,
-          brief: tpl.description,
-          color: projectColor,
-        });
-        setProjectConvexId(projectId, convexProjectId);
-      }
-    } catch { /* Convex auth not configured */ }
   }
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────

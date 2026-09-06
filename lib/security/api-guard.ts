@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { api } from "@/convex/_generated/api";
 import { consumeServerRouteLimit, getConvexClient } from "@/lib/convex/server";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 type GuardOptions = {
   requireAuth?: boolean;
@@ -47,7 +48,7 @@ export const API_LIMITS = {
 } as const;
 
 export function isConvexAuthConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
+  return isConvexConfigured();
 }
 
 export async function guardRequest(

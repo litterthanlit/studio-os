@@ -5,49 +5,9 @@ import { useRouter } from "next/navigation";
 import { useNewProjectModal } from "@/components/new-project-modal";
 import { Search, Plus, ArrowRight, Folder, Sparkles, Compass } from "lucide-react";
 import { PROFILE_STORAGE_KEY, PROFILE_UPDATED_EVENT, readStoredProfile } from "@/lib/profile-store";
-
-const RECENT_PROJECTS = [
-  {
-    id: "proj-1",
-    name: "Acme Rebrand",
-    date: "2 hours ago",
-    status: "Generating",
-    refs: 24,
-    image: "https://picsum.photos/seed/acme/96/96"
-  },
-  {
-    id: "proj-2",
-    name: "Aura Skincare",
-    date: "Yesterday",
-    status: "Review",
-    refs: 18,
-    image: "https://picsum.photos/seed/aura/96/96"
-  },
-  {
-    id: "proj-3",
-    name: "Nexus API Docs",
-    date: "3 days ago",
-    status: "Completed",
-    refs: 7,
-    image: "https://picsum.photos/seed/nexus/96/96"
-  },
-  {
-    id: "proj-4",
-    name: "Lumina Portfolio",
-    date: "Last week",
-    status: "Draft",
-    refs: 31,
-    image: "https://picsum.photos/seed/lumina/96/96"
-  },
-  {
-    id: "proj-5",
-    name: "Vertex Dashboard",
-    date: "2 weeks ago",
-    status: "Completed",
-    refs: 12,
-    image: "https://picsum.photos/seed/vertex/96/96"
-  },
-];
+import { useStudioProjects } from "@/hooks/use-studio-projects";
+import { relativeProjectTime } from "@/lib/studio-projects";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -56,20 +16,13 @@ function getGreeting() {
   return "Good evening";
 }
 
-function StatusDot({ status }: { status: string }) {
-  const color = status === "Generating" ? "bg-[#4B57DB]" :
-                status === "Review" ? "bg-amber-400" :
-                status === "Completed" ? "bg-emerald-400" :
-                "bg-[#A0A0A0]";
-  return (
-    <span className={`inline-block h-1.5 w-1.5 rounded-full ${color}`} />
-  );
-}
-
 export function HomeClient() {
   const router = useRouter();
   const { openModal } = useNewProjectModal();
   const [profileName, setProfileName] = React.useState("Nick");
+  const { projects, signedIn, loading } = useStudioProjects();
+  const recent = projects.slice(0, 8);
+  const convexReady = isConvexConfigured();
 
   React.useEffect(() => {
     setProfileName(readStoredProfile().name);
@@ -157,50 +110,64 @@ export function HomeClient() {
         </div>
 
         <div className="flex flex-col gap-1">
-          {RECENT_PROJECTS.map((project) => (
-            <div
-              key={project.id}
-              onClick={() => router.push(`/canvas?project=${project.name.toLowerCase().replace(/\s+/g, '-')}`)}
-              role="button"
-              tabIndex={0}
-              className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out cursor-pointer hover:border-border hover:bg-card-bg/70"
-            >
-              {/* Thumbnail */}
-              <div className="thumb-halftone-placeholder h-10 w-10 shrink-0 rounded-[4px] overflow-hidden border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={project.image}
-                  alt={project.name}
-                  className="w-full h-full object-cover"
+          {loading ? (
+            <p className="px-3 py-4 text-[13px] text-text-muted">Loading projects…</p>
+          ) : recent.length === 0 ? (
+            <div className="rounded-[4px] border border-border px-4 py-6">
+              <p className="text-[14px] font-medium text-text-primary">No projects yet</p>
+              <p className="mt-1 text-[13px] text-text-muted">
+                {convexReady && !signedIn
+                  ? "Sign in to sync projects to Convex, then create one to get a real project id."
+                  : "Create a project to start collecting references."}
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                {convexReady && !signedIn ? (
+                  <a
+                    href="/auth/login?next=/home"
+                    className="rounded-[4px] bg-[#4B57DB] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[#3D49C7]"
+                  >
+                    Sign in
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={openModal}
+                  className="rounded-[4px] border border-border px-3 py-1.5 text-[12px] text-text-secondary hover:border-border-hover hover:text-text-primary"
+                >
+                  New Project
+                </button>
+              </div>
+            </div>
+          ) : (
+            recent.map((project) => (
+              <div
+                key={project.convexProjectId ?? project.id}
+                onClick={() => router.push(`/projects/${project.id}`)}
+                role="button"
+                tabIndex={0}
+                className="group/row flex items-center gap-4 rounded-[4px] border border-transparent px-3 py-2.5 transition-all duration-150 ease-out cursor-pointer hover:border-border hover:bg-card-bg/70"
+              >
+                <div
+                  className="h-10 w-10 shrink-0 rounded-[4px] border border-border"
+                  style={{ backgroundColor: project.color }}
+                />
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-[14px] font-medium text-text-primary truncate">
+                    {project.name}
+                  </span>
+                  <span className="text-[11px] text-text-muted font-mono">
+                    {relativeProjectTime(project.createdAt)}
+                    {project.convexProjectId ? ` · ${project.convexProjectId}` : " · local only"}
+                  </span>
+                </div>
+                <ArrowRight
+                  size={14}
+                  strokeWidth={1.5}
+                  className="shrink-0 text-border transition-all duration-150 group-hover/row:text-accent group-hover/row:translate-x-0.5"
                 />
               </div>
-
-              {/* Name + date */}
-              <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-[14px] font-medium text-text-primary truncate">
-                  {project.name}
-                </span>
-                <span className="text-[11px] text-text-muted">
-                  {project.date} · {project.refs} references
-                </span>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-2 shrink-0">
-                <StatusDot status={project.status} />
-                <span className="text-[11px] text-text-secondary font-mono">
-                  {project.status}
-                </span>
-              </div>
-
-              {/* Arrow on hover */}
-              <ArrowRight
-                size={14}
-                strokeWidth={1.5}
-                className="shrink-0 text-border transition-all duration-150 group-hover/row:text-accent group-hover/row:translate-x-0.5"
-              />
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

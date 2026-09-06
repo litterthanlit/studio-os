@@ -17,6 +17,7 @@
     "proof:section-regen": "npx tsx scripts/section-regen-proof.ts",
     "proof:multi-ref-fusion": "npx tsx scripts/multi-ref-fusion-proof.ts",
     "proof:convex-canvas-sync": "npx tsx scripts/convex-canvas-sync-proof.ts",
+    "proof:convex-auth-path": "npx tsx scripts/convex-auth-path-proof.ts",
     "proof:agent-platform": "npx tsx scripts/agent-platform-proof.ts",
     "proof:app-ui-capability": "npx tsx scripts/app-ui-capability-proof.ts",
     "proof:code-export": "npx tsx scripts/code-export-proof.ts",
@@ -37,6 +38,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@auth/core": "^0.41.1",
+    "@convex-dev/auth": "^0.0.95",
     "@google/genai": "^1.45.0",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.29.0",

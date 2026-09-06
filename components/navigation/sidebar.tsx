@@ -22,6 +22,8 @@ import {
   PROFILE_UPDATED_EVENT,
   readStoredProfile,
 } from "@/lib/profile-store";
+import { useStudioProjects } from "@/hooks/use-studio-projects";
+import { isConvexConfigured } from "@/lib/convex/is-configured";
 
 // ─── V2 Logo Mark — Vertical-slat folder ─────────────────────────────────────
 
@@ -195,13 +197,6 @@ interface SidebarProject {
   color: string;
 }
 
-const SIDEBAR_PROJECTS: SidebarProject[] = [
-  { id: "acme-rebrand", name: "Acme Rebrand", color: "#F97316" },
-  { id: "fintech-dashboard", name: "FinTech Dashboard", color: "#4B57DB" },
-  { id: "editorial-magazine", name: "Editorial Magazine", color: "#8B5CF6" },
-  { id: "personal-portfolio", name: "Personal Portfolio", color: "#1A1A1A" },
-];
-
 function DashboardSidebarContent({
   expanded,
   onCmdK,
@@ -214,6 +209,13 @@ function DashboardSidebarContent({
   const pathname = usePathname();
   const railPx = expanded ? "px-3" : "px-1.5";
   const [profileName, setProfileName] = React.useState("Nick");
+  const { projects } = useStudioProjects();
+  const sidebarProjects: SidebarProject[] = projects.slice(0, 8).map((project) => ({
+    id: project.id,
+    name: project.name,
+    color: project.color,
+  }));
+  const convexReady = isConvexConfigured();
   const profileInitials = React.useMemo(() => {
     const parts = profileName
       .split(" ")
@@ -336,7 +338,14 @@ function DashboardSidebarContent({
       )}
 
       <div className={cn("mt-1.5 flex flex-col gap-0.5", railPx)}>
-        {SIDEBAR_PROJECTS.map((project) => {
+        {sidebarProjects.length === 0 ? (
+          expanded ? (
+            <p className="px-2 py-1.5 text-[12px] text-text-muted">
+              {convexReady ? "No synced projects" : "No local projects"}
+            </p>
+          ) : null
+        ) : (
+          sidebarProjects.map((project) => {
           const href = `/projects/${project.id}`;
           const active =
             pathname === href || pathname.startsWith(`${href}/`);
@@ -381,7 +390,8 @@ function DashboardSidebarContent({
               </AnimatePresence>
             </Link>
           );
-        })}
+          })
+        )}
       </div>
 
       {/* Spacer */}

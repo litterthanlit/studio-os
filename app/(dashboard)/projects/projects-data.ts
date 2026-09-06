@@ -20,6 +20,7 @@ export type Project = {
   daysActive: number;
   headingFont?: ProjectFont;
   bodyFont?: ProjectFont;
+  isDemo?: boolean;
 };
 
 export const PROJECTS: Project[] = [
@@ -35,6 +36,7 @@ export const PROJECTS: Project[] = [
     references: 12,
     fontsSelected: 3,
     daysActive: 9,
+    isDemo: true,
   },
   {
     id: "fintech-dashboard",
@@ -48,6 +50,7 @@ export const PROJECTS: Project[] = [
     references: 8,
     fontsSelected: 2,
     daysActive: 21,
+    isDemo: true,
   },
   {
     id: "editorial-magazine",
@@ -61,6 +64,7 @@ export const PROJECTS: Project[] = [
     references: 15,
     fontsSelected: 4,
     daysActive: 12,
+    isDemo: true,
   },
   {
     id: "personal-portfolio",
@@ -74,6 +78,7 @@ export const PROJECTS: Project[] = [
     references: 6,
     fontsSelected: 2,
     daysActive: 4,
+    isDemo: true,
   },
 ];
 

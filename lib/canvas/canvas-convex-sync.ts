@@ -29,7 +29,7 @@ export {
 
 export function isValidRemoteCanvasState(value: unknown): value is UnifiedCanvasState {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<UnifiedCanvasState>;
+  const candidate = value as { schemaVersion?: unknown; items?: unknown };
   return (
     (candidate.schemaVersion === 3 || candidate.schemaVersion === 4) &&
     Array.isArray(candidate.items)

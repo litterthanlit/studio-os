@@ -75,7 +75,7 @@ export type GenerateAppScreenSetResult =
     }
   | {
       ok: false;
-      failure: ModelFailureInfo | null;
+      failure: ModelFailureInfo | { kind: "v6-failed"; message: string } | null;
       error: string;
     };
 

@@ -75,6 +75,8 @@ public/marketing/*.webp
 .trae/
 .windsurf/
 .zencoder/
-skills/
-skills-lock.json
+/skills/
+/skills-lock.json
+!/extensions/cursor/skills/
+!/extensions/cursor/skills/**
 .gstack/

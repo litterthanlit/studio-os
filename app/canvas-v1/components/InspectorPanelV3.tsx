@@ -893,13 +893,15 @@ export function InspectorPanelV3({
         <InspectorControlStrip />
       )}
 
-      <InspectorSelectionSummary
-        sectionTitle={selectionSummary.sectionTitle}
-        title={selectionSummary.title}
-        meta={selectionSummary.meta}
-        showTasteAction={activeTab === "design" && selectionSummary.canRefine}
-        onRefineWithTaste={handleRefineWithTaste}
-      />
+      {activeTab !== "agent" && (
+        <InspectorSelectionSummary
+          sectionTitle={selectionSummary.sectionTitle}
+          title={selectionSummary.title}
+          meta={selectionSummary.meta}
+          showTasteAction={activeTab === "design" && selectionSummary.canRefine}
+          onRefineWithTaste={handleRefineWithTaste}
+        />
+      )}
 
       {/* Breakpoint badge (below tabs, non-desktop only) — shrink-0 */}
       {activeTab === "design" && showBreakpointBadge && activeArtboard && (

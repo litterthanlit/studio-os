@@ -34,7 +34,8 @@ export const storeTokens = action({
 
 export const getAccessToken = internalAction({
   args: { provider },
-  handler: async (ctx, args) => {
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args): Promise<string | null> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("UNAUTHENTICATED");
     const row = await ctx.runQuery(internal.providerTokens.getEncryptedForIdentity, {

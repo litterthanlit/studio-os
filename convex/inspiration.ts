@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser, now, requireUser } from "./auth";
+
+type InspirationImage = Doc<"inspirationImages">;
 
 export const listPublic = query({
   args: {
@@ -40,9 +43,15 @@ export const getDaily = mutation({
       .withIndex("by_user_date", (q: any) => q.eq("userId", user._id).eq("dateKey", dateKey))
       .unique();
     if (cached) {
-      const images = await Promise.all(cached.imageIds.map((id: any) => ctx.db.get(id)));
+      const images = await Promise.all(
+        cached.imageIds.map((id: Id<"inspirationImages">) =>
+          ctx.db.get("inspirationImages", id)
+        )
+      );
       return {
-        images: images.filter(Boolean).map((image) => normalizeImage(image as any)),
+        images: images
+          .filter((image): image is InspirationImage => image !== null)
+          .map(normalizeImage),
         collection: cached.collection ?? "Daily Inspiration",
         scored: true,
       };
@@ -64,7 +73,7 @@ export const getDaily = mutation({
             .filter((q) => q.gte(q.field("scoreOverall"), minScore))
             .take(limit - approved.length);
     const images = [...featured, ...approved].slice(0, limit).map(normalizeImage);
-    const imageIds = images.map((image: any) => image.id);
+    const imageIds: Id<"inspirationImages">[] = images.map((image) => image.id);
     const time = now();
 
     await ctx.db.insert("inspirationDaily", {
@@ -76,9 +85,9 @@ export const getDaily = mutation({
       updatedAt: time,
     });
     for (const imageId of imageIds) {
-      const image = await ctx.db.get(imageId);
+      const image = await ctx.db.get("inspirationImages", imageId);
       if (!image) continue;
-      await ctx.db.patch(imageId, {
+      await ctx.db.patch("inspirationImages", imageId, {
         displayCount: image.displayCount + 1,
         lastDisplayedAt: time,
         updatedAt: time,
@@ -108,7 +117,7 @@ export const like = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    const image = await ctx.db.get(args.imageId);
+    const image = await ctx.db.get("inspirationImages", args.imageId);
     if (!image || image.curationStatus === "rejected") throw new Error("IMAGE_NOT_FOUND");
     const existing = await ctx.db
       .query("inspirationLikes")
@@ -137,7 +146,7 @@ export const unlike = mutation({
   },
 });
 
-function normalizeImage(img: any) {
+function normalizeImage(img: InspirationImage) {
   return {
     id: img._id,
     source: img.source,

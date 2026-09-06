@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "studio-os",
+  "version": "0.1.0",
+  "description": "Connect Cursor to the live Studio OS canvas MCP. List projects, read compact canvas state, and patch DesignNodes without leaving the agent.",
+  "author": {
+    "name": "Studio OS",
+    "url": "https://github.com/litterthanlit"
+  },
+  "homepage": "https://studio-os.io",
+  "repository": "https://github.com/litterthanlit/studio-os",
+  "license": "MIT",
+  "keywords": ["studio-os", "mcp", "canvas", "design-node", "cursor"]
+}

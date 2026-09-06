@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "studio-os": {
+      "type": "streamable-http",
+      "url": "https://studio-os.io/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${STUDIO_OS_API_TOKEN}"
+      }
+    }
+  }
+}

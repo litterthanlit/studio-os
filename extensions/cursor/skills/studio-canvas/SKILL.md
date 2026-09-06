@@ -7,6 +7,8 @@ description: Edit a live Studio OS canvas from Cursor. Use when connecting an ag
 
 Wrap the live Studio OS MCP at `https://studio-os.io/api/mcp`. Do not invent projects, canvas trees, or node ids. Do not reimplement the server.
 
+Coding this repository? Read `SESSION.md` at the repo root first. This skill is live canvas MCP only.
+
 ## Data shape
 
 Organize every call around these records. Treat extra fields as opaque; do not fabricate them.

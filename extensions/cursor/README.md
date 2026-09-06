@@ -2,6 +2,8 @@
 
 Thin Agent / Cursor plugin that wraps the **live** Studio OS MCP. It does not host tools, mint tokens, or talk to a local stdio server.
 
+**Coding this repository?** Start at [`SESSION.md`](../../SESSION.md) (repo root). This folder is not the architecture guide and not session memory.
+
 - MCP: `https://studio-os.io/api/mcp`
 - Auth: `Authorization: Bearer ${STUDIO_OS_API_TOKEN}`
 - Token variable: `STUDIO_OS_API_TOKEN` (`sos_live_…` from Settings → Agent connections)

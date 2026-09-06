@@ -27,9 +27,13 @@ Convex is the backend boundary for user data, admin functions, public shares, an
 
 ## For AI Agents
 
-Read these before writing code:
-- **`CLAUDE.md`** — codebase guide (architecture, commands, design system, constraints, key files)
-- **`AGENTS.md`** — role definitions (CEO, COO, Creative Director, QA), project history, decision authority
+Read these before writing code. Do not start from `extensions/cursor/` — that folder is the live MCP plugin, not session memory.
+
+1. **`SESSION.md`** — current resume, invariants, canonical paths (read first)
+2. **`CLAUDE.md`** — codebase guide (architecture, commands, design system, constraints, key files)
+3. **`AGENTS.md`** — role definitions (CEO, COO, Creative Director, QA) after the resume is clear
+
+`npm run proof:session-continuity` fails if that order drifts.
 
 ## Architecture
 

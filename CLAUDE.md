@@ -2,6 +2,8 @@
 
 Guidance for AI agents working in the Studio OS codebase. Read this before writing code.
 
+**Session continuity:** read [`SESSION.md`](./SESSION.md) first (current resume and invariants). This file is the codebase map. Do not start from `extensions/cursor/`.
+
 ## Product
 
 Studio OS is a **design harness** — it makes AI models produce better design output, calibrated to each designer's taste. Designers import references, the system extracts taste, and generation is constrained by that taste profile. Output is structured DesignNode JSON rendered on an infinite canvas with a full editing environment.

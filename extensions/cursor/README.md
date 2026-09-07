@@ -6,7 +6,7 @@ Thin Agent / Cursor plugin that wraps the **live** Studio OS MCP. It does not ho
 
 - MCP: `https://studio-os.io/api/mcp`
 - Auth: `Authorization: Bearer ${STUDIO_OS_API_TOKEN}`
-- Token variable: `STUDIO_OS_API_TOKEN` (`sos_live_…` from Settings → Agent connections)
+- Token variable: `STUDIO_OS_API_TOKEN` (`sos_live_…` from canvas **Agent → Connect Cursor**, or Settings → Agent connections)
 
 **Not submitted to the Cursor Marketplace.** Local symlink only.
 
@@ -14,23 +14,38 @@ Connect Cursor UI authors: this folder is the plugin path (`extensions/cursor` i
 
 ## Install (local)
 
-From this directory (`extensions/cursor`):
+From a **studio-os repo root**:
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-ln -s "$PWD" ~/.cursor/plugins/local/studio-os
+ln -sfn "$(pwd)/extensions/cursor" ~/.cursor/plugins/local/studio-os
 ```
 
-Reload Cursor (Developer: Reload Window). Confirm **Studio OS** under Customize → Plugins, then **Plugins → Configure** and paste the `sos_live_…` token into `STUDIO_OS_API_TOKEN`.
+Or from this directory (`extensions/cursor`):
 
-Until a marketplace listing exists (none planned), this symlink is the supported install.
+```bash
+mkdir -p ~/.cursor/plugins/local
+ln -sfn "$PWD" ~/.cursor/plugins/local/studio-os
+```
+
+Copy instead of symlink:
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+rm -rf ~/.cursor/plugins/local/studio-os
+cp -R extensions/cursor ~/.cursor/plugins/local/studio-os
+```
+
+Reload Cursor (Developer: Reload Window). Confirm **Studio OS** under Customize → Plugins. Set `STUDIO_OS_API_TOKEN` in the environment, or paste it under Plugins → Configure.
+
+Until a marketplace listing exists (none planned), this symlink/copy is the supported install.
 
 ## Token
 
 1. Sign in at [studio-os.io](https://studio-os.io).
-2. Open **Settings → Agent connections**.
-3. Generate a token. Prefer binding it to one Convex project so agents can omit `projectId`.
-4. Paste the value into Plugins → Configure (`STUDIO_OS_API_TOKEN`), or export it in the environment. The plugin repo never contains a real token.
+2. On the canvas, open the **Agent** inspector tab and click **Connect Cursor**. That mints a **project-bound** `sos_live_…` token named Cursor.
+3. Or use **Settings → Agent connections** to list/revoke tokens (and mint for Claude/Codex).
+4. Export `STUDIO_OS_API_TOKEN` with the token value, or paste it into Plugins → Configure. The plugin repo never contains a real token.
 
 ## Core loop
 

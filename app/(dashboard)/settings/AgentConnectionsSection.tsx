@@ -5,9 +5,18 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
+  CURSOR_CONNECT_TOKEN_NAME,
+  CURSOR_PLUGIN_LOCAL_PATH,
+  CURSOR_PLUGIN_RESTART_HINT,
+  CURSOR_PLUGIN_SOURCE_PATH,
+  STUDIO_OS_API_TOKEN_ENV,
   buildClaudeCodeMcpConfig,
   buildCodexMcpConfig,
   buildCursorMcpConfig,
+  buildCursorPluginCopyCommand,
+  buildCursorPluginEnvCommand,
+  buildCursorPluginInstallScript,
+  buildCursorPluginSymlinkCommand,
   formatJsonSnippet,
 } from "@/lib/agent/mcp-config-snippets";
 import { isConvexCanvasSyncConfigured } from "@/lib/canvas/canvas-convex-sync";
@@ -75,12 +84,13 @@ export function AgentConnectionsSection() {
   const createToken = useMutation(api.agentTokens.create);
   const revokeToken = useMutation(api.agentTokens.revoke);
 
-  const [name, setName] = React.useState("Cursor");
+  const [name, setName] = React.useState(CURSOR_CONNECT_TOKEN_NAME);
   const [projectId, setProjectId] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [plaintext, setPlaintext] = React.useState<string | null>(null);
   const [origin, setOrigin] = React.useState("");
+  const [tokenCopied, setTokenCopied] = React.useState(false);
 
   React.useEffect(() => {
     setOrigin(window.location.origin);
@@ -91,6 +101,10 @@ export function AgentConnectionsSection() {
   const cursorSnippet = snippetToken ? formatJsonSnippet(buildCursorMcpConfig(mcpUrl, snippetToken)) : "";
   const claudeSnippet = snippetToken ? formatJsonSnippet(buildClaudeCodeMcpConfig(mcpUrl, snippetToken)) : "";
   const codexSnippet = buildCodexMcpConfig(mcpUrl);
+  const cursorSymlink = buildCursorPluginSymlinkCommand();
+  const cursorCopy = buildCursorPluginCopyCommand();
+  const cursorEnv = buildCursorPluginEnvCommand(snippetToken);
+  const cursorInstall = buildCursorPluginInstallScript(snippetToken);
 
   async function handleCreate() {
     if (!currentUser || busy) return;
@@ -102,7 +116,7 @@ export function AgentConnectionsSection() {
         projectId: projectId ? (projectId as Id<"projects">) : undefined,
       });
       setPlaintext(result.token);
-      setName("Cursor");
+      setName(CURSOR_CONNECT_TOKEN_NAME);
       setProjectId("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not create token";
@@ -136,17 +150,17 @@ export function AgentConnectionsSection() {
     <div className="space-y-5">
       <div>
         <p className="text-[13px] text-text-secondary">
-          Generate a token, paste a snippet into your agent, then use get_canvas and patch_node on the open project.
+          Cursor installs from `{CURSOR_PLUGIN_SOURCE_PATH}` with `{STUDIO_OS_API_TOKEN_ENV}`. Prefer Connect Cursor on the canvas for a project-bound token. Claude and Codex still use snippets below.
         </p>
         <FieldHint>
-          Tokens are shown once. Bound tokens skip projectId on every tool call.
+          Tokens are shown once. Bound tokens skip projectId on every tool call. Revoke unused tokens here.
         </FieldHint>
       </div>
 
       {!signedIn && (
         <div>
           <p className="text-[13px] text-text-secondary">
-            Sign in to generate a personal token and see real Convex project ids. Snippets stay empty until a token exists.
+            Sign in to generate a personal token and see real Convex project ids.
           </p>
           <a
             href="/auth/login?next=/settings"
@@ -189,6 +203,7 @@ export function AgentConnectionsSection() {
                 {busy ? "Generating…" : "Generate token"}
               </button>
             </div>
+            <FieldHint>Bind to a project when possible. Canvas Connect Cursor always binds to the open project.</FieldHint>
           </div>
 
           {error && <p className="text-[12px] text-red-600">{error}</p>}
@@ -196,7 +211,7 @@ export function AgentConnectionsSection() {
           {(projects ?? []).length > 0 ? (
             <div>
               <FieldLabel>Convex project ids</FieldLabel>
-              <FieldHint>Use the bound-token path below, or paste this id into get_canvas / patch_node.</FieldHint>
+              <FieldHint>Bound tokens skip this id. Unbound Claude/Codex calls still need it.</FieldHint>
               <ul className="mt-2 divide-y divide-border rounded-[4px] border border-border">
                 {(projects ?? []).map((project: { _id: string; name: string; slug: string }) => (
                   <li key={project._id} className="flex items-center justify-between gap-3 px-3 py-2">
@@ -223,8 +238,25 @@ export function AgentConnectionsSection() {
 
           {plaintext && (
             <div>
-              <FieldLabel>New token</FieldLabel>
-              <FieldHint>Copy this now. It cannot be shown again.</FieldHint>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <FieldLabel>New token</FieldLabel>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await copyText(plaintext);
+                      setTokenCopied(true);
+                      window.setTimeout(() => setTokenCopied(false), 1400);
+                    } catch {
+                      setTokenCopied(false);
+                    }
+                  }}
+                  className="rounded-[4px] border border-border px-2 py-1 text-[11px] text-text-secondary transition-colors hover:border-border-hover hover:text-accent"
+                >
+                  {tokenCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <FieldHint>Copy this now. It cannot be shown again. Set it as `{STUDIO_OS_API_TOKEN_ENV}`.</FieldHint>
               <pre className="mt-2 overflow-auto rounded-[4px] border border-[#4B57DB] bg-white p-3 text-[11px] font-mono text-text-primary">
                 {plaintext}
               </pre>
@@ -270,13 +302,50 @@ export function AgentConnectionsSection() {
         </>
       )}
 
+      <div className="space-y-4 border-t border-border pt-5">
+        <div>
+          <FieldLabel>Cursor</FieldLabel>
+          <FieldHint>
+            Local plugin only — not Marketplace. From a studio-os checkout, symlink or copy `{CURSOR_PLUGIN_SOURCE_PATH}` to `{CURSOR_PLUGIN_LOCAL_PATH}`, then set `{STUDIO_OS_API_TOKEN_ENV}`. {CURSOR_PLUGIN_RESTART_HINT}
+          </FieldHint>
+        </div>
+        <CopyBlock
+          label="Symlink plugin"
+          hint={`Run from the studio-os repo root. Links ${CURSOR_PLUGIN_SOURCE_PATH} → ${CURSOR_PLUGIN_LOCAL_PATH}.`}
+          value={cursorSymlink}
+        />
+        <CopyBlock
+          label="Copy plugin"
+          hint="Use this if you cannot symlink. Run from the studio-os repo root."
+          value={cursorCopy}
+        />
+        {snippetToken ? (
+          <>
+            <CopyBlock
+              label={`Set ${STUDIO_OS_API_TOKEN_ENV}`}
+              hint="Export in your environment, or paste the token in Cursor Plugins → Configure. Never commit this value."
+              value={cursorEnv}
+            />
+            <CopyBlock
+              label="Install commands"
+              hint="Symlink plus env export. Restart Cursor after running."
+              value={cursorInstall}
+            />
+            <CopyBlock
+              label="Advanced: mcp.json"
+              hint="Only if you already manage ~/.cursor/mcp.json yourself. The plugin path above is the happy path."
+              value={cursorSnippet}
+            />
+          </>
+        ) : (
+          <p className="text-[12px] text-text-muted">
+            Generate a token (prefer project-bound) to copy the `{STUDIO_OS_API_TOKEN_ENV}` export. Or use Connect Cursor on the canvas.
+          </p>
+        )}
+      </div>
+
       {snippetToken ? (
         <>
-          <CopyBlock
-            label="Cursor"
-            hint="~/.cursor/mcp.json"
-            value={cursorSnippet}
-          />
           <CopyBlock
             label="Claude Code"
             hint='Must include "type": "http" or Claude treats it as stdio.'
@@ -284,13 +353,13 @@ export function AgentConnectionsSection() {
           />
           <CopyBlock
             label="Codex"
-            hint='~/.codex/config.toml — then export STUDIO_OS_API_TOKEN with the token value.'
+            hint={`~/.codex/config.toml — then export ${STUDIO_OS_API_TOKEN_ENV} with the token value.`}
             value={codexSnippet}
           />
         </>
       ) : (
         <p className="text-[12px] text-text-muted">
-          Generate a token to copy MCP snippets. Placeholder tokens are not shown.
+          Generate a token to copy Claude and Codex snippets. Placeholder tokens are not shown.
         </p>
       )}
     </div>

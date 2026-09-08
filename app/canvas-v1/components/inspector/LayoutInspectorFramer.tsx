@@ -84,7 +84,7 @@ export function LayoutInspectorFramer({
 
   return (
     <InspectorDrawerSection title="Layout">
-      <div className="px-3 space-y-1 pb-2">
+      <div className="px-4 space-y-1.5 pb-3">
         <InspectorFieldRow label="Type" disabled={isForbiddenField("display")}>
           <InspectorSegmented
             value={display}

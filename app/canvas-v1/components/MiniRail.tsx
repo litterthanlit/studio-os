@@ -154,7 +154,7 @@ export function MiniRail({
   }, [projectId]);
 
   return (
-    <div className="z-30 flex min-h-[48px] w-full min-w-0 max-w-full shrink-0 flex-row items-center justify-between gap-2 overflow-hidden border-b-[0.5px] border-sidebar-border bg-[var(--topbar-bg)] px-2 py-1.5 2xl:min-h-[54px] 2xl:gap-3 2xl:px-3 2xl:py-2">
+    <div className="z-30 flex min-h-[48px] w-full min-w-0 max-w-full shrink-0 flex-row items-center justify-between gap-2 overflow-hidden border-b-[0.5px] border-sidebar-border bg-[var(--topbar-bg)] px-3 py-2 2xl:min-h-[54px] 2xl:gap-3 2xl:px-4 2xl:py-2">
       <div className="flex min-w-0 flex-1 flex-row items-center gap-1.5 2xl:gap-2">
         {/* Studio OS logo mark */}
         <Link

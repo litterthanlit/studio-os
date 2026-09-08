@@ -33,7 +33,7 @@ export function InspectorDrawerSection({
       <summary
         className={cn(
           "list-none cursor-pointer flex items-center justify-between gap-2 select-none [&::-webkit-details-marker]:hidden",
-          "min-h-[30px] px-3 py-1.5",
+          "min-h-8 px-4 py-2",
           "hover:bg-[var(--inspector-surface-hover)]"
         )}
       >

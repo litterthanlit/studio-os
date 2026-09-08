@@ -78,7 +78,7 @@ export function InspectorLabel({
   return (
     <span
       className={cn(
-        "flex items-center gap-1.5 text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999] mb-1",
+        "mb-1.5 flex items-center gap-1.5 text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999]",
         className
       )}
     >
@@ -785,8 +785,8 @@ export function InspectorSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-4">
-      <span className="mono-kicker mb-2 block">{label}</span>
+    <div className="mt-5 first:mt-0">
+      <span className="mono-kicker mb-2.5 block">{label}</span>
       {children}
     </div>
   );

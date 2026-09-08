@@ -1122,7 +1122,7 @@ export function LayersPanelV3({
         "relative z-20 flex h-full min-h-0 shrink-0 flex-col bg-[var(--sidebar-bg)]",
         embedded
           ? "min-w-0 w-full max-w-none flex-1 border-r-0"
-          : "w-[248px] min-w-[248px] max-w-[248px] border-r border-[var(--border-subtle)]"
+          : "w-[260px] min-w-[260px] max-w-[260px] border-r border-[var(--border-subtle)]"
       )}
       style={{ contain: "strict" }}
     >

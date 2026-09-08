@@ -13,12 +13,19 @@ import {
   AlignRight,
   ArrowRight,
   BarChart3,
-  Box,
-  CheckCircle2,
+  FileText,
+  Frame,
+  ImageIcon,
+  Images,
   MessageSquareText,
   Minus,
+  MousePointer2,
+  RectangleHorizontal,
   Sparkles,
   SlidersHorizontal,
+  StickyNote,
+  SwatchBook,
+  Type,
 } from "lucide-react";
 import { useCanvas } from "@/lib/canvas/canvas-context";
 import { findNodeById, BREAKPOINT_WIDTHS, isDesignNodeTree } from "@/lib/canvas/compose";
@@ -57,10 +64,39 @@ import type { PageNode } from "@/lib/canvas/compose";
 const ghostBtnCls =
   "border border-[var(--border-primary)] rounded-[4px] px-3 py-2 text-[12px] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--accent)] transition-colors";
 
+type SummaryIcon = React.ComponentType<{
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}>;
+
+function getSelectionSummaryIcon(kind?: string): SummaryIcon {
+  switch (kind) {
+    case "frame":
+      return Frame;
+    case "text":
+      return Type;
+    case "image":
+    case "reference":
+      return ImageIcon;
+    case "button":
+      return RectangleHorizontal;
+    case "divider":
+      return Minus;
+    case "note":
+      return StickyNote;
+    case "artboard":
+      return Frame;
+    default:
+      return MousePointer2;
+  }
+}
+
 type InspectorSelectionSummaryProps = {
   sectionTitle: string;
   title: string;
   meta: string;
+  icon: SummaryIcon;
   showTasteAction: boolean;
   onRefineWithTaste: () => void;
 };
@@ -69,26 +105,24 @@ function InspectorSelectionSummary({
   sectionTitle,
   title,
   meta,
+  icon: Icon,
   showTasteAction,
   onRefineWithTaste,
 }: InspectorSelectionSummaryProps) {
   return (
-    <div className="shrink-0 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-3 py-2.5">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-[12px] font-semibold tracking-normal text-[var(--text-primary)]">
-          {sectionTitle}
-        </div>
-        <Minus size={14} className="text-[var(--text-muted)]" strokeWidth={1.8} />
+    <div className="shrink-0 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-4 py-3.5">
+      <div className="mb-3 text-[12px] font-semibold tracking-normal text-[var(--text-primary)]">
+        {sectionTitle}
       </div>
-      <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] text-[var(--accent)]">
-          <Box size={13} strokeWidth={1.6} />
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] text-[var(--accent)]">
+          <Icon size={15} strokeWidth={1.5} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[12px] font-medium text-[var(--text-primary)]">
             {title}
           </div>
-          <div className="mt-1 truncate text-[10px] text-[var(--text-muted)]">
+          <div className="mt-1 text-pretty text-[11px] leading-snug text-[var(--text-muted)]">
             {meta}
           </div>
         </div>
@@ -98,13 +132,13 @@ function InspectorSelectionSummary({
         <button
           type="button"
           onClick={onRefineWithTaste}
-          className="mt-2.5 flex h-7 w-full items-center justify-between rounded-[4px] border border-[var(--accent)]/35 bg-[var(--accent-subtle)] px-2.5 text-[10px] font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-light)]"
+          className="mt-3 flex h-8 w-full items-center justify-between rounded-[4px] border border-[var(--accent)]/35 bg-[var(--accent-subtle)] px-3 text-[11px] font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-light)]"
         >
           <span className="flex items-center gap-2">
-            <Sparkles size={13} strokeWidth={1.6} />
+            <Sparkles size={14} strokeWidth={1.5} />
             Refine with taste
           </span>
-          <ArrowRight size={13} strokeWidth={1.6} />
+          <ArrowRight size={14} strokeWidth={1.5} />
         </button>
       )}
     </div>
@@ -122,7 +156,7 @@ function InspectorControlStrip() {
   ];
 
   return (
-    <div className="grid h-9 shrink-0 grid-cols-6 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-3 py-1.5">
+    <div className="grid h-10 shrink-0 grid-cols-6 border-b border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-4 py-2">
       {controls.map(({ label, icon: Icon }) => (
         <button
           key={label}
@@ -147,36 +181,58 @@ function HandoffReadinessPanel({
   hasTokens: boolean;
 }) {
   const rows = [
-    { label: "Specs", value: artboardCount > 0 ? "Complete" : "Missing", ready: artboardCount > 0 },
-    { label: "Tokens", value: hasTokens ? "Synced" : "Pending", ready: hasTokens },
-    { label: "Assets", value: referenceCount > 0 ? "Ready" : "Add refs", ready: referenceCount > 0 },
+    {
+      label: "Specs",
+      value: artboardCount > 0 ? "Complete" : "Missing",
+      ready: artboardCount > 0,
+      icon: FileText,
+    },
+    {
+      label: "Tokens",
+      value: hasTokens ? "Synced" : "Pending",
+      ready: hasTokens,
+      icon: SwatchBook,
+    },
+    {
+      label: "Assets",
+      value: referenceCount > 0 ? "Ready" : "Add refs",
+      ready: referenceCount > 0,
+      icon: Images,
+    },
   ];
 
   return (
-    <div className="border-t border-[var(--inspector-border)] px-3 py-2.5">
-      <div className="mb-2 text-[11px] font-semibold tracking-normal text-[var(--text-muted)]">
+    <div className="border-t border-[var(--inspector-border)] px-4 py-4">
+      <div className="mb-3 text-[11px] font-semibold tracking-normal text-[var(--text-muted)]">
         Handoff readiness
       </div>
-      <div className="space-y-1.5">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between text-[11px]">
-            <span className="flex items-center gap-2 text-[var(--text-secondary)]">
-              <CheckCircle2
-                size={13}
-                strokeWidth={1.8}
-                className={row.ready ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}
-              />
-              {row.label}
-            </span>
-            <span className={row.ready ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}>
-              {row.value}
-            </span>
-          </div>
-        ))}
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const Icon = row.icon;
+          return (
+            <div key={row.label} className="flex items-center justify-between gap-3 text-[11px]">
+              <span className="flex min-w-0 items-center gap-2.5 text-[var(--text-secondary)]">
+                <span
+                  className={
+                    row.ready
+                      ? "flex size-6 shrink-0 items-center justify-center rounded-[4px] bg-[var(--accent-subtle)] text-[var(--accent)]"
+                      : "flex size-6 shrink-0 items-center justify-center rounded-[4px] bg-[var(--inspector-control-bg)] text-[var(--text-muted)]"
+                  }
+                >
+                  <Icon size={13} strokeWidth={1.5} />
+                </span>
+                {row.label}
+              </span>
+              <span className={row.ready ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}>
+                {row.value}
+              </span>
+            </div>
+          );
+        })}
       </div>
       <button
         type="button"
-        className="mt-2.5 h-7 w-full rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--inspector-surface-hover)]"
+        className="mt-3.5 h-8 w-full rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--inspector-surface-hover)]"
       >
         Open handoff spec
       </button>
@@ -208,21 +264,21 @@ function InspectorNotesPanel({
   ];
 
   return (
-    <div className="px-3 py-3">
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-normal text-[var(--text-muted)]">
-        <MessageSquareText size={13} strokeWidth={1.7} />
+    <div className="px-4 py-4">
+      <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold tracking-normal text-[var(--text-muted)]">
+        <MessageSquareText size={14} strokeWidth={1.5} />
         Context notes
       </div>
-      <div className="mb-2 rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-surface)] px-2.5 py-2">
-        <div className="text-[11px] font-medium text-[var(--text-primary)]">{selectionTitle}</div>
-        <div className="mt-1 text-[10px] text-[var(--text-muted)]">{selectionMeta}</div>
+      <div className="mb-3 rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-surface)] px-3 py-2.5">
+        <div className="text-[12px] font-medium text-[var(--text-primary)]">{selectionTitle}</div>
+        <div className="mt-1 text-[11px] leading-snug text-[var(--text-muted)]">{selectionMeta}</div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {notes.map((note) => (
           <div
             key={note.id}
-            className="rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-2.5 py-2"
+            className="rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-bg)] px-3 py-2.5"
           >
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="text-[11px] font-medium text-[var(--text-primary)]">{note.author}</span>
@@ -237,7 +293,7 @@ function InspectorNotesPanel({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         placeholder="Add selection note..."
-        className="mt-2.5 min-h-[60px] w-full resize-none rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] px-2.5 py-2 text-[11px] text-[var(--inspector-control-text)] outline-none placeholder:text-[var(--text-placeholder)] focus:border-[var(--accent)]"
+        className="mt-3 min-h-[72px] w-full resize-none rounded-[4px] border border-[var(--inspector-control-border)] bg-[var(--inspector-control-bg)] px-3 py-2.5 text-[11px] text-[var(--inspector-control-text)] outline-none placeholder:text-[var(--text-placeholder)] focus:border-[var(--accent)]"
       />
       <button
         type="button"
@@ -315,47 +371,53 @@ function EmptySelection({ projectId }: { projectId?: string }) {
   }, [projectId]);
 
   return (
-    <div>
-      <InspectorSection label="Canvas">
-        <InspectorLabel>Project</InspectorLabel>
-        <div className="text-[12px] text-text-primary mb-3">{projectName}</div>
-
-        <InspectorLabel>Items</InspectorLabel>
-        <div className="text-[12px] text-text-secondary mb-3">
-          {refCount} reference{refCount !== 1 ? "s" : ""} · {artboardCount} artboard{artboardCount !== 1 ? "s" : ""} · {noteCount} note{noteCount !== 1 ? "s" : ""}
+    <div className="px-4 py-4">
+      <div className="space-y-4">
+        <div>
+          <InspectorLabel>Project</InspectorLabel>
+          <div className="text-[12px] text-text-primary">{projectName}</div>
         </div>
 
-        <InspectorLabel>Zoom</InspectorLabel>
-        <div className="flex flex-wrap items-center gap-2">
-          <InspectorNumberInput
-            value={zoom}
-            onChange={(e) => {
-              const pct = Number((e.target as HTMLInputElement).value);
-              if (pct > 0) {
+        <div>
+          <InspectorLabel>Items</InspectorLabel>
+          <div className="text-pretty text-[12px] leading-snug text-text-secondary">
+            {refCount} reference{refCount !== 1 ? "s" : ""} · {artboardCount} artboard{artboardCount !== 1 ? "s" : ""} · {noteCount} note{noteCount !== 1 ? "s" : ""}
+          </div>
+        </div>
+
+        <div>
+          <InspectorLabel>Zoom</InspectorLabel>
+          <div className="flex flex-wrap items-center gap-2">
+            <InspectorNumberInput
+              value={zoom}
+              onChange={(e) => {
+                const pct = Number((e.target as HTMLInputElement).value);
+                if (pct > 0) {
+                  dispatch({
+                    type: "SET_VIEWPORT",
+                    pan: state.viewport.pan,
+                    zoom: pct / 100,
+                  });
+                }
+              }}
+              className="w-[64px]"
+            />
+            <button
+              type="button"
+              className={ghostBtnCls}
+              onClick={() => {
                 dispatch({
                   type: "SET_VIEWPORT",
-                  pan: state.viewport.pan,
-                  zoom: pct / 100,
+                  pan: { x: 0, y: 0 },
+                  zoom: 0.42,
                 });
-              }
-            }}
-            className="w-[60px]"
-          />
-          <button
-            type="button"
-            className={ghostBtnCls}
-            onClick={() => {
-              dispatch({
-                type: "SET_VIEWPORT",
-                pan: { x: 0, y: 0 },
-                zoom: 0.42,
-              });
-            }}
-          >
-            Fit to View
-          </button>
+              }}
+            >
+              Fit to View
+            </button>
+          </div>
         </div>
-      </InspectorSection>
+      </div>
     </div>
   );
 }
@@ -373,7 +435,7 @@ function ReferenceInspector({ item }: { item: ReferenceItem }) {
   }, 400);
 
   return (
-    <div>
+    <div className="px-4 pb-4">
       <InspectorSection label="Reference">
         {/* Image preview */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -550,7 +612,7 @@ function ArtboardInspector({ item }: { item: ArtboardItem }) {
   const { dispatch } = useCanvas();
 
   return (
-    <div>
+    <div className="px-4 pb-4">
       <InspectorSection label={`Artboard · ${item.breakpoint.charAt(0).toUpperCase() + item.breakpoint.slice(1)}`}>
         <div className="text-[12px] text-[#6B6B6B] space-y-0.5">
           <div>{item.name}</div>
@@ -753,6 +815,7 @@ export function InspectorPanelV3({
         sectionTitle: "Selection",
         title: `${selectedDesignNodes.length} nodes selected`,
         meta: activeArtboard ? `${activeArtboard.name} · ${artboardBreakpoint}` : "Multi-edit",
+        icon: getSelectionSummaryIcon(selectedDesignNodes[0]?.type),
         canRefine: true,
       };
     }
@@ -768,6 +831,7 @@ export function InspectorPanelV3({
         sectionTitle: formatNodeType(node.type),
         title: nodeTitle,
         meta: context,
+        icon: getSelectionSummaryIcon(node.type),
         canRefine: true,
       };
     }
@@ -782,6 +846,7 @@ export function InspectorPanelV3({
         sectionTitle: formatNodeType(selectedNode.type),
         title: nodeTitle,
         meta: activeArtboard ? context : "Page node",
+        icon: getSelectionSummaryIcon(selectedNode.type),
         canRefine: true,
       };
     }
@@ -792,6 +857,7 @@ export function InspectorPanelV3({
         sectionTitle,
         title: "name" in singleSelected && singleSelected.name ? singleSelected.name : formatNodeType(singleSelected.kind),
         meta: `${Math.round(singleSelected.width)} x ${Math.round(singleSelected.height)} · canvas object`,
+        icon: getSelectionSummaryIcon(singleSelected.kind),
         canRefine: singleSelected.kind === "artboard" || singleSelected.kind === "frame" || singleSelected.kind === "text",
       };
     }
@@ -800,6 +866,7 @@ export function InspectorPanelV3({
       sectionTitle: "Canvas",
       title: "No selection",
       meta: "Select an object to inspect and refine",
+      icon: getSelectionSummaryIcon(),
       canRefine: false,
     };
   }, [activeArtboard, artboardBreakpoint, selectedDesignNodes, selectedNode, singleSelected]);
@@ -877,7 +944,7 @@ export function InspectorPanelV3({
   return (
     <div
       ref={containerRef}
-      className="editor-inspector relative z-20 flex h-full min-h-0 w-[244px] min-w-[244px] max-w-[244px] shrink-0 flex-col border-l border-[var(--sidebar-border)] bg-[var(--inspector-bg)] 2xl:w-[288px] 2xl:min-w-[288px] 2xl:max-w-[288px]"
+      className="editor-inspector relative z-20 flex h-full min-h-0 w-[260px] min-w-[260px] max-w-[260px] shrink-0 flex-col border-l border-[var(--sidebar-border)] bg-[var(--inspector-bg)] 2xl:w-[300px] 2xl:min-w-[300px] 2xl:max-w-[300px]"
       style={{
         position: "fixed",
         top: 48,
@@ -898,6 +965,7 @@ export function InspectorPanelV3({
           sectionTitle={selectionSummary.sectionTitle}
           title={selectionSummary.title}
           meta={selectionSummary.meta}
+          icon={selectionSummary.icon}
           showTasteAction={activeTab === "design" && selectionSummary.canRefine}
           onRefineWithTaste={handleRefineWithTaste}
         />

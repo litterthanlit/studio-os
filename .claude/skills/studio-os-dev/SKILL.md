@@ -6,8 +6,12 @@ description: Use this skill when modifying any Studio OS canvas component, panel
 
 ## Gotchas (built from real failures — read before every session)
 
+### Repo / agents
+- Always `git fetch` and compare `HEAD` to `origin/main` before claiming a feature is missing. Cloud agents merge to main; this checkout lagged 9 commits on 2026-08-26 and an agent reported the Cursor MCP as unshipped while it was already on `origin/main` (`8ddafb8`).
+
 ### Canvas
 - `canvas-client.tsx` is 5000+ lines and deeply interconnected. NEVER rewrite it in one pass. Extract first, then rewire.
+- Local canvas UI dies after ~1s if the linked Convex deployment is missing `users:current`. `useQuery(api.users.current)` throws, Next.js replaces the editor with a crash screen, and screenshots look empty. Run `npx convex dev` before long-lived browser QA. Accessibility snapshots in the first second are still valid.
 - `ComposeDocumentView` renders generated HTML. All click events MUST be intercepted by a transparent overlay or buttons/links in the generated site will navigate, cloning the entire Compose UI inside the artboard.
 - Artboard containers must NOT have `overflow: hidden`, `max-height`, or fixed `height`. They show the full rendered page — the CANVAS pans/zooms, not the artboards.
 - `@import url()` for Google Fonts cannot come after `@import "tailwindcss"` in globals.css — Tailwind v4 expands first, pushing the import down. Use `<link>` in layout.tsx instead.
@@ -154,4 +158,8 @@ Append to this section after each session. Format: `[date] — what was changed,
 [2026-03-20] — Right-click context menu wired into `ComposeDocumentView` with a minimal portal placeholder (`ContextMenu.tsx`). Added viewport-clamped fixed positioning, outside-click/Escape dismiss, text edit event dispatch, AI prompt prefill dispatch, nested duplicate/delete/reorder handling, and site-wide image replacement via a hidden file input in `CanvasArtboard`. Verified on a generated canvas: heading menu opens on right-click, duplicate updates desktop/tablet/mobile, section menu shows reorder rows, Escape closes.
 
 [2026-03-20] — V4 shipped. Full editor polish: right-click context menu (ContextMenu.tsx), escape hierarchy (text→node→parent→deselect), Cmd+Click deep select, Tab/Shift+Tab sibling nav, Enter to edit, breadcrumb bar (BreadcrumbBar.tsx), keyboard shortcuts (Cmd+D/Delete/[/]/Alt+C/V), between-section "+" insertion bars with "/" slash command palette (SlashCommandPalette.tsx), AI preview/accept/reject (AIPreviewBar.tsx + START/ACCEPT/RESTORE_AI_PREVIEW actions), per-breakpoint responsive overrides (breakpoint-aware UPDATE_NODE_STYLE, RESET_NODE_STYLE_OVERRIDE, TOGGLE_NODE_HIDDEN). Bug caught during regression: inspector was reading `node.style` (base) instead of `getNodeStyle(node, breakpoint)` (resolved) — fixed so non-desktop artboards show correct overridden values in fields.
+
+[2026-08-26] — Local main was 9 commits behind origin; agents claimed Cursor MCP unshipped. Fast-forwarded to 8ddafb8. Always git fetch before claiming a feature is missing. Production MCP deploy still ERROR; this Cursor mcp.json still Framer-only.
+
+[2026-09-08] — Editor chrome density pass: transport bar grouped with Frame/Sparkles icons, inspector padding/width, distinct handoff icons. Local canvas verification is blocked after ~1s if Convex `users:current` is missing on the linked deployment — the query throws and Next.js replaces the editor with a crash screen. Run `npx convex dev` before judging UI from a long-lived browser session.
 ```

@@ -110,7 +110,7 @@ function SourcesTab() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b-[0.5px] border-[var(--border-subtle)] px-3 py-2.5">
+      <div className="shrink-0 border-b-[0.5px] border-[var(--border-subtle)] px-4 py-3">
         <p className="font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--section-label)]">
           Sources
         </p>
@@ -174,10 +174,10 @@ export function EditorLeftPanel({
   const selectedNode = usePromptSelectedNode();
 
   return (
-    <div className="editor-left-panel relative z-20 flex h-full min-h-0 w-[248px] min-w-[248px] max-w-[248px] shrink-0 border-r-[0.5px] border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] 2xl:w-[292px] 2xl:min-w-[292px] 2xl:max-w-[292px]">
+    <div className="editor-left-panel relative z-20 flex h-full min-h-0 w-[260px] min-w-[260px] max-w-[260px] shrink-0 border-r-[0.5px] border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] 2xl:w-[300px] 2xl:min-w-[300px] 2xl:max-w-[300px]">
       {/* Icon rail */}
       <nav
-        className="flex w-10 shrink-0 flex-col items-center gap-1 border-r-[0.5px] border-[var(--sidebar-border)] py-2 2xl:w-11"
+        className="flex w-11 shrink-0 flex-col items-center gap-1.5 border-r-[0.5px] border-[var(--sidebar-border)] py-2.5 2xl:w-12"
         aria-label="Editor modes"
       >
         <LeftTabButton
@@ -207,7 +207,7 @@ export function EditorLeftPanel({
       <div className="editor-left-panel-content flex min-w-0 flex-1 flex-col">
         {activeTab === "layers" && (
           <>
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b-[0.5px] border-[var(--border-subtle)] px-3 py-2">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b-[0.5px] border-[var(--border-subtle)] px-4 py-2.5">
               <span className="font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-[var(--section-label)]">
                 Layers
               </span>

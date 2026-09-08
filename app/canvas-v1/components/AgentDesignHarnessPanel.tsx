@@ -187,7 +187,7 @@ export function AgentDesignHarnessPanel({ projectId }: AgentDesignHarnessPanelPr
   const json = React.useMemo(() => JSON.stringify(contract, null, 2), [contract]);
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 px-3 py-3">
+    <div className="flex min-h-0 flex-col gap-3.5 px-4 py-4">
       <AgentConnectPanel projectId={projectId} />
 
       <div className="rounded-[4px] border border-[var(--inspector-border)] bg-[var(--inspector-surface)] px-2.5 py-2">

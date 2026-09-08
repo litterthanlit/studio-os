@@ -897,7 +897,7 @@ export function DesignNodeInspector({
       )}
 
       {isNonDesktop && (
-        <div className="px-3">
+        <div className="px-4">
           <BreakpointBadge breakpoint={breakpoint} width={BREAKPOINT_WIDTHS[breakpoint]} />
         </div>
       )}
@@ -906,7 +906,7 @@ export function DesignNodeInspector({
         <InspectorSectionCluster isFirst ariaLabel="Frame">
       {/* ── POSITION ─────────────────────────────────────────────────── */}
       <InspectorDrawerSection title="Position">
-        <div className="px-3 space-y-1 pb-2">
+        <div className="px-4 space-y-1.5 pb-3">
           <InspectorFieldRow label="Mode" disabled={isForbiddenField("position")}>
             <InspectorSegmented
               value={isBreakout ? "absolute" : "relative"}
@@ -970,7 +970,7 @@ export function DesignNodeInspector({
       {/* ── SIZE ──────────────────────────────────────────────────────── */}
       {sections.showSize && (
         <InspectorDrawerSection title="Size">
-          <div className="px-3 space-y-1 pb-2">
+          <div className="px-4 space-y-1.5 pb-3">
             {/* Width */}
             <InspectorFieldRow
               label="W"
@@ -1291,7 +1291,7 @@ export function DesignNodeInspector({
       {sections.showTypography && (
         <InspectorSectionCluster ariaLabel="Typography">
         <InspectorDrawerSection title="Typography">
-          <div className="px-3 space-y-1 pb-2">
+          <div className="px-4 space-y-1.5 pb-3">
             {/* Font Family */}
             <InspectorFieldRow 
               label="Font"
@@ -1475,7 +1475,7 @@ export function DesignNodeInspector({
       {(sections.showFill || sections.showAppearance) && (
         <InspectorSectionCluster ariaLabel="Styles">
         <InspectorDrawerSection title="Styles">
-          <div className="px-3 space-y-1 pb-2">
+          <div className="px-4 space-y-1.5 pb-3">
             <InspectorFieldRow label="Fill">
               <InspectorSegmented
                 value={primaryNode.style.gradient ? "gradient" : "solid"}
@@ -2415,7 +2415,7 @@ export function DesignNodeInspector({
       {sections.showSize && (
         <InspectorSectionCluster ariaLabel="Transform">
           <InspectorDrawerSection title="Transform">
-            <div className="px-3 space-y-1 pb-2">
+            <div className="px-4 space-y-1.5 pb-3">
               <p className="-mt-0.5 text-[11px] leading-snug text-[#8A8A8A] dark:text-[#888888]">
                 Rotate and scale how the layer looks on the canvas; origin is the pivot. Does not change layout size.
               </p>

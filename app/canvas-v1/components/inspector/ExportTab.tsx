@@ -229,7 +229,7 @@ export function ExportTab({
 
   if (!rawTree) {
     return (
-      <div className="px-3 py-3">
+      <div className="px-4 py-4">
         <p className="text-[11px] text-text-muted">
           Export is available for V6 layouts. Generate a new site to use this feature.
         </p>
@@ -238,7 +238,7 @@ export function ExportTab({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2.5 px-3 py-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 px-4 py-4">
       <OnboardingHint
         hintKey="export-seen"
         text="Copy HTML or React + Tailwind, download a ZIP, or publish a read-only link (sign-in required)"

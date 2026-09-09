@@ -6,11 +6,11 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-09 — debut track 1: signed-in canvas is Convex source of truth. Shared persist path (`persistCanvasState` + `prepareCanvasDocumentSave`). localStorage is cache/offline draft only.
+2026-09-09 — debut track 2: first-class `code` canvas items (no DesignNode tree) persist on the Track 1 Convex document. Agents create/patch via `add_code_item` / `patch_code`.
 
 ## Resume point
 
-Signed-in editor load/save and agent get/write share one `canvasDocuments` row and one `revision` counter. UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`; agent writes go through `applyCanvasDocumentWrite` → `agentSaveCanvas`. Both Convex mutations call `persistCanvasState`. localStorage never replaces a newer remote revision (`decideSignedInCanvasSource`). Proof: `npm run proof:convex-canvas-sync`. Do not build code nodes or agent presence UI yet. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+Signed-in editor load/save and agent get/write share one `canvasDocuments` row and one `revision` counter. UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`; agent writes go through `applyCanvasDocumentWrite` → `agentSaveCanvas`. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` beside notes — `getNodeTree` is null; reducer `ADD_CODE` and ops `add_code_item` / `patch_code` join the same persist path. Proof: `npm run proof:convex-canvas-sync` and `npm run proof:code-on-canvas`. Do not build agent presence UI yet. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
 
 ## Product
 
@@ -61,6 +61,7 @@ Paths the next agent should open instead of rediscovering the tree from `extensi
 - `lib/canvas/canvas-document.ts`
 - `lib/agent/canvas-agent-ops.ts`
 - `app/api/agent/canvas/route.ts`
+- `app/canvas-v1/components/CanvasCode.tsx`
 - `docs/VERIFY.md`
 - `lib/canvas/directive-compiler.ts`
 - `lib/canvas/design-tree-prompt.ts`
@@ -85,7 +86,7 @@ Do **not** use it as:
 npm run proof:session-continuity
 ```
 
-That gate fails if this file drifts (missing sections, dead canonical paths, or entry docs that no longer point here). When you touch canvas sync, agent MCP, taste, or export, also run the matching `proof:*` script in `package.json`.
+That gate fails if this file drifts (missing sections, dead canonical paths, or entry docs that no longer point here). When you touch canvas sync, agent MCP, taste, export, or code items, also run the matching `proof:*` script in `package.json` (`proof:convex-canvas-sync`, `proof:code-on-canvas`).
 
 ## How to update this file
 

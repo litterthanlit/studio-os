@@ -1,7 +1,7 @@
 /**
  * V3 Unified Canvas State — canonical data model for the unified canvas.
  *
- * All canvas items (references, artboards, notes, arrows) live in a single
+ * All canvas items (references, artboards, notes, arrows, code) live in a single
  * flat `items` array. This replaces the separate `references`, `generatedVariants`,
  * `composeDocument`, and `canvasSession` legacy stores.
  */
@@ -104,7 +104,7 @@ export type UnifiedCanvasState = {
 
 export type BaseCanvasItem = {
   id: string;
-  kind: "reference" | "artboard" | "note" | "arrow" | "frame" | "text";
+  kind: "reference" | "artboard" | "note" | "arrow" | "frame" | "text" | "code";
   x: number;
   y: number;
   width: number;
@@ -170,7 +170,87 @@ export type TextItem = BaseCanvasItem & {
   hidden?: Partial<Record<Breakpoint, boolean>>;
 };
 
-export type CanvasItem = ReferenceItem | ArtboardItem | NoteItem | ArrowItem | FrameItem | TextItem;
+/** Code/spec surface on the canvas. Sibling of notes — no DesignNode tree. */
+export type CodeItem = BaseCanvasItem & {
+  kind: "code";
+  name: string;
+  language: string;
+  content: string;
+};
+
+export type CanvasItem =
+  | ReferenceItem
+  | ArtboardItem
+  | NoteItem
+  | ArrowItem
+  | FrameItem
+  | TextItem
+  | CodeItem;
+
+export const CODE_ITEM_DEFAULT_WIDTH = 480;
+export const CODE_ITEM_DEFAULT_HEIGHT = 280;
+export const CODE_CONTENT_MAX_CHARS = 100_000;
+export const CODE_LANGUAGES = [
+  "typescript",
+  "javascript",
+  "tsx",
+  "css",
+  "html",
+  "json",
+  "markdown",
+  "spec",
+  "python",
+  "plaintext",
+] as const;
+
+export function normalizeCodeLanguage(raw: string | undefined): string {
+  const value = (raw ?? "typescript").trim().toLowerCase().slice(0, 32);
+  if (!value) return "typescript";
+  if (!/^[a-z0-9][a-z0-9.+-]*$/.test(value)) return "plaintext";
+  return value;
+}
+
+export function clampCodeContent(raw: string | undefined): string {
+  const value = raw ?? "";
+  if (value.length <= CODE_CONTENT_MAX_CHARS) return value;
+  return value.slice(0, CODE_CONTENT_MAX_CHARS);
+}
+
+export function isCodeItem(item: CanvasItem): item is CodeItem {
+  return item.kind === "code";
+}
+
+export function createCodeItem(input: {
+  id?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  zIndex?: number;
+  name?: string;
+  language?: string;
+  content?: string;
+  existingItems?: CanvasItem[];
+}): CodeItem {
+  const existing = input.existingItems ?? [];
+  const codes = existing.filter(isCodeItem);
+  const maxZ = existing.reduce((max, item) => Math.max(max, item.zIndex), 0);
+  const last = codes[codes.length - 1];
+  const name = input.name?.trim() || "Code";
+  return {
+    id: input.id ?? uid("code"),
+    kind: "code",
+    x: input.x ?? (last ? last.x + 32 : 80),
+    y: input.y ?? (last ? last.y + 32 : 80),
+    width: Math.max(120, input.width ?? CODE_ITEM_DEFAULT_WIDTH),
+    height: Math.max(80, input.height ?? CODE_ITEM_DEFAULT_HEIGHT),
+    zIndex: input.zIndex ?? maxZ + 1,
+    locked: false,
+    name,
+    language: normalizeCodeLanguage(input.language),
+    content: clampCodeContent(input.content),
+  };
+}
 
 export type PromptRun = {
   id: string;

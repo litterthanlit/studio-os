@@ -29,6 +29,7 @@ import type { TextPlaceCommitPayload } from "../hooks/useTextPlace";
 import { CanvasReference } from "./CanvasReference";
 import { CanvasArtboard } from "./CanvasArtboard";
 import { CanvasNote } from "./CanvasNote";
+import { CanvasCode } from "./CanvasCode";
 import { CanvasArrow } from "./CanvasArrow";
 import { CanvasFrame } from "./CanvasFrame";
 import { CanvasText } from "./CanvasText";
@@ -1111,6 +1112,15 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             case "note":
               return (
                 <CanvasNote
+                  key={item.id}
+                  item={item}
+                  isDragging={draggingId === item.id}
+                  onPointerDown={dragHandlers.onPointerDown}
+                />
+              );
+            case "code":
+              return (
+                <CanvasCode
                   key={item.id}
                   item={item}
                   isDragging={draggingId === item.id}

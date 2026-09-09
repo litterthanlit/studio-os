@@ -215,7 +215,7 @@ export function registerStudioOsMcpTools(
     "write_canvas",
     {
       description:
-        "Apply validated canvas operations (patch_node, move_item, set_selection, delete_item, rename_item, add_artboard, replace_artboard_tree, add_reference).",
+        "Apply validated canvas operations (patch_node, patch_code, add_code_item, move_item, set_selection, delete_item, rename_item, add_artboard, replace_artboard_tree, add_reference).",
       inputSchema: {
         projectId: z.string().optional(),
         operations: z.array(z.record(z.string(), z.unknown())),
@@ -310,6 +310,92 @@ export function registerStudioOsMcpTools(
               selectedNodeIds: args.selectedNodeIds,
             },
           ],
+        }),
+      ),
+  );
+
+  server.registerTool(
+    "add_code_item",
+    {
+      description:
+        "Create a code/spec item on the canvas (no DesignNode tree). Persists on the same Convex document as other items.",
+      inputSchema: {
+        projectId: z.string().optional(),
+        name: z.string().optional(),
+        language: z.string().optional(),
+        content: z.string().optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+      },
+    },
+    async (args, extra) =>
+      withContext(extra, (context) =>
+        callStudioApi(context, "/api/agent/canvas", {
+          action: "write",
+          projectId: resolveProjectId(context, args.projectId),
+          operations: [
+            {
+              type: "add_code_item",
+              name: args.name,
+              language: args.language,
+              content: args.content,
+              x: args.x,
+              y: args.y,
+              width: args.width,
+              height: args.height,
+            },
+          ],
+        }),
+      ),
+  );
+
+  server.registerTool(
+    "patch_code",
+    {
+      description: "Update content, language, and/or label on a canvas code item.",
+      inputSchema: {
+        projectId: z.string().optional(),
+        itemId: z.string(),
+        content: z.string().optional(),
+        language: z.string().optional(),
+        name: z.string().optional(),
+      },
+    },
+    async (args, extra) =>
+      withContext(extra, (context) =>
+        callStudioApi(context, "/api/agent/canvas", {
+          action: "write",
+          projectId: resolveProjectId(context, args.projectId),
+          operations: [
+            {
+              type: "patch_code",
+              itemId: args.itemId,
+              content: args.content,
+              language: args.language,
+              name: args.name,
+            },
+          ],
+        }),
+      ),
+  );
+
+  server.registerTool(
+    "get_code",
+    {
+      description: "Read one code/spec canvas item (name, language, content) without loading the full canvas.",
+      inputSchema: {
+        projectId: z.string().optional(),
+        itemId: z.string(),
+      },
+    },
+    async (args, extra) =>
+      withContext(extra, (context) =>
+        callStudioApi(context, "/api/agent/canvas", {
+          action: "get_code",
+          projectId: resolveProjectId(context, args.projectId),
+          itemId: args.itemId,
         }),
       ),
   );

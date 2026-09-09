@@ -5,6 +5,7 @@ import {
 } from "@/lib/agent/agent-api-auth";
 import {
   buildCanvasSummary,
+  getCanvasCode,
   getCanvasNode,
   type CanvasAgentOperation,
 } from "@/lib/agent/canvas-agent-ops";
@@ -24,6 +25,7 @@ import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
  *
  * Read: { action: "get", projectId }
  * Node: { action: "get_node", projectId, itemId, nodeId }
+ * Code: { action: "get_code", projectId, itemId }
  * Write: { action: "write", projectId, operations, expectedRevision? }
  *
  * Writes apply via `applyCanvasDocumentWrite` then `agentSaveCanvas`, which
@@ -31,7 +33,7 @@ import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
  */
 export async function POST(req: NextRequest) {
   const guarded = await readGuardedJson<{
-    action: "get" | "get_node" | "write";
+    action: "get" | "get_node" | "get_code" | "write";
     projectId: string;
     itemId?: string;
     nodeId?: string;
@@ -113,6 +115,40 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (action === "get_code") {
+    if (!itemId) {
+      return NextResponse.json({ error: "itemId is required" }, { status: 400 });
+    }
+    try {
+      const doc = await agentLoadCanvas(convexAuth, auth.projectId!);
+      const canvasState = doc?.state
+        ? normalizeRemoteCanvasState(doc.state)
+        : normalizeRemoteCanvasState(null);
+      const item = getCanvasCode(canvasState, itemId);
+      if (!item) {
+        return NextResponse.json({ error: "Code item not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        projectId,
+        revision: doc?.revision ?? null,
+        item: {
+          id: item.id,
+          kind: item.kind,
+          name: item.name,
+          language: item.language,
+          content: item.content,
+          x: item.x,
+          y: item.y,
+          width: item.width,
+          height: item.height,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load code item";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
   if (action === "write") {
     if (!Array.isArray(operations) || operations.length === 0) {
       return NextResponse.json({ error: "operations array is required" }, { status: 400 });
@@ -156,5 +192,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ error: "action must be get, get_node, or write" }, { status: 400 });
+  return NextResponse.json({ error: "action must be get, get_node, get_code, or write" }, { status: 400 });
 }

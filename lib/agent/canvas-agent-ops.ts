@@ -7,16 +7,21 @@ import {
   validateAndNormalizeDesignTree,
 } from "@/lib/canvas/design-tree-validator";
 import { getNodeTree, withUpdatedTree } from "@/lib/canvas/canvas-item-conversion";
-import type {
-  ArtboardItem,
-  Breakpoint,
-  CanvasItem,
-  FrameItem,
-  NoteItem,
-  ReferenceItem,
-  UnifiedCanvasState,
+import {
+  clampCodeContent,
+  createCodeItem,
+  createEmptyCanvas,
+  isCodeItem,
+  normalizeCodeLanguage,
+  type ArtboardItem,
+  type Breakpoint,
+  type CanvasItem,
+  type CodeItem,
+  type FrameItem,
+  type NoteItem,
+  type ReferenceItem,
+  type UnifiedCanvasState,
 } from "@/lib/canvas/unified-canvas-state";
-import { createEmptyCanvas } from "@/lib/canvas/unified-canvas-state";
 import { stripCanvasForPersistence } from "@/lib/canvas/canvas-convex-sync";
 
 /**
@@ -48,6 +53,23 @@ export type CanvasAgentOperation =
       imageUrl: string;
       title?: string;
       source?: ReferenceItem["source"];
+    }
+  | {
+      type: "add_code_item";
+      name?: string;
+      language?: string;
+      content?: string;
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+    }
+  | {
+      type: "patch_code";
+      itemId: string;
+      content?: string;
+      language?: string;
+      name?: string;
     }
   | {
       type: "patch_node";
@@ -89,7 +111,9 @@ const BREAKPOINT_WIDTHS: Record<Breakpoint, number> = {
 };
 
 function itemName(item: CanvasItem): string | null {
-  if (item.kind === "artboard" || item.kind === "frame" || item.kind === "text") return item.name;
+  if (item.kind === "artboard" || item.kind === "frame" || item.kind === "text" || item.kind === "code") {
+    return item.name;
+  }
   if (item.kind === "note") return item.text.slice(0, 40) || null;
   if (item.kind === "reference") return item.title ?? null;
   return null;
@@ -151,6 +175,13 @@ export function buildCanvasSummary(state: UnifiedCanvasState) {
       weight: reference.weight ?? "default",
     }));
 
+  const codeItems = state.items.filter(isCodeItem).map((item) => ({
+    id: item.id,
+    name: item.name,
+    language: item.language,
+    contentLength: item.content.length,
+  }));
+
   const items = state.items.map((item) => ({
     id: item.id,
     kind: item.kind,
@@ -166,6 +197,8 @@ export function buildCanvasSummary(state: UnifiedCanvasState) {
     items,
     artboards,
     references,
+    codeItems,
+    codeCount: codeItems.length,
     selection: {
       activeItemId: state.selection.activeItemId,
       selectedNodeId: state.selection.selectedNodeId,
@@ -175,6 +208,15 @@ export function buildCanvasSummary(state: UnifiedCanvasState) {
     activeBreakpoint: state.activeBreakpoint,
     updatedAt: state.updatedAt,
   };
+}
+
+export function getCanvasCode(
+  state: UnifiedCanvasState,
+  itemId: string,
+): CodeItem | null {
+  const item = state.items.find((entry) => entry.id === itemId);
+  if (!item || !isCodeItem(item)) return null;
+  return item;
 }
 
 export function getCanvasNode(
@@ -278,6 +320,57 @@ export function applyCanvasAgentOperations(
       };
       state.items.push(reference);
       applied.push(`add_reference:${reference.id}`);
+      continue;
+    }
+
+    if (operation.type === "add_code_item") {
+      if (operation.x !== undefined && !Number.isFinite(operation.x)) {
+        errors.push("add_code_item: x must be a finite number");
+        continue;
+      }
+      if (operation.y !== undefined && !Number.isFinite(operation.y)) {
+        errors.push("add_code_item: y must be a finite number");
+        continue;
+      }
+      const code = createCodeItem({
+        name: operation.name,
+        language: operation.language,
+        content: operation.content,
+        x: operation.x,
+        y: operation.y,
+        width: operation.width,
+        height: operation.height,
+        existingItems: state.items,
+      });
+      state.items.push(code);
+      applied.push(`add_code_item:${code.id}`);
+      continue;
+    }
+
+    if (operation.type === "patch_code") {
+      const item = state.items.find((entry) => entry.id === operation.itemId);
+      if (!item) {
+        errors.push(`patch_code: item ${operation.itemId} not found`);
+        continue;
+      }
+      if (!isCodeItem(item)) {
+        errors.push(`patch_code: item ${operation.itemId} is ${item.kind}, not code`);
+        continue;
+      }
+      const hasContent = operation.content !== undefined;
+      const hasLanguage = typeof operation.language === "string";
+      const name = typeof operation.name === "string" ? operation.name.trim() : undefined;
+      if (!hasContent && !hasLanguage && !name) {
+        errors.push("patch_code: content, language, or name is required");
+        continue;
+      }
+      const next: CodeItem = { ...item };
+      if (hasContent) next.content = clampCodeContent(operation.content);
+      if (hasLanguage) next.language = normalizeCodeLanguage(operation.language);
+      if (name) next.name = name;
+      const index = state.items.findIndex((entry) => entry.id === operation.itemId);
+      state.items[index] = next;
+      applied.push(`patch_code:${operation.itemId}`);
       continue;
     }
 
@@ -430,6 +523,11 @@ export function applyCanvasAgentOperations(
       }
       if (item.kind === "note") {
         (item as NoteItem).text = name;
+        applied.push(`rename_item:${operation.itemId}`);
+        continue;
+      }
+      if (item.kind === "code") {
+        (item as CodeItem).name = name;
         applied.push(`rename_item:${operation.itemId}`);
         continue;
       }

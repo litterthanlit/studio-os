@@ -31,11 +31,13 @@ import type {
   ArtboardItem,
   FrameItem,
   TextItem,
+  CodeItem,
   PromptRun,
   MasterEditSession,
   MasterEditReturnTarget,
   VariantPreviewVariant,
 } from "./unified-canvas-state";
+import { createCodeItem } from "./unified-canvas-state";
 import {
   createHistoryStack,
   pushHistory,
@@ -166,6 +168,16 @@ export type CanvasAction =
   // Canvas-level creation tools
   | { type: "ADD_FRAME"; x: number; y: number; width: number; height: number }
   | { type: "ADD_TEXT"; x: number; y: number; width: number; height: number; mode: "click" | "drag" }
+  | {
+      type: "ADD_CODE";
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+      name?: string;
+      language?: string;
+      content?: string;
+    }
   | { type: "ADD_ARTBOARD"; x: number; y: number; breakpoint: Breakpoint; name?: string; siteId?: string }
   | { type: "CONVERT_TO_ARTBOARD"; itemId: string; breakpoint: Breakpoint }
   | { type: "REPARENT_TO_ARTBOARD"; itemId: string; artboardId: string; parentNodeId: string; index: number }
@@ -921,6 +933,31 @@ export function canvasReducer(
           ...state.selection,
           selectedItemIds: [id],
           activeItemId: id,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        },
+        updatedAt: now(),
+      };
+    }
+
+    case "ADD_CODE": {
+      const newCode: CodeItem = createCodeItem({
+        x: action.x,
+        y: action.y,
+        width: action.width,
+        height: action.height,
+        name: action.name,
+        language: action.language,
+        content: action.content,
+        existingItems: state.items,
+      });
+      return {
+        ...state,
+        items: [...state.items, newCode],
+        selection: {
+          ...state.selection,
+          selectedItemIds: [newCode.id],
+          activeItemId: null,
           selectedNodeId: null,
           selectedNodeIds: [],
         },

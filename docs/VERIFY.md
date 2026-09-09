@@ -63,3 +63,5 @@ Live check (signed-in project with `convexProjectId`, editor tab open):
 3. Same row: `revision` is N+1, `lastWriter` is `"agent"`, `lastAgentRevision` is N+1. Editor chrome shows **Agent updated canvas** with that revision (auto-apply or toast). No Connect Cursor / paste-token step required.
 4. Human undo: after the agent revision is applied, Cmd+Z must **not** restore pre-agent items onto Convex. History is reset on `APPLY_REMOTE_STATE`. If an agent revision is **ahead** of the editor’s applied revision, undo/save is blocked: toast **Agent updated canvas** + Reload (same Track 1 conflict rule; no last-write-wins).
 5. Agent writes still send `expectedRevision`; mismatch returns 409 `CANVAS_REVISION_CONFLICT`.
+
+Chrome preview (dev only, no Convex required): open `/canvas?project=starter-canvas&agentPresence=1` for the presence chip, or `agentPresence=conflict` for the agent toast. Live authorship still comes from `loadCanvas`.

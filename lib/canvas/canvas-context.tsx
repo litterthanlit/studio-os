@@ -103,6 +103,7 @@ export function CanvasProvider({
   const pendingConvexStateRef = useRef<UnifiedCanvasState | null>(null);
   const remoteRevisionRef = useRef<number | null>(null);
   const [presenceNowMs, setPresenceNowMs] = useState(() => Date.now());
+  const [presencePreview, setPresencePreview] = useState<"chip" | "toast" | null>(null);
 
   const currentUser = useQuery(api.users.current, isConvexCanvasSyncConfigured() ? {} : "skip");
   const convexSyncEnabled = isConvexCanvasSyncConfigured() && Boolean(currentUser);
@@ -116,6 +117,13 @@ export function CanvasProvider({
   useEffect(() => {
     remoteRevisionRef.current = remoteDoc?.revision ?? null;
   }, [remoteDoc]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const value = new URLSearchParams(window.location.search).get("agentPresence");
+    if (value === "1") setPresencePreview("chip");
+    else if (value === "conflict") setPresencePreview("toast");
+  }, []);
 
   const loadLocalCanvasState = useCallback((): UnifiedCanvasState => {
     let loaded = loadUnifiedCanvas(projectId);
@@ -428,8 +436,15 @@ export function CanvasProvider({
   }, []);
 
   const authorship = authorshipFromCanvasDocument(remoteDoc);
-  const presence = formatAgentPresence(authorship, presenceNowMs);
-  const toastMessage = externalUpdateToastCopy(authorship.lastWriter);
+  const livePresence = formatAgentPresence(authorship, presenceNowMs);
+  const presence =
+    presencePreview === "chip" && !livePresence.visible
+      ? { visible: true, headline: "Agent updated canvas", meta: "rev 12 · just now" }
+      : livePresence;
+  const toastMessage = externalUpdateToastCopy(
+    authorship.lastWriter ?? (presencePreview === "toast" ? "agent" : null),
+  );
+  const toastVisible = externalUpdateVisible || presencePreview === "toast";
 
   useEffect(() => {
     if (!presence.visible) return;
@@ -456,10 +471,16 @@ export function CanvasProvider({
         meta={presence.meta}
       />
       <ExternalCanvasUpdateToast
-        visible={externalUpdateVisible}
+        visible={toastVisible}
         message={toastMessage}
-        onReload={handleExternalReload}
-        onDismiss={() => setExternalUpdateVisible(false)}
+        onReload={() => {
+          setPresencePreview((current) => (current === "toast" ? null : current));
+          handleExternalReload();
+        }}
+        onDismiss={() => {
+          setPresencePreview((current) => (current === "toast" ? null : current));
+          setExternalUpdateVisible(false);
+        }}
       />
     </CanvasContext.Provider>
   );

@@ -179,6 +179,7 @@ function testSchemaAndPersistWiring() {
   assert.match(context, /formatAgentPresence/);
   assert.match(context, /AgentCanvasPresence/);
   assert.match(context, /dispatchGuarded/);
+  assert.match(context, /agentPresence/);
   assert.doesNotMatch(context, /forceLastWriteWins/);
 
   const reducer = read("lib/canvas/canvas-reducer.ts");
@@ -198,6 +199,7 @@ function testSchemaAndPersistWiring() {
   assert.match(verify, /Agent presence/);
   assert.match(verify, /npm run proof:agent-presence/);
   assert.match(verify, /Human undo/);
+  assert.match(verify, /agentPresence=1/);
 }
 
 function main() {

@@ -6,8 +6,10 @@
  *
  * Signed-in + Convex project id: the `canvasDocuments` row is source of truth.
  * UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`
- * (same `persistCanvasState` / revision bump as agent writes). localStorage
- * is cache/offline draft only — see `decideSignedInCanvasSource`.
+ * (same `persistCanvasState` / revision bump as agent writes). Convex writes
+ * are dirty-fingerprint only with an 8s trailing debounce; remote APPLY does
+ * not echo a save. localStorage is cache/offline draft only — see
+ * `decideSignedInCanvasSource`.
  */
 
 import React, {
@@ -47,10 +49,14 @@ import {
   shouldPromptExternalReload,
 } from "./canvas-convex-sync";
 import { prepareCanvasDocumentSave } from "./canvas-document";
+import {
+  CONVEX_SAVE_DEBOUNCE_MS,
+  LOCAL_CANVAS_SAVE_DEBOUNCE_MS,
+  decideConvexSaveAfterStateChange,
+  hashCanvasPersistState,
+} from "./canvas-save-policy";
 import { useConvexProjectId } from "./use-convex-project-id";
 import { ExternalCanvasUpdateToast } from "@/app/canvas-v1/components/ExternalCanvasUpdateToast";
-
-const CONVEX_SAVE_THROTTLE_MS = 3500;
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +98,7 @@ export function CanvasProvider({
   const appliedRemoteRevisionRef = useRef<number | null>(null);
   const convexRevisionRef = useRef<number | null>(null);
   const pendingConvexStateRef = useRef<UnifiedCanvasState | null>(null);
+  const lastSavedHashRef = useRef<string | null>(null);
 
   const currentUser = useQuery(api.users.current, isConvexCanvasSyncConfigured() ? {} : "skip");
   const convexSyncEnabled = isConvexCanvasSyncConfigured() && Boolean(currentUser);
@@ -126,6 +133,7 @@ export function CanvasProvider({
     convexWriteBlockedRef.current = false;
     skipConvexSaveRef.current = false;
     pendingConvexStateRef.current = null;
+    lastSavedHashRef.current = null;
     setExternalUpdateVisible(false);
 
     applyLoadedState(loadLocalCanvasState());
@@ -135,11 +143,17 @@ export function CanvasProvider({
     if (!convexSyncEnabled || !convexProjectId) return;
     if (!hasInitialReconciledRef.current) return;
     if (convexWriteBlockedRef.current) return;
+    if (skipConvexSaveRef.current) return;
     const state = pendingConvexStateRef.current;
     if (!state || convexSaveInFlightRef.current) return;
 
-    convexSaveInFlightRef.current = true;
     const payload = prepareCanvasDocumentSave(state);
+    if (payload.contentHash === lastSavedHashRef.current) {
+      pendingConvexStateRef.current = null;
+      return;
+    }
+
+    convexSaveInFlightRef.current = true;
 
     try {
       const result = await saveCanvasMutation({
@@ -149,6 +163,8 @@ export function CanvasProvider({
         schemaVersion: payload.schemaVersion,
       });
 
+      lastSavedHashRef.current = payload.contentHash;
+      pendingConvexStateRef.current = null;
       convexRevisionRef.current = result.revision;
       appliedRemoteRevisionRef.current = result.revision;
       saveCanvasSyncMetadata(projectId, {
@@ -180,6 +196,20 @@ export function CanvasProvider({
       }
     } finally {
       convexSaveInFlightRef.current = false;
+      const pending = pendingConvexStateRef.current;
+      if (
+        pending &&
+        hashCanvasPersistState(pending) !== lastSavedHashRef.current &&
+        !convexWriteBlockedRef.current
+      ) {
+        if (convexSaveTimerRef.current) {
+          clearTimeout(convexSaveTimerRef.current);
+        }
+        convexSaveTimerRef.current = setTimeout(() => {
+          convexSaveTimerRef.current = null;
+          void flushConvexSave();
+        }, CONVEX_SAVE_DEBOUNCE_MS);
+      }
     }
   }, [convexProjectId, convexSyncEnabled, projectId, saveCanvasMutation]);
 
@@ -208,17 +238,23 @@ export function CanvasProvider({
     hasInitialReconciledRef.current = true;
     appliedRemoteRevisionRef.current = result.appliedRevision;
     convexRevisionRef.current = result.appliedRevision;
+    lastSavedHashRef.current = hashCanvasPersistState(result.state);
 
     if (result.shouldReplaceLocal) {
       skipConvexSaveRef.current = true;
+      pendingConvexStateRef.current = null;
+      if (convexSaveTimerRef.current) {
+        clearTimeout(convexSaveTimerRef.current);
+        convexSaveTimerRef.current = null;
+      }
       applyLoadedState(result.state);
-      saveUnifiedCanvas(projectId, result.state);
-      pendingConvexStateRef.current = result.state;
+      saveUnifiedCanvas(projectId, result.state, { touchSyncMeta: false });
       saveCanvasSyncMetadata(projectId, result.meta);
     } else if (result.pushLocalToRemote) {
       pendingConvexStateRef.current = result.state;
       void flushConvexSave();
     } else {
+      pendingConvexStateRef.current = null;
       saveCanvasSyncMetadata(projectId, result.meta);
     }
   }, [
@@ -236,7 +272,7 @@ export function CanvasProvider({
     latestStateRef.current = reducerState;
   }, [reducerState]);
 
-  // On state change (debounced 500ms): persist locally and schedule Convex save.
+  // Debounced localStorage cache. Viewport/selection still persist locally.
   useEffect(() => {
     const isHydrated =
       loadedForProjectRef.current === projectId &&
@@ -251,37 +287,68 @@ export function CanvasProvider({
 
     saveTimerRef.current = setTimeout(() => {
       const nextState = extractCanvasState(reducerState);
-      saveUnifiedCanvas(projectId, nextState);
-      pendingConvexStateRef.current = nextState;
-
-      if (skipConvexSaveRef.current) {
-        skipConvexSaveRef.current = false;
-        return;
-      }
-
-      if (convexSyncEnabled && !hasInitialReconciledRef.current) {
-        return;
-      }
-
-      if (convexSaveTimerRef.current) {
-        clearTimeout(convexSaveTimerRef.current);
-      }
-      convexSaveTimerRef.current = setTimeout(() => {
-        void flushConvexSave();
-      }, CONVEX_SAVE_THROTTLE_MS);
-    }, 500);
+      const persistHash = hashCanvasPersistState(nextState);
+      const persistDirty =
+        hasInitialReconciledRef.current && persistHash !== lastSavedHashRef.current;
+      saveUnifiedCanvas(projectId, nextState, { touchSyncMeta: persistDirty });
+    }, LOCAL_CANVAS_SAVE_DEBOUNCE_MS);
 
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
+    };
+  }, [projectId, reducerState]);
+
+  // Convex save: dirty-fingerprint only, trailing debounce, never on remote apply.
+  useEffect(() => {
+    const isHydrated =
+      loadedForProjectRef.current === projectId &&
+      loadedItemCountRef.current >= 0 &&
+      (loadedItemCountRef.current === 0 || reducerState.items.length > 0);
+
+    if (!isHydrated) return;
+
+    const nextState = extractCanvasState(reducerState);
+    const persistHash = hashCanvasPersistState(nextState);
+    const source = skipConvexSaveRef.current ? "remote-apply" : "local";
+    const decision = decideConvexSaveAfterStateChange({
+      source,
+      persistHash,
+      lastSavedHash: lastSavedHashRef.current,
+    });
+
+    if (skipConvexSaveRef.current) {
+      skipConvexSaveRef.current = false;
+      lastSavedHashRef.current = persistHash;
+      pendingConvexStateRef.current = null;
       if (convexSaveTimerRef.current) {
         clearTimeout(convexSaveTimerRef.current);
+        convexSaveTimerRef.current = null;
       }
-    };
+      return;
+    }
+
+    if (!decision.schedule) {
+      return;
+    }
+
+    pendingConvexStateRef.current = nextState;
+
+    if (!convexSyncEnabled || !hasInitialReconciledRef.current) {
+      return;
+    }
+
+    if (convexSaveTimerRef.current) {
+      clearTimeout(convexSaveTimerRef.current);
+    }
+    convexSaveTimerRef.current = setTimeout(() => {
+      convexSaveTimerRef.current = null;
+      void flushConvexSave();
+    }, CONVEX_SAVE_DEBOUNCE_MS);
   }, [convexSyncEnabled, flushConvexSave, projectId, reducerState]);
 
-  // Flush pending save on unmount (HMR, navigation) so state is never lost.
+  // Flush pending dirty save on unmount (HMR, navigation) so state is never lost.
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
@@ -289,15 +356,25 @@ export function CanvasProvider({
       }
       if (convexSaveTimerRef.current) {
         clearTimeout(convexSaveTimerRef.current);
+        convexSaveTimerRef.current = null;
       }
 
       const loaded = loadedItemCountRef.current;
       const current = latestStateRef.current.items.length;
       if (loaded >= 0 && (loaded === 0 || current >= loaded)) {
         const nextState = extractCanvasState(latestStateRef.current);
-        saveUnifiedCanvas(projectId, nextState);
-        pendingConvexStateRef.current = nextState;
-        if (convexSyncEnabled && convexProjectId && hasInitialReconciledRef.current) {
+        const persistHash = hashCanvasPersistState(nextState);
+        const persistDirty =
+          hasInitialReconciledRef.current && persistHash !== lastSavedHashRef.current;
+        saveUnifiedCanvas(projectId, nextState, { touchSyncMeta: persistDirty });
+        if (
+          persistDirty &&
+          !skipConvexSaveRef.current &&
+          convexSyncEnabled &&
+          convexProjectId &&
+          hasInitialReconciledRef.current
+        ) {
+          pendingConvexStateRef.current = nextState;
           void flushConvexSave();
         }
       }
@@ -315,8 +392,7 @@ export function CanvasProvider({
     const hasPendingLocalSave =
       convexSaveInFlightRef.current ||
       convexRetryPendingRef.current ||
-      convexSaveTimerRef.current != null ||
-      saveTimerRef.current != null;
+      convexSaveTimerRef.current != null;
 
     if (hasPendingLocalSave || latestStateRef.current.masterEditSession) {
       setExternalUpdateVisible(true);
@@ -331,10 +407,15 @@ export function CanvasProvider({
     skipConvexSaveRef.current = true;
     convexWriteBlockedRef.current = false;
     const nextState = normalizeRemoteCanvasState(remoteDoc.state);
+    lastSavedHashRef.current = hashCanvasPersistState(nextState);
+    pendingConvexStateRef.current = null;
+    if (convexSaveTimerRef.current) {
+      clearTimeout(convexSaveTimerRef.current);
+      convexSaveTimerRef.current = null;
+    }
     loadedItemCountRef.current = nextState.items.length;
     dispatch({ type: "APPLY_REMOTE_STATE", state: nextState });
-    saveUnifiedCanvas(projectId, nextState);
-    pendingConvexStateRef.current = nextState;
+    saveUnifiedCanvas(projectId, nextState, { touchSyncMeta: false });
     appliedRemoteRevisionRef.current = remoteDoc.revision;
     convexRevisionRef.current = remoteDoc.revision;
     saveCanvasSyncMetadata(projectId, {
@@ -370,10 +451,15 @@ export function CanvasProvider({
     const nextState = normalizeRemoteCanvasState(remoteDoc.state);
     skipConvexSaveRef.current = true;
     convexWriteBlockedRef.current = false;
+    lastSavedHashRef.current = hashCanvasPersistState(nextState);
+    pendingConvexStateRef.current = null;
+    if (convexSaveTimerRef.current) {
+      clearTimeout(convexSaveTimerRef.current);
+      convexSaveTimerRef.current = null;
+    }
     loadedItemCountRef.current = nextState.items.length;
     dispatch({ type: "APPLY_REMOTE_STATE", state: nextState });
-    saveUnifiedCanvas(projectId, nextState);
-    pendingConvexStateRef.current = nextState;
+    saveUnifiedCanvas(projectId, nextState, { touchSyncMeta: false });
     appliedRemoteRevisionRef.current = remoteDoc.revision;
     convexRevisionRef.current = remoteDoc.revision;
     saveCanvasSyncMetadata(projectId, {

@@ -6,11 +6,11 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-09 — debut track 1: signed-in canvas is Convex source of truth. Shared persist path (`persistCanvasState` + `prepareCanvasDocumentSave`). localStorage is cache/offline draft only.
+2026-09-09 — canvas Convex save thrash: dirty-only persist fingerprint, 8s trailing debounce, remote apply does not echo saves, snapshots are periodic/agent-only with keep-20 prune.
 
 ## Resume point
 
-Signed-in editor load/save and agent get/write share one `canvasDocuments` row and one `revision` counter. UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`; agent writes go through `applyCanvasDocumentWrite` → `agentSaveCanvas`. Both Convex mutations call `persistCanvasState`. localStorage never replaces a newer remote revision (`decideSignedInCanvasSource`). Proof: `npm run proof:convex-canvas-sync`. Do not build code nodes or agent presence UI yet. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+Signed-in editor load/save and agent get/write share one `canvasDocuments` row and one `revision` counter. UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`; agent writes go through `applyCanvasDocumentWrite` → `agentSaveCanvas`. Both Convex mutations call `persistCanvasState`. Convex writes are dirty-fingerprint only (viewport/selection/prompt chrome ignored) with an 8s trailing debounce; remote APPLY cannot cascade another save. Snapshots are not per-revision: agent writes, every 20th user revision, or 10 minutes, keep newest 20. localStorage never replaces a newer remote revision (`decideSignedInCanvasSource`). Proof: `npm run proof:convex-canvas-sync` and `npm run proof:canvas-save-throttle`. Do not build code nodes or agent presence UI yet. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
 
 ## Product
 
@@ -38,7 +38,7 @@ Do not re-learn this from the plugin folder.
 - **V6 DesignNode** (`frame | text | image | button | divider`): `lib/canvas/design-node.ts`
 - **Canvas state + reducer:** `lib/canvas/unified-canvas-state.ts`, `lib/canvas/canvas-reducer.ts`
 - **Renderer:** `app/canvas-v1/components/ComposeDocumentViewV6.tsx`
-- **Convex canvas:** `convex/schema.ts` (`canvasDocuments`), `convex/projects.ts` (`persistCanvasState` via `loadCanvas` / `saveCanvas` / agent saves), shared write helpers in `lib/canvas/canvas-document.ts`, signed-in reconcile in `lib/canvas/canvas-convex-sync.ts`
+- **Convex canvas:** `convex/schema.ts` (`canvasDocuments`), `convex/projects.ts` (`persistCanvasState` via `loadCanvas` / `saveCanvas` / agent saves), dirty-only writes in `lib/canvas/canvas-save-policy.ts`, shared write helpers in `lib/canvas/canvas-document.ts`, signed-in reconcile in `lib/canvas/canvas-convex-sync.ts`
 - **Taste → gen:** `app/api/taste/extract/route.ts` → `lib/canvas/directive-compiler.ts` → `lib/canvas/design-tree-prompt.ts` → `lib/canvas/generate-design-core.ts`
 - **Plugin (product MCP, not coding-agent memory):** `extensions/cursor/README.md`
 
@@ -59,6 +59,8 @@ Paths the next agent should open instead of rediscovering the tree from `extensi
 - `lib/canvas/canvas-context.tsx`
 - `lib/canvas/canvas-convex-sync.ts`
 - `lib/canvas/canvas-document.ts`
+- `lib/canvas/canvas-save-policy.ts`
+- `lib/canvas/canvas-content-hash.ts`
 - `lib/agent/canvas-agent-ops.ts`
 - `app/api/agent/canvas/route.ts`
 - `docs/VERIFY.md`

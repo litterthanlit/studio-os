@@ -782,7 +782,11 @@ const CANVAS_V3_PREFIX = "studio-os:canvas-v3:";
  * - Save exportArtifact.code only if already present
  * - Sync reference items back to legacy reference list for project cards/counts
  */
-export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState): void {
+export function saveUnifiedCanvas(
+  projectId: string,
+  state: UnifiedCanvasState,
+  options?: { touchSyncMeta?: boolean },
+): void {
   if (typeof window === "undefined") return;
 
   const toSave = stripCanvasForPersistence(state);
@@ -829,7 +833,9 @@ export function saveUnifiedCanvas(projectId: string, state: UnifiedCanvasState):
     // Non-critical — legacy sync failure shouldn't block save
   }
 
-  touchLocalCanvasSyncMetadata(projectId);
+  if (options?.touchSyncMeta !== false) {
+    touchLocalCanvasSyncMetadata(projectId);
+  }
 }
 
 /**

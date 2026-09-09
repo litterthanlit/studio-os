@@ -85,6 +85,7 @@ export default defineSchema({
 
   // One canvas document per project (looked up `.unique()` on by_project).
   // `revision` is the shared expectedRevision counter for UI + agent writes.
+  // `contentHash` is the persist fingerprint; identical hashes are no-ops.
   canvasDocuments: defineTable({
     ownerId: v.id("users"),
     projectId: v.id("projects"),
@@ -96,12 +97,17 @@ export default defineSchema({
     lastSavedAt: timestamp,
     createdAt: timestamp,
     updatedAt: timestamp,
+    contentHash: v.optional(v.string()),
+    lastSnapshotAt: v.optional(timestamp),
+    lastSnapshotRevision: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_owner", ["ownerId"])
     .index("by_owner_project", ["ownerId", "projectId"])
     .index("by_status", ["status"]),
 
+  // Retention: not every revision. Agent writes, every 20th user revision, or
+  // 10 minutes since last snapshot. Newest 20 per document are kept.
   canvasSnapshots: defineTable({
     ownerId: v.id("users"),
     projectId: v.id("projects"),

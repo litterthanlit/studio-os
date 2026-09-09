@@ -1,9 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { canReadProject, canWriteProject, getCurrentUser, now, requireUser, writeAuditLog } from "./auth";
+import { hashCanvasPersistState } from "../lib/canvas/canvas-content-hash";
+import {
+  CANVAS_SNAPSHOT_KEEP_PER_DOCUMENT,
+  CANVAS_SNAPSHOT_PRUNE_BATCH,
+  shouldWriteCanvasSnapshot,
+  type CanvasPersistWriter,
+} from "../lib/canvas/canvas-save-policy";
 
 export const listMine = query({
   args: {},
@@ -88,6 +96,12 @@ export const loadCanvas = query({
   },
 });
 
+const canvasSaveResult = v.object({
+  id: v.id("canvasDocuments"),
+  revision: v.number(),
+  unchanged: v.boolean(),
+});
+
 export const saveCanvas = mutation({
   args: {
     projectId: v.id("projects"),
@@ -95,13 +109,10 @@ export const saveCanvas = mutation({
     expectedRevision: v.optional(v.number()),
     schemaVersion: v.optional(v.number()),
   },
-  returns: v.object({
-    id: v.id("canvasDocuments"),
-    revision: v.number(),
-  }),
+  returns: canvasSaveResult,
   handler: async (ctx, args) => {
     const { project } = await canWriteProject(ctx, args.projectId);
-    return await persistCanvasState(ctx, project, args);
+    return await persistCanvasState(ctx, project, args, "user");
   },
 });
 
@@ -123,6 +134,12 @@ function assertServiceSecret(value: string) {
  * `saveCanvasForUserAgent` all call this. It is the only writer that
  * increments `canvasDocuments.revision`, so UI saves and agent writes
  * share one document and the same `expectedRevision` counter.
+ *
+ * Snapshot policy (see `lib/canvas/canvas-save-policy.ts`):
+ * - Skip the write entirely when the persist fingerprint matches `contentHash`.
+ * - Insert a snapshot on agent writes, every 20th user revision, or 10 minutes
+ *   since the last snapshot — never on every user save.
+ * - Keep the newest 20 snapshots per document and prune older rows.
  */
 async function persistCanvasState(
   ctx: MutationCtx,
@@ -132,14 +149,21 @@ async function persistCanvasState(
     expectedRevision?: number;
     schemaVersion?: number;
   },
+  writer: CanvasPersistWriter,
 ) {
   const existing = await ctx.db
     .query("canvasDocuments")
     .withIndex("by_project", (q) => q.eq("projectId", project._id))
     .unique();
   const time = now();
+  const contentHash = hashCanvasPersistState(args.state);
 
   if (existing) {
+    const existingHash = existing.contentHash ?? hashCanvasPersistState(existing.state);
+    if (existingHash === contentHash) {
+      return { id: existing._id, revision: existing.revision, unchanged: true };
+    }
+
     if (
       typeof args.expectedRevision === "number" &&
       args.expectedRevision !== existing.revision
@@ -147,6 +171,15 @@ async function persistCanvasState(
       throw new Error("CANVAS_REVISION_CONFLICT");
     }
     const nextRevision = existing.revision + 1;
+    const writeSnapshot = shouldWriteCanvasSnapshot({
+      writer,
+      isInsert: false,
+      nextRevision,
+      lastSnapshotAt: existing.lastSnapshotAt,
+      lastSnapshotRevision: existing.lastSnapshotRevision,
+      now: time,
+    });
+
     await ctx.db.patch(existing._id, {
       state: args.state,
       schemaVersion: args.schemaVersion ?? existing.schemaVersion,
@@ -154,16 +187,30 @@ async function persistCanvasState(
       revision: nextRevision,
       lastSavedAt: time,
       updatedAt: time,
+      contentHash,
+      ...(writeSnapshot
+        ? { lastSnapshotAt: time, lastSnapshotRevision: nextRevision }
+        : {}),
     });
-    await ctx.db.insert("canvasSnapshots", {
-      ownerId: project.ownerId,
-      projectId: project._id,
-      canvasDocumentId: existing._id,
-      revision: nextRevision,
-      state: args.state,
-      createdAt: time,
-    });
-    return { id: existing._id, revision: nextRevision };
+
+    if (writeSnapshot) {
+      await ctx.db.insert("canvasSnapshots", {
+        ownerId: project.ownerId,
+        projectId: project._id,
+        canvasDocumentId: existing._id,
+        revision: nextRevision,
+        state: args.state,
+        createdAt: time,
+      });
+      const needsMorePrune = await pruneCanvasSnapshotsForDocument(ctx, existing._id);
+      if (needsMorePrune) {
+        await ctx.scheduler.runAfter(0, internal.projects.pruneCanvasSnapshots, {
+          canvasDocumentId: existing._id,
+        });
+      }
+    }
+
+    return { id: existing._id, revision: nextRevision, unchanged: false };
   }
 
   const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
@@ -177,6 +224,9 @@ async function persistCanvasState(
     lastSavedAt: time,
     createdAt: time,
     updatedAt: time,
+    contentHash,
+    lastSnapshotAt: time,
+    lastSnapshotRevision: 1,
   });
   await ctx.db.insert("canvasSnapshots", {
     ownerId: project.ownerId,
@@ -186,8 +236,42 @@ async function persistCanvasState(
     state: args.state,
     createdAt: time,
   });
-  return { id: canvasDocumentId, revision: 1 };
+  return { id: canvasDocumentId, revision: 1, unchanged: false };
 }
+
+async function pruneCanvasSnapshotsForDocument(
+  ctx: MutationCtx,
+  canvasDocumentId: Id<"canvasDocuments">,
+): Promise<boolean> {
+  const keep = CANVAS_SNAPSHOT_KEEP_PER_DOCUMENT;
+  const batch = CANVAS_SNAPSHOT_PRUNE_BATCH;
+  const page = await ctx.db
+    .query("canvasSnapshots")
+    .withIndex("by_document_revision", (q) => q.eq("canvasDocumentId", canvasDocumentId))
+    .order("desc")
+    .take(keep + batch);
+  const extra = page.slice(keep);
+  for (const snapshot of extra) {
+    await ctx.db.delete(snapshot._id);
+  }
+  return extra.length >= batch;
+}
+
+export const pruneCanvasSnapshots = internalMutation({
+  args: {
+    canvasDocumentId: v.id("canvasDocuments"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const needsMore = await pruneCanvasSnapshotsForDocument(ctx, args.canvasDocumentId);
+    if (needsMore) {
+      await ctx.scheduler.runAfter(0, internal.projects.pruneCanvasSnapshots, {
+        canvasDocumentId: args.canvasDocumentId,
+      });
+    }
+    return null;
+  },
+});
 
 async function requireOwnedProjectForUserAgent(
   ctx: QueryCtx | MutationCtx,
@@ -237,15 +321,12 @@ export const saveCanvasForAgent = mutation({
     schemaVersion: v.optional(v.number()),
     serviceSecret: v.string(),
   },
-  returns: v.object({
-    id: v.id("canvasDocuments"),
-    revision: v.number(),
-  }),
+  returns: canvasSaveResult,
   handler: async (ctx, args) => {
     assertServiceSecret(args.serviceSecret);
     const project = await ctx.db.get(args.projectId);
     if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
-    return await persistCanvasState(ctx, project, args);
+    return await persistCanvasState(ctx, project, args, "agent");
   },
 });
 
@@ -323,13 +404,10 @@ export const saveCanvasForUserAgent = mutation({
     schemaVersion: v.optional(v.number()),
     serviceSecret: v.string(),
   },
-  returns: v.object({
-    id: v.id("canvasDocuments"),
-    revision: v.number(),
-  }),
+  returns: canvasSaveResult,
   handler: async (ctx, args) => {
     assertServiceSecret(args.serviceSecret);
     const project = await requireOwnedProjectForUserAgent(ctx, args.projectId, args.actingUserId);
-    return await persistCanvasState(ctx, project, args);
+    return await persistCanvasState(ctx, project, args, "agent");
   },
 });

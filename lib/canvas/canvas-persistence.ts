@@ -8,6 +8,13 @@ export type CanvasSyncMetadata = {
   source: "local" | "remote";
 };
 
+/**
+ * Cache / offline-draft metadata. `revision` is copied from Convex after a
+ * successful remote save; this helper must not increment it. A newer local
+ * `savedAt` at the *same* revision is how signed-in reconcile detects an
+ * unsynced draft. A different remote revision always wins — see
+ * `decideSignedInCanvasSource` in canvas-convex-sync.ts.
+ */
 export function loadCanvasSyncMetadata(projectId: string): CanvasSyncMetadata | null {
   if (typeof window === "undefined") return null;
   try {
@@ -47,6 +54,7 @@ export function touchLocalCanvasSyncMetadata(projectId: string): void {
 
 /**
  * Strip transient / oversized fields before persisting to localStorage or Convex.
+ * Shared serializer used by `prepareCanvasDocumentSave` (UI + agent writes).
  */
 export function stripCanvasForPersistence(state: UnifiedCanvasState): UnifiedCanvasState {
   const strippedItems = state.items.map((item) => {

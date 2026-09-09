@@ -81,6 +81,8 @@ export async function agentSaveCanvas(
     schemaVersion?: number;
   },
 ) {
+  // Same persist mutation family as the editor (`saveCanvas` → persistCanvasState).
+  // expectedRevision is the shared canvasDocuments.revision agents and UI bump.
   const client = createAgentConvexClient(auth);
   if (!client) throw new Error("Convex is not configured");
 

@@ -19,6 +19,13 @@ import type {
 import { createEmptyCanvas } from "@/lib/canvas/unified-canvas-state";
 import { stripCanvasForPersistence } from "@/lib/canvas/canvas-convex-sync";
 
+/**
+ * Agent canvas operations. Apply through `applyCanvasDocumentWrite` in
+ * `lib/canvas/canvas-document.ts` when the result will be saved — that
+ * serializer is shared with the editor. Interactive UI edits use the reducer
+ * and join the same persist path at `prepareCanvasDocumentSave`.
+ */
+
 export type CanvasAgentOperation =
   | {
       type: "add_artboard";

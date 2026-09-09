@@ -83,6 +83,8 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_status", ["status"]),
 
+  // One canvas document per project (looked up `.unique()` on by_project).
+  // `revision` is the shared expectedRevision counter for UI + agent writes.
   canvasDocuments: defineTable({
     ownerId: v.id("users"),
     projectId: v.id("projects"),

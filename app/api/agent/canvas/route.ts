@@ -4,11 +4,11 @@ import {
   authorizeAgentProjectAccess,
 } from "@/lib/agent/agent-api-auth";
 import {
-  applyCanvasAgentOperations,
   buildCanvasSummary,
   getCanvasNode,
   type CanvasAgentOperation,
 } from "@/lib/agent/canvas-agent-ops";
+import { applyCanvasDocumentWrite } from "@/lib/canvas/canvas-document";
 import {
   agentLoadCanvas,
   agentSaveCanvas,
@@ -25,6 +25,9 @@ import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
  * Read: { action: "get", projectId }
  * Node: { action: "get_node", projectId, itemId, nodeId }
  * Write: { action: "write", projectId, operations, expectedRevision? }
+ *
+ * Writes apply via `applyCanvasDocumentWrite` then `agentSaveCanvas`, which
+ * hits the same Convex `persistCanvasState` / revision counter as the editor.
  */
 export async function POST(req: NextRequest) {
   const guarded = await readGuardedJson<{
@@ -121,7 +124,10 @@ export async function POST(req: NextRequest) {
         ? normalizeRemoteCanvasState(doc.state)
         : normalizeRemoteCanvasState(null);
 
-      const { state, applied, errors } = applyCanvasAgentOperations(currentState, operations);
+      const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(
+        currentState,
+        operations,
+      );
       if (applied.length === 0) {
         return NextResponse.json(
           { error: "No operations applied", details: errors },
@@ -133,7 +139,7 @@ export async function POST(req: NextRequest) {
         projectId: auth.projectId!,
         state,
         expectedRevision: expectedRevision ?? doc?.revision,
-        schemaVersion: state.schemaVersion,
+        schemaVersion,
       });
 
       return NextResponse.json({

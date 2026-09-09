@@ -6,6 +6,7 @@
  * via Convex `saveCanvas` | `saveCanvasForAgent` | `saveCanvasForUserAgent`.
  * Those three mutations all call `persistCanvasState` in `convex/projects.ts`,
  * which is the only place `canvasDocuments.revision` increments.
+ * Agent vs human authorship is stamped there (`lastWriter` / `lastAgentAt`).
  *
  * Do not add a second serializer or a second revision counter.
  */

@@ -85,6 +85,8 @@ export default defineSchema({
 
   // One canvas document per project (looked up `.unique()` on by_project).
   // `revision` is the shared expectedRevision counter for UI + agent writes.
+  // `lastWriter` / `lastAgentAt` / `lastAgentRevision` are document-level
+  // authorship for live agent presence (not a CRDT).
   canvasDocuments: defineTable({
     ownerId: v.id("users"),
     projectId: v.id("projects"),
@@ -94,6 +96,9 @@ export default defineSchema({
     state: v.any(),
     status: projectStatus,
     lastSavedAt: timestamp,
+    lastWriter: v.optional(v.union(v.literal("user"), v.literal("agent"))),
+    lastAgentAt: v.optional(timestamp),
+    lastAgentRevision: v.optional(v.number()),
     createdAt: timestamp,
     updatedAt: timestamp,
   })

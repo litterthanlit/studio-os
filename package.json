@@ -22,6 +22,7 @@
     "proof:app-ui-capability": "npx tsx scripts/app-ui-capability-proof.ts",
     "proof:code-export": "npx tsx scripts/code-export-proof.ts",
     "proof:code-on-canvas": "npx tsx scripts/code-on-canvas-proof.ts",
+    "proof:agent-presence": "npx tsx scripts/agent-presence-proof.ts",
     "proof:session-continuity": "npx tsx scripts/session-continuity-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",

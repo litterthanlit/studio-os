@@ -4,6 +4,13 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { canReadProject, canWriteProject, getCurrentUser, now, requireUser, writeAuditLog } from "./auth";
+import {
+  canvasDocumentAuthorshipPatch,
+  parseCanvasWriter,
+  type CanvasWriter,
+} from "../lib/canvas/agent-presence";
+
+const canvasWriter = v.union(v.literal("user"), v.literal("agent"));
 
 export const listMine = query({
   args: {},
@@ -94,6 +101,7 @@ export const saveCanvas = mutation({
     state: v.any(),
     expectedRevision: v.optional(v.number()),
     schemaVersion: v.optional(v.number()),
+    writer: v.optional(canvasWriter),
   },
   returns: v.object({
     id: v.id("canvasDocuments"),
@@ -101,7 +109,10 @@ export const saveCanvas = mutation({
   }),
   handler: async (ctx, args) => {
     const { project } = await canWriteProject(ctx, args.projectId);
-    return await persistCanvasState(ctx, project, args);
+    return await persistCanvasState(ctx, project, {
+      ...args,
+      writer: parseCanvasWriter(args.writer) ?? "user",
+    });
   },
 });
 
@@ -123,6 +134,7 @@ function assertServiceSecret(value: string) {
  * `saveCanvasForUserAgent` all call this. It is the only writer that
  * increments `canvasDocuments.revision`, so UI saves and agent writes
  * share one document and the same `expectedRevision` counter.
+ * `writer` stamps `lastWriter` / `lastAgentAt` / `lastAgentRevision`.
  */
 async function persistCanvasState(
   ctx: MutationCtx,
@@ -131,6 +143,7 @@ async function persistCanvasState(
     state: unknown;
     expectedRevision?: number;
     schemaVersion?: number;
+    writer: CanvasWriter;
   },
 ) {
   const existing = await ctx.db
@@ -147,6 +160,11 @@ async function persistCanvasState(
       throw new Error("CANVAS_REVISION_CONFLICT");
     }
     const nextRevision = existing.revision + 1;
+    const authorship = canvasDocumentAuthorshipPatch({
+      writer: args.writer,
+      nextRevision,
+      time,
+    });
     await ctx.db.patch(existing._id, {
       state: args.state,
       schemaVersion: args.schemaVersion ?? existing.schemaVersion,
@@ -154,6 +172,11 @@ async function persistCanvasState(
       revision: nextRevision,
       lastSavedAt: time,
       updatedAt: time,
+      lastWriter: authorship.lastWriter,
+      ...(authorship.lastAgentAt != null ? { lastAgentAt: authorship.lastAgentAt } : {}),
+      ...(authorship.lastAgentRevision != null
+        ? { lastAgentRevision: authorship.lastAgentRevision }
+        : {}),
     });
     await ctx.db.insert("canvasSnapshots", {
       ownerId: project.ownerId,
@@ -166,6 +189,11 @@ async function persistCanvasState(
     return { id: existing._id, revision: nextRevision };
   }
 
+  const authorship = canvasDocumentAuthorshipPatch({
+    writer: args.writer,
+    nextRevision: 1,
+    time,
+  });
   const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
     ownerId: project.ownerId,
     projectId: project._id,
@@ -175,6 +203,11 @@ async function persistCanvasState(
     state: args.state,
     status: "active",
     lastSavedAt: time,
+    lastWriter: authorship.lastWriter,
+    ...(authorship.lastAgentAt != null ? { lastAgentAt: authorship.lastAgentAt } : {}),
+    ...(authorship.lastAgentRevision != null
+      ? { lastAgentRevision: authorship.lastAgentRevision }
+      : {}),
     createdAt: time,
     updatedAt: time,
   });
@@ -245,7 +278,7 @@ export const saveCanvasForAgent = mutation({
     assertServiceSecret(args.serviceSecret);
     const project = await ctx.db.get(args.projectId);
     if (!project || project.status === "deleted") throw new Error("PROJECT_NOT_FOUND");
-    return await persistCanvasState(ctx, project, args);
+    return await persistCanvasState(ctx, project, { ...args, writer: "agent" });
   },
 });
 
@@ -330,6 +363,6 @@ export const saveCanvasForUserAgent = mutation({
   handler: async (ctx, args) => {
     assertServiceSecret(args.serviceSecret);
     const project = await requireOwnedProjectForUserAgent(ctx, args.projectId, args.actingUserId);
-    return await persistCanvasState(ctx, project, args);
+    return await persistCanvasState(ctx, project, { ...args, writer: "agent" });
   },
 });

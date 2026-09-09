@@ -16,6 +16,9 @@ export type RemoteCanvasDocument = {
   state: unknown;
   lastSavedAt: number;
   updatedAt: number;
+  lastWriter?: "user" | "agent" | null;
+  lastAgentAt?: number | null;
+  lastAgentRevision?: number | null;
 };
 
 export type ReconcileResult = {

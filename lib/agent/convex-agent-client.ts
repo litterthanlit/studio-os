@@ -114,6 +114,7 @@ export async function agentSaveCanvas(
       state: args.state,
       expectedRevision: args.expectedRevision,
       schemaVersion: args.schemaVersion,
+      writer: "agent",
     });
   } finally {
     client.clearAuth();

@@ -3252,6 +3252,8 @@ export function canvasReducer(
     }
 
     case "APPLY_REMOTE_STATE": {
+      // Remote SoT snapshot (agent or other tab). Reset undo so Cmd+Z cannot
+      // restore pre-remote items and persist them over the new revision.
       return {
         ...action.state,
         selection: {
@@ -3259,13 +3261,7 @@ export function canvasReducer(
           selectedNodeIds: action.state.selection.selectedNodeIds ?? [],
         },
         aiPreview: null,
-        history: pushHistory(
-          state.history,
-          "Agent canvas update",
-          state.items,
-          state.selection,
-          state.components
-        ),
+        history: createHistoryStack(50),
         masterEditSession: null,
         variantPreview: null,
       };

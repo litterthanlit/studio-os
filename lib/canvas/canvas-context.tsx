@@ -8,6 +8,7 @@
  * UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`
  * (same `persistCanvasState` / revision bump as agent writes). localStorage
  * is cache/offline draft only — see `decideSignedInCanvasSource`.
+ * Agent presence: reactive `loadCanvas` authorship (`lastWriter` / `lastAgentAt`).
  */
 
 import React, {
@@ -15,6 +16,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -49,6 +51,13 @@ import {
 import { prepareCanvasDocumentSave } from "./canvas-document";
 import { useConvexProjectId } from "./use-convex-project-id";
 import { ExternalCanvasUpdateToast } from "@/app/canvas-v1/components/ExternalCanvasUpdateToast";
+import { AgentCanvasPresence } from "@/app/canvas-v1/components/AgentCanvasPresence";
+import {
+  authorshipFromCanvasDocument,
+  externalUpdateToastCopy,
+  formatAgentPresence,
+  shouldBlockLocalPersistForNewerRemote,
+} from "./agent-presence";
 
 const CONVEX_SAVE_THROTTLE_MS = 3500;
 
@@ -92,6 +101,9 @@ export function CanvasProvider({
   const appliedRemoteRevisionRef = useRef<number | null>(null);
   const convexRevisionRef = useRef<number | null>(null);
   const pendingConvexStateRef = useRef<UnifiedCanvasState | null>(null);
+  const remoteRevisionRef = useRef<number | null>(null);
+  const [presenceNowMs, setPresenceNowMs] = useState(() => Date.now());
+  const [presencePreview, setPresencePreview] = useState<"chip" | "toast" | null>(null);
 
   const currentUser = useQuery(api.users.current, isConvexCanvasSyncConfigured() ? {} : "skip");
   const convexSyncEnabled = isConvexCanvasSyncConfigured() && Boolean(currentUser);
@@ -101,6 +113,17 @@ export function CanvasProvider({
     convexSyncEnabled && convexProjectId ? { projectId: convexProjectId } : "skip"
   );
   const saveCanvasMutation = useMutation(api.projects.saveCanvas);
+
+  useEffect(() => {
+    remoteRevisionRef.current = remoteDoc?.revision ?? null;
+  }, [remoteDoc]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const value = new URLSearchParams(window.location.search).get("agentPresence");
+    if (value === "1") setPresencePreview("chip");
+    else if (value === "conflict") setPresencePreview("toast");
+  }, []);
 
   const loadLocalCanvasState = useCallback((): UnifiedCanvasState => {
     let loaded = loadUnifiedCanvas(projectId);
@@ -126,6 +149,7 @@ export function CanvasProvider({
     convexWriteBlockedRef.current = false;
     skipConvexSaveRef.current = false;
     pendingConvexStateRef.current = null;
+    remoteRevisionRef.current = null;
     setExternalUpdateVisible(false);
 
     applyLoadedState(loadLocalCanvasState());
@@ -140,6 +164,18 @@ export function CanvasProvider({
 
     convexSaveInFlightRef.current = true;
     const payload = prepareCanvasDocumentSave(state);
+
+    if (
+      shouldBlockLocalPersistForNewerRemote({
+        localAppliedRevision: convexRevisionRef.current,
+        remoteRevision: remoteRevisionRef.current,
+      })
+    ) {
+      convexSaveInFlightRef.current = false;
+      convexWriteBlockedRef.current = true;
+      setExternalUpdateVisible(true);
+      return;
+    }
 
     try {
       const result = await saveCanvasMutation({
@@ -384,20 +420,67 @@ export function CanvasProvider({
     setExternalUpdateVisible(false);
   }, [projectId, remoteDoc]);
 
-  const contextValue: CanvasContextValue = {
-    state: extractCanvasState(reducerState),
-    dispatch,
-    canUndo: canUndoState(reducerState),
-    canRedo: canRedoState(reducerState),
-  };
+  const dispatchGuarded = useCallback((action: CanvasAction) => {
+    if (action.type === "UNDO" || action.type === "REDO") {
+      if (
+        shouldBlockLocalPersistForNewerRemote({
+          localAppliedRevision: appliedRemoteRevisionRef.current,
+          remoteRevision: remoteRevisionRef.current,
+        })
+      ) {
+        convexWriteBlockedRef.current = true;
+        setExternalUpdateVisible(true);
+      }
+    }
+    dispatch(action);
+  }, []);
+
+  const authorship = authorshipFromCanvasDocument(remoteDoc);
+  const livePresence = formatAgentPresence(authorship, presenceNowMs);
+  const presence =
+    presencePreview === "chip" && !livePresence.visible
+      ? { visible: true, headline: "Agent updated canvas", meta: "rev 12 · just now" }
+      : livePresence;
+  const toastMessage = externalUpdateToastCopy(
+    authorship.lastWriter ?? (presencePreview === "toast" ? "agent" : null),
+  );
+  const toastVisible = externalUpdateVisible || presencePreview === "toast";
+
+  useEffect(() => {
+    if (!presence.visible) return;
+    const id = window.setInterval(() => setPresenceNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [presence.visible, authorship.lastAgentAt]);
+
+  const contextValue: CanvasContextValue = useMemo(
+    () => ({
+      state: extractCanvasState(reducerState),
+      dispatch: dispatchGuarded,
+      canUndo: canUndoState(reducerState),
+      canRedo: canRedoState(reducerState),
+    }),
+    [dispatchGuarded, reducerState],
+  );
 
   return (
     <CanvasContext.Provider value={contextValue}>
       {children}
+      <AgentCanvasPresence
+        visible={presence.visible}
+        headline={presence.headline}
+        meta={presence.meta}
+      />
       <ExternalCanvasUpdateToast
-        visible={externalUpdateVisible}
-        onReload={handleExternalReload}
-        onDismiss={() => setExternalUpdateVisible(false)}
+        visible={toastVisible}
+        message={toastMessage}
+        onReload={() => {
+          setPresencePreview((current) => (current === "toast" ? null : current));
+          handleExternalReload();
+        }}
+        onDismiss={() => {
+          setPresencePreview((current) => (current === "toast" ? null : current));
+          setExternalUpdateVisible(false);
+        }}
       />
     </CanvasContext.Provider>
   );

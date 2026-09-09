@@ -46,3 +46,22 @@ Live check (signed-in project with `convexProjectId`):
 3. Convex `canvasDocuments` for that project: `items` includes `{ kind: "code", ... }`. Note `revision` N.
 4. Agent write: `POST /api/agent/canvas` `{ action: "write", operations: [{ type: "patch_code", itemId, content: "..." }], expectedRevision: N }`.
 5. Same row: `revision` is N+1 and the code item content matches the patch. Reload the editor: the patched text is still there (remote SoT, not a local-only draft).
+
+## Agent presence (debut track 3)
+
+Agent writes stamp document-level authorship on the same `canvasDocuments` row: `lastWriter: "agent"`, `lastAgentAt`, `lastAgentRevision`. The signed-in editor reads this from the reactive `loadCanvas` query (no polling). Human undo must not persist over a newer agent revision.
+
+```bash
+npm run proof:agent-presence
+npm run proof:convex-canvas-sync
+```
+
+Live check (signed-in project with `convexProjectId`, editor tab open):
+
+1. Note Convex `canvasDocuments.revision` N for the open project.
+2. Agent write: `POST /api/agent/canvas` `{ action: "write", operations: [...], expectedRevision: N }`.
+3. Same row: `revision` is N+1, `lastWriter` is `"agent"`, `lastAgentRevision` is N+1. Editor chrome shows **Agent updated canvas** with that revision (auto-apply or toast). No Connect Cursor / paste-token step required.
+4. Human undo: after the agent revision is applied, Cmd+Z must **not** restore pre-agent items onto Convex. History is reset on `APPLY_REMOTE_STATE`. If an agent revision is **ahead** of the editor’s applied revision, undo/save is blocked: toast **Agent updated canvas** + Reload (same Track 1 conflict rule; no last-write-wins).
+5. Agent writes still send `expectedRevision`; mismatch returns 409 `CANVAS_REVISION_CONFLICT`.
+
+Chrome preview (dev only, no Convex required): open `/canvas?project=starter-canvas&agentPresence=1` for the presence chip, or `agentPresence=conflict` for the agent toast. Live authorship still comes from `loadCanvas`.

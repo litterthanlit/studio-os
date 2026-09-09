@@ -10,7 +10,7 @@ description: Use this skill when modifying any Studio OS canvas component, panel
 - Always `git fetch` and compare `HEAD` to `origin/main` before claiming a feature is missing. Cloud agents merge to main; this checkout lagged 9 commits on 2026-08-26 and an agent reported the Cursor MCP as unshipped while it was already on `origin/main` (`8ddafb8`).
 
 ### Canvas
-- `canvas-client.tsx` is 5000+ lines and deeply interconnected. NEVER rewrite it in one pass. Extract first, then rewire.
+- Canvas Convex persist: never schedule `saveCanvas` on every reducer change. Hash meaningful state (items/components/export/authored prompt), debounce 8s after the last dirty change, and skip remote APPLY. `persistCanvasState` must no-op when `contentHash` matches and must not insert `canvasSnapshots` on every user revision.
 - Local canvas UI dies after ~1s if the linked Convex deployment is missing `users:current`. `useQuery(api.users.current)` throws, Next.js replaces the editor with a crash screen, and screenshots look empty. Run `npx convex dev` before long-lived browser QA. Accessibility snapshots in the first second are still valid.
 - `ComposeDocumentView` renders generated HTML. All click events MUST be intercepted by a transparent overlay or buttons/links in the generated site will navigate, cloning the entire Compose UI inside the artboard.
 - Artboard containers must NOT have `overflow: hidden`, `max-height`, or fixed `height`. They show the full rendered page — the CANVAS pans/zooms, not the artboards.
@@ -161,5 +161,5 @@ Append to this section after each session. Format: `[date] — what was changed,
 
 [2026-08-26] — Local main was 9 commits behind origin; agents claimed Cursor MCP unshipped. Fast-forwarded to 8ddafb8. Always git fetch before claiming a feature is missing. Production MCP deploy still ERROR; this Cursor mcp.json still Framer-only.
 
-[2026-09-08] — Editor chrome density pass: transport bar grouped with Frame/Sparkles icons, inspector padding/width, distinct handoff icons. Local canvas verification is blocked after ~1s if Convex `users:current` is missing on the linked deployment — the query throws and Next.js replaces the editor with a crash screen. Run `npx convex dev` before judging UI from a long-lived browser session.
+[2026-09-09] — Canvas Convex save thrash: persist fingerprint ignores viewport/selection/prompt chrome; 8s trailing debounce; persistCanvasState no-ops identical contentHash and snapshots only agent/every-20/10min with keep-20 prune. Remote APPLY must not echo saveCanvas.
 ```

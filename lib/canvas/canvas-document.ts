@@ -13,6 +13,7 @@ import {
   applyCanvasAgentOperations,
   type CanvasAgentOperation,
 } from "@/lib/agent/canvas-agent-ops";
+import { hashCanvasPersistState } from "@/lib/canvas/canvas-content-hash";
 import { stripCanvasForPersistence } from "@/lib/canvas/canvas-persistence";
 import type { UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
 
@@ -21,6 +22,7 @@ export const CANVAS_DOCUMENT_SCHEMA_VERSION = 4;
 export type CanvasDocumentSavePayload = {
   state: UnifiedCanvasState;
   schemaVersion: number;
+  contentHash: string;
 };
 
 export type CanvasDocumentWriteResult = CanvasDocumentSavePayload & {
@@ -40,6 +42,7 @@ export function prepareCanvasDocumentSave(
   return {
     state: stripped,
     schemaVersion: stripped.schemaVersion ?? CANVAS_DOCUMENT_SCHEMA_VERSION,
+    contentHash: hashCanvasPersistState(stripped),
   };
 }
 

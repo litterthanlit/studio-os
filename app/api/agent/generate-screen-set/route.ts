@@ -4,10 +4,10 @@ import {
   authorizeAgentProjectAccess,
 } from "@/lib/agent/agent-api-auth";
 import {
-  applyCanvasAgentOperations,
   buildCanvasSummary,
   extractReferenceUrls,
 } from "@/lib/agent/canvas-agent-ops";
+import { applyCanvasDocumentWrite } from "@/lib/canvas/canvas-document";
 import {
   agentLoadCanvas,
   agentSaveCanvas,
@@ -103,7 +103,10 @@ export async function POST(req: NextRequest) {
       y: 100,
     }));
 
-    const { state, applied, errors } = applyCanvasAgentOperations(currentState, operations);
+    const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(
+      currentState,
+      operations,
+    );
 
     if (applied.length === 0) {
       return NextResponse.json(
@@ -116,7 +119,7 @@ export async function POST(req: NextRequest) {
       projectId: auth.projectId!,
       state,
       expectedRevision: doc?.revision,
-      schemaVersion: state.schemaVersion,
+      schemaVersion,
     });
 
     const summary = buildCanvasSummary(state);

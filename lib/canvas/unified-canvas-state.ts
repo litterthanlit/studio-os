@@ -771,7 +771,11 @@ export function migrateToV3(projectId: string): UnifiedCanvasState {
 const CANVAS_V3_PREFIX = "studio-os:canvas-v3:";
 
 /**
- * Persist unified canvas state to localStorage.
+ * Persist unified canvas state to localStorage (cache / offline draft).
+ *
+ * When the user is signed in with a Convex project id, this is not the
+ * source of truth — Convex `canvasDocuments` is. A later remote revision
+ * always wins over this cache. See `decideSignedInCanvasSource`.
  *
  * Rules (from codex-v3-architecture.md):
  * - Strip compiledCode from artboard items (regenerated on demand)

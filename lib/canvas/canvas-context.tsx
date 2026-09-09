@@ -3,6 +3,11 @@
 /**
  * V3 Canvas Context — React provider that wires the canvas reducer to
  * persistence, keyboard shortcuts, and the component tree.
+ *
+ * Signed-in + Convex project id: the `canvasDocuments` row is source of truth.
+ * UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`
+ * (same `persistCanvasState` / revision bump as agent writes). localStorage
+ * is cache/offline draft only — see `decideSignedInCanvasSource`.
  */
 
 import React, {
@@ -40,8 +45,8 @@ import {
   reconcileCanvasSources,
   saveCanvasSyncMetadata,
   shouldPromptExternalReload,
-  stripCanvasForPersistence,
 } from "./canvas-convex-sync";
+import { prepareCanvasDocumentSave } from "./canvas-document";
 import { useConvexProjectId } from "./use-convex-project-id";
 import { ExternalCanvasUpdateToast } from "@/app/canvas-v1/components/ExternalCanvasUpdateToast";
 
@@ -78,6 +83,7 @@ export function CanvasProvider({
   const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const convexSaveInFlightRef = useRef(false);
   const convexRetryPendingRef = useRef(false);
+  const convexWriteBlockedRef = useRef(false);
   const skipConvexSaveRef = useRef(false);
 
   const loadedItemCountRef = useRef(-1);
@@ -116,69 +122,66 @@ export function CanvasProvider({
     hasInitialReconciledRef.current = false;
     appliedRemoteRevisionRef.current = null;
     convexRevisionRef.current = null;
+    convexRetryPendingRef.current = false;
+    convexWriteBlockedRef.current = false;
+    skipConvexSaveRef.current = false;
     pendingConvexStateRef.current = null;
     setExternalUpdateVisible(false);
 
     applyLoadedState(loadLocalCanvasState());
   }, [applyLoadedState, loadLocalCanvasState, projectId]);
 
-  const flushConvexSave = useCallback(
-    async (forceLastWriteWins = false) => {
-      if (!convexSyncEnabled || !convexProjectId) return;
-      const state = pendingConvexStateRef.current;
-      if (!state || convexSaveInFlightRef.current) return;
+  const flushConvexSave = useCallback(async () => {
+    if (!convexSyncEnabled || !convexProjectId) return;
+    if (!hasInitialReconciledRef.current) return;
+    if (convexWriteBlockedRef.current) return;
+    const state = pendingConvexStateRef.current;
+    if (!state || convexSaveInFlightRef.current) return;
 
-      convexSaveInFlightRef.current = true;
-      const stripped = stripCanvasForPersistence(state);
+    convexSaveInFlightRef.current = true;
+    const payload = prepareCanvasDocumentSave(state);
 
-      try {
-        const result = await saveCanvasMutation({
-          projectId: convexProjectId,
-          state: stripped,
-          expectedRevision:
-            forceLastWriteWins || convexRevisionRef.current == null
-              ? undefined
-              : convexRevisionRef.current,
-          schemaVersion: 4,
-        });
+    try {
+      const result = await saveCanvasMutation({
+        projectId: convexProjectId,
+        state: payload.state,
+        expectedRevision: convexRevisionRef.current ?? undefined,
+        schemaVersion: payload.schemaVersion,
+      });
 
-        convexRevisionRef.current = result.revision;
-        appliedRemoteRevisionRef.current = result.revision;
-        saveCanvasSyncMetadata(projectId, {
-          revision: result.revision,
-          savedAt: Date.now(),
-          source: "remote",
-        });
-        convexRetryPendingRef.current = false;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("CANVAS_REVISION_CONFLICT")) {
-          console.warn(
-            "[canvas] Convex revision conflict — retrying with last-write-wins",
-            { projectId }
-          );
-          if (!convexRetryPendingRef.current) {
-            convexRetryPendingRef.current = true;
-            convexRevisionRef.current = remoteDoc?.revision ?? convexRevisionRef.current;
-            convexSaveInFlightRef.current = false;
-            await flushConvexSave(true);
-          }
-        } else {
-          console.warn("[canvas] Convex save failed", { projectId, message });
-          if (!convexRetryPendingRef.current) {
-            convexRetryPendingRef.current = true;
-            window.setTimeout(() => {
-              convexRetryPendingRef.current = false;
-              void flushConvexSave(forceLastWriteWins);
-            }, 1500);
-          }
+      convexRevisionRef.current = result.revision;
+      appliedRemoteRevisionRef.current = result.revision;
+      saveCanvasSyncMetadata(projectId, {
+        revision: result.revision,
+        savedAt: Date.now(),
+        source: "remote",
+      });
+      convexRetryPendingRef.current = false;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("CANVAS_REVISION_CONFLICT")) {
+        // Signed-in SoT: do not overwrite a newer remote revision from an
+        // agent write. Local remains cache/draft until the user reloads.
+        console.warn(
+          "[canvas] Convex revision conflict — remote is source of truth; not overwriting",
+          { projectId }
+        );
+        convexWriteBlockedRef.current = true;
+        setExternalUpdateVisible(true);
+      } else {
+        console.warn("[canvas] Convex save failed", { projectId, message });
+        if (!convexRetryPendingRef.current) {
+          convexRetryPendingRef.current = true;
+          window.setTimeout(() => {
+            convexRetryPendingRef.current = false;
+            void flushConvexSave();
+          }, 1500);
         }
-      } finally {
-        convexSaveInFlightRef.current = false;
       }
-    },
-    [convexProjectId, convexSyncEnabled, projectId, remoteDoc?.revision, saveCanvasMutation]
-  );
+    } finally {
+      convexSaveInFlightRef.current = false;
+    }
+  }, [convexProjectId, convexSyncEnabled, projectId, saveCanvasMutation]);
 
   // Initial reconciliation once remote canvas is available.
   useEffect(() => {
@@ -207,12 +210,16 @@ export function CanvasProvider({
     convexRevisionRef.current = result.appliedRevision;
 
     if (result.shouldReplaceLocal) {
+      skipConvexSaveRef.current = true;
       applyLoadedState(result.state);
       saveUnifiedCanvas(projectId, result.state);
+      pendingConvexStateRef.current = result.state;
       saveCanvasSyncMetadata(projectId, result.meta);
     } else if (result.pushLocalToRemote) {
       pendingConvexStateRef.current = result.state;
       void flushConvexSave();
+    } else {
+      saveCanvasSyncMetadata(projectId, result.meta);
     }
   }, [
     applyLoadedState,
@@ -252,6 +259,10 @@ export function CanvasProvider({
         return;
       }
 
+      if (convexSyncEnabled && !hasInitialReconciledRef.current) {
+        return;
+      }
+
       if (convexSaveTimerRef.current) {
         clearTimeout(convexSaveTimerRef.current);
       }
@@ -286,7 +297,7 @@ export function CanvasProvider({
         const nextState = extractCanvasState(latestStateRef.current);
         saveUnifiedCanvas(projectId, nextState);
         pendingConvexStateRef.current = nextState;
-        if (convexSyncEnabled && convexProjectId) {
+        if (convexSyncEnabled && convexProjectId && hasInitialReconciledRef.current) {
           void flushConvexSave();
         }
       }
@@ -318,6 +329,7 @@ export function CanvasProvider({
     }
 
     skipConvexSaveRef.current = true;
+    convexWriteBlockedRef.current = false;
     const nextState = normalizeRemoteCanvasState(remoteDoc.state);
     loadedItemCountRef.current = nextState.items.length;
     dispatch({ type: "APPLY_REMOTE_STATE", state: nextState });
@@ -357,9 +369,11 @@ export function CanvasProvider({
 
     const nextState = normalizeRemoteCanvasState(remoteDoc.state);
     skipConvexSaveRef.current = true;
+    convexWriteBlockedRef.current = false;
     loadedItemCountRef.current = nextState.items.length;
     dispatch({ type: "APPLY_REMOTE_STATE", state: nextState });
     saveUnifiedCanvas(projectId, nextState);
+    pendingConvexStateRef.current = nextState;
     appliedRemoteRevisionRef.current = remoteDoc.revision;
     convexRevisionRef.current = remoteDoc.revision;
     saveCanvasSyncMetadata(projectId, {

@@ -95,62 +95,13 @@ export const saveCanvas = mutation({
     expectedRevision: v.optional(v.number()),
     schemaVersion: v.optional(v.number()),
   },
+  returns: v.object({
+    id: v.id("canvasDocuments"),
+    revision: v.number(),
+  }),
   handler: async (ctx, args) => {
-    const { user } = await canWriteProject(ctx, args.projectId);
-    const existing = await ctx.db
-      .query("canvasDocuments")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .unique();
-    const time = now();
-
-    if (existing) {
-      if (
-        typeof args.expectedRevision === "number" &&
-        args.expectedRevision !== existing.revision
-      ) {
-        throw new Error("CANVAS_REVISION_CONFLICT");
-      }
-      const nextRevision = existing.revision + 1;
-      await ctx.db.patch(existing._id, {
-        state: args.state,
-        schemaVersion: args.schemaVersion ?? existing.schemaVersion,
-        documentVersion: existing.documentVersion + 1,
-        revision: nextRevision,
-        lastSavedAt: time,
-        updatedAt: time,
-      });
-      await ctx.db.insert("canvasSnapshots", {
-        ownerId: user._id,
-        projectId: args.projectId,
-        canvasDocumentId: existing._id,
-        revision: nextRevision,
-        state: args.state,
-        createdAt: time,
-      });
-      return { id: existing._id, revision: nextRevision };
-    }
-
-    const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
-      ownerId: user._id,
-      projectId: args.projectId,
-      schemaVersion: args.schemaVersion ?? 1,
-      documentVersion: 1,
-      revision: 1,
-      state: args.state,
-      status: "active",
-      lastSavedAt: time,
-      createdAt: time,
-      updatedAt: time,
-    });
-    await ctx.db.insert("canvasSnapshots", {
-      ownerId: user._id,
-      projectId: args.projectId,
-      canvasDocumentId,
-      revision: 1,
-      state: args.state,
-      createdAt: time,
-    });
-    return { id: canvasDocumentId, revision: 1 };
+    const { project } = await canWriteProject(ctx, args.projectId);
+    return await persistCanvasState(ctx, project, args);
   },
 });
 
@@ -165,6 +116,14 @@ function assertServiceSecret(value: string) {
   if (!expected || value !== expected) throw new Error("FORBIDDEN");
 }
 
+/**
+ * Single persist path for the project's canvas document.
+ *
+ * Editor `saveCanvas`, agent `saveCanvasForAgent`, and user-agent
+ * `saveCanvasForUserAgent` all call this. It is the only writer that
+ * increments `canvasDocuments.revision`, so UI saves and agent writes
+ * share one document and the same `expectedRevision` counter.
+ */
 async function persistCanvasState(
   ctx: MutationCtx,
   project: Doc<"projects">,
@@ -210,7 +169,7 @@ async function persistCanvasState(
   const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
     ownerId: project.ownerId,
     projectId: project._id,
-    schemaVersion: args.schemaVersion ?? 1,
+    schemaVersion: args.schemaVersion ?? 4,
     documentVersion: 1,
     revision: 1,
     state: args.state,

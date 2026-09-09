@@ -1,3 +1,11 @@
+/**
+ * Signed-in canvas source of truth lives on the Convex `canvasDocuments`
+ * row for the project (one document, one `revision` counter).
+ *
+ * localStorage (`studio-os:canvas-v3:*` + sync meta) is cache / offline
+ * draft only. It must never replace a Convex document that has a different
+ * (including newer) revision. See `decideSignedInCanvasSource`.
+ */
 import type { UnifiedCanvasState } from "./unified-canvas-state";
 import { createEmptyCanvas } from "./unified-canvas-state";
 import type { CanvasSyncMetadata } from "./canvas-persistence";
@@ -75,6 +83,50 @@ function parseStateUpdatedAt(state: UnifiedCanvasState): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+export type SignedInCanvasDecision =
+  | "seed-local"
+  | "adopt-remote"
+  | "keep-local-push-unsynced"
+  | "keep-local-in-sync";
+
+/**
+ * Conflict rule when the user is signed in and the project has a Convex id.
+ *
+ * 1. No usable remote document → seed Convex from the local cache (first write).
+ * 2. No local sync meta → adopt remote. Cache cannot prove it is the same revision.
+ * 3. `remote.revision !== local.revision` → adopt remote. localStorage NEVER
+ *    wins over a newer remote revision, and a higher local revision is treated
+ *    as stale cache metadata, not authority.
+ * 4. Same revision and local `savedAt` is newer → unsynced draft of the revision
+ *    we last pulled; keep local and push with `expectedRevision = that revision`.
+ * 5. Same revision and local is not newer → already in sync; keep local, do not push.
+ *
+ * This function is the signed-in rule only. Offline (no Convex auth / no
+ * project id) never calls it; localStorage is the working copy until sign-in.
+ */
+export function decideSignedInCanvasSource({
+  localMeta,
+  remoteDoc,
+}: {
+  localMeta: CanvasSyncMetadata | null;
+  remoteDoc: RemoteCanvasDocument | null | undefined;
+}): SignedInCanvasDecision {
+  if (!remoteDoc || !isValidRemoteCanvasState(remoteDoc.state)) {
+    return "seed-local";
+  }
+  if (localMeta == null) {
+    return "adopt-remote";
+  }
+  if (remoteDoc.revision !== localMeta.revision) {
+    return "adopt-remote";
+  }
+  const remoteTimestamp = remoteDoc.lastSavedAt || remoteDoc.updatedAt;
+  if (localMeta.savedAt > remoteTimestamp) {
+    return "keep-local-push-unsynced";
+  }
+  return "keep-local-in-sync";
+}
+
 export function reconcileCanvasSources({
   localState,
   localMeta,
@@ -85,43 +137,51 @@ export function reconcileCanvasSources({
   remoteDoc: RemoteCanvasDocument | null | undefined;
 }): ReconcileResult {
   const now = Date.now();
+  const decision = decideSignedInCanvasSource({ localMeta, remoteDoc });
 
-  if (!remoteDoc || !isValidRemoteCanvasState(remoteDoc.state)) {
+  if (decision === "seed-local") {
     return {
       state: localState,
-      meta: localMeta ?? { revision: 0, savedAt: parseStateUpdatedAt(localState) || now, source: "local" },
+      meta: localMeta ?? {
+        revision: 0,
+        savedAt: parseStateUpdatedAt(localState) || now,
+        source: "local",
+      },
       appliedRevision: localMeta?.revision ?? null,
       shouldReplaceLocal: false,
       pushLocalToRemote: true,
     };
   }
 
-  const remoteState = normalizeRemoteCanvasState(remoteDoc.state);
-  const remoteTimestamp = remoteDoc.lastSavedAt || remoteDoc.updatedAt;
-  const localTimestamp = localMeta?.savedAt ?? parseStateUpdatedAt(localState);
+  const remoteState = normalizeRemoteCanvasState(remoteDoc!.state);
+  const remoteTimestamp = remoteDoc!.lastSavedAt || remoteDoc!.updatedAt;
 
-  const remoteWins =
-    localMeta == null
-      ? true
-      : remoteTimestamp > localTimestamp ||
-        (remoteTimestamp === localTimestamp && remoteDoc.revision > localMeta.revision);
-
-  if (remoteWins) {
+  if (decision === "adopt-remote") {
     return {
       state: remoteState,
-      meta: { revision: remoteDoc.revision, savedAt: remoteTimestamp, source: "remote" },
-      appliedRevision: remoteDoc.revision,
+      meta: { revision: remoteDoc!.revision, savedAt: remoteTimestamp, source: "remote" },
+      appliedRevision: remoteDoc!.revision,
       shouldReplaceLocal: true,
       pushLocalToRemote: false,
     };
   }
 
+  if (decision === "keep-local-push-unsynced") {
+    return {
+      state: localState,
+      meta: localMeta ?? { revision: remoteDoc!.revision, savedAt: now, source: "local" },
+      appliedRevision: remoteDoc!.revision,
+      shouldReplaceLocal: false,
+      pushLocalToRemote: true,
+    };
+  }
+
   return {
     state: localState,
-    meta: localMeta ?? { revision: 0, savedAt: localTimestamp || now, source: "local" },
-    appliedRevision: localMeta?.revision ?? null,
+    meta: { revision: remoteDoc!.revision, savedAt: remoteTimestamp, source: "remote" },
+    appliedRevision: remoteDoc!.revision,
     shouldReplaceLocal: false,
-    pushLocalToRemote: true,
+    pushLocalToRemote: false,
   };
 }
 

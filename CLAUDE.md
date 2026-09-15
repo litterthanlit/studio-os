@@ -61,7 +61,7 @@ Project data is migrating to **Convex**. `localStorage` under `studio-os:*` rema
 
 ### Canvas Data Model
 
-`UnifiedCanvasState` with flat `items: CanvasItem[]` array. Six item kinds:
+`UnifiedCanvasState` with flat `items: CanvasItem[]` array. Seven item kinds:
 
 | Kind | Purpose |
 |------|---------|
@@ -71,8 +71,9 @@ Project data is migrating to **Convex**. `localStorage` under `studio-os:*` rema
 | `text` | Canvas-surface text — DesignNode fields inlined |
 | `note` | Sticky notes |
 | `arrow` | Annotation arrows |
+| `code` | Code/spec surface — `name`, `language`, `content`; no DesignNode tree |
 
-**Selection model:** `activeItemId` gates which item's node tree is editable. `selectedNodeId` / `selectedNodeIds` for nodes within the active item. Any item with DesignNode content (artboard, frame, text) can be active.
+**Selection model:** `activeItemId` gates which item's node tree is editable. `selectedNodeId` / `selectedNodeIds` for nodes within the active item. Any item with DesignNode content (artboard, frame, text) can be active. Code items are selected via `selectedItemIds` only (`activeItemId` stays null).
 
 **State engine:** `useReducer` with 50+ action types. Snapshot-based undo/redo (max 50 entries, in-memory). Canvas provider in `lib/canvas/canvas-context.tsx`.
 
@@ -159,6 +160,7 @@ Lucide only. Sidebar: 18px `strokeWidth={1}`. Elsewhere: 16px `strokeWidth={1.5}
 | `app/canvas-v1/components/CanvasArtboard.tsx` | Artboard wrapper — header, renderer, generation animation |
 | `app/canvas-v1/components/CanvasFrame.tsx` | Canvas-level frame renderer |
 | `app/canvas-v1/components/CanvasText.tsx` | Canvas-level text renderer |
+| `app/canvas-v1/components/CanvasCode.tsx` | Code/spec item surface |
 | `app/canvas-v1/components/VariantCarousel.tsx` | Pill tabs for variant comparison |
 
 ### Inspector & Panels

@@ -86,7 +86,7 @@ export function designNodeToCanvasItem(
 
 /**
  * Get the DesignNode tree root for any item that has one.
- * Returns null for items without DesignNode content (reference, note, arrow).
+ * Returns null for items without DesignNode content (reference, note, arrow, code).
  */
 export function getNodeTree(item: CanvasItem): DesignNode | null {
   if (item.kind === "artboard") {

@@ -2,12 +2,14 @@
 
 type ExternalCanvasUpdateToastProps = {
   visible: boolean;
+  message?: string;
   onReload: () => void;
   onDismiss: () => void;
 };
 
 export function ExternalCanvasUpdateToast({
   visible,
+  message = "Canvas updated externally",
   onReload,
   onDismiss,
 }: ExternalCanvasUpdateToastProps) {
@@ -15,6 +17,7 @@ export function ExternalCanvasUpdateToast({
 
   return (
     <div
+      data-external-canvas-toast="true"
       style={{
         position: "fixed",
         bottom: 48,
@@ -33,7 +36,7 @@ export function ExternalCanvasUpdateToast({
         boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
       }}
     >
-      <span>Canvas updated externally</span>
+      <span>{message}</span>
       <button
         type="button"
         onClick={onReload}

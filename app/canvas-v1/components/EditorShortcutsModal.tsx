@@ -22,6 +22,7 @@ const ROWS: { keys: string; action: string }[] = [
   { keys: "⌘ G / ⌘ ⇧ G", action: "Group / Ungroup" },
   { keys: "⌘ A", action: "Select all (canvas) / all text in edit mode" },
   { keys: "L / I", action: "Toggle Layers / Inspector" },
+  { keys: "C", action: "Add a code/spec item on the canvas" },
   { keys: "Layers tree", action: "Drag a row to reparent (top / middle / bottom zones)" },
   { keys: "Selection", action: "Resize handles; flex frames show gap & padding handles" },
   { keys: "Inspector", action: "Design · CSS · Export — Copy HTML on Export tab" },

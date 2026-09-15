@@ -242,7 +242,8 @@ function testSourceContracts() {
   assert.match(projects, /unchanged: true/);
   assert.match(projects, /if \(writeSnapshot\)/);
   assert.match(projects, /pruneCanvasSnapshots/);
-  assert.match(projects, /persistCanvasState\(ctx, project, args, "user"\)/);
+  assert.match(projects, /parseCanvasWriter\(args\.writer\) \?\? "user"/);
+  assert.match(projects, /persistCanvasState\(ctx, project, args, writer\)/);
   assert.match(projects, /persistCanvasState\(ctx, project, args, "agent"\)/);
   assert.equal(
     (projects.match(/return await persistCanvasState/g) ?? []).length,

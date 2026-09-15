@@ -2,14 +2,14 @@
 
 /**
  * V3 Layers Panel — grouped collapsible tree for the unified canvas.
- * Groups: Site (artboards with page tree), References, Notes.
+ * Groups: Site (artboards with page tree), References, Notes, Code.
  */
 
 import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
   AlignLeft, RectangleHorizontal, Grid3X3, Star, MessageSquare,
-  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond, X, Square,
+  CreditCard, Layers, Image as ImageIcon, StickyNote, Minus, Diamond, X, Square, Code,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -18,7 +18,7 @@ import type { PageNode } from "@/lib/canvas/compose";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { findDesignNodeParent, findDesignNodeById } from "@/lib/canvas/design-node";
 import { DesignNodeContextMenu } from "./DesignNodeContextMenu";
-import type { ArtboardItem, ReferenceItem, NoteItem, FrameItem, TextItem } from "@/lib/canvas/unified-canvas-state";
+import type { ArtboardItem, ReferenceItem, NoteItem, FrameItem, TextItem, CodeItem } from "@/lib/canvas/unified-canvas-state";
 import { createMoodboardReferenceItem } from "@/lib/canvas/unified-canvas-state";
 import { toPng } from "html-to-image";
 import { canvasItemToDesignNode } from "@/lib/canvas/canvas-item-conversion";
@@ -818,6 +818,7 @@ export function LayersPanelV3({
   const artboards = items.filter((i): i is ArtboardItem => i.kind === "artboard");
   const references = items.filter((i): i is ReferenceItem => i.kind === "reference");
   const notes = items.filter((i): i is NoteItem => i.kind === "note");
+  const codeItems = items.filter((i): i is CodeItem => i.kind === "code");
   const canvasDesignItems = items.filter(
     (i): i is FrameItem | TextItem => i.kind === "frame" || i.kind === "text"
   );
@@ -1380,6 +1381,55 @@ export function LayersPanelV3({
               })}
             </Group>
           )}
+
+          <Group label="Code" count={codeItems.length} defaultOpen>
+            {codeItems.map((code) => {
+              const codeSelected = selection.selectedItemIds.includes(code.id);
+              return (
+                <button
+                  key={code.id}
+                  type="button"
+                  data-layer-id={code.id}
+                  onClick={() => handleSelectItem(code.id)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3.5 py-2 text-left transition-colors duration-100 min-h-[34px]",
+                    codeSelected
+                      ? LAYER_ROW_DEEP_SELECTED
+                      : "text-[#1A1A1A] hover:bg-[#F5F5F0] dark:text-[#D0D0D0] dark:hover:bg-[#2A2A2A]",
+                  )}
+                  style={{ minHeight: 34, paddingLeft: 28 }}
+                >
+                  <Code
+                    size={14}
+                    strokeWidth={1.5}
+                    className={cn("shrink-0", codeSelected ? "text-white/90" : "text-[#A0A0A0] dark:text-[#666666]")}
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-[12px]",
+                      codeSelected ? "text-white font-medium dark:text-white" : "dark:text-[#D0D0D0]",
+                    )}
+                  >
+                    {code.name}
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[#A0A0A0]">
+                    {code.language}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: "PUSH_HISTORY", description: "Add code" });
+                dispatch({ type: "ADD_CODE" });
+              }}
+              className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[12px] text-[#6B6B6B] transition-colors duration-100 hover:bg-[#F5F5F0] hover:text-[#1A1A1A] dark:text-[#999999] dark:hover:bg-[#2A2A2A] dark:hover:text-[#D0D0D0]"
+              style={{ minHeight: 34, paddingLeft: 28 }}
+            >
+              + Add code
+            </button>
+          </Group>
         </div>
       </div>
 

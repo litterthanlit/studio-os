@@ -986,6 +986,14 @@ export function useCanvasKeyboard({
           }
         }
 
+        // C — Add a code/spec item (not a draw tool)
+        if (!isMeta && (e.key === "c" || e.key === "C")) {
+          e.preventDefault();
+          dispatch({ type: "PUSH_HISTORY", description: "Add code" });
+          dispatch({ type: "ADD_CODE" });
+          return;
+        }
+
         // P — Focus prompt (opens inspector if hidden, expands prompt section, focuses textarea)
         if (e.key === "p" || e.key === "P") {
           e.preventDefault();

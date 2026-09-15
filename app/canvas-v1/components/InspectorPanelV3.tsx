@@ -13,6 +13,7 @@ import {
   AlignRight,
   ArrowRight,
   BarChart3,
+  Code,
   FileText,
   Frame,
   ImageIcon,
@@ -49,6 +50,7 @@ import { ExportTab } from "./inspector/ExportTab";
 import { AgentDesignHarnessPanel } from "./AgentDesignHarnessPanel";
 import { InspectorSkeleton } from "./inspector/InspectorSkeleton";
 import { MultiSelectActionBar } from "./MultiSelectActionBar";
+import { CodeItemInspector } from "./inspector/CodeItemInspector";
 import type {
   CanvasItem,
   ReferenceItem,
@@ -85,6 +87,8 @@ function getSelectionSummaryIcon(kind?: string): SummaryIcon {
       return Minus;
     case "note":
       return StickyNote;
+    case "code":
+      return Code;
     case "artboard":
       return Frame;
     default:
@@ -364,6 +368,7 @@ function EmptySelection({ projectId }: { projectId?: string }) {
   const refCount = state.items.filter((i) => i.kind === "reference").length;
   const artboardCount = state.items.filter((i) => i.kind === "artboard").length;
   const noteCount = state.items.filter((i) => i.kind === "note").length;
+  const codeCount = state.items.filter((i) => i.kind === "code").length;
   const zoom = Math.round(state.viewport.zoom * 100);
 
   React.useEffect(() => {
@@ -381,7 +386,7 @@ function EmptySelection({ projectId }: { projectId?: string }) {
         <div>
           <InspectorLabel>Items</InspectorLabel>
           <div className="text-pretty text-[12px] leading-snug text-text-secondary">
-            {refCount} reference{refCount !== 1 ? "s" : ""} · {artboardCount} artboard{artboardCount !== 1 ? "s" : ""} · {noteCount} note{noteCount !== 1 ? "s" : ""}
+            {refCount} reference{refCount !== 1 ? "s" : ""} · {artboardCount} artboard{artboardCount !== 1 ? "s" : ""} · {noteCount} note{noteCount !== 1 ? "s" : ""} · {codeCount} code
           </div>
         </div>
 
@@ -416,6 +421,20 @@ function EmptySelection({ projectId }: { projectId?: string }) {
               Fit to View
             </button>
           </div>
+        </div>
+
+        <div>
+          <InspectorLabel>Code</InspectorLabel>
+          <button
+            type="button"
+            className={ghostBtnCls + " w-full"}
+            onClick={() => {
+              dispatch({ type: "PUSH_HISTORY", description: "Add code" });
+              dispatch({ type: "ADD_CODE" });
+            }}
+          >
+            Add code
+          </button>
         </div>
       </div>
     </div>
@@ -903,6 +922,8 @@ export function InspectorPanelV3({
     );
   } else if (singleSelected?.kind === "reference") {
     inspectorContent = <ReferenceInspector item={singleSelected} />;
+  } else if (singleSelected?.kind === "code") {
+    inspectorContent = <CodeItemInspector item={singleSelected} />;
   } else if (singleSelected?.kind === "artboard") {
     inspectorContent = <ArtboardInspector item={singleSelected} />;
   } else {

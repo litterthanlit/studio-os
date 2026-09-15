@@ -6,11 +6,11 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-09 — canvas Convex save thrash: dirty-only persist fingerprint, 8s trailing debounce, remote apply does not echo saves, snapshots are periodic/agent-only with keep-20 prune.
+2026-09-15 — debut tracks 2+3 on main: first-class `code` items and live agent presence, ported onto the #17 thrash clamp (dirty-only / 8s debounce / contentHash no-op / keep-20 snapshots).
 
 ## Resume point
 
-Signed-in editor load/save and agent get/write share one `canvasDocuments` row and one `revision` counter. UI saves go through `prepareCanvasDocumentSave` → `api.projects.saveCanvas`; agent writes go through `applyCanvasDocumentWrite` → `agentSaveCanvas`. Both Convex mutations call `persistCanvasState`. Convex writes are dirty-fingerprint only (viewport/selection/prompt chrome ignored) with an 8s trailing debounce; remote APPLY cannot cascade another save. Snapshots are not per-revision: agent writes, every 20th user revision, or 10 minutes, keep newest 20. localStorage never replaces a newer remote revision (`decideSignedInCanvasSource`). Proof: `npm run proof:convex-canvas-sync` and `npm run proof:canvas-save-throttle`. Do not build code nodes or agent presence UI yet. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
 
 ## Product
 
@@ -38,7 +38,7 @@ Do not re-learn this from the plugin folder.
 - **V6 DesignNode** (`frame | text | image | button | divider`): `lib/canvas/design-node.ts`
 - **Canvas state + reducer:** `lib/canvas/unified-canvas-state.ts`, `lib/canvas/canvas-reducer.ts`
 - **Renderer:** `app/canvas-v1/components/ComposeDocumentViewV6.tsx`
-- **Convex canvas:** `convex/schema.ts` (`canvasDocuments`), `convex/projects.ts` (`persistCanvasState` via `loadCanvas` / `saveCanvas` / agent saves), dirty-only writes in `lib/canvas/canvas-save-policy.ts`, shared write helpers in `lib/canvas/canvas-document.ts`, signed-in reconcile in `lib/canvas/canvas-convex-sync.ts`
+- **Convex canvas:** `convex/schema.ts` (`canvasDocuments`), `convex/projects.ts` (`persistCanvasState` via `loadCanvas` / `saveCanvas` / agent saves), dirty-only writes in `lib/canvas/canvas-save-policy.ts`, shared write helpers in `lib/canvas/canvas-document.ts`, signed-in reconcile in `lib/canvas/canvas-convex-sync.ts`, agent presence in `lib/canvas/agent-presence.ts`
 - **Taste → gen:** `app/api/taste/extract/route.ts` → `lib/canvas/directive-compiler.ts` → `lib/canvas/design-tree-prompt.ts` → `lib/canvas/generate-design-core.ts`
 - **Plugin (product MCP, not coding-agent memory):** `extensions/cursor/README.md`
 
@@ -61,6 +61,9 @@ Paths the next agent should open instead of rediscovering the tree from `extensi
 - `lib/canvas/canvas-document.ts`
 - `lib/canvas/canvas-save-policy.ts`
 - `lib/canvas/canvas-content-hash.ts`
+- `lib/canvas/agent-presence.ts`
+- `app/canvas-v1/components/AgentCanvasPresence.tsx`
+- `app/canvas-v1/components/CanvasCode.tsx`
 - `lib/agent/canvas-agent-ops.ts`
 - `app/api/agent/canvas/route.ts`
 - `docs/VERIFY.md`
@@ -87,7 +90,7 @@ Do **not** use it as:
 npm run proof:session-continuity
 ```
 
-That gate fails if this file drifts (missing sections, dead canonical paths, or entry docs that no longer point here). When you touch canvas sync, agent MCP, taste, or export, also run the matching `proof:*` script in `package.json`.
+That gate fails if this file drifts (missing sections, dead canonical paths, or entry docs that no longer point here). When you touch canvas sync, agent MCP, taste, export, code items, or agent presence, also run the matching `proof:*` script in `package.json` (`proof:convex-canvas-sync`, `proof:canvas-save-throttle`, `proof:code-on-canvas`, `proof:agent-presence`).
 
 ## How to update this file
 

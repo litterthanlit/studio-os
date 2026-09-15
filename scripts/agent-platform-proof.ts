@@ -391,7 +391,7 @@ async function testMcpInitializeAndToolsList() {
   const payload = parseMcpJson(listed.text);
   const names = payload?.result?.tools?.map((tool) => tool.name) ?? [];
   assert.ok(names.length > 0, `tools/list parsed empty: ${listed.text.slice(0, 400)}`);
-  for (const name of ["get_canvas", "get_node", "patch_node", "move_item", "select_on_canvas", "delete_item", "write_canvas"]) {
+  for (const name of ["get_canvas", "get_node", "patch_node", "move_item", "select_on_canvas", "delete_item", "write_canvas", "add_code_item", "patch_code", "get_code"]) {
     assert.ok(names.includes(name), `missing MCP tool ${name}`);
   }
 }

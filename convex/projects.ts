@@ -12,6 +12,12 @@ import {
   shouldWriteCanvasSnapshot,
   type CanvasPersistWriter,
 } from "../lib/canvas/canvas-save-policy";
+import {
+  canvasDocumentAuthorshipPatch,
+  parseCanvasWriter,
+} from "../lib/canvas/agent-presence";
+
+const canvasWriter = v.union(v.literal("user"), v.literal("agent"));
 
 export const listMine = query({
   args: {},
@@ -108,11 +114,13 @@ export const saveCanvas = mutation({
     state: v.any(),
     expectedRevision: v.optional(v.number()),
     schemaVersion: v.optional(v.number()),
+    writer: v.optional(canvasWriter),
   },
   returns: canvasSaveResult,
   handler: async (ctx, args) => {
     const { project } = await canWriteProject(ctx, args.projectId);
-    return await persistCanvasState(ctx, project, args, "user");
+    const writer = parseCanvasWriter(args.writer) ?? "user";
+    return await persistCanvasState(ctx, project, args, writer);
   },
 });
 
@@ -140,6 +148,9 @@ function assertServiceSecret(value: string) {
  * - Insert a snapshot on agent writes, every 20th user revision, or 10 minutes
  *   since the last snapshot — never on every user save.
  * - Keep the newest 20 snapshots per document and prune older rows.
+ *
+ * `writer` also stamps `lastWriter` / `lastAgentAt` / `lastAgentRevision`.
+ * Content-hash no-ops do not bump revision or rewrite authorship.
  */
 async function persistCanvasState(
   ctx: MutationCtx,
@@ -179,6 +190,11 @@ async function persistCanvasState(
       lastSnapshotRevision: existing.lastSnapshotRevision,
       now: time,
     });
+    const authorship = canvasDocumentAuthorshipPatch({
+      writer,
+      nextRevision,
+      time,
+    });
 
     await ctx.db.patch(existing._id, {
       state: args.state,
@@ -188,6 +204,11 @@ async function persistCanvasState(
       lastSavedAt: time,
       updatedAt: time,
       contentHash,
+      lastWriter: authorship.lastWriter,
+      ...(authorship.lastAgentAt != null ? { lastAgentAt: authorship.lastAgentAt } : {}),
+      ...(authorship.lastAgentRevision != null
+        ? { lastAgentRevision: authorship.lastAgentRevision }
+        : {}),
       ...(writeSnapshot
         ? { lastSnapshotAt: time, lastSnapshotRevision: nextRevision }
         : {}),
@@ -213,6 +234,11 @@ async function persistCanvasState(
     return { id: existing._id, revision: nextRevision, unchanged: false };
   }
 
+  const authorship = canvasDocumentAuthorshipPatch({
+    writer,
+    nextRevision: 1,
+    time,
+  });
   const canvasDocumentId = await ctx.db.insert("canvasDocuments", {
     ownerId: project.ownerId,
     projectId: project._id,
@@ -227,6 +253,11 @@ async function persistCanvasState(
     contentHash,
     lastSnapshotAt: time,
     lastSnapshotRevision: 1,
+    lastWriter: authorship.lastWriter,
+    ...(authorship.lastAgentAt != null ? { lastAgentAt: authorship.lastAgentAt } : {}),
+    ...(authorship.lastAgentRevision != null
+      ? { lastAgentRevision: authorship.lastAgentRevision }
+      : {}),
   });
   await ctx.db.insert("canvasSnapshots", {
     ownerId: project.ownerId,

@@ -72,12 +72,21 @@ const checks: Array<[string, () => void]> = [
     },
   ],
   [
+    "live canvas entry is UnifiedCanvasPage only",
+    () => {
+      const src = source("app/canvas-v1/canvas-client.tsx");
+      assert.match(src, /export function UnifiedCanvasPage/);
+      assert.doesNotMatch(src, /export function CanvasPage/);
+      assert.doesNotMatch(src, /CollectView/);
+      assert.doesNotMatch(src, /from "\.\/components\/LayersPanel"/);
+      assert.doesNotMatch(src, /from "\.\/components\/InspectorPanel"/);
+    },
+  ],
+  [
     "generated preview iframes do not combine scripts with same-origin",
     () => {
       for (const filePath of [
-        "app/canvas-v1/components/ComponentPreview.tsx",
-        "app/canvas-v1/canvas-client.tsx",
-        "app/canvas-v1/components/CollectView.tsx",
+        "app/canvas-v1/components/DesignNodeIframePreview.tsx",
       ]) {
         assert.doesNotMatch(source(filePath), /allow-scripts allow-same-origin/);
       }

@@ -6,11 +6,11 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-16 — dead-code sweep: unused V2/V3 canvas clients removed from the live editor entry. Product resume is still debut tracks 2+3 on main.
+2026-09-19 — leftover UI chrome after #19: unused PromptPanel, FloatingPromptPanel, ElementActionMenu, and BreadcrumbBar deleted. Prompt still lives in EditorLeftPanel → PromptComposerV2.
 
 ## Resume point
 
-Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only; the unused Collect/Compose `CanvasPage` and `(canvas-view)` moodboard client are gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only. Prompt generation UI is the left-rail Prompt tab (`EditorLeftPanel` → `PromptComposerV2`); floating/legacy prompt chrome is gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
 
 ## Product
 

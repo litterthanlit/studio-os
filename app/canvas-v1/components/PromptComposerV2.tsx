@@ -3,9 +3,8 @@
 /**
  * PromptComposerV2 — extracted prompt composer component.
  *
- * Originally lived inside InspectorPanelV3.tsx. Extracted as a standalone
- * component so it can be rendered in both the inspector Prompt tab and the
- * FloatingPromptPanel.
+ * Originally lived inside InspectorPanelV3.tsx. Live host is EditorLeftPanel
+ * (left-rail Prompt tab).
  */
 
 import * as React from "react";

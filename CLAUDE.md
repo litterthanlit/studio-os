@@ -169,7 +169,7 @@ Lucide only. Sidebar: 18px `strokeWidth={1}`. Elsewhere: 16px `strokeWidth={1.5}
 | `app/canvas-v1/components/InspectorPanelV3.tsx` | Right rail — Design/CSS/Export tabs |
 | `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` | V6 inspector — all property sections |
 | `app/canvas-v1/components/LayersPanelV3.tsx` | Tree navigator — Site/Canvas/References/Notes groups |
-| `app/canvas-v1/components/FloatingPromptPanel.tsx` | Floating prompt panel |
+| `app/canvas-v1/components/EditorLeftPanel.tsx` | Left rail — Layers/Prompt tabs; Prompt hosts PromptComposerV2 |
 | `app/canvas-v1/components/PromptComposerV2.tsx` | Generation pipeline + taste feedback dialog trigger |
 | `app/canvas-v1/components/EditorTransportBar.tsx` | Bottom toolbar — tools, zoom, generate, undo/redo |
 

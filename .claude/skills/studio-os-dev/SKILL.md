@@ -19,7 +19,7 @@ description: Use this skill when modifying any Studio OS canvas component, panel
 - `data-node-id` attributes on rendered page nodes are essential for point-and-edit. If a component re-renders without them, selection breaks silently.
 
 ### V4 Interactions
-- Right-click context menu (`ContextMenu.tsx`) and ElementActionMenu are separate components. Context menu renders at cursor position via portal; action menu renders below the element. Don't merge them.
+- Right-click context menu (`ContextMenu.tsx`) is the live element menu (portal at cursor). Do not reintroduce ElementActionMenu.
 - Responsive overrides: `UPDATE_NODE_STYLE` writes to `responsiveOverrides[breakpoint]` when active artboard is non-desktop. Always check `getActiveBreakpoint()` before assuming writes go to base style.
 - AI preview state (`aiPreview`) is transient — never persisted to localStorage. Strip it on save/load.
 - Deep select via Cmd+Click uses `elementsFromPoint` — requires `data-node-id` attributes on all rendered elements. If a component re-renders without them, deep select silently fails.

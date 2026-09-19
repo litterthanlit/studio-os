@@ -10,7 +10,7 @@
 ## Component Existence Verification
 
 - [x] `ContextMenu.tsx` — exists, portal-rendered, type-specific actions
-- [x] `BreadcrumbBar.tsx` — exists, wired into `UnifiedCanvasView`
+- [x] `BreadcrumbBar.tsx` — removed; unused leftover (prompt lives in EditorLeftPanel)
 - [x] `SlashCommandPalette.tsx` — exists, search + keyboard nav + 7 templates
 - [x] `AIPreviewBar.tsx` — exists, Accept/Reject/Vary with framer-motion animation
 - [x] `InsertionBar.tsx` — exists, hover "+" with inline slash palette integration

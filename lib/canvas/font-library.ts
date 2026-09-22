@@ -13,6 +13,7 @@ export type FontEntry = {
 };
 
 export const FONT_LIBRARY: FontEntry[] = [
+  // ── Sans-serif ──────────────────────────────────────────────────────────
   { family: "Inter",             value: "'Inter', sans-serif",             category: "sans-serif" },
   { family: "Geist Sans",        value: "'Geist Sans', sans-serif",        category: "sans-serif" },
   { family: "Space Grotesk",     value: "'Space Grotesk', sans-serif",     category: "sans-serif" },
@@ -26,9 +27,11 @@ export const FONT_LIBRARY: FontEntry[] = [
   { family: "Switzer",           value: "'Switzer', sans-serif",           category: "sans-serif" },
   { family: "Neue Montreal",     value: "'Neue Montreal', sans-serif",     category: "sans-serif" },
 
+  // ── Display ─────────────────────────────────────────────────────────────
   { family: "Clash Display",     value: "'Clash Display', sans-serif",     category: "display" },
   { family: "Cabinet Grotesk",   value: "'Cabinet Grotesk', sans-serif",   category: "display" },
 
+  // ── Serif ────────────────────────────────────────────────────────────────
   { family: "Instrument Serif",  value: "'Instrument Serif', serif",       category: "serif" },
   { family: "Playfair Display",  value: "'Playfair Display', serif",       category: "serif" },
   { family: "Fraunces",          value: "'Fraunces', serif",               category: "serif" },
@@ -37,6 +40,7 @@ export const FONT_LIBRARY: FontEntry[] = [
   { family: "Source Serif 4",    value: "'Source Serif 4', serif",         category: "serif" },
   { family: "DM Serif Display",  value: "'DM Serif Display', serif",       category: "serif" },
 
+  // ── Mono ─────────────────────────────────────────────────────────────────
   { family: "IBM Plex Mono",     value: "'IBM Plex Mono', monospace",      category: "mono" },
   { family: "JetBrains Mono",    value: "'JetBrains Mono', monospace",     category: "mono" },
   { family: "Fira Code",         value: "'Fira Code', monospace",          category: "mono" },

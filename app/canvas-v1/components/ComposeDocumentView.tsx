@@ -323,6 +323,11 @@ function MediaFrame({
   );
 }
 
+/**
+ * Renders a section's mediaUrl as a full-bleed background image.
+ * Children of the section render on top of this image.
+ * Used for editorial hero sections, atmospheric photo backgrounds, etc.
+ */
 function SectionBackgroundMedia({ src, alt }: { src?: string; alt?: string }) {
   if (!src) return null;
   return (
@@ -535,6 +540,7 @@ function Selectable({
     [dispatch, node.type]
   );
 
+  // ── Double-click tooltip ──────────────────────────────────────────
   React.useEffect(() => {
     setTooltipPhase("hidden");
     if (!selected || editing || !isTextNodeValue) return;
@@ -553,6 +559,7 @@ function Selectable({
     return () => clearTimeout(showTimer);
   }, [selected, editing, isTextNodeValue]);
 
+  // Tooltip auto-fade: visible 1.5s → fading 0.5s → hidden
   React.useEffect(() => {
     if (tooltipPhase === "visible") {
       const timer = setTimeout(() => setTooltipPhase("fading"), 1500);
@@ -564,18 +571,26 @@ function Selectable({
     }
   }, [tooltipPhase]);
 
+  // Floating format toolbar removed — formatting handled by inspector panel
+
+  // ── Double-click → Figma/Framer-style layered text editing ─────────
+  // 1st double-click: enter edit mode, highlight word under cursor
+  // Later double-clicks while editing should keep native word selection behavior.
+  // Triple-click selects the whole text block.
   function handleDoubleClick(e: React.MouseEvent) {
     if (!interactive) return;
     if (isTextNodeValue) {
       e.stopPropagation();
       if (!editing) {
         e.preventDefault();
+        // First double-click — enter edit mode, select word at cursor
         enterTextEditMode(e.nativeEvent);
       }
     }
     setTooltipPhase("hidden");
   }
 
+  // ── Text edit mode ─────────────────────────────────────────────────
   function selectAllText(el: HTMLElement) {
     const range = document.createRange();
     range.selectNodeContents(el);
@@ -762,6 +777,7 @@ function Selectable({
     target instanceof HTMLElement &&
     Boolean(target.closest("[data-text-edit-target]"));
 
+  // ── Outline styles ──────────────────────────────────────────────────
   const outlineStyle = interactive
     ? selected
       ? editing
@@ -784,6 +800,7 @@ function Selectable({
       onMouseDown={(event) => {
         if (!interactive || event.button !== 0) return;
         if (editing && targetIsTextEditingSurface(event.target)) return;
+        // Cmd+Click deep select: don't stopPropagation so all nested Selectables see the event
         if (event.metaKey || event.ctrlKey) return;
         event.stopPropagation();
       }}
@@ -800,6 +817,7 @@ function Selectable({
         }
 
         if (event.metaKey || event.ctrlKey) {
+          // Deep select: deepest Selectable claims the event via preventDefault
           if (event.defaultPrevented) return;
           event.preventDefault();
           exitAnyActiveTextEditing();
@@ -808,6 +826,8 @@ function Selectable({
           return;
         }
 
+        // Normal click: stopPropagation so parent Selectables don't also select
+        // Exit any active text editing BEFORE selecting the new node
         exitAnyActiveTextEditing();
         event.preventDefault();
         event.stopPropagation();
@@ -824,6 +844,9 @@ function Selectable({
     >
       {children}
 
+      {/* Floating format toolbar removed — formatting handled by inspector panel */}
+
+      {/* Double-click tooltip */}
       {isTextNodeValue && tooltipPhase !== "hidden" && (
         <div
           style={{
@@ -859,6 +882,7 @@ function renderNode(
 ): React.ReactNode {
   const { breakpoint } = context;
 
+  // Skip hidden nodes on this breakpoint (never hide the page root)
   if (node.type !== "page" && isNodeHidden(node, breakpoint)) {
     return null;
   }
@@ -1500,6 +1524,10 @@ export function ComposeDocumentView({
   const { state: canvasState, dispatch } = useCanvas();
   const rootRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  // Stable mutable map for section element registrations (callback refs).
+  // Using useMemo instead of useRef avoids React Compiler's ref-during-render tracking,
+  // since registerSectionElement is passed through render context for callback ref use.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const sectionElements = React.useMemo(() => new Map<string, HTMLDivElement>(), []);
   const [sectionReorderState, setSectionReorderState] =
     React.useState<SectionReorderState | null>(null);
@@ -1885,6 +1913,7 @@ export function ComposeDocumentView({
         }}
         onClick={(e) => {
           if (!interactive || !onSelectNode) return;
+          // Click on empty area within the document → deselect
           if (!(e.target as HTMLElement).closest("[data-node-id]")) {
             dismissContextMenu();
             onSelectNode(null);

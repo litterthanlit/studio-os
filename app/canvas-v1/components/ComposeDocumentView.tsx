@@ -18,7 +18,6 @@ import {
 } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { useCanvas } from "@/lib/canvas/canvas-context";
-// NodeFormatToolbar removed — text formatting now handled entirely by inspector panel
 import { SectionActionRail } from "./SectionActionRail";
 import { ContextMenu } from "./ContextMenu";
 import { InsertionBar } from "./InsertionBar";

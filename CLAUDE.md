@@ -166,7 +166,7 @@ Lucide only. Sidebar: 18px `strokeWidth={1}`. Elsewhere: 16px `strokeWidth={1.5}
 ### Inspector & Panels
 | File | Purpose |
 |------|---------|
-| `app/canvas-v1/components/InspectorPanelV3.tsx` | Right rail — Design/CSS/Export tabs |
+| `app/canvas-v1/components/InspectorPanelV3.tsx` | Right rail — Inspector/Notes/Agent/Export tabs |
 | `app/canvas-v1/components/inspector/DesignNodeInspector.tsx` | V6 inspector — all property sections |
 | `app/canvas-v1/components/LayersPanelV3.tsx` | Tree navigator — Site/Canvas/References/Notes groups |
 | `app/canvas-v1/components/FloatingPromptPanel.tsx` | Floating prompt panel |

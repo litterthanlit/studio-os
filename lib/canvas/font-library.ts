@@ -3,7 +3,6 @@
  *
  * Fonts are grouped by category. Values use the CSS font-family stack
  * format used by InspectorSkeleton and InspectorPanelV3 (e.g. "'Inter', sans-serif").
- * NodeFormatToolbar uses bare family names — use FONT_LIBRARY_BARE for that.
  */
 
 export type FontEntry = {

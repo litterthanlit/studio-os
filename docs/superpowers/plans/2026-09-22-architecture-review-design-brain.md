@@ -15,7 +15,13 @@
    - **Agents get no taste.** Taste profile and tokens live only in browser localStorage. MCP `generate_screen` runs with `tasteProfile: null` and default tokens, which also skips the visual refine loop and variant derivation. Agents cannot reach the product's core differentiator.
    - **The quality signal is compromised.** Self-critique screenshots load no real fonts (the only font URL returns HTTP 400). The benchmark grades a text summary against the same taste profile that generated the output. "Delta +4" measures directive compliance, not "the design you had in mind".
    - **Persistence has a ceiling.** The whole canvas is one Convex `v.any()` document; Convex documents 1 MiB and 16 nesting levels as limits. The repo's own app-dashboard few-shot already measures 15 levels inside that document, and adding one data table makes it 20. Uploaded references are stored inline as base64.
-4. **Strategic reframe.** Since spring 2026, incumbents ship generation plus agent write access: Figma `use_figma`, the Google Stitch MCP, pen.dev, Cursor Design Mode, and Anthropic's Claude Design. Raw generation is no longer a moat, and the raw baseline behind "+4" has moved. Studio OS should become **the design brain agents plug into**. It should remember taste, ground itself in references and the real codebase, model every screen-state, and verify outcomes. The generator becomes a swappable part.
+4. **Strategic reframe.** Since spring 2026, incumbents ship generation, agent access and codebase grounding:
+   - Figma `use_figma` writes to the canvas with a team's real components;
+   - the Google Stitch MCP and pen.dev give agents read/write access;
+   - Cursor Design Mode edits the running app's code;
+   - Anthropic's Claude Design builds a design system from your codebase.
+
+   Raw generation is no longer a moat, and the raw baseline behind "+4" has moved. Studio OS should become **the design brain agents plug into**. It should remember taste, ground itself in references and the real codebase, model every screen-state, and verify outcomes. The generator becomes a swappable part.
 
 ---
 

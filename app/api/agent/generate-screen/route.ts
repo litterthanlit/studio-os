@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { agentRunStoreFor, startAgentRun } from "@/lib/agent/agent-runs";
 import {
   agentConvexAuthFromResult,
   authorizeAgentProjectAccess,
@@ -13,7 +14,11 @@ import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
  * POST /api/agent/generate-screen
  * Generates a screen from project context and writes it to the canvas.
  * Taste and tokens: request body, else the project's stored design state, else defaults.
+ * `async: true` (the MCP default) queues a run and answers { runId, status } at once;
+ * the run executes after the response and is polled via /api/agent/runs/:id.
  */
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   const guarded = await readGuardedJson<{
     projectId: string;
@@ -23,6 +28,7 @@ export async function POST(req: NextRequest) {
     fidelityMode?: FidelityMode;
     tasteProfile?: TasteProfile | null;
     designTokens?: DesignSystemTokens | null;
+    async?: boolean;
   }>(req, {
     requireAuth: false,
     maxBytes: API_LIMITS.aiRequestBytes,
@@ -40,9 +46,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
+  const convexAuth = agentConvexAuthFromResult(auth);
+  const { async: runAsync, ...runInput } = guarded.body;
+
+  if (runAsync) {
+    try {
+      const store = agentRunStoreFor(convexAuth);
+      const started = await startAgentRun({
+        store,
+        projectId: auth.projectId!,
+        kind: "screen",
+        // Compact run input (taste/tokens are resolved at execution; only record whether they were passed).
+        input: JSON.parse(JSON.stringify({
+          prompt: prompt.trim().slice(0, 2000),
+          breakpoint: runInput.breakpoint,
+          fidelityMode: runInput.fidelityMode,
+          tasteProfilePassed: Boolean(runInput.tasteProfile),
+          designTokensPassed: Boolean(runInput.designTokens),
+        })),
+        schedule: (task) => after(task),
+        execute: (progress) =>
+          executeAgentGenerateScreen({
+            ...runInput,
+            auth: convexAuth,
+            projectId: auth.projectId!,
+            prompt,
+            onProgress: progress,
+          }),
+      });
+      return NextResponse.json({ ...started, pollWith: "get_run" }, { status: 202 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start run";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
   try {
     const outcome = await executeAgentGenerateScreen({
-      auth: agentConvexAuthFromResult(auth),
+      auth: convexAuth,
       projectId: auth.projectId!,
       prompt,
       breakpoint: guarded.body.breakpoint,

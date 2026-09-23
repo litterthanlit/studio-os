@@ -32,10 +32,12 @@ Organize every call around these records. Treat extra fields as opaque; do not f
 3. **Read compact canvas.** Call `get_canvas` (omit `includeState` unless the full JSON is required). Use `Canvas.summary` item ids / artboard ids; keep `revision` for later writes.
 4. **Edit nodes, not guesses.** Call `get_node` with `itemId` + `nodeId` from the summary. Change only returned fields via `patch_node` (`style`, `content`, `name`) or `write_canvas` operations (`patch_node`, `move_item`, `select_on_canvas`, `delete_item`, …).
 5. **Bound token = omit `projectId`.** The MCP fills it from the token. Unbound tokens must pass `projectId` from step 2.
+6. **Generation is async.** `generate_screen` and `generate_screen_set` return `{ runId, status: "queued" }` right away. Poll `get_run` with that `runId` every few seconds until `status` is `complete`, `partial` or `failed`. When it is `partial`, `missingScreenIds` names the screens that did not land. Read `result` for the new artboard ids, then `get_canvas`. The project's stored taste profile and tokens are applied automatically.
 
 ## Constraints
 
 - Never invent canvas data, node ids, or project ids.
 - Bound tokens skip `projectId`; unbound tokens require it.
 - Default to compact `get_canvas`. Full `canvasState` is opt-in.
-- Tools already registered on the live server (do not add local stubs): `list_projects`, `get_canvas`, `get_node`, `get_screen_design`, `generate_screen`, `generate_screen_set`, `review_implementation`, `write_canvas`, `patch_node`, `move_item`, `select_on_canvas`, `delete_item`, `get_design_contract`, `request_design`, `submit_screenshot_for_review`.
+- Never treat a queued run as finished. Poll `get_run`, and never re-issue a generation that is still running.
+- Tools already registered on the live server (do not add local stubs): `list_projects`, `get_canvas`, `get_node`, `get_screen_design`, `generate_screen`, `generate_screen_set`, `get_run`, `review_implementation`, `write_canvas`, `patch_node`, `move_item`, `select_on_canvas`, `delete_item`, `get_design_contract`, `request_design`, `submit_screenshot_for_review`.

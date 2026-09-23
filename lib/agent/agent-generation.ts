@@ -65,6 +65,8 @@ export type AgentGenerateScreenInput = {
   fidelityMode?: FidelityMode;
   tasteProfile?: TasteProfile | null;
   designTokens?: DesignSystemTokens | null;
+  /** Progress rows for async runs. */
+  onProgress?: (step: string, detail?: string) => void | Promise<void>;
 };
 
 export type AgentGenerateScreenSetInput = Omit<AgentGenerateScreenInput, "name">;
@@ -122,9 +124,11 @@ export async function executeAgentGenerateScreen(
   input: AgentGenerateScreenInput,
   deps: AgentGenerationDeps = defaultAgentGenerationDeps,
 ): Promise<AgentGenerationOutcome> {
+  await input.onProgress?.("loading-context");
   const { doc, design, currentState, referenceUrls, references } = await loadContext(input, deps);
   const breakpoint = input.breakpoint ?? "desktop";
 
+  await input.onProgress?.("generating", `taste: ${design.source.tasteProfile}, references: ${referenceUrls.length}`);
   const generation = await deps.generateScreen({
     prompt: input.prompt.trim(),
     tokens: design.designTokens,
@@ -154,6 +158,7 @@ export async function executeAgentGenerateScreen(
     };
   }
 
+  await input.onProgress?.("writing-canvas");
   const artboardName = input.name ?? generation.siteName ?? "Generated Screen";
   const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(currentState, [
     {
@@ -201,9 +206,11 @@ export async function executeAgentGenerateScreenSet(
   input: AgentGenerateScreenSetInput,
   deps: AgentGenerationDeps = defaultAgentGenerationDeps,
 ): Promise<AgentGenerationOutcome> {
+  await input.onProgress?.("loading-context");
   const { doc, design, currentState, referenceUrls, references } = await loadContext(input, deps);
   const breakpoint = input.breakpoint ?? "desktop";
 
+  await input.onProgress?.("generating", `taste: ${design.source.tasteProfile}, references: ${referenceUrls.length}`);
   const generation = await deps.generateScreenSet({
     prompt: input.prompt.trim(),
     tokens: design.designTokens,
@@ -213,6 +220,7 @@ export async function executeAgentGenerateScreenSet(
     references,
     fidelityMode: input.fidelityMode ?? "balanced",
     breakpoint,
+    onProgress: input.onProgress,
   });
 
   if (!generation.ok) {
@@ -227,6 +235,7 @@ export async function executeAgentGenerateScreenSet(
     };
   }
 
+  await input.onProgress?.("writing-canvas");
   const siteId = `site-${Date.now()}`;
   const artboardWidth = BREAKPOINT_WIDTHS[breakpoint] ?? 1440;
   const gap = 80;
@@ -271,6 +280,7 @@ export async function executeAgentGenerateScreenSet(
       plan: generation.plan,
       screens: generation.screens.map((screen, index) => ({
         id: summary.artboards.at(-generation.screens.length + index)?.id ?? screen.id,
+        planId: screen.id,
         name: screen.name,
         screenRole: screen.screenRole,
         screenPurpose: screen.screenPurpose,

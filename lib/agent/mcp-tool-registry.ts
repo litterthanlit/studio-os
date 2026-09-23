@@ -150,7 +150,7 @@ export function registerStudioOsMcpTools(
     "generate_screen",
     {
       description:
-        "Generate a taste-calibrated screen from project context (stored taste profile, tokens and references) and write it to the canvas.",
+        "Generate a taste-calibrated screen from project context (stored taste profile, tokens and references) and write it to the canvas. Returns { runId, status: \"queued\" } immediately; poll get_run until status is complete or failed.",
       inputSchema: {
         projectId: z.string().optional(),
         prompt: z.string(),
@@ -164,6 +164,7 @@ export function registerStudioOsMcpTools(
         callStudioApi(context, "/api/agent/generate-screen", {
           ...args,
           projectId: resolveProjectId(context, args.projectId),
+          async: true,
         }),
       ),
   );
@@ -172,7 +173,7 @@ export function registerStudioOsMcpTools(
     "generate_screen_set",
     {
       description:
-        "Plan and generate multiple app screens (settings, billing, etc.) with shared shell context.",
+        "Plan and generate multiple app screens (settings, billing, etc.) with shared shell context. Returns { runId, status: \"queued\" } immediately; poll get_run until status is complete, partial (missingScreenIds lists what did not land) or failed.",
       inputSchema: {
         projectId: z.string().optional(),
         prompt: z.string(),
@@ -185,7 +186,23 @@ export function registerStudioOsMcpTools(
         callStudioApi(context, "/api/agent/generate-screen-set", {
           ...args,
           projectId: resolveProjectId(context, args.projectId),
+          async: true,
         }),
+      ),
+  );
+
+  server.registerTool(
+    "get_run",
+    {
+      description:
+        "Poll an async generation run from generate_screen / generate_screen_set. status: queued | running | complete | partial | failed. progress lists steps; result holds the artboard ids and summary when done.",
+      inputSchema: {
+        runId: z.string(),
+      },
+    },
+    async (args, extra) =>
+      withContext(extra, (context) =>
+        callStudioApi(context, `/api/agent/runs/${encodeURIComponent(args.runId)}`, {}),
       ),
   );
 

@@ -66,6 +66,8 @@ export type GenerateAppScreenSetInput = {
   references?: IntentReferenceInput[];
   /** Classification the caller already routed on (validated; reused so routing and generation agree). */
   intentClassification?: unknown;
+  /** Step events for async runs: "planned", "screen-complete", "screen-failed". */
+  onProgress?: (step: string, detail?: string) => void | Promise<void>;
 };
 
 export type GenerateAppScreenSetResult =
@@ -176,6 +178,7 @@ export async function generateAppScreenSet(
     compositionContext,
     references,
     intentClassification,
+    onProgress,
   } = input;
 
   if (!process.env.OPENROUTER_API_KEY) {
@@ -239,6 +242,8 @@ export async function generateAppScreenSet(
     return { ok: false, failure, error: failure.message };
   }
 
+  await onProgress?.("planned", plan.map((item) => item.id).join(", "));
+
   const v6Budgets = getV6TokenBudgets();
   const router = getRouter();
   const referenceImageBlocks = cappedReferenceUrls
@@ -299,6 +304,7 @@ Return one root frame representing this single app screen (with full shell if de
           screen: screenPlan.name,
           reason: validated.reason,
         });
+        await onProgress?.("screen-failed", screenPlan.id);
         continue;
       }
 
@@ -329,11 +335,13 @@ Return one root frame representing this single app screen (with full shell if de
         name: screenPlan.name,
         summary: summarizeScreenTree(tree),
       });
+      await onProgress?.("screen-complete", screenPlan.id);
     } catch (err) {
       logSafe("[SCREEN-SET] Screen generation failed", {
         screen: screenPlan.name,
         error: err instanceof Error ? err.message : "unknown",
       });
+      await onProgress?.("screen-failed", screenPlan.id);
     }
   }
 

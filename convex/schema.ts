@@ -142,6 +142,32 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_owner", ["ownerId"]),
 
+  // Async agent generation runs (MCP generate_screen / generate_screen_set).
+  // Created queued, executed after the response, polled via get_run.
+  // Absorbed into generationRuns in master-plan task 1.1.
+  agentRuns: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.id("projects"),
+    kind: v.union(v.literal("screen"), v.literal("screen-set")),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("complete"),
+      v.literal("partial"),
+      v.literal("failed")
+    ),
+    input: v.any(),
+    progress: v.array(v.object({ step: v.string(), at: timestamp, detail: v.optional(v.string()) })),
+    result: v.optional(v.any()),
+    error: v.optional(v.string()),
+    missingScreenIds: v.optional(v.array(v.string())),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    completedAt: v.optional(timestamp),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_owner", ["ownerId"]),
+
   boards: defineTable({
     ownerId: v.id("users"),
     projectId: v.optional(v.id("projects")),

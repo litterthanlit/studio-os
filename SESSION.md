@@ -6,15 +6,20 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-16 — dead-code sweep: unused V2/V3 canvas clients removed from the live editor entry. Product resume is still debut tracks 2+3 on main.
+2026-09-23 — architecture review and master plan (design brain → Atlas) written; docs only, no application code changed. Next: milestone M0 (Phase 0) of the master plan.
 
 ## Resume point
 
-Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only; the unused Collect/Compose `CanvasPage` and `(canvas-view)` moodboard client are gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+**Current program:** `docs/superpowers/plans/2026-09-23-master-plan-design-brain-atlas.md`, built on the evidence in `docs/superpowers/plans/2026-09-22-architecture-review-design-brain.md`.
+- Execute milestone M0 (Phase 0, tasks 0.1–0.10) in the lane order of plan §3. Use one commit per task, with that task's commit message and proof gate.
+- Later milestones each need Nick's sign-off.
+- Several Phase 0 tasks were handed out as separate sessions on 2026-09-23, so check open branches and PRs before starting one.
+
+**Platform state (unchanged):** Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only; the unused Collect/Compose `CanvasPage` and `(canvas-view)` moodboard client are gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
 
 ## Product
 
-Studio OS is a **design harness**: references → taste extraction → HARD/SOFT/AVOID directives → V6 DesignNode JSON → infinite canvas. Benchmark: raw 5/10, harnessed 9/10, delta +4. Debut is already shipped.
+Studio OS is a **design harness**: references → taste extraction → HARD/SOFT/AVOID directives → V6 DesignNode JSON → infinite canvas. Benchmark: raw 5/10, harnessed 9/10, delta +4. Treat that as historical: it comes from a text-summary scorer graded against the same taste profile, one editorial set. Benchmark v2 in the master plan (task 2.5) replaces it. Debut is already shipped.
 
 ## Invariants
 
@@ -28,8 +33,9 @@ Studio OS is a **design harness**: references → taste extraction → HARD/SOFT
 
 1. `SESSION.md` (this file) — resume, invariants, canonical paths
 2. `CLAUDE.md` — commands, DesignNode, file map, design system
-3. `AGENTS.md` — roles (CEO / COO / Creative Director / QA) after the resume is clear
-4. `extensions/cursor/` — only when installing or debugging the live MCP plugin
+3. `docs/superpowers/plans/2026-09-23-master-plan-design-brain-atlas.md` — current program: milestones, tasks, proof gates
+4. `AGENTS.md` — roles (CEO / COO / Creative Director / QA) after the resume is clear
+5. `extensions/cursor/` — only when installing or debugging the live MCP plugin
 
 ## Architecture
 
@@ -48,6 +54,8 @@ Paths the next agent should open instead of rediscovering the tree from `extensi
 
 - `SESSION.md`
 - `CLAUDE.md`
+- `docs/superpowers/plans/2026-09-23-master-plan-design-brain-atlas.md`
+- `docs/superpowers/plans/2026-09-22-architecture-review-design-brain.md`
 - `AGENTS.md`
 - `README.md`
 - `package.json`

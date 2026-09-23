@@ -4,6 +4,7 @@
 **Status:** Proposal. Needs CEO approval before any phase starts.
 **Reviewed:** commit `cdae17d` (the same commit as the 2026-09-18 capability audit). Source review, targeted local executions, and external research. No production data or application code was changed.
 **Builds on:** `AGI Design + App-UI + Agent Platform — Master Execution Plan.md` (Phases 1–7 shipped) and the 2026-09-18 audit. Does not reopen debut, PageNode/V5, or the V6 renderer.
+**Execution plan:** `2026-09-23-master-plan-design-brain-atlas.md`, which turns this review into phased tasks with proof gates and adds the Atlas hero feature.
 
 ---
 

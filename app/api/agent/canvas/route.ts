@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { writeCanvasWithRebase } from "@/lib/agent/canvas-write-rebase";
 import { resolveAgentDesignState } from "@/lib/agent/agent-design-state";
 import {
   agentConvexAuthFromResult,
@@ -10,7 +11,6 @@ import {
   getCanvasNode,
   type CanvasAgentOperation,
 } from "@/lib/agent/canvas-agent-ops";
-import { applyCanvasDocumentWrite } from "@/lib/canvas/canvas-document";
 import {
   agentLoadCanvas,
   agentSaveCanvas,
@@ -165,35 +165,32 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const doc = await agentLoadCanvas(convexAuth, auth.projectId!);
-      const currentState = doc?.state
-        ? normalizeRemoteCanvasState(doc.state)
-        : normalizeRemoteCanvasState(null);
-
-      const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(
-        currentState,
-        operations,
-      );
-      if (applied.length === 0) {
+      // Without a caller-pinned expectedRevision, a designer save between load and
+      // save is rebased: reload, re-apply the same operations, retry (up to 3).
+      const write = await writeCanvasWithRebase({
+        load: () => agentLoadCanvas(convexAuth, auth.projectId!),
+        save: (payload) => agentSaveCanvas(convexAuth, { projectId: auth.projectId!, ...payload }),
+        buildOperations: () => operations,
+        pinnedRevision: typeof expectedRevision === "number" ? expectedRevision : undefined,
+      });
+      if (write.applied.length === 0 || !write.save) {
         return NextResponse.json(
-          { error: "No operations applied", details: errors },
+          { error: "No operations applied", details: write.errors },
           { status: 400 },
         );
       }
 
-      const saveResult = await agentSaveCanvas(convexAuth, {
-        projectId: auth.projectId!,
-        state,
-        expectedRevision: expectedRevision ?? doc?.revision,
-        schemaVersion,
-      });
-
       return NextResponse.json({
         projectId,
-        revision: saveResult.revision,
-        applied,
-        errors,
-        summary: buildCanvasSummary(state),
+        revision: write.save.revision,
+        applied: write.applied,
+        errors: write.errors,
+        rebased: write.rebased,
+        // false when nothing in the saved canvas changed (e.g. a selection-only write).
+        persisted: !write.save.unchanged,
+        // Agent selection never reaches the open editor yet; report it honestly.
+        ...(write.selection ? { selection: write.selection } : {}),
+        summary: buildCanvasSummary(write.state),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to write canvas";

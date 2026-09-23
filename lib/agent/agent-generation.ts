@@ -4,7 +4,6 @@
 // project's stored design state (`resolveAgentDesignState`), else defaults.
 
 import type { Id } from "@/convex/_generated/dataModel";
-import { applyCanvasDocumentWrite } from "@/lib/canvas/canvas-document";
 import { normalizeRemoteCanvasState } from "@/lib/canvas/canvas-convex-sync";
 import { BREAKPOINT_WIDTHS, inferSiteName } from "@/lib/canvas/compose";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
@@ -24,6 +23,7 @@ import { getEffectiveReferenceWeight } from "@/lib/canvas/unified-canvas-state";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { IntentReferenceInput } from "@/types/intent-profile";
 import { buildCanvasSummary } from "./canvas-agent-ops";
+import { writeCanvasWithRebase } from "./canvas-write-rebase";
 import { resolveAgentDesignState, type ResolvedAgentDesignState } from "./agent-design-state";
 import {
   agentLoadCanvas,
@@ -125,7 +125,7 @@ export async function executeAgentGenerateScreen(
   deps: AgentGenerationDeps = defaultAgentGenerationDeps,
 ): Promise<AgentGenerationOutcome> {
   await input.onProgress?.("loading-context");
-  const { doc, design, currentState, referenceUrls, references } = await loadContext(input, deps);
+  const { doc, design, referenceUrls, references } = await loadContext(input, deps);
   const breakpoint = input.breakpoint ?? "desktop";
 
   await input.onProgress?.("generating", `taste: ${design.source.tasteProfile}, references: ${referenceUrls.length}`);
@@ -160,25 +160,21 @@ export async function executeAgentGenerateScreen(
 
   await input.onProgress?.("writing-canvas");
   const artboardName = input.name ?? generation.siteName ?? "Generated Screen";
-  const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(currentState, [
-    {
-      type: "add_artboard",
-      name: artboardName,
-      breakpoint,
-      tree: generation.variants[0].pageTree,
-    },
-  ]);
+  const pageTree = generation.variants[0].pageTree;
+  // add_artboard commutes with designer edits: on a revision conflict, reload and re-apply.
+  const write = await writeCanvasWithRebase({
+    initialDoc: doc,
+    load: () => deps.loadCanvas(input.auth, input.projectId),
+    save: (payload) => deps.saveCanvas(input.auth, { projectId: input.projectId, ...payload }),
+    buildOperations: () => [{ type: "add_artboard", name: artboardName, breakpoint, tree: pageTree }],
+    onRebase: (attempt) => input.onProgress?.("rebased", `revision conflict; retry ${attempt}`),
+  });
+  const { state, applied, errors } = write;
 
-  if (applied.length === 0) {
+  if (applied.length === 0 || !write.save) {
     return { ok: false, status: 500, body: { error: "Failed to add generated artboard", details: errors } };
   }
-
-  const saveResult = await deps.saveCanvas(input.auth, {
-    projectId: input.projectId,
-    state,
-    expectedRevision: doc?.revision,
-    schemaVersion,
-  });
+  const saveResult = write.save;
 
   const summary = buildCanvasSummary(state);
   return {
@@ -207,7 +203,7 @@ export async function executeAgentGenerateScreenSet(
   deps: AgentGenerationDeps = defaultAgentGenerationDeps,
 ): Promise<AgentGenerationOutcome> {
   await input.onProgress?.("loading-context");
-  const { doc, design, currentState, referenceUrls, references } = await loadContext(input, deps);
+  const { doc, design, referenceUrls, references } = await loadContext(input, deps);
   const breakpoint = input.breakpoint ?? "desktop";
 
   await input.onProgress?.("generating", `taste: ${design.source.tasteProfile}, references: ${referenceUrls.length}`);
@@ -239,31 +235,35 @@ export async function executeAgentGenerateScreenSet(
   const siteId = `site-${Date.now()}`;
   const artboardWidth = BREAKPOINT_WIDTHS[breakpoint] ?? 1440;
   const gap = 80;
-  const baseX = 120 + currentState.items.filter((item) => item.kind === "artboard").length * 40;
 
-  const operations = generation.screens.map((screen, index) => ({
-    type: "add_artboard" as const,
-    name: screen.name,
-    breakpoint,
-    tree: screen.pageTree,
-    siteId,
-    screenRole: screen.screenRole,
-    screenPurpose: screen.screenPurpose,
-    x: baseX + index * (artboardWidth + gap),
-    y: 100,
-  }));
+  // Positions derive from the latest state, so a rebased retry places screens after any new artboards.
+  const buildOperations = (latest: UnifiedCanvasState) => {
+    const baseX = 120 + latest.items.filter((item) => item.kind === "artboard").length * 40;
+    return generation.screens.map((screen, index) => ({
+      type: "add_artboard" as const,
+      name: screen.name,
+      breakpoint,
+      tree: screen.pageTree,
+      siteId,
+      screenRole: screen.screenRole,
+      screenPurpose: screen.screenPurpose,
+      x: baseX + index * (artboardWidth + gap),
+      y: 100,
+    }));
+  };
 
-  const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(currentState, operations);
-  if (applied.length === 0) {
+  const write = await writeCanvasWithRebase({
+    initialDoc: doc,
+    load: () => deps.loadCanvas(input.auth, input.projectId),
+    save: (payload) => deps.saveCanvas(input.auth, { projectId: input.projectId, ...payload }),
+    buildOperations,
+    onRebase: (attempt) => input.onProgress?.("rebased", `revision conflict; retry ${attempt}`),
+  });
+  const { state, applied, errors } = write;
+  if (applied.length === 0 || !write.save) {
     return { ok: false, status: 500, body: { error: "Failed to add generated screens", details: errors } };
   }
-
-  const saveResult = await deps.saveCanvas(input.auth, {
-    projectId: input.projectId,
-    state,
-    expectedRevision: doc?.revision,
-    schemaVersion,
-  });
+  const saveResult = write.save;
 
   const summary = buildCanvasSummary(state);
   return {

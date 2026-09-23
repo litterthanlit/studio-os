@@ -29,6 +29,7 @@
     "proof:intent-routing": "npx tsx scripts/intent-routing-proof.ts",
     "proof:taste-feedback": "npx tsx scripts/taste-feedback-proof.ts",
     "proof:agent-runs": "npx tsx scripts/agent-runs-proof.ts",
+    "proof:agent-write-rebase": "npx tsx scripts/agent-write-rebase-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

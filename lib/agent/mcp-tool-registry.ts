@@ -306,7 +306,8 @@ export function registerStudioOsMcpTools(
   server.registerTool(
     "select_on_canvas",
     {
-      description: "Set the open editor selection (active item and node ids).",
+      description:
+        "Request an editor selection (active item and node ids). Not delivered to the open editor yet: the result reports selection.persisted: false until live presence ships.",
       inputSchema: {
         projectId: z.string().optional(),
         activeItemId: z.string().nullable().optional(),

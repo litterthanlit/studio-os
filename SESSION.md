@@ -6,16 +6,31 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-23 — architecture review and master plan (design brain → Atlas) written; docs only, no application code changed. Next: milestone M0 (Phase 0) of the master plan.
+2026-09-23: milestone M0 (Phase 0, tasks 0.1–0.10) implemented on branch `claude/vigilant-einstein-6zi4no`, [draft PR #23](https://github.com/litterthanlit/studio-os/pull/23). One commit per task; all Phase 0 gates pass. Not merged yet.
 
 ## Resume point
 
 **Current program:** `docs/superpowers/plans/2026-09-23-master-plan-design-brain-atlas.md`, built on the evidence in `docs/superpowers/plans/2026-09-22-architecture-review-design-brain.md`.
-- Execute milestone M0 (Phase 0, tasks 0.1–0.10) in the lane order of plan §3. Use one commit per task, with that task's commit message and proof gate.
-- Later milestones each need Nick's sign-off.
-- Several Phase 0 tasks were handed out as separate sessions on 2026-09-23, so check open branches and PRs before starting one.
+- **M0 code is done on PR #23.** It is waiting on Nick's review and merge.
+- **M0 exit is not done, and two items remain open:**
+  1. The live half of 0.6 needs a Convex dev deployment. Set `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_INTERNAL_API_SECRET` and `CONVEX_LIMITS_PROOF_PROJECT_ID`, then run `npm run proof:convex-canvas-limits`.
+     - Offline, the result is over the documented limits: a 12-level tree measures depth 27 (limit 16), and the deepest tree that fits is 6 levels.
+     - If the live run confirms this, Phase 3 moves to the front (Nick decides).
+  2. The §2 live demo needs a deployment plus `OPENROUTER_API_KEY`.
+- **Next:** M1 (Phase 1). It needs Nick's sign-off, and every new surface in plan §1.6 needs approval.
 
-**Platform state (unchanged):** Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only; the unused Collect/Compose `CanvasPage` and `(canvas-view)` moodboard client are gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+**Platform state:**
+- **Shared document.** The signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only.
+- **Agent writes.** They go through `writeCanvasWithRebase`: on `CANVAS_REVISION_CONFLICT` it reloads, re-applies the operations and retries (up to 3). A caller-pinned `expectedRevision` is not rebased. `select_on_canvas` reports `selection.persisted: false` until presence ships (3.4).
+- **Design state.** Taste and tokens live in Convex `projectDesignState`, written through from the editor (`useProjectDesignState`). Every agent route resolves them in the order request > project > defaults.
+- **Async runs.** MCP `generate_screen` / `generate_screen_set` are async: they return a `runId` at once and execute with `after()` into Convex `agentRuns`. Agents poll with `get_run`. Screen sets end `complete | partial | failed` and list missing screen ids.
+- **Uploads.** References and image replacements upload to Convex file storage (`canvasAssets`, 2048px longest side). Existing data-URL references migrate lazily.
+- **Model telemetry.** Model calls go through `tracedCompletion` into Convex `modelCalls`, batched.
+- **Intent.** Classification uses a model with a word-boundary heuristic fallback (`lib/canvas/intent-classifier.ts`). Generation receives real reference ids, weights and annotations.
+- **Taste corrections.** Overrides persist: palette becomes a HARD directive, and structural edits write `userOverrides.knobs`. Generated artboards carry a persisted `generationBaseline`.
+- **App screens.** They get an in-app prompt frame and status colors. Nodes named `Status: <tone> · …` are exempt from palette checks.
+- **Fonts.** Screenshots and document exports load the design fonts.
+- **Constraints carried over.** Convex writes stay dirty-fingerprint only, with an 8s trailing debounce. Open docs PR #5 is unrelated. Do not regress `extensions/cursor/`.
 
 ## Product
 
@@ -75,6 +90,21 @@ Paths the next agent should open instead of rediscovering the tree from `extensi
 - `lib/agent/canvas-agent-ops.ts`
 - `app/api/agent/canvas/route.ts`
 - `docs/VERIFY.md`
+- `docs/proofs/convex-canvas-limits.json`
+- `lib/agent/agent-generation.ts`
+- `lib/agent/agent-runs.ts`
+- `lib/agent/agent-design-state.ts`
+- `lib/agent/canvas-write-rebase.ts`
+- `lib/agent/mcp-tool-registry.ts`
+- `convex/designState.ts`
+- `convex/agentRuns.ts`
+- `convex/assets.ts`
+- `lib/canvas/intent-classifier.ts`
+- `lib/canvas/font-links.ts`
+- `lib/canvas/taste-edit-tracker.ts`
+- `lib/canvas/reference-upload.ts`
+- `lib/ai/model-router.ts`
+- `lib/ai/model-telemetry.ts`
 - `lib/canvas/directive-compiler.ts`
 - `lib/canvas/design-tree-prompt.ts`
 - `lib/canvas/generate-design-core.ts`
@@ -98,7 +128,14 @@ Do **not** use it as:
 npm run proof:session-continuity
 ```
 
-That gate fails if this file drifts (missing sections, dead canonical paths, or entry docs that no longer point here). When you touch canvas sync, agent MCP, taste, export, code items, or agent presence, also run the matching `proof:*` script in `package.json` (`proof:convex-canvas-sync`, `proof:canvas-save-throttle`, `proof:code-on-canvas`, `proof:agent-presence`).
+That gate fails if this file drifts (missing sections, dead canonical paths, or entry docs that no longer point here). When you touch an area, also run its `proof:*` script in `package.json`:
+
+| Area | Proof scripts |
+|---|---|
+| Canvas sync, code items, agent presence | `proof:convex-canvas-sync`, `proof:canvas-save-throttle`, `proof:code-on-canvas`, `proof:agent-presence` |
+| Phase 0 (M0) | `proof:render-fonts`, `proof:intent-routing`, `proof:taste-feedback`, `proof:app-ui-capability`, `proof:agent-platform`, `proof:agent-runs`, `proof:agent-write-rebase`, `proof:convex-canvas-limits`, `proof:model-telemetry` |
+
+`npm run verify` (lint + typecheck + build) is green as of M0.
 
 ## How to update this file
 

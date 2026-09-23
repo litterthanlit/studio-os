@@ -199,7 +199,7 @@ export function extractIntentProfile(args: {
   };
 }
 
-function inferReferenceRole(text: string): IntentReferenceRole {
+export function inferReferenceRole(text: string): IntentReferenceRole {
   const has = createPhraseMatcher(text);
   if (has(["layout", "composition", "grid", "structure"])) return "layout";
   if (has(["color", "colors", "colour", "palette"])) return "palette";

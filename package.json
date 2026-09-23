@@ -27,6 +27,7 @@
     "proof:session-continuity": "npx tsx scripts/session-continuity-proof.ts",
     "proof:render-fonts": "npx tsx scripts/render-fonts-proof.ts",
     "proof:intent-routing": "npx tsx scripts/intent-routing-proof.ts",
+    "proof:taste-feedback": "npx tsx scripts/taste-feedback-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

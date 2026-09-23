@@ -2,7 +2,7 @@ import type { IntentProfile } from "@/types/intent-profile";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { DesignKnobVector } from "./design-knobs";
 import type { DesignNode } from "./design-node";
-import { computeDesignNodeTasteMetrics } from "./design-node-taste-validator";
+import { computeDesignNodeTasteMetrics, type DesignNodeTasteMetrics } from "./design-node-taste-validator";
 
 export type StructuralTasteEdit = {
   dimension:
@@ -28,8 +28,17 @@ export type StructuralTasteEdit = {
 };
 
 export function detectStructuralTasteEdits(currentTree: DesignNode, snapshotTree: DesignNode): StructuralTasteEdit[] {
-  const current = computeDesignNodeTasteMetrics(currentTree);
-  const snapshot = computeDesignNodeTasteMetrics(snapshotTree);
+  return detectStructuralTasteEditsFromMetrics(
+    computeDesignNodeTasteMetrics(currentTree),
+    computeDesignNodeTasteMetrics(snapshotTree),
+  );
+}
+
+/** Metric-to-metric comparison — the snapshot side can be a persisted generation baseline. */
+export function detectStructuralTasteEditsFromMetrics(
+  current: DesignNodeTasteMetrics,
+  snapshot: DesignNodeTasteMetrics,
+): StructuralTasteEdit[] {
   const edits: StructuralTasteEdit[] = [];
 
   if (current.sectionCount !== snapshot.sectionCount) {

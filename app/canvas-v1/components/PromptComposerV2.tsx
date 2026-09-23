@@ -18,7 +18,12 @@ import { getProjectState, upsertProjectState } from "@/lib/project-store";
 import { TasteCard } from "./TasteCard";
 import { ReferenceRail } from "./ReferenceRail";
 import { TasteFeedbackDialog } from "./TasteFeedbackDialog";
-import { detectTasteEdits } from "@/lib/canvas/taste-edit-tracker";
+import {
+  applyTasteEditsToOverrides,
+  buildGenerationBaseline,
+  detectTasteEditsFromBaseline,
+  isGenerationBaseline,
+} from "@/lib/canvas/taste-edit-tracker";
 import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import {
@@ -38,7 +43,7 @@ import type {
 } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode } from "@/lib/canvas/compose";
-import type { TasteProfile } from "@/types/taste-profile";
+import { mergeRefreshedTasteProfile, type TasteProfile } from "@/types/taste-profile";
 import type { SiteType } from "@/lib/canvas/templates";
 import { isHintSeen, markHintSeen } from "./OnboardingHint";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
@@ -247,6 +252,25 @@ async function classifyPromptIntent(args: {
     console.warn("[prompt] Intent classification unavailable; using heuristic:", error);
   }
   return extractIntentProfile(args);
+}
+
+/** Ordered references (primary first) with identity, weight and annotation for taste extraction. */
+function toTasteExtractReferences(refs: ReferenceItem[]) {
+  return refs.map((ref) => ({
+    id: ref.id,
+    url: ref.imageUrl,
+    weight: getEffectiveReferenceWeight(ref),
+    annotation: ref.annotation?.trim() || undefined,
+  }));
+}
+
+/** Attach a persisted generation baseline to each generated V6 artboard. */
+function withGenerationBaselines(artboards: ArtboardItem[]): ArtboardItem[] {
+  return artboards.map((artboard) =>
+    isDesignNodeTree(artboard.pageTree)
+      ? { ...artboard, generationBaseline: buildGenerationBaseline(artboard.pageTree as DesignNode) }
+      : artboard,
+  );
 }
 
 function relativeTime(iso: string): string {
@@ -496,26 +520,7 @@ export function PromptComposerV2({
     (edits: TasteEdit[]) => {
       if (!tasteProfile) return;
 
-      const overrides: NonNullable<typeof tasteProfile.userOverrides> = { ...tasteProfile.userOverrides };
-
-      for (const edit of edits) {
-        switch (edit.dimension) {
-          case "headingFont":
-            overrides.headingFont = edit.after as string;
-            break;
-          case "bodyFont":
-            overrides.bodyFont = edit.after as string;
-            break;
-          case "density": {
-            const spacing = edit.after as number;
-            overrides.density = spacing < 48 ? "dense" : spacing > 72 ? "spacious" : "balanced";
-            break;
-          }
-          case "palette":
-            // Palette diff captured — store new color list as override palette
-            break;
-        }
-      }
+      const overrides = applyTasteEditsToOverrides(tasteProfile.userOverrides, edits);
 
       const updatedProfile = { ...tasteProfile, userOverrides: overrides };
       setTasteProfile(updatedProfile);
@@ -542,29 +547,20 @@ export function PromptComposerV2({
     setIsRefreshingTaste(true);
     setRefreshError(false);
     try {
-      const imageUrls = weightedReferenceItems
-        .map((r) => r.imageUrl)
-        .filter(Boolean);
-
-      const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
-        acc[ref.imageUrl] = getEffectiveReferenceWeight(ref);
-        return acc;
-      }, {});
-
       const res = await fetch("/api/taste/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          referenceUrls: imageUrls,
-          referenceWeights,
+          references: toTasteExtractReferences(weightedReferenceItems.filter((ref) => ref.imageUrl)),
           prompt: prompt.value?.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error("Taste extraction failed");
       const data = await res.json();
       if (data && typeof data === "object" && data.summary) {
-        const profile = data as TasteProfile;
+        // Refresh re-extracts taste but keeps the designer's corrections.
+        const profile = mergeRefreshedTasteProfile(tasteProfile, data as TasteProfile);
         setTasteProfile(profile);
         upsertProjectState(projectId, { canvas: { tasteProfile: profile } });
       }
@@ -575,7 +571,7 @@ export function PromptComposerV2({
     } finally {
       setIsRefreshingTaste(false);
     }
-  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value]);
+  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value, tasteProfile]);
 
   const hasArtboards = items.some((i) => i.kind === "artboard");
   const chips = getSuggestionChips(selectedNode, hasArtboards);
@@ -612,15 +608,13 @@ export function PromptComposerV2({
     // ── Taste feedback detection ───────────────────────────────────────
     // Only check on full-page generation (not section regen), and only when
     // we have a snapshot from a previous generation to compare against.
-    if (!skipTasteCheckRef.current && !selectedSection && state.generatedTreeSnapshot) {
+    if (!skipTasteCheckRef.current && !selectedSection) {
       const allEdits: TasteEdit[] = [];
-      for (const [itemId, snapshot] of Object.entries(state.generatedTreeSnapshot)) {
-        const item = items.find((i) => i.id === itemId);
-        if (!item) continue;
+      for (const item of items) {
+        if (item.kind !== "artboard" || !isGenerationBaseline(item.generationBaseline)) continue;
         const currentTree = getNodeTree(item);
         if (!currentTree) continue;
-        const edits = detectTasteEdits(currentTree, snapshot);
-        allEdits.push(...edits);
+        allEdits.push(...detectTasteEditsFromBaseline(currentTree, item.generationBaseline));
       }
 
       if (allEdits.length > 0) {
@@ -860,18 +854,12 @@ export function PromptComposerV2({
           agentSteps: ["Analyzing references...", "Extracting taste profile..."],
         });
         try {
-          const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
-            acc[ref.imageUrl] = getEffectiveReferenceWeight(ref);
-            return acc;
-          }, {});
-
           const tasteRes = await fetch("/api/taste/extract", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               projectId,
-              referenceUrls: imageUrls,
-              referenceWeights,
+              references: toTasteExtractReferences(weightedReferenceItems.slice(0, 6)),
               existingTokens: tokens,
               prompt: prompt.value?.trim() || undefined,
               compositionContext: compositionContext || undefined,
@@ -1001,17 +989,8 @@ export function PromptComposerV2({
           artboards: snapshotArtboards(artboards),
         };
 
-        dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
-
-        const snapshots: Record<string, DesignNode> = {};
-        for (const artboard of artboards) {
-          if (isDesignNodeTree(artboard.pageTree)) {
-            snapshots[artboard.id] = structuredClone(artboard.pageTree as DesignNode);
-          }
-        }
-        if (Object.keys(snapshots).length > 0) {
-          dispatch({ type: "SET_GENERATED_SNAPSHOT", snapshots });
-        }
+        dispatch({ type: "REPLACE_SITE", artboards: withGenerationBaselines(artboards), promptEntry });
+        dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
 
         dispatch({
           type: "SET_PROMPT_STATUS",
@@ -1064,18 +1043,9 @@ export function PromptComposerV2({
         artboards: snapshotArtboards(artboards),
       };
 
-      dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
-
-      // After REPLACE_SITE, snapshot the generated trees for taste feedback tracking
-      const snapshots: Record<string, DesignNode> = {};
-      for (const artboard of artboards) {
-        if (isDesignNodeTree(artboard.pageTree)) {
-          snapshots[artboard.id] = structuredClone(artboard.pageTree as DesignNode);
-        }
-      }
-      if (Object.keys(snapshots).length > 0) {
-        dispatch({ type: "SET_GENERATED_SNAPSHOT", snapshots });
-      }
+      // Generated artboards carry a persisted baseline for taste feedback tracking.
+      dispatch({ type: "REPLACE_SITE", artboards: withGenerationBaselines(artboards), promptEntry });
+      dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
 
       // ── Variant carousel: set up Base + Pushed preview (V6 DesignNode only) ──
       // The route returns 3 variants (safe=base, creative=pushed, alternative=restructured).
@@ -1133,7 +1103,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items, state.generatedTreeSnapshot]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {

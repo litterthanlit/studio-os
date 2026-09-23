@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { getRouter, SONNET_4_6 } from "@/lib/ai/model-router";
+import {
+  buildTasteImageContent,
+  buildTasteSignature,
+  normalizeTasteReferences,
+  type TasteExtractReferenceInput,
+} from "@/lib/canvas/taste-extract-inputs";
 import { scoreImagesBatch } from "@/lib/ai/image-scorer";
 import { API_LIMITS, capStringArray, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 import type { TasteProfile } from "@/types/taste-profile";
@@ -19,12 +25,14 @@ type TasteExtractBody = {
   prompt?: string;
   compositionContext?: string;
   compositionData?: CompositionInput[];
+  /** Ordered references with identity, weight and role (preferred over referenceUrls/referenceWeights). */
+  references?: TasteExtractReferenceInput[];
 };
 
 const tasteCache = new Map<string, CachedTasteProfile>();
 
 // Bump this whenever getSkillContext() changes — forces cache invalidation
-const TASTE_CONTEXT_VERSION = 4;
+const TASTE_CONTEXT_VERSION = 5;
 
 // ── Inline skill context (condensed — previously loaded 10+ markdown files at ~700K tokens) ──
 
@@ -242,43 +250,6 @@ function inferArchetypeHintsFromScores(
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
-  }
-  const entries = Object.entries(value as Record<string, unknown>).sort(
-    ([a], [b]) => a.localeCompare(b)
-  );
-  return `{${entries
-    .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`)
-    .join(",")}}`;
-}
-
-function buildSignature(
-  referenceUrls: string[],
-  existingTokens?: unknown,
-  compositionContext?: string,
-  compositionData?: CompositionInput[]
-) {
-  return stableStringify({
-    contextVersion: TASTE_CONTEXT_VERSION,
-    referenceUrls: [...referenceUrls].sort(),
-    existingTokens: existingTokens ?? null,
-    compositionContext: compositionContext ?? null,
-    compositionData: compositionData?.map((entry) => ({
-      referenceIndex: entry.referenceIndex,
-      weight: entry.weight,
-      referenceType: entry.analysis.referenceType,
-      spacingSystem: entry.analysis.spacingSystem,
-      headingToBodyRatio: entry.analysis.headingToBodyRatio,
-      density: entry.analysis.density,
-    })) ?? null,
-  });
-}
-
 function computeConfidence(
   referenceCount: number,
   scores: Array<{ scores: { overall: number }; style: string; mood: string }>
@@ -743,8 +714,13 @@ export async function POST(req: NextRequest) {
 
     const body = guarded.body;
     const projectId = body.projectId?.trim();
-    const referenceUrls = capStringArray(body.referenceUrls, API_LIMITS.maxReferenceUrls);
-    const referenceWeights = body.referenceWeights ?? {};
+    const references = normalizeTasteReferences({
+      references: body.references,
+      referenceUrls: capStringArray(body.referenceUrls, API_LIMITS.maxReferenceUrls),
+      referenceWeights: body.referenceWeights,
+      limit: API_LIMITS.maxReferenceUrls,
+    });
+    const referenceUrls = references.map((ref) => ref.url);
     const existingTokens = body.existingTokens ?? null;
     const userPrompt = body.prompt?.trim() || undefined;
     const compositionContext = body.compositionContext;
@@ -759,7 +735,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "referenceUrls are required" }, { status: 400 });
     }
 
-    const signature = buildSignature(referenceUrls, existingTokens, compositionContext, compositionData);
+    const signature = buildTasteSignature({
+      contextVersion: TASTE_CONTEXT_VERSION,
+      prompt: userPrompt,
+      references,
+      existingTokens,
+      compositionData,
+    });
     const cached = tasteCache.get(projectId);
     logSafe("[TASTE DEBUG] Cache check", {
       projectId,
@@ -803,12 +785,14 @@ export async function POST(req: NextRequest) {
 
     const router = getRouter();
 
-    const imageContent = referenceUrls.slice(0, 5).map((url) => imageUrlBlock(url));
+    // Every reference is attached (up to API_LIMITS.maxReferenceUrls), each behind a label.
+    const imageContent = buildTasteImageContent(references);
 
     // Strip URLs from scored data to avoid sending base64 data as text
     // (the images are already sent as vision blocks below)
     const scoredSummary = scoredImages.map((img, i) => ({
-      index: i,
+      image: i + 1,
+      referenceId: references[i]?.id,
       scores: img.scores,
       tags: img.tags,
       colors: img.colors,
@@ -822,13 +806,17 @@ export async function POST(req: NextRequest) {
     const promptHints = detectPromptArchetypeHints(userPrompt);
     const scorerHints = inferArchetypeHintsFromScores(scoredImages);
 
-    // Build weight context for the model
+    // Build weight/role context for the model
     let weightContext = "";
-    if (referenceWeights && Object.keys(referenceWeights).length > 0) {
-      const primaryCount = Object.values(referenceWeights).filter((w) => w === "primary").length;
-      if (primaryCount > 0) {
-        weightContext = `\n\nIMPORTANT — Reference Weighting:\nThe designer has starred ${primaryCount} reference(s) as primary inspiration. These starred references should dominate your taste analysis — weight their palette, typography, spacing, and layout signals 2x more heavily than unstarred references. If starred and unstarred references conflict on a dimension (e.g., different palettes), prefer the starred reference's signal.\n`;
-      }
+    const primaryCount = references.filter((ref) => ref.weight === "primary").length;
+    if (primaryCount > 0) {
+      weightContext = `\n\nIMPORTANT — Reference Weighting:\nThe designer has starred ${primaryCount} reference(s) as primary inspiration (labelled "primary"). These starred references should dominate your taste analysis — weight their palette, typography, spacing, and layout signals 2x more heavily than unstarred references. If starred and unstarred references conflict on a dimension (e.g., different palettes), prefer the starred reference's signal.\n`;
+    }
+    const roleRefs = references.filter((ref) => ref.role);
+    if (roleRefs.length > 0) {
+      weightContext += `\nReference roles: ${roleRefs
+        .map((ref) => `${ref.id} → ${ref.role}`)
+        .join("; ")}. Take each labelled dimension from the reference assigned to it.\n`;
     }
 
     const systemPrompt = buildSystemPrompt();
@@ -837,7 +825,7 @@ export async function POST(req: NextRequest) {
       ? `\n## Reference Composition Analysis\nThe following structural analysis was performed on the reference images:\n${compositionContext}\n\nUse this analysis to inform your archetype detection and layout bias decisions. If the analysis identifies a reference as editorial with full-bleed photography, that is strong evidence for editorial-brand archetype. If it identifies a SaaS screenshot with rounded components, that suggests premium-saas.\n\n`
       : "";
 
-    const userMessageText = `${compositionPrefix}Analyze these ${referenceUrls.length} visual references and return a compact TasteProfile JSON.
+    const userMessageText = `${compositionPrefix}Analyze these ${references.length} visual references (each image follows its label: "Image N · reference id · weight · role") and return a compact TasteProfile JSON.
 
 IMPORTANT: Base your archetype classification primarily on what you SEE in the images. The scored image summary below is from a generic quality scorer — its style/mood labels are NOT archetype classifications. Look at the actual images.
 
@@ -864,7 +852,7 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
       hasUserPrompt: Boolean(userPrompt),
       hasPromptHints: Boolean(promptHints),
       hasScorerHints: Boolean(scorerHints),
-      imageCount: imageContent.length,
+      imageCount: references.length,
       userMessageLength: userMessageText.length,
     });
 

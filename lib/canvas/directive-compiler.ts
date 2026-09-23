@@ -538,6 +538,19 @@ export function compileTasteToDirectives(
       else result.hard.push(override);
     }
 
+    if (ov.palette && ov.palette.length > 0) {
+      result.soft = result.soft.filter(d => d.dimension !== "palette");
+      const existing = result.hard.findIndex(d => d.dimension === "palette");
+      const override: Directive = {
+        dimension: "palette",
+        rule: `Primary palette MUST use only: ${ov.palette.join(", ")} (designer correction)`,
+        value: ov.palette,
+        source: "user-override",
+      };
+      if (existing >= 0) result.hard[existing] = override;
+      else result.hard.push(override);
+    }
+
     if (ov.density) {
       const existing = result.hard.findIndex(d => d.dimension === "density");
       const override: Directive = { dimension: "density", rule: `density: ${ov.density}`, value: ov.density, source: "user-override" };

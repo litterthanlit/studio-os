@@ -21,6 +21,7 @@ import {
   makeCompositeId,
 } from "./component-resolver";
 import { cloneDesignNodeWithIdMap } from "./design-node";
+import { buildGenerationBaseline } from "./taste-edit-tracker";
 import { isBuiltinMasterId } from "./component-builtins";
 import type {
   ComponentMaster, ComponentInstanceRef, NodeOverride,
@@ -3302,7 +3303,10 @@ export function canvasReducer(
         ...state,
         items: state.items.map((item) => {
           if (item.id !== itemId || item.kind !== "artboard") return item;
-          return { ...item, pageTree: chosen.tree };
+          // The picked variant is now what generation produced for this artboard.
+          return item.generationBaseline
+            ? { ...item, pageTree: chosen.tree, generationBaseline: buildGenerationBaseline(chosen.tree) }
+            : { ...item, pageTree: chosen.tree };
         }),
         variantPreview: null,
         updatedAt: now(),

@@ -6,6 +6,7 @@
  * `composeDocument`, and `canvasSession` legacy stores.
  */
 
+import type { GenerationBaseline } from "./taste-edit-tracker";
 import type { PageNode } from "./compose";
 import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
 import type { TasteEdit } from "./taste-edit-tracker";
@@ -137,6 +138,8 @@ export type ArtboardItem = BaseCanvasItem & {
   screenRole?: string;
   /** Screen purpose summary from screen-set plan (Phase 6). */
   screenPurpose?: string;
+  /** Compact record of what generation produced — persisted so taste-edit detection survives reloads. */
+  generationBaseline?: GenerationBaseline;
 };
 
 export type NoteItem = BaseCanvasItem & {

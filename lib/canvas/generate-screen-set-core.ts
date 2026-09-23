@@ -1,6 +1,7 @@
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
-import { extractIntentProfile, type IntentProfile } from "@/types/intent-profile";
+import type { IntentProfile, IntentReferenceInput } from "@/types/intent-profile";
+import { buildIntentReferences, resolveIntentProfile } from "@/lib/canvas/intent-classifier";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
@@ -61,6 +62,10 @@ export type GenerateAppScreenSetInput = {
     referenceIndex: number;
   }>;
   compositionContext?: string;
+  /** Real reference ids / weights / annotations, index-aligned with referenceUrls. */
+  references?: IntentReferenceInput[];
+  /** Classification the caller already routed on (validated; reused so routing and generation agree). */
+  intentClassification?: unknown;
 };
 
 export type GenerateAppScreenSetResult =
@@ -169,6 +174,8 @@ export async function generateAppScreenSet(
     breakpoint = "desktop",
     compositionData,
     compositionContext,
+    references,
+    intentClassification,
   } = input;
 
   if (!process.env.OPENROUTER_API_KEY) {
@@ -185,13 +192,15 @@ export async function generateAppScreenSet(
   const resolvedSiteName = siteName ?? (prompt.trim().slice(0, 40) || "App");
   const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
   const resolvedFidelityMode = fidelityMode ?? "balanced";
-  const intentProfile = extractIntentProfile({
+  const intentProfile = await resolveIntentProfile({
     prompt,
     siteType,
-    references: cappedReferenceUrls.map((url, index) => ({
-      id: `reference-${index + 1}`,
-      annotation: url,
-    })),
+    classification: intentClassification,
+    references: buildIntentReferences({
+      references,
+      referenceUrls: cappedReferenceUrls,
+      compositionData: compositionData,
+    }),
   });
 
   const effectiveArchetype = resolveEffectiveArchetype({

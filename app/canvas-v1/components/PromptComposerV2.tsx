@@ -47,7 +47,11 @@ import { buildSectionContext } from "@/lib/canvas/section-context-builder";
 import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
 import { summarizeCompositionsForTaste } from "@/lib/canvas/composition-blueprint";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
-import { extractIntentProfile } from "@/types/intent-profile";
+import {
+  extractIntentProfile,
+  type IntentProfile,
+  type IntentReferenceInput,
+} from "@/types/intent-profile";
 
 // ─── Helpers (copied from InspectorPanelV3) ─────────────────────────────────
 
@@ -218,6 +222,31 @@ function buildFallbackTokens(existingTokens: DesignSystemTokens | null): DesignS
       },
     },
   };
+}
+
+/**
+ * Model intent classification via the server (word-boundary heuristic fallback on
+ * any failure) — decides screens vs variants and the screen-set breakpoint.
+ */
+async function classifyPromptIntent(args: {
+  prompt: string;
+  siteType?: string;
+  references: IntentReferenceInput[];
+}): Promise<IntentProfile> {
+  try {
+    const res = await fetch("/api/intent/classify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(args),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.intentProfile?.outputType) return data.intentProfile as IntentProfile;
+    }
+  } catch (error) {
+    console.warn("[prompt] Intent classification unavailable; using heuristic:", error);
+  }
+  return extractIntentProfile(args);
 }
 
 function relativeTime(iso: string): string {
@@ -864,9 +893,16 @@ export function PromptComposerV2({
 
       // Step 3: Compose layout + generate component/site
       const analysisPrefix = imageUrls.length > 0 ? ["Analyzing references..."] : [];
-      const intentProfile = extractIntentProfile({
+      // Real reference ids / weights / annotations, index-aligned with imageUrls.
+      const intentReferences = weightedReferenceItems.slice(0, 6).map((ref) => ({
+        id: ref.id,
+        weight: getEffectiveReferenceWeight(ref),
+        annotation: ref.annotation?.trim() || undefined,
+      }));
+      const intentProfile = await classifyPromptIntent({
         prompt: prompt.value.trim(),
         siteType: prompt.siteType,
+        references: intentReferences,
       });
       const isAppUiIntent =
         intentProfile.outputType === "web-app-ui" ||
@@ -902,6 +938,14 @@ export function PromptComposerV2({
           useDesignNode: true,
           compositionData: compositionData.length > 0 ? compositionData : undefined,
           compositionContext: compositionContext || undefined,
+          references: intentReferences,
+          intentClassification: {
+            outputType: intentProfile.outputType,
+            businessGoal: intentProfile.businessGoal,
+            confidence: intentProfile.confidence,
+            alternatives: intentProfile.alternatives ?? [],
+          },
+          breakpoint: intentProfile.outputType === "mobile-app-ui" ? "mobile" : "desktop",
         }),
       });
 

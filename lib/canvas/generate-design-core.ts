@@ -3,7 +3,8 @@ import { compileTasteToDirectives, type FidelityMode } from "@/lib/canvas/direct
 import { BREAKPOINT_WIDTHS, inferSiteName, type VariantMode } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { TasteProfile } from "@/types/taste-profile";
-import { extractIntentProfile, type IntentProfile } from "@/types/intent-profile";
+import type { IntentProfile, IntentReferenceInput } from "@/types/intent-profile";
+import { buildIntentReferences, resolveIntentProfile } from "@/lib/canvas/intent-classifier";
 import {
   callModel,
   describeModelFailure,
@@ -226,6 +227,10 @@ export type GenerateV6DesignVariantsInput = {
     referenceIndex: number;
   }>;
   compositionContext?: string;
+  /** Real reference ids / weights / annotations, index-aligned with referenceUrls. */
+  references?: IntentReferenceInput[];
+  /** Classification the caller already routed on (validated; reused so routing and generation agree). */
+  intentClassification?: unknown;
 };
 
 export type GenerateV6DesignVariantsResult =
@@ -259,6 +264,8 @@ export async function generateV6DesignVariants(
     strictV6,
     compositionData,
     compositionContext,
+    references,
+    intentClassification,
   } = input;
 
   const resolvedSiteName = siteName || inferSiteName(prompt);
@@ -311,13 +318,15 @@ export async function generateV6DesignVariants(
 
   logSafe("[V6-GEN] Starting DesignNode generation", { siteName: resolvedSiteName });
   const resolvedFidelityMode = fidelityMode ?? "balanced";
-  const intentProfile = extractIntentProfile({
+  const intentProfile = await resolveIntentProfile({
     prompt,
     siteType,
-    references: cappedReferenceUrls.map((url, index) => ({
-      id: `reference-${index + 1}`,
-      annotation: url,
-    })),
+    classification: intentClassification,
+    references: buildIntentReferences({
+      references,
+      referenceUrls: cappedReferenceUrls,
+      compositionData: cappedCompositionData,
+    }),
   });
 
   let compositionBlueprint = "";

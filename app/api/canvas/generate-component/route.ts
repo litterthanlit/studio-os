@@ -20,7 +20,8 @@ import {
 import type { SiteType } from "@/lib/canvas/templates";
 import { resolveMediaUrls } from "@/lib/canvas/media-resolver";
 import type { TasteProfile } from "@/types/taste-profile";
-import { extractIntentProfile } from "@/types/intent-profile";
+import type { IntentReferenceInput } from "@/types/intent-profile";
+import { buildIntentReferences, resolveIntentProfile } from "@/lib/canvas/intent-classifier";
 import {
   callModel,
   describeModelFailure,
@@ -236,6 +237,12 @@ export async function POST(req: NextRequest) {
         referenceIndex: number;
       }>;
       compositionContext?: string;
+      /** Real reference ids / weights / annotations, index-aligned with referenceUrls. */
+      references?: IntentReferenceInput[];
+      /** Classification the editor routed on (screens vs variants). */
+      intentClassification?: unknown;
+      /** Artboard breakpoint for screen sets (mobile for mobile-app-ui). */
+      breakpoint?: "desktop" | "mobile";
     }>(req, {
       requireAuth: true,
       maxBytes: API_LIMITS.aiRequestBytes,
@@ -261,6 +268,9 @@ export async function POST(req: NextRequest) {
       strictV6,
       compositionData,
       compositionContext,
+      references,
+      intentClassification,
+      breakpoint,
     } = body;
 
     const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
@@ -331,6 +341,8 @@ export async function POST(req: NextRequest) {
           strictV6,
           compositionData,
           compositionContext,
+          references,
+          intentClassification,
         });
 
         if (v6Result.ok) {
@@ -814,8 +826,11 @@ export async function POST(req: NextRequest) {
         tasteProfile,
         referenceUrls: cappedReferenceUrls,
         fidelityMode,
+        breakpoint: breakpoint === "mobile" ? "mobile" : "desktop",
         compositionData: cappedCompositionData,
         compositionContext,
+        references,
+        intentClassification,
       });
 
       if (!screenSetResult.ok) {
@@ -867,13 +882,15 @@ export async function POST(req: NextRequest) {
       }
 
       const resolvedFidelityMode = fidelityMode ?? "balanced";
-      const intentProfile = extractIntentProfile({
+      const intentProfile = await resolveIntentProfile({
         prompt,
         siteType,
-        references: cappedReferenceUrls.map((url, index) => ({
-          id: `reference-${index + 1}`,
-          annotation: url,
-        })),
+        classification: intentClassification,
+        references: buildIntentReferences({
+          references,
+          referenceUrls: cappedReferenceUrls,
+          compositionData: cappedCompositionData,
+        }),
       });
       let compositionBlueprint = "";
       if (cappedCompositionData && cappedCompositionData.length > 0) {

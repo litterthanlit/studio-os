@@ -47,53 +47,125 @@ export type IntentProfile = {
   userLanguage: string;
   confidence: number;
   warnings: string[];
+  /** Which classifier produced outputType/businessGoal. */
+  classifiedBy?: "model" | "heuristic";
+  /** Runner-up readings from the model classifier, most likely first. */
+  alternatives?: IntentAlternative[];
 };
+
+export const INTENT_OUTPUT_TYPES: readonly IntentOutputType[] = [
+  "marketing-site", "web-app-ui", "mobile-app-ui", "component", "component-gallery", "multi-page-site",
+];
+export const INTENT_BUSINESS_GOALS: readonly IntentBusinessGoal[] = [
+  "portfolio", "conversion", "launch", "editorial", "commerce", "community",
+  "documentation", "app-ui", "component-system", "unknown",
+];
+
+export type IntentReferenceInput = {
+  id?: string;
+  annotation?: string;
+  weight?: "primary" | "default" | "muted";
+};
+
+export type IntentAlternative = {
+  outputType: IntentOutputType;
+  businessGoal: IntentBusinessGoal;
+  confidence: number;
+};
+
+/**
+ * Word-boundary phrase matcher. `has(["app"])` matches "an app" / "apps" never
+ * "approachable" / "apparel" / "happy"; multi-word phrases tolerate any whitespace
+ * or hyphen between words ("e-commerce", "sign up").
+ */
+export function createPhraseMatcher(text: string): (phrases: string[]) => boolean {
+  const haystack = text.toLowerCase();
+  return (phrases) =>
+    phrases.some((phrase) => {
+      const pattern = phrase
+        .toLowerCase()
+        .trim()
+        .split(/[\s-]+/)
+        .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("[\\s-]+");
+      return new RegExp(`(?<![a-z0-9])${pattern}(?![a-z0-9])`, "i").test(haystack);
+    });
+}
+
+const MARKETING_PHRASES = [
+  "landing page", "landing pages", "website", "websites", "web site", "site", "homepage", "home page",
+  "marketing page", "marketing site", "microsite", "launch page", "one-pager", "splash page",
+];
+const MOBILE_PLATFORM_PHRASES = [
+  "ios", "android", "iphone", "ipad", "mobile app", "mobile apps", "phone app", "native app",
+  "tab bar", "375px", "phone ui", "ios screen", "watchos", "apple watch",
+];
+const APP_NOUN_PHRASES = [
+  "app", "apps", "application", "web app", "dashboard", "dashboards", "admin", "admin panel",
+  "console", "crm", "inbox", "control panel", "back office", "backoffice", "workspace", "tracker",
+];
+const APP_SCREEN_PHRASES = [
+  "screen", "screens", "flow", "flows", "onboarding", "checkout", "sign in", "sign-in", "login",
+  "log in", "settings", "empty state", "modal", "sidebar", "table view", "detail view", "wizard",
+];
+const COMPONENT_GALLERY_PHRASES = ["component gallery", "components", "ui kit", "design system", "component library"];
+const COMPONENT_PHRASES = ["component", "widget"];
 
 export function extractIntentProfile(args: {
   prompt: string;
   siteType?: string;
   projectBrief?: string;
-  references?: Array<{
-    id?: string;
-    annotation?: string;
-    weight?: "primary" | "default" | "muted";
-  }>;
+  references?: IntentReferenceInput[];
 }): IntentProfile {
   const text = [args.prompt, args.siteType, args.projectBrief].filter(Boolean).join(" ").toLowerCase();
-  const has = (words: string[]) => words.some((word) => text.includes(word));
+  const has = createPhraseMatcher(text);
 
-  const businessGoal: IntentBusinessGoal = has(["portfolio", "work", "case study"])
-    ? "portfolio"
-    : has(["launch", "waitlist", "coming soon"])
-      ? "launch"
-      : has(["shop", "commerce", "buy", "collection"])
-        ? "commerce"
-        : has(["docs", "documentation", "guide"])
-          ? "documentation"
-          : has(["app", "dashboard", "interface"])
-            ? "app-ui"
-            : has(["editorial", "magazine", "issue", "story"])
-              ? "editorial"
-              : has(["convert", "signup", "trial", "lead"])
-                ? "conversion"
-                : "unknown";
+  // Output type first: marketing nouns ("landing page for an iOS app") win over app signals.
+  const marketingNoun = has(MARKETING_PHRASES);
+  const mobileSignal =
+    has(MOBILE_PLATFORM_PHRASES) ||
+    (has(["mobile", "phone"]) && (has(APP_NOUN_PHRASES) || has(APP_SCREEN_PHRASES)));
+  const appSignal = has(APP_NOUN_PHRASES) || (has(APP_SCREEN_PHRASES) && !marketingNoun);
 
-  const outputType: IntentOutputType = has(["mobile app", "ios screen", "android", "tab bar", "375px", "phone ui"])
-    ? "mobile-app-ui"
-    : businessGoal === "app-ui"
-      ? "web-app-ui"
-      : has(["component gallery", "components"])
+  const outputType: IntentOutputType = marketingNoun
+    ? "marketing-site"
+    : mobileSignal && (appSignal || has(MOBILE_PLATFORM_PHRASES))
+      ? "mobile-app-ui"
+      : has(COMPONENT_GALLERY_PHRASES)
         ? "component-gallery"
-        : has(["component"])
+        : has(COMPONENT_PHRASES)
           ? "component"
-          : "marketing-site";
+          : appSignal
+            ? "web-app-ui"
+            : "marketing-site";
+  const isAppOutput = outputType === "web-app-ui" || outputType === "mobile-app-ui";
+
+  const businessGoal: IntentBusinessGoal = has(["portfolio", "case study", "case studies", "my work", "selected work"])
+    ? "portfolio"
+    : isAppOutput
+      ? "app-ui"
+      : has(["launch", "waitlist", "wait list", "coming soon", "pre-launch", "pre-order"])
+        ? "launch"
+        : has(["shop", "store", "storefront", "commerce", "ecommerce", "e-commerce", "buy", "product catalog"])
+          ? "commerce"
+          : has(["docs", "documentation", "api reference", "developer guide", "knowledge base"])
+            ? "documentation"
+            : outputType === "component" || outputType === "component-gallery"
+              ? "component-system"
+              : has(["editorial", "magazine", "journal", "blog", "story", "stories", "zine"])
+                ? "editorial"
+                : has(["event", "events", "meetup", "conference", "community", "networking", "club", "camp", "festival"])
+                  ? "community"
+                  : has(["convert", "conversion", "signup", "sign up", "trial", "lead", "leads", "book a demo"])
+                    ? "conversion"
+                    : "unknown";
 
   const contentPriority = [
-    has(["portfolio", "work", "case study"]) ? "work samples" : "",
+    businessGoal === "portfolio" ? "work samples" : "",
     has(["pricing"]) ? "pricing" : "",
-    has(["waitlist", "signup", "trial"]) ? "primary CTA" : "",
-    has(["story", "editorial", "magazine"]) ? "editorial narrative" : "",
-    has(["product", "feature"]) ? "product value" : "",
+    has(["waitlist", "signup", "sign up", "trial"]) ? "primary CTA" : "",
+    has(["story", "stories", "editorial", "magazine"]) ? "editorial narrative" : "",
+    has(["product", "products", "feature", "features"]) ? "product value" : "",
   ].filter(Boolean);
 
   const mustAvoid = [
@@ -104,9 +176,9 @@ export function extractIntentProfile(args: {
 
   const referenceRoles = (args.references ?? []).map((reference, index) => ({
     referenceId: reference.id ?? `reference-${index + 1}`,
-    role: inferReferenceRole(reference.annotation ?? args.prompt),
+    role: inferReferenceRole(reference.annotation?.trim() || args.prompt),
     weight: reference.weight ?? "default",
-    rationale: reference.annotation,
+    rationale: reference.annotation?.trim() || undefined,
   }));
 
   return {
@@ -123,15 +195,17 @@ export function extractIntentProfile(args: {
     userLanguage: args.prompt,
     confidence: text.trim().length > 24 ? 0.7 : 0.45,
     warnings: businessGoal === "unknown" ? ["Intent is broad; using conservative marketing-site defaults."] : [],
+    classifiedBy: "heuristic",
   };
 }
 
 function inferReferenceRole(text: string): IntentReferenceRole {
-  const lower = text.toLowerCase();
-  if (lower.includes("layout") || lower.includes("composition")) return "layout";
-  if (lower.includes("color") || lower.includes("palette")) return "palette";
-  if (lower.includes("type") || lower.includes("font")) return "typography";
-  if (lower.includes("photo") || lower.includes("image")) return "imagery";
-  if (lower.includes("button") || lower.includes("component")) return "component";
+  const has = createPhraseMatcher(text);
+  if (has(["layout", "composition", "grid", "structure"])) return "layout";
+  if (has(["color", "colors", "colour", "palette"])) return "palette";
+  if (has(["type", "typography", "font", "fonts", "typeface"])) return "typography";
+  if (has(["photo", "photos", "photography", "image", "images", "imagery", "illustration"])) return "imagery";
+  if (has(["button", "buttons", "component", "components", "card", "cards"])) return "component";
+  if (has(["interaction", "motion", "animation", "hover"])) return "interaction";
   return "mood";
 }

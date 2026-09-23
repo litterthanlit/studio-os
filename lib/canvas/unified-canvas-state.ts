@@ -125,6 +125,10 @@ export type ReferenceItem = BaseCanvasItem & {
   isStyleRef?: boolean;
   weight?: "primary" | "default" | "muted";
   compositionAnalysis?: CompositionAnalysis;  // cached composition data
+  /** Convex file-storage id when `imageUrl` is an uploaded asset (not a data URL). */
+  storageId?: string;
+  /** SHA-256 of the uploaded (downscaled) bytes. */
+  contentHash?: string;
 };
 
 export type ArtboardItem = BaseCanvasItem & {

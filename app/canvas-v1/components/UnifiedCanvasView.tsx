@@ -62,47 +62,23 @@ import { computeDesignPasteTarget } from "@/lib/canvas/design-paste-target";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import { MasterEditOverlay } from "./MasterEditOverlay";
+import { CanvasAssetUploadContext, useCanvasAssetUpload } from "@/lib/canvas/use-canvas-asset-upload";
+import { useDataUrlAssetMigration, withAssetIdentity } from "@/lib/canvas/use-data-url-asset-migration";
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Failed to read file"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
 }
 
 /** Max dimension (longest side) for dropped/pasted reference images */
 const REF_IMAGE_MAX_DIM = 400;
 const REF_IMAGE_FALLBACK = 200;
 
-/** Load an image src and return proportionally-scaled {width, height} */
-function getImageDimensions(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const { naturalWidth: nw, naturalHeight: nh } = img;
-      if (nw <= 0 || nh <= 0) {
-        resolve({ width: REF_IMAGE_FALLBACK, height: REF_IMAGE_FALLBACK });
-        return;
-      }
-      const longest = Math.max(nw, nh);
-      const scale = longest > REF_IMAGE_MAX_DIM ? REF_IMAGE_MAX_DIM / longest : 1;
-      resolve({
-        width: Math.round(nw * scale),
-        height: Math.round(nh * scale),
-      });
-    };
-    img.onerror = () => resolve({ width: REF_IMAGE_FALLBACK, height: REF_IMAGE_FALLBACK });
-    img.src = src;
-  });
+/** Display size on the moodboard for an uploaded image of the given pixel size. */
+function referenceDisplaySize(width: number, height: number): { width: number; height: number } {
+  if (width <= 0 || height <= 0) return { width: REF_IMAGE_FALLBACK, height: REF_IMAGE_FALLBACK };
+  const longest = Math.max(width, height);
+  const scale = longest > REF_IMAGE_MAX_DIM ? REF_IMAGE_MAX_DIM / longest : 1;
+  return { width: Math.round(width * scale), height: Math.round(height * scale) };
 }
 
 type UnifiedCanvasViewProps = {
@@ -137,6 +113,9 @@ function createLoadingArtboards(currentItems: CanvasItem[]) {
 
 export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const { state, dispatch } = useCanvas();
+  const imageUploader = useCanvasAssetUpload(projectId);
+  // Existing data-URL images move to file storage in the background once signed in.
+  useDataUrlAssetMigration({ items: state.items, uploader: imageUploader, dispatch });
   const { viewport, items } = state;
   const loadingArtboards = React.useMemo(() => createLoadingArtboards(items), [items]);
   const hasArtboards = items.some((item) => item.kind === "artboard");
@@ -798,11 +777,12 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       const pendingRefs: ReferenceItem[] = [];
       for (let i = 0; i < files.length; i++) {
         try {
-          const dataUrl = await fileToDataUrl(files[i]);
-          const dims = await getImageDimensions(dataUrl);
+          // Uploaded to file storage (signed in) so the canvas document stores a URL, not bytes.
+          const asset = await imageUploader.upload(files[i]);
+          const dims = referenceDisplaySize(asset.width, asset.height);
           const refItem: ReferenceItem = createMoodboardReferenceItem({
             id: uid("ref"),
-            imageUrl: dataUrl,
+            imageUrl: asset.imageUrl,
             title: files[i].name,
             source: "upload",
             naturalWidth: dims.width,
@@ -810,15 +790,16 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             existingItems: [...items, ...pendingRefs],
             zIndex: items.length + i,
           });
-          pendingRefs.push(refItem);
+          const storedRef = withAssetIdentity(refItem, asset);
+          pendingRefs.push(storedRef);
           dispatch({ type: "PUSH_HISTORY", description: "Added reference" });
-          dispatch({ type: "ADD_ITEM", item: refItem });
+          dispatch({ type: "ADD_ITEM", item: storedRef });
         } catch {
           // Skip files that fail to read
         }
       }
     },
-    [dispatch, items]
+    [dispatch, imageUploader, items]
   );
 
   // ── Clipboard paste support ────────────────────────────────────────
@@ -872,11 +853,11 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
         const file = imageItems[i].getAsFile();
         if (!file) continue;
         try {
-          const dataUrl = await fileToDataUrl(file);
-          const dims = await getImageDimensions(dataUrl);
+          const asset = await imageUploader.upload(file);
+          const dims = referenceDisplaySize(asset.width, asset.height);
           const refItem: ReferenceItem = createMoodboardReferenceItem({
             id: uid("ref"),
-            imageUrl: dataUrl,
+            imageUrl: asset.imageUrl,
             title: "Pasted image",
             source: "upload",
             naturalWidth: dims.width,
@@ -884,9 +865,10 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
             existingItems: [...items, ...pendingRefs],
             zIndex: items.length + i,
           });
-          pendingRefs.push(refItem);
+          const storedRef = withAssetIdentity(refItem, asset);
+          pendingRefs.push(storedRef);
           dispatch({ type: "PUSH_HISTORY", description: "Pasted reference" });
-          dispatch({ type: "ADD_ITEM", item: refItem });
+          dispatch({ type: "ADD_ITEM", item: storedRef });
         } catch {
           // Skip
         }
@@ -895,7 +877,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [dispatch, items, items.length, state.selection.activeItemId, state.selection.selectedNodeId]);
+  }, [dispatch, imageUploader, items, items.length, state.selection.activeItemId, state.selection.selectedNodeId]);
 
   // ── Click on empty canvas → deselect ───────────────────────────────
 
@@ -942,6 +924,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const moodboardBounds = getMoodboardBounds(items);
 
   return (
+    <CanvasAssetUploadContext.Provider value={imageUploader}>
     <div
       className="editor-shell flex h-full min-h-0 w-[100dvw] min-w-0 max-w-[100dvw] flex-col overflow-hidden bg-[var(--sidebar-bg)] text-[var(--text-primary)]"
       style={shellViewportStyle}
@@ -1287,5 +1270,6 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
       <WelcomeOverlay visible={welcomeVisible} onDismiss={dismissWelcome} />
 
     </div>
+    </CanvasAssetUploadContext.Provider>
   );
 }

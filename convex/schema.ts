@@ -168,6 +168,23 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_owner", ["ownerId"]),
 
+  // Uploaded canvas images (references, image-node replacements) in Convex file
+  // storage. The canvas document stores only the URL, storage id and content
+  // hash, so uploads never grow `canvasDocuments.state`.
+  canvasAssets: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.id("projects"),
+    storageId: v.id("_storage"),
+    contentHash: v.string(),
+    contentType: v.string(),
+    byteSize: v.number(),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    createdAt: timestamp,
+  })
+    .index("by_project_hash", ["projectId", "contentHash"])
+    .index("by_owner", ["ownerId"]),
+
   boards: defineTable({
     ownerId: v.id("users"),
     projectId: v.optional(v.id("projects")),

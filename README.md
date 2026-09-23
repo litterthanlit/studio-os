@@ -41,7 +41,7 @@ Read these before writing code. Do not start from `extensions/cursor/` — that 
 - **Canvas:** Infinite canvas with V6 DesignNode renderer (5 node types, live HTML/CSS)
 - **State:** `useReducer` with 50+ actions, snapshot undo/redo
 - **Storage:** Convex for backend data and durable limits; localStorage is only a local cache/draft fallback
-- **AI:** Multi-model via OpenRouter (Claude Sonnet 4.6, Gemini Flash)
+- **AI:** Multi-model via OpenRouter — models configured via model routes (`lib/ai/model-router.ts`)
 - **Taste Engine:** Reference extraction → directive compilation → constrained generation → feedback loop
 
 ## Marketing Images

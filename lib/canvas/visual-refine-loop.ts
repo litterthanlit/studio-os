@@ -228,7 +228,8 @@ export async function runVisualRefineLoop(
     iterations: [],
   });
 
-  if (referenceUrls.length === 0 || !process.env.OPENROUTER_API_KEY) {
+  // The key is only needed for real vision scoring; injected scorers (proofs) run without it.
+  if (referenceUrls.length === 0 || (!process.env.OPENROUTER_API_KEY && !scoreScreenshot)) {
     return emptyResult(tree);
   }
 

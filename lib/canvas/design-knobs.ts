@@ -361,10 +361,13 @@ function applyCompositionSignal(knobs: DesignKnobVector, args: {
   return next;
 }
 
-export function serializeDesignKnobsForPrompt(knobs: DesignKnobVector): string {
+export function serializeDesignKnobsForPrompt(
+  knobs: DesignKnobVector,
+  options: { omitSectionCount?: boolean } = {},
+): string {
   return [
     "## Design Knob Vector",
-    `- section count: ${knobs.layout.sectionCount.min}-${knobs.layout.sectionCount.max}`,
+    ...(options.omitSectionCount ? [] : [`- section count: ${knobs.layout.sectionCount.min}-${knobs.layout.sectionCount.max}`]),
     `- density ${n(knobs.layout.density)}, whitespace drama ${n(knobs.layout.whitespaceDrama)}, asymmetry ${n(knobs.layout.asymmetry)}, rhythm variation ${n(knobs.layout.rhythmVariation)}`,
     `- full-bleed ratio ${n(knobs.layout.fullBleedRatio)}, grid strictness ${n(knobs.layout.gridStrictness)}, height variance ${n(knobs.layout.sectionHeightVariance)}`,
     `- type scale contrast ${n(knobs.typography.scaleContrast)}, serif bias ${n(knobs.typography.editorialSerifBias)}, casing ${knobs.typography.casing}, body tone ${knobs.typography.bodyTone}`,

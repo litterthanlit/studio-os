@@ -76,9 +76,53 @@ const CORNER_RADIUS_MAP: Record<string, string> = {
 
 // ─── Compiler ───────────────────────────────────────────────────────────────
 
+export type CompileDirectivesOptions = {
+  /** In-app screens (web/mobile app UI): drop page-composition directives, allow status colors. */
+  appScreen?: boolean;
+};
+
+/** Page-composition dimensions that only make sense for marketing pages. */
+const MARKETING_ONLY_DIMENSIONS = new Set(["heroStyle", "sectionFlow", "rhythm", "composition", "imageSizing"]);
+
 export function compileTasteToDirectives(
   taste: TasteProfile | null | undefined,
-  fidelityMode: FidelityMode = "balanced"
+  fidelityMode: FidelityMode = "balanced",
+  options: CompileDirectivesOptions = {},
+): CompiledDirectives {
+  const result = compileTasteDirectivesForPage(taste, fidelityMode);
+  if (!options.appScreen) return result;
+
+  const keep = (d: Directive) => !MARKETING_ONLY_DIMENSIONS.has(d.dimension);
+  result.hard = result.hard.filter(keep);
+  result.soft = result.soft.filter(keep);
+  result.soft.push(buildStatusColorDirective(taste));
+  return result;
+}
+
+/**
+ * App screens may use status colors (success / warning / danger / info) on status UI
+ * only, tuned to the palette's temperature. The taste validator exempts nodes named
+ * "Status: …" from palette violations.
+ */
+export function buildStatusColorDirective(taste: TasteProfile | null | undefined): Directive {
+  const temperature = taste?.colorBehavior?.temperature;
+  const tones =
+    temperature === "warm"
+      ? { success: "#3F8F5A", warning: "#D98E1F", danger: "#C8473B", info: "#3A6EA5" }
+      : temperature === "cool"
+        ? { success: "#1F9D7A", warning: "#E0A21B", danger: "#D64550", info: "#3B6FD8" }
+        : { success: "#2E9A63", warning: "#E09B1A", danger: "#D14343", info: "#3A72C8" };
+  return {
+    dimension: "statusColors",
+    rule: `Status colors are allowed ONLY on status UI (badges, alerts, toasts, validation) named "Status: <tone> · …" — success ${tones.success}, warning ${tones.warning}, danger ${tones.danger}, info ${tones.info}. Shift them toward the palette's ${temperature ?? "neutral"} temperature and pair every status color with a text label. Everything else stays on the palette.`,
+    value: [tones.success, tones.warning, tones.danger, tones.info],
+    source: "extracted",
+  };
+}
+
+function compileTasteDirectivesForPage(
+  taste: TasteProfile | null | undefined,
+  fidelityMode: FidelityMode,
 ): CompiledDirectives {
   const result: CompiledDirectives = {
     hard: [],

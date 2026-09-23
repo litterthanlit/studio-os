@@ -125,6 +125,23 @@ export default defineSchema({
     .index("by_document_revision", ["canvasDocumentId", "revision"])
     .index("by_owner", ["ownerId"]),
 
+  // Project-level design state (taste profile + design tokens). One row per
+  // project, looked up `.unique()` on by_project. Written by the signed-in
+  // editor; read by every agent route when the caller does not pass them.
+  // localStorage (`studio-os:*` project state) stays a cache.
+  projectDesignState: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.id("projects"),
+    tasteProfile: v.optional(v.any()),
+    designTokens: v.optional(v.any()),
+    tasteUpdatedAt: v.optional(timestamp),
+    tokensUpdatedAt: v.optional(timestamp),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+    .index("by_project", ["projectId"])
+    .index("by_owner", ["ownerId"]),
+
   boards: defineTable({
     ownerId: v.id("users"),
     projectId: v.optional(v.id("projects")),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAgentDesignState } from "@/lib/agent/agent-design-state";
 import {
   agentConvexAuthFromResult,
   authorizeAgentProjectAccess,
@@ -14,7 +15,6 @@ import {
   agentLoadCanvas,
   agentSaveCanvas,
 } from "@/lib/agent/convex-agent-client";
-import { defaultDesignTokens } from "@/lib/agent/default-design-tokens";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { normalizeRemoteCanvasState } from "@/lib/canvas/canvas-convex-sync";
 import type { TasteProfile } from "@/types/taste-profile";
@@ -72,18 +72,28 @@ export async function POST(req: NextRequest) {
 
   if (action === "get") {
     try {
-      const doc = await agentLoadCanvas(convexAuth, auth.projectId!);
+      const [doc, design] = await Promise.all([
+        agentLoadCanvas(convexAuth, auth.projectId!),
+        resolveAgentDesignState({
+          auth: convexAuth,
+          projectId: auth.projectId!,
+          tasteProfile,
+          designTokens,
+        }),
+      ]);
       const canvasState = doc?.state
         ? normalizeRemoteCanvasState(doc.state)
         : normalizeRemoteCanvasState(null);
 
+      // Taste + tokens: request body, else the project's stored design state, else defaults.
       return NextResponse.json({
         projectId,
         revision: doc?.revision ?? null,
         canvasState,
         summary: buildCanvasSummary(canvasState),
-        tasteProfile: tasteProfile ?? null,
-        designTokens: designTokens ?? defaultDesignTokens(),
+        tasteProfile: design.tasteProfile,
+        designTokens: design.designTokens,
+        designState: design.source,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load canvas";

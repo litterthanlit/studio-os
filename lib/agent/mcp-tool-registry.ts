@@ -88,7 +88,7 @@ export function registerStudioOsMcpTools(
     "get_canvas",
     {
       description:
-        "Load a project canvas. Returns a compact summary by default. Set includeState true for the full canvas JSON.",
+        "Load a project canvas. Returns a compact summary plus the project's stored taste profile and design tokens by default. Set includeState true for the full canvas JSON.",
       inputSchema: {
         projectId: z.string().optional(),
         includeState: z.boolean().optional(),
@@ -150,7 +150,7 @@ export function registerStudioOsMcpTools(
     "generate_screen",
     {
       description:
-        "Generate a taste-calibrated screen from project context and write it to the canvas.",
+        "Generate a taste-calibrated screen from project context (stored taste profile, tokens and references) and write it to the canvas.",
       inputSchema: {
         projectId: z.string().optional(),
         prompt: z.string(),
@@ -447,10 +447,11 @@ export function registerStudioOsMcpTools(
     "request_design",
     {
       description:
-        "Request a taste-calibrated V6 design generation (returns DesignNode variant trees).",
+        "Request a taste-calibrated V6 design generation (returns DesignNode variant trees). With a projectId, the project's stored taste profile and tokens are used when not passed.",
       inputSchema: {
+        projectId: z.string().optional(),
         prompt: z.string(),
-        tokens: z.record(z.string(), z.unknown()),
+        tokens: z.record(z.string(), z.unknown()).optional(),
         tasteProfile: z.record(z.string(), z.unknown()).optional(),
         referenceUrls: z.array(z.string()).optional(),
         siteType: z.string().optional(),
@@ -461,7 +462,12 @@ export function registerStudioOsMcpTools(
       },
     },
     async (args, extra) =>
-      withContext(extra, (context) => callStudioApi(context, "/api/agent/request-design", args)),
+      withContext(extra, (context) =>
+        callStudioApi(context, "/api/agent/request-design", {
+          ...args,
+          projectId: args.projectId?.trim() || context.defaultProjectId?.trim() || undefined,
+        }),
+      ),
   );
 
   server.registerTool(
@@ -473,7 +479,7 @@ export function registerStudioOsMcpTools(
         projectId: z.string().optional(),
         projectName: z.string(),
         canvasState: z.record(z.string(), z.unknown()),
-        tasteProfile: z.record(z.string(), z.unknown()),
+        tasteProfile: z.record(z.string(), z.unknown()).optional(),
         screenId: z.string(),
         screenshotDataUrl: z.string(),
         referenceUrls: z.array(z.string()),

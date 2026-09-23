@@ -26,6 +26,16 @@ import { isAgentPersonalAccessToken } from "../lib/agent/agent-token";
 import { validateAndNormalizeDesignTree } from "../lib/canvas/design-tree-validator";
 import { createEmptyCanvas } from "../lib/canvas/unified-canvas-state";
 import type { DesignNode } from "../lib/canvas/design-node";
+import { readFileSync } from "node:fs";
+import { resolveAgentDesignState } from "../lib/agent/agent-design-state";
+import { defaultAgentGenerationDeps, executeAgentGenerateScreen } from "../lib/agent/agent-generation";
+import { setRouterForTesting } from "../lib/ai/model-router";
+import {
+  generateV6DesignVariants,
+  type GenerateV6DesignVariantsInput,
+} from "../lib/canvas/generate-design-core";
+import type { DesignSystemTokens } from "../lib/canvas/generate-system";
+import type { TasteProfile } from "../types/taste-profile";
 
 const DEV_BASE = process.env.AGENT_PLATFORM_PROOF_BASE ?? "http://localhost:3000";
 
@@ -438,6 +448,163 @@ async function testDevBypassGenerateScreen() {
   assert.ok(artboardIds.includes(generate.data.artboardId));
 }
 
+// ── 0.4: project taste + tokens reach every agent route ─────────────────────
+
+const storedTaste = {
+  summary: "Stored project taste — editorial, restrained.",
+  adjectives: ["editorial", "restrained"],
+  archetypeMatch: "editorial-brand",
+  archetypeConfidence: 0.85,
+  layoutBias: { density: "spacious", rhythm: "asymmetric", heroStyle: "full-bleed", sectionFlow: "editorial-grid", gridBehavior: "editorial", whitespaceIntent: "dramatic" },
+  typographyTraits: { scale: "dramatic", headingTone: "editorial", bodyTone: "literary", contrast: "high", casePreference: "mixed", recommendedPairings: ["Bespoke Serif", "Geist"] },
+  colorBehavior: {
+    mode: "light", palette: "restrained", accentStrategy: "no-accent", saturation: "desaturated", temperature: "warm",
+    suggestedColors: { background: "#FAF9F6", surface: "#F1EEE8", text: "#1A1A1A", accent: "#8A6F4D" },
+  },
+  imageTreatment: { style: "editorial", sizing: "full-bleed", treatment: "raw", cornerRadius: "subtle", borders: false, shadow: "none", aspectPreference: "mixed" },
+  ctaTone: { style: "editorial", shape: "sharp", hierarchy: "text-link-preferred" },
+  avoid: ["pricing tables"],
+  confidence: 0.85,
+  referenceCount: 2,
+  dominantReferenceType: "photography",
+  warnings: [],
+} as unknown as TasteProfile;
+
+const storedTokens = {
+  colors: { primary: "#1A1A1A", secondary: "#F1EEE8", accent: "#8A6F4D", background: "#FAF9F6", surface: "#F1EEE8", text: "#1A1A1A", textMuted: "#6B6B6B", border: "#E5E5E0" },
+  typography: { fontFamily: "Bespoke Serif", scale: {}, weights: {} },
+  spacing: {},
+  radii: {},
+  shadows: {},
+} as unknown as DesignSystemTokens;
+
+async function testDesignStateResolution() {
+  const projectId = "proj_design_state" as never;
+  const auth = { serviceSecret: "proof" };
+  const load = async () => ({ tasteProfile: storedTaste, designTokens: storedTokens, tasteUpdatedAt: 1, tokensUpdatedAt: 1, updatedAt: 1 });
+
+  const fromProject = await resolveAgentDesignState({ auth, projectId, load });
+  assert.equal(fromProject.tasteProfile?.summary, storedTaste.summary);
+  assert.equal(fromProject.designTokens.typography.fontFamily, "Bespoke Serif");
+  assert.deepEqual(fromProject.source, { tasteProfile: "project", designTokens: "project" });
+
+  const passedTaste = { ...storedTaste, summary: "Passed by the agent" } as TasteProfile;
+  const fromRequest = await resolveAgentDesignState({ auth, projectId, tasteProfile: passedTaste, load });
+  assert.equal(fromRequest.tasteProfile?.summary, "Passed by the agent", "request body wins");
+  assert.equal(fromRequest.source.designTokens, "project", "tokens still filled from the project");
+
+  const failing = await resolveAgentDesignState({ auth, projectId, load: async () => { throw new Error("no table"); } });
+  assert.equal(failing.tasteProfile, null);
+  assert.equal(failing.source.designTokens, "default", "falls back to default tokens");
+
+  for (const route of [
+    "app/api/agent/canvas/route.ts",
+    "app/api/agent/review-implementation/route.ts",
+  ]) {
+    assert.match(readFileSync(route, "utf8"), /resolveAgentDesignState\(/, `${route} resolves stored design state`);
+  }
+  for (const route of [
+    "app/api/agent/design-contract/route.ts",
+    "app/api/agent/visual-review/route.ts",
+    "app/api/agent/request-design/route.ts",
+  ]) {
+    assert.match(readFileSync(route, "utf8"), /resolveDesignStateForOptionalProject\(/, `${route} resolves stored design state`);
+  }
+  for (const route of ["app/api/agent/generate-screen/route.ts", "app/api/agent/generate-screen-set/route.ts"]) {
+    assert.match(readFileSync(route, "utf8"), /executeAgentGenerateScreen(Set)?\(/, `${route} uses the shared executor`);
+  }
+  console.log("[proof:agent-platform] design state: request > project > default; every agent route resolves it");
+}
+
+function fakeRouter(tree: DesignNode) {
+  const calls: string[] = [];
+  const router = {
+    chat: {
+      completions: {
+        create: async (params: { model: string }) => {
+          calls.push(params.model);
+          return {
+            choices: [{ message: { content: JSON.stringify(tree) }, finish_reason: "stop" }],
+            usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+          };
+        },
+      },
+    },
+  };
+  return { router: router as never, calls };
+}
+
+async function testAgentGenerateUsesStoredTaste() {
+  const saved = {
+    key: process.env.OPENROUTER_API_KEY,
+    screenshot: process.env.STUDIO_OS_DISABLE_SCREENSHOT,
+    lummi: process.env.LUMMI_API_KEY,
+  };
+  process.env.OPENROUTER_API_KEY = "proof-mock-key";
+  process.env.STUDIO_OS_DISABLE_SCREENSHOT = "true";
+  delete process.env.LUMMI_API_KEY;
+  const { router, calls } = fakeRouter(sampleTree);
+  setRouterForTesting(router);
+
+  try {
+    const canvas = applyCanvasAgentOperations(createEmptyCanvas(), [
+      { type: "add_reference", imageUrl: "https://img.example/ref-b.png" },
+      { type: "add_reference", imageUrl: "https://img.example/ref-a.png" },
+    ]);
+    assert.equal(canvas.errors.length, 0, canvas.errors.join("; "));
+    // Star the second reference; generation should receive it first.
+    canvas.state.items = canvas.state.items.map((item) =>
+      item.kind === "reference" && item.imageUrl.endsWith("ref-a.png") ? { ...item, weight: "primary" as const } : item,
+    );
+
+    let generatorInput: GenerateV6DesignVariantsInput | null = null;
+    let savedState: unknown = null;
+    const outcome = await executeAgentGenerateScreen(
+      {
+        auth: { serviceSecret: "proof" },
+        projectId: "proj_design_state" as never,
+        prompt: "Editorial landing page for a small press",
+      },
+      {
+        ...defaultAgentGenerationDeps,
+        loadCanvas: async () => ({ state: canvas.state, revision: 7 }),
+        loadDesignState: async () => ({ tasteProfile: storedTaste, designTokens: storedTokens, tasteUpdatedAt: 1, tokensUpdatedAt: 1, updatedAt: 1 }),
+        saveCanvas: async (_auth, args) => {
+          savedState = args.state;
+          assert.equal(args.expectedRevision, 7);
+          return { id: "doc" as never, revision: 8, unchanged: false };
+        },
+        generateScreen: async (input) => {
+          generatorInput = input;
+          return generateV6DesignVariants(input);
+        },
+      },
+    );
+
+    assert.ok(generatorInput, "generation ran");
+    const input = generatorInput as GenerateV6DesignVariantsInput;
+    assert.equal(input.tasteProfile?.summary, storedTaste.summary, "agent generate path receives the stored taste");
+    assert.equal(input.tokens.typography.fontFamily, "Bespoke Serif", "and the stored tokens");
+    assert.equal(input.referenceUrls?.length, 2);
+    assert.equal(input.references?.[0]?.weight, "primary", "real reference weights, primary first");
+    assert.equal(input.referenceUrls?.[0], "https://img.example/ref-a.png");
+    assert.equal(outcome.status, 200, JSON.stringify(outcome.body).slice(0, 400));
+    const v6Debug = outcome.body.v6Debug as { visualRefineAttempted?: boolean };
+    assert.equal(v6Debug.visualRefineAttempted, true, "visual refine attempted when references exist");
+    assert.deepEqual(outcome.body.designState, { tasteSource: "project", tokensSource: "project", archetype: "editorial-brand" });
+    assert.ok(savedState, "artboard written");
+    assert.ok(calls.length > 0, "model calls went through the mocked router");
+    console.log(`[proof:agent-platform] agent generate_screen used stored taste; visualRefineAttempted=true (${calls.length} mocked model calls)`);
+  } finally {
+    setRouterForTesting(null);
+    if (saved.key === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = saved.key;
+    if (saved.screenshot === undefined) delete process.env.STUDIO_OS_DISABLE_SCREENSHOT;
+    else process.env.STUDIO_OS_DISABLE_SCREENSHOT = saved.screenshot;
+    if (saved.lummi !== undefined) process.env.LUMMI_API_KEY = saved.lummi;
+  }
+}
+
 async function main() {
   testValidatorRejectsInvalidTree();
   testCanvasOpsAddArtboard();
@@ -450,6 +617,8 @@ async function main() {
   await testDevBypassGetCanvas();
   await testMcpInitializeAndToolsList();
   await testDevBypassGenerateScreen();
+  await testDesignStateResolution();
+  await testAgentGenerateUsesStoredTaste();
   console.log("proof:agent-platform passed");
 }
 

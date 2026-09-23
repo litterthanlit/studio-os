@@ -295,8 +295,11 @@ function testSharedConvexPersistPath() {
   assert.match(document, /applyCanvasDocumentWrite/);
 
   assert.match(read("app/api/agent/canvas/route.ts"), /applyCanvasDocumentWrite/);
-  assert.match(read("app/api/agent/generate-screen/route.ts"), /applyCanvasDocumentWrite/);
-  assert.match(read("app/api/agent/generate-screen-set/route.ts"), /applyCanvasDocumentWrite/);
+  // Generate routes delegate to the shared executor, which owns the document write.
+  assert.match(read("lib/agent/agent-generation.ts"), /applyCanvasDocumentWrite/);
+  assert.match(read("lib/agent/agent-generation.ts"), /saveCanvas/);
+  assert.match(read("app/api/agent/generate-screen/route.ts"), /executeAgentGenerateScreen\(/);
+  assert.match(read("app/api/agent/generate-screen-set/route.ts"), /executeAgentGenerateScreenSet\(/);
 
   const verify = read("docs/VERIFY.md");
   assert.match(verify, /Canvas source of truth/);

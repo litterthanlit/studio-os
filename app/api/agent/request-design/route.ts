@@ -7,6 +7,7 @@ import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import { authorizeAgentRequest } from "@/lib/agent/agent-api-auth";
 import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
 import { generateV6DesignVariants } from "@/lib/canvas/generate-design-core";
+import { resolveDesignStateForOptionalProject } from "@/lib/agent/agent-design-state-route";
 
 /**
  * POST /api/agent/request-design
@@ -22,7 +23,9 @@ export async function POST(req: NextRequest) {
 
   const guarded = await readGuardedJson<{
     prompt: string;
-    tokens: DesignSystemTokens;
+    /** Optional: when set, stored project taste/tokens fill in whatever is not passed. */
+    projectId?: string;
+    tokens?: DesignSystemTokens | null;
     tasteProfile?: TasteProfile | null;
     referenceUrls?: string[];
     siteType?: SiteType;
@@ -42,14 +45,25 @@ export async function POST(req: NextRequest) {
   if (!guarded.ok) return guarded.response;
 
   const body = guarded.body;
-  if (!body.prompt?.trim() || !body.tokens) {
-    return NextResponse.json({ error: "prompt and tokens are required" }, { status: 400 });
+  if (!body.prompt?.trim()) {
+    return NextResponse.json({ error: "prompt is required" }, { status: 400 });
+  }
+
+  const design = await resolveDesignStateForOptionalProject(req, body.projectId, {
+    tasteProfile: body.tasteProfile,
+    designTokens: body.tokens,
+  });
+  if (!design.designTokens) {
+    return NextResponse.json(
+      { error: "tokens are required (or pass a projectId with stored design tokens)" },
+      { status: 400 },
+    );
   }
 
   const result = await generateV6DesignVariants({
     prompt: body.prompt.trim(),
-    tokens: body.tokens,
-    tasteProfile: body.tasteProfile ?? null,
+    tokens: design.designTokens,
+    tasteProfile: design.tasteProfile,
     referenceUrls: body.referenceUrls,
     siteType: body.siteType,
     siteName: body.siteName,

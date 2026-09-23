@@ -44,6 +44,7 @@ import type {
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode } from "@/lib/canvas/compose";
 import { mergeRefreshedTasteProfile, type TasteProfile } from "@/types/taste-profile";
+import { useProjectDesignState } from "@/lib/canvas/use-project-design-state";
 import type { SiteType } from "@/lib/canvas/templates";
 import { isHintSeen, markHintSeen } from "./OnboardingHint";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
@@ -454,6 +455,8 @@ export function PromptComposerV2({
   const [tasteProfile, setTasteProfile] = React.useState<TasteProfile | null>(
     () => (projectId ? getProjectState(projectId).canvas?.tasteProfile ?? null : null)
   );
+  // Taste + tokens: localStorage cache, written through to Convex when signed in (agents read it).
+  const { persistDesignState } = useProjectDesignState(projectId, { onRemoteTaste: setTasteProfile });
 
   // Fidelity mode: persisted in project state, same pattern as tasteProfile
   const [fidelityMode, setFidelityMode] = React.useState<FidelityMode>(
@@ -525,12 +528,12 @@ export function PromptComposerV2({
       const updatedProfile = { ...tasteProfile, userOverrides: overrides };
       setTasteProfile(updatedProfile);
       if (projectId) {
-        upsertProjectState(projectId, { canvas: { tasteProfile: updatedProfile } });
+        persistDesignState({ tasteProfile: updatedProfile });
       }
 
       dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
     },
-    [tasteProfile, projectId, dispatch]
+    [tasteProfile, projectId, dispatch, persistDesignState]
   );
 
   const [isRefreshingTaste, setIsRefreshingTaste] = React.useState(false);
@@ -562,7 +565,7 @@ export function PromptComposerV2({
         // Refresh re-extracts taste but keeps the designer's corrections.
         const profile = mergeRefreshedTasteProfile(tasteProfile, data as TasteProfile);
         setTasteProfile(profile);
-        upsertProjectState(projectId, { canvas: { tasteProfile: profile } });
+        persistDesignState({ tasteProfile: profile });
       }
     } catch (err) {
       console.error("[TasteCard] Refresh failed:", err);
@@ -571,7 +574,7 @@ export function PromptComposerV2({
     } finally {
       setIsRefreshingTaste(false);
     }
-  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value, tasteProfile]);
+  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value, tasteProfile, persistDesignState]);
 
   const hasArtboards = items.some((i) => i.kind === "artboard");
   const chips = getSuggestionChips(selectedNode, hasArtboards);
@@ -779,7 +782,7 @@ export function PromptComposerV2({
         // Keep the artboard renderer in sync with the freshly chosen token set
         // so generated pages immediately render instead of falling back to
         // "No design tokens available" on first paint.
-        upsertProjectState(projectId, { canvas: { designTokens: tokens } });
+        persistDesignState({ designTokens: tokens });
       }
 
       // Step 2.5a: Analyze compositions for weighted references (cached per reference item)
@@ -871,7 +874,7 @@ export function PromptComposerV2({
             if (tasteData && typeof tasteData === "object" && tasteData.summary) {
               resolvedTaste = tasteData as TasteProfile;
               setTasteProfile(resolvedTaste);
-              upsertProjectState(projectId, { canvas: { tasteProfile: resolvedTaste } });
+              persistDesignState({ tasteProfile: resolvedTaste });
             }
           }
         } catch (tasteErr) {
@@ -1103,7 +1106,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items, persistDesignState]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {

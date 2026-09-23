@@ -59,6 +59,14 @@ export function getRouter(): OpenAI {
   return _router;
 }
 
+/**
+ * Proof/test seam: route every model call through a stand-in client (mocked
+ * completions). Pass null to restore the real OpenRouter client.
+ */
+export function setRouterForTesting(router: OpenAI | null): void {
+  _router = router;
+}
+
 // ── Convenience caller ────────────────────────────────────────
 export async function callModel(options: {
   model: string;

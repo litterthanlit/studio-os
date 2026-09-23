@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveDesignStateForOptionalProject } from "@/lib/agent/agent-design-state-route";
 import {
   buildDesignContract,
   formatDesignContractMarkdown,
@@ -48,12 +49,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const design = await resolveDesignStateForOptionalProject(req, projectId, { tasteProfile, designTokens });
   const contract = buildDesignContract({
     projectId,
     projectName,
     state: canvasState,
-    tasteProfile: tasteProfile ?? null,
-    designTokens: designTokens ?? null,
+    tasteProfile: design.tasteProfile,
+    designTokens: design.designTokens,
     projectContext: projectContext ?? null,
   });
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveDesignStateForOptionalProject } from "@/lib/agent/agent-design-state-route";
 import {
   buildDesignContract,
 } from "@/lib/canvas/agent-design-contract";
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     projectId: string;
     projectName: string;
     canvasState: UnifiedCanvasState;
-    tasteProfile: TasteProfile;
+    tasteProfile?: TasteProfile | null;
     screenId: string;
     screenshotDataUrl: string;
     referenceUrls?: string[];
@@ -51,9 +52,18 @@ export async function POST(req: NextRequest) {
     projectContext,
   } = guarded.body;
 
-  if (!projectId || !projectName || !canvasState || !tasteProfile || !screenId || !screenshotDataUrl) {
+  if (!projectId || !projectName || !canvasState || !screenId || !screenshotDataUrl) {
     return NextResponse.json(
-      { error: "projectId, projectName, canvasState, tasteProfile, screenId, and screenshotDataUrl are required" },
+      { error: "projectId, projectName, canvasState, screenId, and screenshotDataUrl are required" },
+      { status: 400 },
+    );
+  }
+
+  // Taste: request body, else the project's stored design state.
+  const { tasteProfile: resolvedTaste } = await resolveDesignStateForOptionalProject(req, projectId, { tasteProfile });
+  if (!resolvedTaste) {
+    return NextResponse.json(
+      { error: "No taste profile: pass tasteProfile or extract taste in the project first" },
       { status: 400 },
     );
   }
@@ -62,7 +72,7 @@ export async function POST(req: NextRequest) {
     projectId,
     projectName,
     state: canvasState,
-    tasteProfile,
+    tasteProfile: resolvedTaste,
     projectContext: projectContext ?? null,
   });
 
@@ -73,7 +83,7 @@ export async function POST(req: NextRequest) {
       benchmarkScore = await scoreDesignBenchmarkFidelity(
         refs,
         screenshotDataUrl,
-        tasteProfile,
+        resolvedTaste,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Visual scoring failed";

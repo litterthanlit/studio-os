@@ -310,6 +310,7 @@ Return ONLY valid JSON:
 {"palette":N,"typography":N,"density":N,"structure":N,"overall":N,"justification":"one sentence"}`;
 
   const raw = await callModel({
+    step: "evaluate.realtime",
     model: GEMINI_FLASH,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 200,
@@ -401,6 +402,7 @@ Return ONLY valid JSON:
   ];
 
   const raw = await callModel({
+    step: "evaluate.benchmark",
     model: SONNET_4_6,
     messages: [{
       role: "user",

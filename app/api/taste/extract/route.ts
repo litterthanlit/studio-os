@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRouter, SONNET_4_6 } from "@/lib/ai/model-router";
+import { SONNET_4_6, tracedCompletion } from "@/lib/ai/model-router";
 import {
   buildTasteImageContent,
   buildTasteSignature,
@@ -783,7 +783,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(fallback);
     }
 
-    const router = getRouter();
 
     // Every reference is attached (up to API_LIMITS.maxReferenceUrls), each behind a label.
     const imageContent = buildTasteImageContent(references);
@@ -856,7 +855,7 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
       userMessageLength: userMessageText.length,
     });
 
-    const response = await router.chat.completions.create({
+    const response = await tracedCompletion("taste.extract", {
       model: SONNET_4_6,
       max_tokens: 2600,
       temperature: 0.4,

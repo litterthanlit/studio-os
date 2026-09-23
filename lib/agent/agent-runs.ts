@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import { isConvexConfigured } from "@/lib/convex/is-configured";
 import { createAgentConvexClient, type AgentConvexAuth } from "./convex-agent-client";
 import type { AgentGenerationOutcome } from "./agent-generation";
+import { flushModelTelemetry, withModelTelemetryContext } from "@/lib/ai/model-telemetry";
 
 export type AgentRunKind = "screen" | "screen-set";
 export type AgentRunStatus = "queued" | "running" | "complete" | "partial" | "failed";
@@ -171,6 +172,7 @@ function statusForOutcome(kind: AgentRunKind, outcome: AgentGenerationOutcome) {
 export async function executeAgentRun(args: {
   store: AgentRunStore;
   runId: string;
+  projectId?: string;
   kind: AgentRunKind;
   execute: (progress: AgentRunProgress) => Promise<AgentGenerationOutcome>;
 }): Promise<AgentRunStatus> {
@@ -185,7 +187,8 @@ export async function executeAgentRun(args: {
 
   try {
     await store.update(runId, { status: "running", step: "running" });
-    const outcome = await args.execute(progress);
+    // Every model call in this run is tagged with its runId.
+    const outcome = await withModelTelemetryContext({ runId, projectId: args.projectId }, () => args.execute(progress));
     const { status, missingScreenIds } = statusForOutcome(kind, outcome);
     const error = !outcome.ok
       ? String(outcome.body.error ?? "Generation failed")
@@ -206,6 +209,8 @@ export async function executeAgentRun(args: {
       .update(runId, { status: "failed", step: "failed", error: message })
       .catch(() => undefined);
     return "failed";
+  } finally {
+    await flushModelTelemetry();
   }
 }
 
@@ -223,7 +228,7 @@ export async function startAgentRun(args: {
 }): Promise<{ runId: string; status: "queued" }> {
   const runId = await args.store.create({ projectId: args.projectId, kind: args.kind, input: args.input });
   args.schedule(async () => {
-    await executeAgentRun({ store: args.store, runId, kind: args.kind, execute: args.execute });
+    await executeAgentRun({ store: args.store, runId, projectId: args.projectId, kind: args.kind, execute: args.execute });
   });
   return { runId, status: "queued" };
 }

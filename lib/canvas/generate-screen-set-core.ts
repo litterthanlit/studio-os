@@ -9,11 +9,11 @@ import type { DesignNode } from "@/lib/canvas/design-node";
 import {
   callModel,
   describeModelFailure,
-  getRouter,
   getV6TokenBudgets,
   SONNET_4_6,
   imageUrlBlock,
   type ModelFailureInfo,
+  tracedCompletion,
 } from "@/lib/ai/model-router";
 import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
 import { deriveDesignKnobs, type DesignKnobVector } from "@/lib/canvas/design-knobs";
@@ -152,6 +152,7 @@ Rules:
 - No marketing landing sections`;
 
   const raw = await callModel({
+    step: "screens.plan",
     model: SONNET_4_6,
     messages: [{ role: "user", content: planPrompt }],
     maxTokens: 1200,
@@ -245,7 +246,6 @@ export async function generateAppScreenSet(
   await onProgress?.("planned", plan.map((item) => item.id).join(", "));
 
   const v6Budgets = getV6TokenBudgets();
-  const router = getRouter();
   const referenceImageBlocks = cappedReferenceUrls
     .slice(0, 4)
     .map((url) => imageUrlBlock(url, "low"));
@@ -282,7 +282,7 @@ Required elements: ${screenPlan.keyElements.join(", ")}
 Return one root frame representing this single app screen (with full shell if desktop/mobile grammar requires it).`;
 
     try {
-      const response = await router.chat.completions.create({
+      const response = await tracedCompletion("screens.screen", {
         model: SONNET_4_6,
         messages: [{
           role: "user",

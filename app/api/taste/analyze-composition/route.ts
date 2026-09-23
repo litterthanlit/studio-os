@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRouter, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { SONNET_4_6, imageUrlBlock, tracedCompletion } from "@/lib/ai/model-router";
 import { API_LIMITS, logSafe, readGuardedJson, warnSafe } from "@/lib/security/api-guard";
 import type { CompositionAnalysis, ReferenceType } from "@/types/composition-analysis";
 
@@ -150,7 +150,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "OPENROUTER_API_KEY is not configured" }, { status: 500 });
     }
 
-    const router = getRouter();
 
     logSafe("[taste/analyze-composition] Calling Sonnet 4.6", {
       hasImageUrl: Boolean(imageUrl),
@@ -158,7 +157,7 @@ export async function POST(req: NextRequest) {
       authBypass: guarded.devBypass,
     });
 
-    const response = await router.chat.completions.create({
+    const response = await tracedCompletion("taste.analyze-composition", {
       model: SONNET_4_6,
       max_tokens: 3000,
       temperature: 0.3,

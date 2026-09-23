@@ -2,6 +2,7 @@
 // Unified model client via OpenRouter — one SDK, one key, all models.
 
 import OpenAI from "openai";
+import { buildModelCallRecord, recordModelCall } from "./model-telemetry";
 
 // ── Model strings ─────────────────────────────────────────────
 export const SONNET_4_6 = "anthropic/claude-sonnet-4-6";
@@ -67,6 +68,41 @@ export function setRouterForTesting(router: OpenAI | null): void {
   _router = router;
 }
 
+// ── Traced completion ─────────────────────────────────────────
+/**
+ * chat.completions.create with per-call telemetry: step, model, input/output/
+ * cached tokens, latency, finish reason, cost estimate and the current runId
+ * (see withModelTelemetryContext). Records are written in batches.
+ */
+export async function tracedCompletion(
+  step: string,
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+  options?: { router?: OpenAI; timeout?: number },
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+  const startedAt = Date.now();
+  try {
+    const response = await (options?.router ?? getRouter()).chat.completions.create(
+      params,
+      options?.timeout ? { timeout: options.timeout } : undefined,
+    );
+    recordModelCall(
+      buildModelCallRecord({
+        step,
+        model: response.model || params.model,
+        usage: response.usage,
+        latencyMs: Date.now() - startedAt,
+        finishReason: response.choices?.[0]?.finish_reason ?? null,
+      }),
+    );
+    return response;
+  } catch (error) {
+    recordModelCall(
+      buildModelCallRecord({ step, model: params.model, usage: null, latencyMs: Date.now() - startedAt, error }),
+    );
+    throw error;
+  }
+}
+
 // ── Convenience caller ────────────────────────────────────────
 export async function callModel(options: {
   model: string;
@@ -75,8 +111,10 @@ export async function callModel(options: {
   maxTokens?: number;
   temperature?: number;
   jsonMode?: boolean;
+  /** Telemetry step name. */
+  step?: string;
 }): Promise<string> {
-  const { model, system, messages, maxTokens = 2000, temperature = 0.4, jsonMode = false } = options;
+  const { model, system, messages, maxTokens = 2000, temperature = 0.4, jsonMode = false, step = "model.call" } = options;
 
   const allMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
   if (system) {
@@ -84,12 +122,12 @@ export async function callModel(options: {
   }
   allMessages.push(...messages);
 
-  const response = await getRouter().chat.completions.create({
+  const response = await tracedCompletion(step, {
     model,
     messages: allMessages,
     max_tokens: maxTokens,
     temperature,
-    ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+    ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
   });
 
   return response.choices[0]?.message?.content ?? "";

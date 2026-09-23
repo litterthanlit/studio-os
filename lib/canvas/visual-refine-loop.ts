@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { imageUrlBlock, SONNET_4_6 } from "@/lib/ai/model-router";
+import { imageUrlBlock, SONNET_4_6, tracedCompletion } from "@/lib/ai/model-router";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { DesignNode } from "./design-node";
 import { renderDesignNodeScreenshotDataUrl } from "./design-node-screenshot";
@@ -178,13 +178,17 @@ async function regenerateTreeFromCritique(args: {
       return await args.regenerateFromCritique(content);
     }
 
-    const retryResponse = await args.router.chat.completions.create({
-      model: SONNET_4_6,
-      messages: [{ role: "user", content }],
-      max_tokens: args.retryMaxTokens,
-      temperature: 0.4,
-      response_format: { type: "json_object" },
-    });
+    const retryResponse = await tracedCompletion(
+      "visual-refine.regenerate",
+      {
+        model: SONNET_4_6,
+        messages: [{ role: "user", content }],
+        max_tokens: args.retryMaxTokens,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+      },
+      { router: args.router },
+    );
 
     const retryRaw = retryResponse.choices[0]?.message?.content ?? "";
     const retryParsed = args.parseDesignNodeResponse(

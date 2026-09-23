@@ -1,7 +1,7 @@
 // lib/ai/image-scorer.ts
 // Gemini 2.5 Flash via OpenRouter for scoring inspiration images
 
-import { getRouter, GEMINI_FLASH, imageUrlBlock } from "@/lib/ai/model-router";
+import { GEMINI_FLASH, imageUrlBlock, tracedCompletion } from "@/lib/ai/model-router";
 
 export interface ImageScore {
   composition: number;
@@ -117,9 +117,7 @@ function normalizeGeminiResponse(raw: Record<string, unknown>): ImageAnalysis {
 }
 
 export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
-  const router = getRouter();
-
-  const response = await router.chat.completions.create({
+  const response = await tracedCompletion("taste.score-image", {
     model: GEMINI_FLASH,
     max_tokens: 500,
     temperature: 0.3,

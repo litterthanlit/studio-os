@@ -185,6 +185,26 @@ export default defineSchema({
     .index("by_project_hash", ["projectId", "contentHash"])
     .index("by_owner", ["ownerId"]),
 
+  // Model-call telemetry (tokens, latency, cost estimate), batched from the server.
+  modelCalls: defineTable({
+    step: v.string(),
+    model: v.string(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    cachedInputTokens: v.number(),
+    latencyMs: v.number(),
+    finishReason: v.union(v.null(), v.string()),
+    costUsd: v.union(v.null(), v.number()),
+    ok: v.boolean(),
+    error: v.optional(v.string()),
+    runId: v.optional(v.string()),
+    projectId: v.optional(v.string()),
+    at: timestamp,
+  })
+    .index("by_run", ["runId"])
+    .index("by_step_at", ["step", "at"])
+    .index("by_at", ["at"]),
+
   boards: defineTable({
     ownerId: v.id("users"),
     projectId: v.optional(v.id("projects")),

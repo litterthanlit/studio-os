@@ -13,6 +13,7 @@ import {
   SONNET_4_6,
   imageUrlBlock,
   type ModelFailureInfo,
+  tracedCompletion,
 } from "@/lib/ai/model-router";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import {
@@ -375,7 +376,7 @@ export async function generateV6DesignVariants(
 
   try {
     const router = getRouter();
-    const response = await router.chat.completions.create({
+    const response = await tracedCompletion("design.base", {
       model: SONNET_4_6,
       messages: [{
         role: "user",
@@ -436,7 +437,7 @@ export async function generateV6DesignVariants(
       attempts = 2;
       v6Debug.retryAttempted = true;
       const retryPrompt = `${designPrompt}\n\n${buildTasteRetryPrompt(gate.validation)}`;
-      const retryResponse = await router.chat.completions.create({
+      const retryResponse = await tracedCompletion("design.taste-retry", {
         model: SONNET_4_6,
         messages: [{
           role: "user",
@@ -577,6 +578,7 @@ export async function generateV6DesignVariants(
   if (tasteProfile) {
     const [pushedResult, restructuredResult] = await Promise.allSettled([
       callModel({
+        step: "design.variant-pushed",
         model: SONNET_4_6,
         messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree, tasteProfile) }],
         maxTokens: v6Budgets.variantMaxTokens,
@@ -584,6 +586,7 @@ export async function generateV6DesignVariants(
         jsonMode: true,
       }),
       callModel({
+        step: "design.variant-restructured",
         model: SONNET_4_6,
         messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree, tasteProfile) }],
         maxTokens: v6Budgets.variantMaxTokens,
@@ -655,6 +658,7 @@ export async function generateV6DesignVariants(
           tasteProfile,
           rederive: async () => {
             const raw = await callModel({
+              step: "design.variant-pushed.rederive",
               model: SONNET_4_6,
               messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree!, tasteProfile) }],
               maxTokens: v6Budgets.variantMaxTokens,
@@ -672,6 +676,7 @@ export async function generateV6DesignVariants(
           tasteProfile,
           rederive: async () => {
             const raw = await callModel({
+              step: "design.variant-restructured.rederive",
               model: SONNET_4_6,
               messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree!, tasteProfile) }],
               maxTokens: v6Budgets.variantMaxTokens,

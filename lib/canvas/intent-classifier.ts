@@ -3,7 +3,7 @@
 // confidence / alternatives against a closed schema; the word-boundary heuristic in
 // `types/intent-profile.ts` is the fallback (no key, model error, invalid output).
 
-import { GEMINI_FLASH, getRouter } from "@/lib/ai/model-router";
+import { GEMINI_FLASH, tracedCompletion } from "@/lib/ai/model-router";
 import {
   extractIntentProfile,
   INTENT_BUSINESS_GOALS,
@@ -135,7 +135,8 @@ async function classifyWithModel(
   ]
     .filter(Boolean)
     .join("\n");
-  const response = await getRouter().chat.completions.create(
+  const response = await tracedCompletion(
+    "intent.classify",
     {
       model: GEMINI_FLASH,
       messages: [

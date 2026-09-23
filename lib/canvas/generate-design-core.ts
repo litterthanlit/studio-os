@@ -1,6 +1,6 @@
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { compileTasteToDirectives, type FidelityMode } from "@/lib/canvas/directive-compiler";
-import { inferSiteName, type VariantMode } from "@/lib/canvas/compose";
+import { BREAKPOINT_WIDTHS, inferSiteName, type VariantMode } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { TasteProfile } from "@/types/taste-profile";
 import { extractIntentProfile, type IntentProfile } from "@/types/intent-profile";
@@ -483,6 +483,8 @@ export async function generateV6DesignVariants(
         retryMaxTokens: v6Budgets.retryMaxTokens,
         fidelityMode: resolvedFidelityMode,
         parseDesignNodeResponse,
+        // Generated trees are desktop artboards.
+        viewportWidth: BREAKPOINT_WIDTHS.desktop,
       });
       if (visualRefine.iterations.length > 0) {
         v6Debug.visualRefineIterations = visualRefine.iterations;

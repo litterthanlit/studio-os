@@ -11,7 +11,8 @@ const PUBLISHED_EXPORT_CSP = [
   "frame-ancestors 'none'",
   "object-src 'none'",
   "script-src 'none'",
-  "style-src 'unsafe-inline'",
+  // Font stylesheets emitted by lib/canvas/font-links.ts
+  "style-src 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
   "img-src https: data: blob:",
   "font-src https: data:",
   "connect-src 'none'",

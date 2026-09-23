@@ -148,11 +148,8 @@ export function ExportTab({
     if (!exportRoot) return;
     setZipLoading(true);
     try {
-      const htmlForZip =
-        htmlString ||
-        designNodeToHTML(exportRoot, {
-          outputMode: opts.outputMode === "document" ? "document" : "fragment",
-        });
+      // index.html opens standalone, so it is always a full document (font links included).
+      const htmlForZip = designNodeToHTML(exportRoot, { outputMode: "document" });
       const zipContents =
         opts.format === "react-tailwind" && tsxString
           ? {
@@ -178,22 +175,17 @@ export function ExportTab({
     }
   }, [
     exportRoot,
-    htmlString,
     tsxString,
     opts.format,
-    opts.outputMode,
     designTokens,
     tasteProfile,
   ]);
 
   const handlePublish = React.useCallback(async () => {
-    const publishHtml =
-      htmlString ||
-      (exportRoot
-        ? designNodeToHTML(exportRoot, {
-            outputMode: opts.outputMode === "document" ? "document" : "fragment",
-          })
-        : "");
+    // Published pages are served standalone, so always publish a full document (font links included).
+    const publishHtml = exportRoot
+      ? designNodeToHTML(exportRoot, { outputMode: "document" })
+      : "";
     if (!publishHtml) return;
     setPublishLoading(true);
     setPublishError(null);
@@ -214,7 +206,7 @@ export function ExportTab({
     } finally {
       setPublishLoading(false);
     }
-  }, [htmlString, exportRoot, opts.outputMode, publishExport]);
+  }, [exportRoot, publishExport]);
 
   const handleCopyPublishUrl = React.useCallback(async () => {
     if (!publishUrl) return;
@@ -412,12 +404,6 @@ export function ExportTab({
             <span className="text-[11px] tracking-normal text-[#6B6B6B] dark:text-[#999999] block">
               Publish
             </span>
-            {opts.format === "html" && opts.outputMode === "fragment" && (
-              <p className="text-[10px] text-text-muted leading-snug">
-                Tip: switch Output to &quot;HTML document&quot; for a full page when
-                sharing in the browser.
-              </p>
-            )}
             <StudioButton
               type="button"
               variant="secondary"

@@ -1,5 +1,6 @@
 "use client";
 
+import { fontshareFontHref, googleFontHref } from "@/lib/canvas/font-links";
 import type { UnifiedFont } from "./types";
 
 const loadedFonts = new Set<string>();
@@ -9,7 +10,7 @@ export function loadGoogleFont(family: string): void {
   if (loadedFonts.has(key)) return;
   loadedFonts.add(key);
   const link = document.createElement("link");
-  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;700&display=swap`;
+  link.href = googleFontHref(family, [400, 700]);
   link.rel = "stylesheet";
   document.head.appendChild(link);
 }
@@ -19,7 +20,7 @@ export function loadFontshareFont(slug: string): void {
   if (loadedFonts.has(key)) return;
   loadedFonts.add(key);
   const link = document.createElement("link");
-  link.href = `https://api.fontshare.com/v2/css?f[]=${slug}@400,500,700&display=swap`;
+  link.href = fontshareFontHref(slug);
   link.rel = "stylesheet";
   document.head.appendChild(link);
 }

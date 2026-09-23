@@ -10,6 +10,7 @@ import {
 import { validateAndNormalizeDesignTree } from "./design-tree-validator";
 import { resolveDesignMediaUrls } from "./design-media-resolver";
 import type { FidelityMode } from "./directive-compiler";
+import { BREAKPOINT_WIDTHS } from "./compose";
 
 export type VisualRefineIteration = {
   iteration: number;
@@ -42,6 +43,8 @@ export type VisualRefineLoopArgs = {
     content: OpenAI.Chat.Completions.ChatCompletionContentPart[],
   ) => Promise<DesignNode | null>;
   startedAtMs?: number;
+  /** Artboard width for the screenshot viewport (1440 desktop / 375 mobile). */
+  viewportWidth?: number;
 };
 
 const VISUAL_REFINE_MAX_ELAPSED_MS = 40_000;
@@ -125,10 +128,11 @@ async function scoreTreeScreenshot(
   referenceUrls: string[],
   tasteProfile: TasteProfile,
   scoreScreenshot?: VisualRefineLoopArgs["scoreScreenshot"],
+  viewportWidth: number = BREAKPOINT_WIDTHS.desktop,
 ): Promise<ScoredTree | null> {
   const screenshotDataUrl = scoreScreenshot
     ? `data:image/png;base64,mock-${tree.id}`
-    : await renderDesignNodeScreenshotDataUrl(tree);
+    : await renderDesignNodeScreenshotDataUrl(tree, { width: viewportWidth });
   if (!screenshotDataUrl) return null;
 
   try {
@@ -213,6 +217,7 @@ export async function runVisualRefineLoop(
     scoreScreenshot,
     regenerateFromCritique,
     startedAtMs = Date.now(),
+    viewportWidth = BREAKPOINT_WIDTHS.desktop,
   } = args;
 
   const emptyResult = (current: DesignNode): VisualRefineLoopResult => ({
@@ -249,6 +254,7 @@ export async function runVisualRefineLoop(
       referenceUrls,
       tasteProfile,
       scoreScreenshot,
+      viewportWidth,
     );
     if (!scored) {
       if (iteration === 0) return emptyResult(tree);
@@ -322,6 +328,7 @@ export async function scoreDesignNodeVisualFidelity(args: {
   tree: DesignNode;
   referenceUrls: string[];
   tasteProfile: TasteProfile;
+  viewportWidth?: number;
 }): Promise<TasteFidelityScore | null> {
   if (args.referenceUrls.length === 0 || !process.env.OPENROUTER_API_KEY) {
     return null;
@@ -331,6 +338,8 @@ export async function scoreDesignNodeVisualFidelity(args: {
     args.tree,
     args.referenceUrls,
     args.tasteProfile,
+    undefined,
+    args.viewportWidth,
   );
   return scored?.score ?? null;
 }

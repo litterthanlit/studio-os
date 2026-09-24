@@ -15,6 +15,7 @@ import {
   tracedCompletion,
 } from "@/lib/ai/model-router";
 import { labeledReferenceBlocks } from "@/lib/intent/labels";
+import { compileLayeredDirectives, layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import {
   buildDesignTreePrompt,
@@ -148,8 +149,11 @@ export function evaluateV6TasteGate(args: {
   intentProfile: IntentProfile | null;
   knobVector: DesignKnobVector;
   fidelityMode: FidelityMode;
+  layeredTaste?: LayeredTaste | null;
 }): Omit<V6TasteGate, "repaired" | "attempts" | "warnings"> {
-  const directives = compileTasteToDirectives(args.tasteProfile, args.fidelityMode);
+  const directives = args.layeredTaste
+    ? compileLayeredDirectives(args.layeredTaste, args.fidelityMode)
+    : compileTasteToDirectives(args.tasteProfile, args.fidelityMode);
   const validation = validateDesignNodeTaste({
     tree: args.tree,
     tasteProfile: args.tasteProfile,
@@ -232,6 +236,8 @@ export type GenerateV6DesignVariantsInput = {
   references?: IntentReferenceInput[];
   /** Classification the caller already routed on (validated; reused so routing and generation agree). */
   intentClassification?: unknown;
+  /** Layered taste from the engine (1.5): measured + learned directives with provenance. */
+  layeredTaste?: LayeredTaste | null;
 };
 
 export type GenerateV6DesignVariantsResult =
@@ -259,7 +265,8 @@ export async function generateV6DesignVariants(
     tokens,
     siteName,
     siteType,
-    tasteProfile,
+    tasteProfile: requestTaste,
+    layeredTaste,
     referenceUrls,
     fidelityMode,
     strictV6,
@@ -268,6 +275,7 @@ export async function generateV6DesignVariants(
     references,
     intentClassification,
   } = input;
+  const tasteProfile = layeredTaste?.tasteProfile ?? requestTaste;
 
   const resolvedSiteName = siteName || inferSiteName(prompt);
   const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
@@ -343,6 +351,7 @@ export async function generateV6DesignVariants(
 
   const knobVector = deriveDesignKnobs({
     tasteProfile: tasteProfile ?? null,
+    ...layeredKnobOptions(layeredTaste),
     intentProfile,
     compositionData: cappedCompositionData,
     compositionBlueprint,
@@ -352,6 +361,7 @@ export async function generateV6DesignVariants(
   const designPrompt = buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
     variantMode: "safe",
     tasteProfile: tasteProfile ?? null,
+    layeredTaste,
     intentProfile,
     knobVector,
     fidelityMode: resolvedFidelityMode,
@@ -407,6 +417,7 @@ export async function generateV6DesignVariants(
     let gate = evaluateV6TasteGate({
       tree: baseTree,
       tasteProfile: tasteProfile ?? null,
+      layeredTaste,
       intentProfile,
       knobVector,
       fidelityMode: resolvedFidelityMode,
@@ -419,6 +430,7 @@ export async function generateV6DesignVariants(
       const repairedGate = evaluateV6TasteGate({
         tree: repairedTree,
         tasteProfile: tasteProfile ?? null,
+        layeredTaste,
         intentProfile,
         knobVector,
         fidelityMode: resolvedFidelityMode,
@@ -457,6 +469,7 @@ export async function generateV6DesignVariants(
         const retryGate = evaluateV6TasteGate({
           tree: retryTree,
           tasteProfile: tasteProfile ?? null,
+          layeredTaste,
           intentProfile,
           knobVector,
           fidelityMode: resolvedFidelityMode,
@@ -502,6 +515,7 @@ export async function generateV6DesignVariants(
         gate = evaluateV6TasteGate({
           tree: baseTree,
           tasteProfile: tasteProfile ?? null,
+          layeredTaste,
           intentProfile,
           knobVector,
           fidelityMode: resolvedFidelityMode,
@@ -557,6 +571,7 @@ export async function generateV6DesignVariants(
     const fallbackGate = evaluateV6TasteGate({
       tree: baseTree,
       tasteProfile: tasteProfile ?? null,
+      layeredTaste,
       intentProfile,
       knobVector,
       fidelityMode: resolvedFidelityMode,
@@ -706,6 +721,7 @@ export async function generateV6DesignVariants(
   const pushedTasteGate = evaluateV6TasteGate({
     tree: pushedTree,
     tasteProfile: tasteProfile ?? null,
+    layeredTaste,
     intentProfile,
     knobVector,
     fidelityMode: resolvedFidelityMode,
@@ -713,6 +729,7 @@ export async function generateV6DesignVariants(
   const restructuredTasteGate = evaluateV6TasteGate({
     tree: restructuredTree,
     tasteProfile: tasteProfile ?? null,
+    layeredTaste,
     intentProfile,
     knobVector,
     fidelityMode: resolvedFidelityMode,

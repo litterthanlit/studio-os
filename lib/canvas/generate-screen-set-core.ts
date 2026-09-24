@@ -15,6 +15,7 @@ import {
   tracedCompletion,
 } from "@/lib/ai/model-router";
 import { labeledReferenceBlocks } from "@/lib/intent/labels";
+import { layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
 import { deriveDesignKnobs, type DesignKnobVector } from "@/lib/canvas/design-knobs";
 import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
@@ -66,6 +67,8 @@ export type GenerateAppScreenSetInput = {
   references?: IntentReferenceInput[];
   /** Classification the caller already routed on (validated; reused so routing and generation agree). */
   intentClassification?: unknown;
+  /** Layered taste from the engine (1.5): measured + learned directives with provenance. */
+  layeredTaste?: LayeredTaste | null;
   /** Step events for async runs: "planned", "screen-complete", "screen-failed". */
   onProgress?: (step: string, detail?: string) => void | Promise<void>;
 };
@@ -171,7 +174,8 @@ export async function generateAppScreenSet(
     tokens,
     siteName,
     siteType,
-    tasteProfile,
+    tasteProfile: requestTaste,
+    layeredTaste,
     referenceUrls,
     fidelityMode,
     breakpoint = "desktop",
@@ -181,6 +185,7 @@ export async function generateAppScreenSet(
     intentClassification,
     onProgress,
   } = input;
+  const tasteProfile = layeredTaste?.tasteProfile ?? requestTaste;
 
   if (!process.env.OPENROUTER_API_KEY) {
     return {
@@ -224,6 +229,7 @@ export async function generateAppScreenSet(
 
   const knobVector = deriveDesignKnobs({
     tasteProfile: tasteProfile ?? null,
+    ...layeredKnobOptions(layeredTaste),
     intentProfile,
     compositionData,
     compositionBlueprint,
@@ -261,6 +267,7 @@ export async function generateAppScreenSet(
 
     const screenPrompt = `${buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
       tasteProfile: tasteProfile ?? null,
+      layeredTaste,
       intentProfile,
       knobVector,
       fidelityMode: resolvedFidelityMode,
@@ -310,6 +317,7 @@ Return one root frame representing this single app screen (with full shell if de
       const gate = evaluateV6TasteGate({
         tree,
         tasteProfile: tasteProfile ?? null,
+        layeredTaste,
         intentProfile,
         knobVector,
         fidelityMode: resolvedFidelityMode,

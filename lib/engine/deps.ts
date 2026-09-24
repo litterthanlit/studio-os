@@ -63,6 +63,15 @@ export function createEngineDeps(args: {
               });
             },
           },
+          loadLearned: async () =>
+            (await memory.listPreferences(projectId, "accepted")).map((p) => ({
+              id: p.id,
+              dimension: p.dimension,
+              rule: p.rule,
+              value: p.value,
+              scope: p.scope,
+              confidence: p.confidence,
+            })),
           saveBrief: async (brief) => ({ briefId: (await memory.saveBrief(projectId, brief)).briefId }),
           saveDerivedTaste: async (profile, cacheKey) => {
             const { derived } = splitTasteProfile(profile as unknown as Parameters<typeof splitTasteProfile>[0]);

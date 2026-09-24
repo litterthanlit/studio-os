@@ -92,6 +92,8 @@ export type TasteProfile = {
     heading?: number;
     body?: number;
   };
+  /** "fallback": approximated from headingToBodyRatio (SOFT); "measured": fitted from pixels (1.3). Absent on legacy profiles. */
+  typeScaleSource?: "measured" | "fallback";
   measuredDensity?: string;
 };
 

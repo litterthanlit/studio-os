@@ -177,6 +177,7 @@ function formatSpacingSystem(spacingSystem: CompositionAnalysis["spacingSystem"]
   }
 }
 
+/** Fallback only — see deriveTasteStructureFromCompositions. */
 function mapTypeScale(analysis: CompositionAnalysis): TasteProfile["typeScale"] | undefined {
   switch (analysis.headingToBodyRatio) {
     case "dramatic":
@@ -205,7 +206,7 @@ function mapMeasuredDensity(density: CompositionAnalysis["density"]): TasteProfi
 
 export function deriveTasteStructureFromCompositions(
   compositions: CompositionInput[]
-): Pick<TasteProfile, "spacingSystem" | "typeScale" | "measuredDensity"> {
+): Pick<TasteProfile, "spacingSystem" | "typeScale" | "typeScaleSource" | "measuredDensity"> {
   const primary = selectPrimaryComposition(compositions);
   if (!primary) return {};
 
@@ -216,7 +217,9 @@ export function deriveTasteStructureFromCompositions(
 
   return {
     ...(spacingSystem ? { spacingSystem } : {}),
-    ...(typeScale ? { typeScale } : {}),
+    // Approximate sizes from a qualitative ratio: a labelled SOFT fallback (1.5);
+    // measured type scales (1.3) replace it in the layered compile.
+    ...(typeScale ? { typeScale, typeScaleSource: "fallback" as const } : {}),
     ...(measuredDensity ? { measuredDensity } : {}),
   };
 }

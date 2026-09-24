@@ -7,6 +7,7 @@ import type { DesignSystemTokens } from "./generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { IntentProfile } from "@/types/intent-profile";
 import type { DesignNode } from "./design-node";
+import { compileLayeredDirectives, layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import {
   compileTasteToDirectives,
   directivesToPromptText,
@@ -723,13 +724,16 @@ export function buildDesignTreePrompt(
     compositionBlueprint?: string;
     compositionContext?: string;
     breakpoint?: "desktop" | "mobile";
+    /** Layered taste (1.5): measured + learned directives with provenance. */
+    layeredTaste?: LayeredTaste | null;
   }
 ): string {
-  const tasteProfile = options?.tasteProfile;
+  const tasteProfile = options?.layeredTaste?.tasteProfile ?? options?.tasteProfile;
   const knobVector = options?.knobVector ?? deriveDesignKnobs({
     tasteProfile,
     intentProfile: options?.intentProfile ?? null,
     fidelityMode: options?.fidelityMode ?? "balanced",
+    ...layeredKnobOptions(options?.layeredTaste),
   });
   const effectiveArchetype = resolveEffectiveArchetype({
     tasteArchetype: tasteProfile?.archetypeMatch,
@@ -738,11 +742,9 @@ export function buildDesignTreePrompt(
     breakpoint: options?.breakpoint,
   });
   const appScreen = isAppArchetype(effectiveArchetype);
-  const compiledDirectives = compileTasteToDirectives(
-    tasteProfile,
-    options?.fidelityMode ?? "balanced",
-    { appScreen },
-  );
+  const compiledDirectives = options?.layeredTaste
+    ? compileLayeredDirectives(options.layeredTaste, options?.fidelityMode ?? "balanced", { appScreen })
+    : compileTasteToDirectives(tasteProfile, options?.fidelityMode ?? "balanced", { appScreen });
   const tasteSection = directivesToPromptText(compiledDirectives);
   const intentSection = options?.intentProfile
     ? `\n## Intent Profile\n- summary: ${options.intentProfile.summary}\n- goal: ${options.intentProfile.businessGoal}\n- output type: ${options.intentProfile.outputType}\n- content priority: ${options.intentProfile.contentPriority.join(", ")}\n- must include: ${options.intentProfile.mustInclude.join(", ") || "none"}\n- must avoid: ${options.intentProfile.mustAvoid.join(", ") || "none"}\n- copy tone: ${options.intentProfile.copyTone}\n- literalness: ${options.intentProfile.literalness}\n`

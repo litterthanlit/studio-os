@@ -36,6 +36,7 @@ export const generate: EngineStep<"generate"> = {
       compositionData: taste.compositionData.length > 0 ? taste.compositionData : undefined,
       compositionContext: compositionContext || undefined,
       intentClassification: brief.intentClassification,
+      layeredTaste: taste.layered,
     };
 
     if (brief.kind === "screen-set") {

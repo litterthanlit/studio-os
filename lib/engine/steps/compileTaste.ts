@@ -1,5 +1,6 @@
 import { analysisToTokens } from "@/lib/canvas/generate-system";
 import { defaultDesignTokens } from "@/lib/agent/default-design-tokens";
+import { compileLayeredTaste, layeredTokens } from "@/lib/taste/compile";
 import type { EngineStep, TasteCheckpoint } from "../types";
 
 /** Brief roles → taste-extraction roles (the extractor's older vocabulary). */
@@ -74,10 +75,24 @@ export const compileTaste: EngineStep<"compileTaste"> = {
       }
     }
 
+    // Layered compile: derived ← explicit (already on the profile) ← learned in
+    // scope, plus the brief's measured directives. Measured colors refine derived
+    // or default tokens, never tokens the designer or the request set.
+    const learned = (await deps.loadLearned?.().catch(() => [])) ?? [];
+    const layered = compileLayeredTaste({
+      derived: tasteProfile,
+      learned,
+      briefDirectives: brief?.directives ?? [],
+      scope: { projectId: input.projectId },
+    });
+    const baseTokens = designTokens ?? defaultDesignTokens();
+    const compiledTokens = tokensSource === "derived" || tokensSource === "default" ? layeredTokens(baseTokens, layered) : baseTokens;
+
     return {
-      tasteProfile,
-      designTokens: designTokens ?? defaultDesignTokens(),
+      tasteProfile: layered.tasteProfile,
+      designTokens: compiledTokens,
       compositionData,
+      layered,
       sources: { tasteProfile: tasteSource, designTokens: tokensSource },
     };
   },

@@ -24,6 +24,7 @@ import type { BriefDirective } from "@/lib/intent/brief";
 import type { LabeledImageRef } from "@/lib/intent/labels";
 import type { ReferencePerception } from "@/lib/intent/perceive";
 import type { ClassifyIntentArgs } from "@/lib/canvas/intent-classifier";
+import type { LayeredTaste, LearnedRule } from "@/lib/taste/compile";
 import type { RunStore } from "./run-store";
 
 export const ENGINE_STEPS = [
@@ -102,6 +103,8 @@ export type TasteCheckpoint = {
   tasteProfile: TasteProfile | null;
   designTokens: DesignSystemTokens;
   compositionData: Array<{ analysis: CompositionAnalysis; weight: "primary" | "default" | "muted"; referenceIndex: number }>;
+  /** Layered compile input (1.5): merged profile + measured brief directives + learned rules in scope. */
+  layered: LayeredTaste;
   sources: { tasteProfile: "request" | "project" | "extracted" | "none"; designTokens: "request" | "project" | "derived" | "default" };
 };
 
@@ -146,6 +149,8 @@ export type EngineDeps = {
   };
   saveBrief?: (brief: BriefCheckpoint["brief"]) => Promise<{ briefId: string }>;
   saveDerivedTaste?: (profile: TasteProfile, cacheKey: string) => Promise<void>;
+  /** Accepted preferences (learned layer); scope is applied by the compile. */
+  loadLearned?: () => Promise<LearnedRule[]>;
   /** Perception + measurement of one reference (1.3/1.4). */
   perceiveReference: (ref: LabeledImageRef, options: { measureType?: boolean }) => Promise<ReferencePerception>;
   analyzeImages: (urls: string[]) => Promise<ReferenceImageAnalysisResult>;

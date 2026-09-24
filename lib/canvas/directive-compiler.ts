@@ -1,4 +1,5 @@
 import type { TasteProfile } from "@/types/taste-profile";
+import type { Provenance } from "@/lib/design-memory/types";
 import { getArchetypeBannedNodeTypes } from "./archetype-bans";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -8,6 +9,8 @@ export interface Directive {
   rule: string;
   value: string | number | string[];
   source: "extracted" | "user-override" | "feedback";
+  /** Where the directive comes from (1.5). Never rendered into prompt text. */
+  provenance?: Provenance;
 }
 
 export interface CompiledDirectives {
@@ -90,12 +93,33 @@ export function compileTasteToDirectives(
   options: CompileDirectivesOptions = {},
 ): CompiledDirectives {
   const result = compileTasteDirectivesForPage(taste, fidelityMode);
-  if (!options.appScreen) return result;
+  if (options.appScreen) {
+    const keep = (d: Directive) => !MARKETING_ONLY_DIMENSIONS.has(d.dimension);
+    result.hard = result.hard.filter(keep);
+    result.soft = result.soft.filter(keep);
+    result.soft.push(buildStatusColorDirective(taste));
+  }
+  return withProvenance(result, taste);
+}
 
-  const keep = (d: Directive) => !MARKETING_ONLY_DIMENSIONS.has(d.dimension);
-  result.hard = result.hard.filter(keep);
-  result.soft = result.soft.filter(keep);
-  result.soft.push(buildStatusColorDirective(taste));
+/** Every directive carries provenance: extracted → perceived, override → explicit, feedback → learned. */
+function withProvenance(result: CompiledDirectives, taste: TasteProfile | null | undefined): CompiledDirectives {
+  const perceived = typeof taste?.confidence === "number" ? taste.confidence : 0.5;
+  const tag = (d: Directive): Directive =>
+    d.provenance
+      ? d
+      : {
+          ...d,
+          provenance:
+            d.source === "user-override"
+              ? { source: "explicit", confidence: 1 }
+              : d.source === "feedback"
+                ? { source: "learned", confidence: perceived }
+                : { source: "perceived", confidence: perceived },
+        };
+  result.hard = result.hard.map(tag);
+  result.soft = result.soft.map(tag);
+  result.avoid = result.avoid.map(tag);
   return result;
 }
 
@@ -201,12 +225,24 @@ function compileTasteDirectivesForPage(
     if (taste.typeScale.display) sizeParts.push(`display ${taste.typeScale.display}px`);
     if (taste.typeScale.heading) sizeParts.push(`heading ${taste.typeScale.heading}px`);
     if (taste.typeScale.body) sizeParts.push(`body ${taste.typeScale.body}px`);
-    result.hard.push({
-      dimension: "typeScale",
-      rule: `Type sizes MUST use: ${sizeParts.join("; ")}`,
-      value: sizeParts.join("; "),
-      source: "extracted",
-    });
+    if (taste.typeScaleSource === "fallback") {
+      // Approximated from a qualitative heading-to-body ratio, not measured: SOFT.
+      result.soft.push({
+        dimension: "typeScale",
+        rule: `Approximate type sizes (estimated from the reference's heading-to-body ratio, not measured): ${sizeParts.join("; ")}`,
+        value: sizeParts.join("; "),
+        source: "extracted",
+        provenance: { source: "fallback", confidence: 0.4 },
+      });
+    } else {
+      result.hard.push({
+        dimension: "typeScale",
+        rule: `Type sizes MUST use: ${sizeParts.join("; ")}`,
+        value: sizeParts.join("; "),
+        source: "extracted",
+        ...(taste.typeScaleSource === "measured" ? { provenance: { source: "measured" as const, confidence: 0.8 } } : {}),
+      });
+    }
   } else {
     allDirectives.push({
       _dimKey: "typeScale",

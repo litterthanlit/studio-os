@@ -105,11 +105,21 @@ export function deriveDesignKnobs(args: {
     referenceIndex: number;
   }>;
   compositionBlueprint?: string;
+  /**
+   * How strongly the archetype preset applies (layered compile, 1.5): the
+   * archetype is a hint weighted by its confidence, not the ontology. Omitted
+   * (legacy) → the preset applies fully.
+   */
+  archetypeWeight?: number;
+  /** Learned knob preferences in scope (applied after derived signals, before designer overrides). */
+  patch?: DeepPartial<DesignKnobVector>;
 }): DesignKnobVector {
   const taste = args.tasteProfile;
   const intent = args.intentProfile;
   const preset = DESIGN_KNOB_PRESETS[taste?.archetypeMatch ?? ""] ?? DESIGN_KNOB_PRESETS["premium-saas"] ?? baseKnobs;
-  let knobs = mergeKnobs(baseKnobs, preset);
+  let knobs = args.archetypeWeight === undefined
+    ? mergeKnobs(baseKnobs, preset)
+    : blendKnobVectors(baseKnobs, preset, clamp01(args.archetypeWeight));
 
   if (taste) {
     knobs = mergeKnobs(knobs, {
@@ -172,6 +182,8 @@ export function deriveDesignKnobs(args: {
     knobs.layout.asymmetry = clamp01(knobs.layout.asymmetry + 0.1);
     knobs.typography.scaleContrast = clamp01(knobs.typography.scaleContrast + 0.1);
   }
+
+  if (args.patch) knobs = mergeKnobs(knobs, sanitizeKnobPatch(args.patch));
 
   // Designer corrections win over everything derived above.
   const overrides = taste?.userOverrides;
@@ -397,6 +409,26 @@ function mergeKnobs(base: DesignKnobVector, patch: DeepPartial<DesignKnobVector>
     components: { ...base.components, ...patch.components },
     content: { ...base.content, ...patch.content },
   };
+}
+
+/** Numeric knobs interpolate base → preset by `weight`; categorical knobs follow the preset from 0.5. */
+function blendKnobVectors(base: DesignKnobVector, preset: DesignKnobVector, weight: number): DesignKnobVector {
+  const out = mergeKnobs(base, {}) as unknown as Record<string, Record<string, unknown>>;
+  for (const [section, values] of Object.entries(preset) as Array<[string, Record<string, unknown>]>) {
+    for (const [key, value] of Object.entries(values)) {
+      const current = out[section]![key];
+      if (typeof value === "number" && typeof current === "number") {
+        out[section]![key] = clamp01(current + (value - current) * weight);
+      } else if (key === "sectionCount") {
+        const a = current as { min: number; max: number };
+        const b = value as { min: number; max: number };
+        out[section]![key] = { min: Math.round(a.min + (b.min - a.min) * weight), max: Math.round(a.max + (b.max - a.max) * weight) };
+      } else if (weight >= 0.5) {
+        out[section]![key] = value;
+      }
+    }
+  }
+  return out as unknown as DesignKnobVector;
 }
 
 function clamp01(value: number): number {

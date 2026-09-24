@@ -1,4 +1,4 @@
-import { SONNET_4_6, imageUrlBlock, tracedCompletion } from "@/lib/ai/model-router";
+import { imageUrlBlock, tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import { logSafe, warnSafe } from "@/lib/security/api-guard";
 import type { CompositionAnalysis, ReferenceType } from "@/types/composition-analysis";
 
@@ -142,7 +142,7 @@ export async function analyzeCompositionImage(imageUrl: string): Promise<Analyze
   logSafe("[taste/analyze-composition] Calling vision model", { imageUrlLength: imageUrl.length });
 
   const response = await tracedCompletion("taste.analyze-composition", {
-    model: SONNET_4_6,
+    model: modelFor("perceive"),
     max_tokens: 3000,
     temperature: 0.3,
     response_format: { type: "json_object" },

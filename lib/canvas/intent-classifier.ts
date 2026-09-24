@@ -3,7 +3,7 @@
 // confidence / alternatives against a closed schema; the word-boundary heuristic in
 // `types/intent-profile.ts` is the fallback (no key, model error, invalid output).
 
-import { GEMINI_FLASH, tracedCompletion } from "@/lib/ai/model-router";
+import { tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import {
   extractIntentProfile,
   INTENT_BUSINESS_GOALS,
@@ -138,7 +138,7 @@ async function classifyWithModel(
   const response = await tracedCompletion(
     "intent.classify",
     {
-      model: GEMINI_FLASH,
+      model: modelFor("classify"),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: user.slice(0, 4000) },

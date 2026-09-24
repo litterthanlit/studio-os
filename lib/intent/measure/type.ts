@@ -3,7 +3,7 @@
 // pixel heights under a strict schema; heights are clustered into levels and a
 // modular ratio is fitted. Inconsistent measurements are rejected.
 
-import { GEMINI_FLASH, imageUrlBlock, tracedCompletion } from "@/lib/ai/model-router";
+import { imageUrlBlock, tracedCompletion, modelFor } from "@/lib/ai/model-router";
 
 export type TextBox = { text?: string; heightPx: number; role?: string };
 
@@ -115,7 +115,7 @@ Rules:
 /** Vision-model text boxes → measured type scale. Throws only on transport errors. */
 export async function measureTypeScale(imageUrl: string): Promise<MeasuredTypeScale & { boxes: TextBox[] }> {
   const response = await tracedCompletion("intent.measure-type", {
-    model: GEMINI_FLASH,
+    model: modelFor("measure"),
     temperature: 0,
     max_tokens: 1200,
     response_format: { type: "json_object" },

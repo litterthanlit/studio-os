@@ -8,6 +8,78 @@ import { buildModelCallRecord, recordModelCall } from "./model-telemetry";
 export const SONNET_4_6 = "anthropic/claude-sonnet-4-6";
 export const GEMINI_FLASH = "google/gemini-2.5-flash";
 export const KIMI_K25 = "moonshotai/kimi-k2.5";
+export const GEMINI_PRO = "google/gemini-2.5-pro";
+
+// ── Per-step model routes (master plan 1.10) ──────────────────
+// Call sites ask for a route, never a model string. Each route has an env
+// override (MODEL_ROUTE_<NAME>, e.g. MODEL_ROUTE_JUDGE=openai/gpt-5). The judge
+// defaults to a different model family from the generator, so evaluation is
+// not the generator grading itself.
+export type ModelRoute = "perceive" | "measure" | "classify" | "generate" | "variant" | "judge" | "judgeRealtime";
+
+export const MODEL_ROUTES: Readonly<Record<ModelRoute, { model: string; env: string; purpose: string }>> = {
+  perceive: { model: SONNET_4_6, env: "MODEL_ROUTE_PERCEIVE", purpose: "Reference perception, taste extraction, composition analysis" },
+  measure: { model: GEMINI_FLASH, env: "MODEL_ROUTE_MEASURE", purpose: "Cheap vision measurement (type boxes, token colors)" },
+  classify: { model: GEMINI_FLASH, env: "MODEL_ROUTE_CLASSIFY", purpose: "Intent classification and small text utilities" },
+  generate: { model: SONNET_4_6, env: "MODEL_ROUTE_GENERATE", purpose: "Base design / screen generation, planning, refine" },
+  variant: { model: SONNET_4_6, env: "MODEL_ROUTE_VARIANT", purpose: "Pushed / restructured variant derivation" },
+  judge: { model: GEMINI_PRO, env: "MODEL_ROUTE_JUDGE", purpose: "Benchmark taste judging (different family from generate)" },
+  judgeRealtime: { model: GEMINI_FLASH, env: "MODEL_ROUTE_JUDGE_REALTIME", purpose: "In-loop scoring (images, realtime taste checks)" },
+};
+
+/** The model for a route: env override, else the default. */
+export function modelFor(route: ModelRoute): string {
+  const entry = MODEL_ROUTES[route];
+  const override = process.env[entry.env]?.trim();
+  return override || entry.model;
+}
+
+/** Provider family of an OpenRouter model id ("anthropic/claude-…" → "anthropic"). */
+export function modelFamily(model: string): string {
+  return model.split("/")[0] ?? model;
+}
+
+// ── Prompt caching ────────────────────────────────────────────
+type CacheableTextPart = OpenAI.Chat.Completions.ChatCompletionContentPartText & { cache_control?: { type: "ephemeral" } };
+
+/** Families where OpenRouter honours explicit cache_control breakpoints. */
+const EXPLICIT_CACHE_FAMILIES = new Set(["anthropic", "google"]);
+/** System prompts at least this long get a cache breakpoint (≈1k tokens, Anthropic's minimum). */
+const CACHEABLE_SYSTEM_CHARS = 4000;
+
+/**
+ * A stable prefix (schema, grammar, few-shot) followed by the per-request
+ * suffix. The prefix carries a cache breakpoint; providers with implicit
+ * prefix caching (OpenAI, Gemini) benefit from the ordering alone.
+ */
+export function cacheablePromptParts(prefix: string, suffix: string): OpenAI.Chat.Completions.ChatCompletionContentPartText[] {
+  const head: CacheableTextPart = { type: "text", text: prefix, cache_control: { type: "ephemeral" } };
+  return [head, { type: "text", text: suffix }];
+}
+
+/**
+ * Apply cache hints for the target model: long system prompts get a breakpoint
+ * on explicit-cache families; breakpoints are stripped for families that do
+ * not take them.
+ */
+export function withCacheHints<T extends OpenAI.Chat.Completions.ChatCompletionCreateParams>(params: T): T {
+  const explicit = EXPLICIT_CACHE_FAMILIES.has(modelFamily(params.model));
+  const messages = params.messages.map((message) => {
+    if (explicit && message.role === "system" && typeof message.content === "string" && message.content.length >= CACHEABLE_SYSTEM_CHARS) {
+      return { ...message, content: [{ type: "text", text: message.content, cache_control: { type: "ephemeral" } } as CacheableTextPart] };
+    }
+    if (!explicit && Array.isArray(message.content)) {
+      return {
+        ...message,
+        content: (message.content as unknown as Array<Record<string, unknown>>).map((part) =>
+          "cache_control" in part ? Object.fromEntries(Object.entries(part).filter(([key]) => key !== "cache_control")) : part,
+        ),
+      };
+    }
+    return message;
+  });
+  return { ...params, messages } as T;
+}
 
 export type V6TokenBudgets = {
   baseMaxTokens: number;
@@ -82,7 +154,7 @@ export async function tracedCompletion(
   const startedAt = Date.now();
   try {
     const response = await (options?.router ?? getRouter()).chat.completions.create(
-      params,
+      withCacheHints(params),
       options?.timeout ? { timeout: options.timeout } : undefined,
     );
     recordModelCall(

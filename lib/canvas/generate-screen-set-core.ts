@@ -10,9 +10,10 @@ import {
   callModel,
   describeModelFailure,
   getV6TokenBudgets,
-  SONNET_4_6,
   type ModelFailureInfo,
   tracedCompletion,
+  modelFor,
+  cacheablePromptParts,
 } from "@/lib/ai/model-router";
 import { labeledReferenceBlocks } from "@/lib/intent/labels";
 import { layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
@@ -21,7 +22,7 @@ import { deriveDesignKnobs, type DesignKnobVector } from "@/lib/canvas/design-kn
 import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
 import { resolveDesignMediaUrls } from "@/lib/canvas/design-media-resolver";
 import {
-  buildDesignTreePrompt,
+  buildDesignTreePromptParts,
   resolveEffectiveArchetype,
 } from "@/lib/canvas/design-tree-prompt";
 import {
@@ -156,7 +157,7 @@ Rules:
 
   const raw = await callModel({
     step: "screens.plan",
-    model: SONNET_4_6,
+    model: modelFor("generate"),
     messages: [{ role: "user", content: planPrompt }],
     maxTokens: 1200,
     temperature: 0.3,
@@ -265,7 +266,7 @@ export async function generateAppScreenSet(
       generatedSummaries,
     });
 
-    const screenPrompt = `${buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
+    const screenPromptParts = buildDesignTreePromptParts(tokens, prompt, resolvedSiteName, {
       tasteProfile: tasteProfile ?? null,
       layeredTaste,
       intentProfile,
@@ -274,7 +275,8 @@ export async function generateAppScreenSet(
       compositionBlueprint,
       compositionContext,
       breakpoint,
-    })}
+    });
+    const screenSuffix = `${screenPromptParts.suffix}
 
 ${screenContext}
 
@@ -288,11 +290,11 @@ Return one root frame representing this single app screen (with full shell if de
 
     try {
       const response = await tracedCompletion("screens.screen", {
-        model: SONNET_4_6,
+        model: modelFor("generate"),
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: screenPrompt },
+            ...cacheablePromptParts(screenPromptParts.prefix, screenSuffix),
             ...referenceImageBlocks,
           ],
         }],

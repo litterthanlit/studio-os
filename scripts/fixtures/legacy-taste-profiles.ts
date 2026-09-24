@@ -1,7 +1,8 @@
 // Legacy TasteProfiles (no typeScaleSource, no layers) for proof:taste-compile.
-// Golden prompt text in legacy-taste-prompts.json was produced by the
-// directive compiler and prompt builder as they were before the layered
-// compile (1.5); the proof asserts they still produce it byte-for-byte.
+// Golden directive text in legacy-taste-prompts.json was produced by the
+// directive compiler as it was before the layered compile (1.5); the proof
+// asserts it is still produced byte-for-byte and embedded verbatim in the
+// design prompt (whose section order changed in 1.10 for prompt caching).
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const editorial: any = {

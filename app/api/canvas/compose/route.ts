@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { PageNode, PageNodeStyle } from "@/lib/canvas/compose";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
-import { getRouter, GEMINI_FLASH } from "@/lib/ai/model-router";
+import { getRouter, modelFor } from "@/lib/ai/model-router";
 import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
 
 type ComposeAction =
@@ -112,7 +112,7 @@ async function geminiEdit(
 
   const router = getRouter();
   const response = await router.chat.completions.create({
-    model: GEMINI_FLASH,
+    model: modelFor("classify"),
     temperature: 0.5,
     response_format: { type: "json_object" },
     messages: [

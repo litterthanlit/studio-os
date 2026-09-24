@@ -10,15 +10,16 @@ import {
   describeModelFailure,
   getRouter,
   getV6TokenBudgets,
-  SONNET_4_6,
   type ModelFailureInfo,
   tracedCompletion,
+  modelFor,
+  cacheablePromptParts,
 } from "@/lib/ai/model-router";
 import { labeledReferenceBlocks } from "@/lib/intent/labels";
 import { compileLayeredDirectives, layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import {
-  buildDesignTreePrompt,
+  buildDesignTreePromptParts,
   buildDesignPushedVariantPrompt,
   buildDesignRestructuredVariantPrompt,
 } from "@/lib/canvas/design-tree-prompt";
@@ -291,7 +292,7 @@ export async function generateV6DesignVariants(
 
   const v6Debug: V6GenerationDebug = {
     attempted: true,
-    model: SONNET_4_6,
+    model: modelFor("generate"),
     strict: strictV6Mode,
     maxTokens: {
       base: v6Budgets.baseMaxTokens,
@@ -358,7 +359,7 @@ export async function generateV6DesignVariants(
     fidelityMode: resolvedFidelityMode,
   });
 
-  const designPrompt = buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
+  const designPromptParts = buildDesignTreePromptParts(tokens, prompt, resolvedSiteName, {
     variantMode: "safe",
     tasteProfile: tasteProfile ?? null,
     layeredTaste,
@@ -368,6 +369,7 @@ export async function generateV6DesignVariants(
     compositionBlueprint,
     compositionContext: cappedCompositionContext,
   });
+  const designPrompt = `${designPromptParts.prefix}\n\n${designPromptParts.suffix}`;
 
   if (cappedCompositionContext) {
     logSafe("[COMPOSITION] Context wired into generation prompt", {
@@ -385,11 +387,12 @@ export async function generateV6DesignVariants(
   try {
     const router = getRouter();
     const response = await tracedCompletion("design.base", {
-      model: SONNET_4_6,
+      model: modelFor("generate"),
       messages: [{
         role: "user",
         content: [
-          { type: "text", text: designPrompt },
+          // Stable prefix first (cache breakpoint), then the per-request suffix.
+          ...cacheablePromptParts(designPromptParts.prefix, designPromptParts.suffix),
           ...referenceImageBlocks,
         ],
       }],
@@ -446,13 +449,12 @@ export async function generateV6DesignVariants(
     if (!gate.passed) {
       attempts = 2;
       v6Debug.retryAttempted = true;
-      const retryPrompt = `${designPrompt}\n\n${buildTasteRetryPrompt(gate.validation)}`;
       const retryResponse = await tracedCompletion("design.taste-retry", {
-        model: SONNET_4_6,
+        model: modelFor("generate"),
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: retryPrompt },
+            ...cacheablePromptParts(designPromptParts.prefix, `${designPromptParts.suffix}\n\n${buildTasteRetryPrompt(gate.validation)}`),
             ...referenceImageBlocks,
           ],
         }],
@@ -592,7 +594,7 @@ export async function generateV6DesignVariants(
     const [pushedResult, restructuredResult] = await Promise.allSettled([
       callModel({
         step: "design.variant-pushed",
-        model: SONNET_4_6,
+        model: modelFor("variant"),
         messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree, tasteProfile) }],
         maxTokens: v6Budgets.variantMaxTokens,
         temperature: 0.4,
@@ -600,7 +602,7 @@ export async function generateV6DesignVariants(
       }),
       callModel({
         step: "design.variant-restructured",
-        model: SONNET_4_6,
+        model: modelFor("variant"),
         messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree, tasteProfile) }],
         maxTokens: v6Budgets.variantMaxTokens,
         temperature: 0.5,
@@ -672,7 +674,7 @@ export async function generateV6DesignVariants(
           rederive: async () => {
             const raw = await callModel({
               step: "design.variant-pushed.rederive",
-              model: SONNET_4_6,
+              model: modelFor("variant"),
               messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree!, tasteProfile) }],
               maxTokens: v6Budgets.variantMaxTokens,
               temperature: 0.4,
@@ -690,7 +692,7 @@ export async function generateV6DesignVariants(
           rederive: async () => {
             const raw = await callModel({
               step: "design.variant-restructured.rederive",
-              model: SONNET_4_6,
+              model: modelFor("variant"),
               messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree!, tasteProfile) }],
               maxTokens: v6Budgets.variantMaxTokens,
               temperature: 0.5,

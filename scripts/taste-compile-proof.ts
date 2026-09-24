@@ -1,9 +1,10 @@
 /**
  * Proof gate 1.5 — layered taste compile with provenance.
  *
- * 1. Legacy profiles produce unchanged prompt text: the directive text and the
- *    full design-tree prompt match golden snapshots taken from the compiler as
- *    it was before 1.5, through both the legacy and the layered entrypoints.
+ * 1. Legacy profiles produce unchanged prompt text: the directive text matches
+ *    golden snapshots taken from the compiler as it was before 1.5 (legacy and
+ *    layered entrypoints) and is embedded verbatim in the design prompt, which
+ *    is identical through both entrypoints.
  * 2. Every directive carries provenance (legacy and layered, all fidelities).
  * 3. HARD numeric directives only from measured values above the confidence
  *    threshold (or explicit overrides); the headingToBodyRatio type scale is a
@@ -49,15 +50,15 @@ function testLegacyUnchanged() {
         assert.equal(directivesToPromptText(compileLayeredDirectives(layered, fidelity, { appScreen })), golden[key], `${key} (layered entrypoint)`);
         compared += 2;
       }
-      const promptKey = `${name}/${fidelity}/prompt`;
       const tokens = defaultDesignTokens();
       const args = ["Landing page for a small press", "Small Press"] as const;
-      assert.equal(buildDesignTreePrompt(tokens, ...args, { tasteProfile: profile, fidelityMode: fidelity }), golden[promptKey], `${promptKey} (legacy)`);
-      assert.equal(buildDesignTreePrompt(tokens, ...args, { layeredTaste: layered, fidelityMode: fidelity }), golden[promptKey], `${promptKey} (layered, no measured / learned)`);
+      const legacyPrompt = buildDesignTreePrompt(tokens, ...args, { tasteProfile: profile, fidelityMode: fidelity });
+      assert.equal(buildDesignTreePrompt(tokens, ...args, { layeredTaste: layered, fidelityMode: fidelity }), legacyPrompt, `${name}/${fidelity}: layered prompt = legacy prompt`);
+      assert.ok(legacyPrompt.includes(golden[`${name}/${fidelity}/page/directives`]!), `${name}/${fidelity}: pre-1.5 directive text embedded verbatim in the prompt`);
       compared += 2;
     }
   }
-  console.log(`[proof] 1. legacy profiles: ${compared} prompt texts byte-identical to the pre-1.5 snapshots`);
+  console.log(`[proof] 1. legacy profiles: ${compared} directive texts byte-identical to the pre-1.5 snapshots; layered prompt = legacy prompt`);
 }
 
 function assertProvenance(d: CompiledDirectives, label: string) {

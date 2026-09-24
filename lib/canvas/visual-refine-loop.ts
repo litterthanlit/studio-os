@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { imageUrlBlock, SONNET_4_6, tracedCompletion } from "@/lib/ai/model-router";
+import { imageUrlBlock, tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { DesignNode } from "./design-node";
 import { renderDesignNodeScreenshotDataUrl } from "./design-node-screenshot";
@@ -182,7 +182,7 @@ async function regenerateTreeFromCritique(args: {
     const retryResponse = await tracedCompletion(
       "visual-refine.regenerate",
       {
-        model: SONNET_4_6,
+        model: modelFor("generate"),
         messages: [{ role: "user", content }],
         max_tokens: args.retryMaxTokens,
         temperature: 0.4,

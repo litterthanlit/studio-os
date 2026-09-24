@@ -711,7 +711,22 @@ Prefer "fill" for containers and "hug" for content nodes. Keep control heights c
   };
 }
 
+export type DesignTreePromptParts = {
+  /** Stable per prompt frame (marketing / app): schema, grammar, rules. Cacheable. */
+  prefix: string;
+  /** Per request: brief, taste directives, knobs, composition, tokens. */
+  suffix: string;
+};
+
+/** The full design prompt: the cacheable prefix, then the per-request suffix. */
 export function buildDesignTreePrompt(
+  ...args: Parameters<typeof buildDesignTreePromptParts>
+): string {
+  const { prefix, suffix } = buildDesignTreePromptParts(...args);
+  return `${prefix}\n\n${suffix}`;
+}
+
+export function buildDesignTreePromptParts(
   tokens: DesignSystemTokens,
   prompt: string,
   siteName: string,
@@ -727,7 +742,7 @@ export function buildDesignTreePrompt(
     /** Layered taste (1.5): measured + learned directives with provenance. */
     layeredTaste?: LayeredTaste | null;
   }
-): string {
+): DesignTreePromptParts {
   const tasteProfile = options?.layeredTaste?.tasteProfile ?? options?.tasteProfile;
   const knobVector = options?.knobVector ?? deriveDesignKnobs({
     tasteProfile,
@@ -769,7 +784,7 @@ export function buildDesignTreePrompt(
     ? `\n${buildProductPrimitiveAccentMapping4A(tokens)}\n`
     : "";
 
-  return `${frame.intro}
+  const prefix = `${frame.intro}
 
 ## Mental Model
 You are placing rectangles on a page. Every element is one of 5 types:
@@ -781,13 +796,6 @@ You are placing rectangles on a page. Every element is one of 5 types:
 
 ${frame.mentalModel}
 
-## Creative Brief
-"${prompt}"
-
-${frame.nameLabel}: ${siteName}
-${archetypeGrammar}${banSection}
-
-${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionContextSection}${accentMapping4A}
 ## DesignNode Schema
 
 \`\`\`
@@ -876,18 +884,7 @@ ${frame.gradientLine}    "transform": { "rotate": number, "scale": { "x": number
 }
 \`\`\`
 
-${frame.responsiveSection}${frame.sizingAndVocabulary}## Design Tokens
-- background: ${tokens.colors.background}
-- surface: ${tokens.colors.surface}
-- text: ${tokens.colors.text}
-- textMuted: ${tokens.colors.textMuted}
-- accent: ${tokens.colors.accent}
-- primary: ${tokens.colors.primary}
-- secondary: ${tokens.colors.secondary}
-- border: ${tokens.colors.border}
-- headingFont: ${tokens.typography.fontFamily}
-
-## Shadow Effects
+${frame.responsiveSection}${frame.sizingAndVocabulary}## Shadow Effects
 
 effects: [{ type: "dropShadow"|"innerShadow", x, y, blur, spread, color, enabled }]
 Structured shadow effects. Most elements need 0 or 1 shadow effect.
@@ -908,6 +905,26 @@ ${frame.compositionRule}10. coverScrim is OPTIONAL. Only add it when placing lig
 
 ## Output
 Return ONLY valid JSON. No markdown fences. No explanation. Just the root DesignNode object starting with {.`;
+  const suffix = `## Creative Brief
+"${prompt}"
+
+${frame.nameLabel}: ${siteName}
+${archetypeGrammar}${banSection}
+
+${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionContextSection}${accentMapping4A}
+## Design Tokens
+- background: ${tokens.colors.background}
+- surface: ${tokens.colors.surface}
+- text: ${tokens.colors.text}
+- textMuted: ${tokens.colors.textMuted}
+- accent: ${tokens.colors.accent}
+- primary: ${tokens.colors.primary}
+- secondary: ${tokens.colors.secondary}
+- border: ${tokens.colors.border}
+- headingFont: ${tokens.typography.fontFamily}
+
+Return ONLY the root DesignNode JSON object for this brief.`;
+  return { prefix, suffix };
 }
 
 // ─── Variant Transformation Prompts ─────────────────────────────────────────

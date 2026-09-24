@@ -27,9 +27,9 @@ import {
   describeModelFailure,
   getRouter,
   getV6TokenBudgets,
-  SONNET_4_6,
   imageUrlBlock,
   type ModelFailureInfo,
+  modelFor,
 } from "@/lib/ai/model-router";
 import { scoreRealtimeFidelity, type TasteFidelityScore } from "@/lib/canvas/taste-evaluator";
 import { validateAndNormalizeDesignSectionTree } from "@/lib/canvas/design-tree-validator";
@@ -448,7 +448,7 @@ export async function POST(req: NextRequest) {
 
             const router = getRouter();
             const response = await router.chat.completions.create({
-              model: SONNET_4_6,
+              model: modelFor("generate"),
               messages: [{
                 role: "user",
                 content: [
@@ -633,14 +633,14 @@ export async function POST(req: NextRequest) {
 
           const [pushedResult, restructuredResult] = await Promise.allSettled([
             callModel({
-              model: SONNET_4_6,
+              model: modelFor("variant"),
               messages: [{ role: "user", content: pushedPrompt }],
               maxTokens: 16000,
               temperature: 0.4,
               jsonMode: true,
             }),
             callModel({
-              model: SONNET_4_6,
+              model: modelFor("variant"),
               messages: [{ role: "user", content: restructuredPrompt }],
               maxTokens: 16000,
               temperature: 0.5,
@@ -921,7 +921,7 @@ export async function POST(req: NextRequest) {
       try {
         const router = getRouter();
         const response = await router.chat.completions.create({
-          model: SONNET_4_6,
+          model: modelFor("generate"),
           messages: [{
             role: "user",
             content: [
@@ -976,7 +976,7 @@ export async function POST(req: NextRequest) {
             attempts = 2;
             const retryPrompt = `${designPrompt}\n\n${buildTasteRetryPrompt(gate.validation)}`;
             const retryResponse = await router.chat.completions.create({
-              model: SONNET_4_6,
+              model: modelFor("generate"),
               messages: [{
                 role: "user",
                 content: [
@@ -1079,7 +1079,7 @@ export async function POST(req: NextRequest) {
       .map((url) => imageUrlBlock(url, "low"));
 
     const response = await router.chat.completions.create({
-      model: SONNET_4_6,
+      model: modelFor("generate"),
       messages: [
         {
           role: "user",

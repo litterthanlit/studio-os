@@ -4,7 +4,7 @@
 // vocabulary and the legacy CompositionAnalysis (the "derived legacy view"),
 // combined with pixel measurements from 1.3 (palette, grid, type scale).
 
-import { SONNET_4_6, tracedCompletion } from "@/lib/ai/model-router";
+import { tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import { COMPOSITION_SYSTEM_PROMPT, validateCompositionAnalysis } from "@/lib/taste/analyze-composition-core";
 import type { AppUiComposition, CompositionAnalysis } from "@/types/composition-analysis";
 import { labeledImageBlocks, type LabeledImageRef } from "./labels";
@@ -134,7 +134,7 @@ export type PerceiveDeps = {
 
 async function defaultVision(ref: LabeledImageRef): Promise<string> {
   const response = await tracedCompletion("intent.perceive", {
-    model: SONNET_4_6,
+    model: modelFor("perceive"),
     max_tokens: 3500,
     temperature: 0.2,
     response_format: { type: "json_object" },

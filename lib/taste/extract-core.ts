@@ -1,6 +1,6 @@
 // lib/taste/extract-core.ts
 // Taste extraction (moved from app/api/taste/extract/route.ts so the engine pipeline can call it).
-import { SONNET_4_6, tracedCompletion } from "@/lib/ai/model-router";
+import { tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import {
   buildTasteImageContent,
   buildTasteSignature,
@@ -856,7 +856,7 @@ Return compact JSON only. Do not pretty-print. Fill every field, but keep string
     });
 
     const response = await tracedCompletion("taste.extract", {
-      model: SONNET_4_6,
+      model: modelFor("perceive"),
       max_tokens: 2600,
       temperature: 0.4,
       response_format: { type: "json_object" },

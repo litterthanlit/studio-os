@@ -1,7 +1,7 @@
 // lib/ai/image-scorer.ts
 // Gemini 2.5 Flash via OpenRouter for scoring inspiration images
 
-import { GEMINI_FLASH, imageUrlBlock, tracedCompletion } from "@/lib/ai/model-router";
+import { imageUrlBlock, tracedCompletion, modelFor } from "@/lib/ai/model-router";
 
 export interface ImageScore {
   composition: number;
@@ -118,7 +118,7 @@ function normalizeGeminiResponse(raw: Record<string, unknown>): ImageAnalysis {
 
 export async function scoreImage(imageUrl: string): Promise<ImageAnalysis> {
   const response = await tracedCompletion("taste.score-image", {
-    model: GEMINI_FLASH,
+    model: modelFor("judgeRealtime"),
     max_tokens: 500,
     temperature: 0.3,
     response_format: { type: "json_object" },

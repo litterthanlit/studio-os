@@ -3,7 +3,7 @@ import {
   DESIGN_DIRECTOR_SYSTEM_PROMPT,
   type ImageAnalysis,
 } from "@/lib/canvas/analyze-images";
-import { GEMINI_FLASH, imageUrlBlock, tracedCompletion } from "@/lib/ai/model-router";
+import { imageUrlBlock, tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import { API_LIMITS, capStringArray, logSafe, warnSafe } from "@/lib/security/api-guard";
 
 export function fallbackAnalysis(images: string[]): ImageAnalysis {
@@ -75,7 +75,7 @@ export async function analyzeReferenceImages(input: string[]): Promise<Reference
 
   try {
     const response = await tracedCompletion("tokens.analyze-images", {
-      model: GEMINI_FLASH,
+      model: modelFor("measure"),
       messages: [
         { role: "system", content: DESIGN_DIRECTOR_SYSTEM_PROMPT },
         {

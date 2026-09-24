@@ -1,7 +1,7 @@
 import type { TasteProfile } from "@/types/taste-profile";
 import type { DesignNode } from "./design-node";
 import { walkDesignTree } from "./design-node";
-import { callModel, GEMINI_FLASH, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { callModel, imageUrlBlock, modelFor } from "@/lib/ai/model-router";
 import { labeledReferenceBlocks } from "@/lib/intent/labels";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -312,7 +312,7 @@ Return ONLY valid JSON:
 
   const raw = await callModel({
     step: "evaluate.realtime",
-    model: GEMINI_FLASH,
+    model: modelFor("judgeRealtime"),
     messages: [{ role: "user", content: prompt }],
     maxTokens: 200,
     temperature: 0.2,
@@ -405,7 +405,7 @@ Return ONLY valid JSON:
 
   const raw = await callModel({
     step: "evaluate.benchmark",
-    model: SONNET_4_6,
+    model: modelFor("judge"),
     messages: [{
       role: "user",
       content: [

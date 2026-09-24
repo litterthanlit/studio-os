@@ -15,6 +15,7 @@ export type ModelPrice = {
 export const MODEL_PRICES: Record<string, ModelPrice> = {
   "anthropic/claude-sonnet-4-6": { input: 3, output: 15, cachedInput: 0.3 },
   "google/gemini-2.5-flash": { input: 0.3, output: 2.5, cachedInput: 0.075 },
+  "google/gemini-2.5-pro": { input: 1.25, output: 10, cachedInput: 0.31 },
   "moonshotai/kimi-k2.5": { input: 0.6, output: 2.5, cachedInput: 0.15 },
 };
 

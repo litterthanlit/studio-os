@@ -152,3 +152,43 @@ export async function agentAssertProjectAccess(
     client.clearAuth();
   }
 }
+
+export type AgentDesignStateRow = {
+  tasteProfile: unknown | null;
+  designTokens: unknown | null;
+  tasteUpdatedAt: number | null;
+  tokensUpdatedAt: number | null;
+  updatedAt: number;
+  tasteCacheKey?: string | null;
+} | null;
+
+/** Project taste profile + design tokens written by the signed-in editor. */
+export async function agentLoadDesignState(
+  auth: AgentConvexAuth,
+  projectId: Id<"projects">,
+): Promise<AgentDesignStateRow> {
+  const client = createAgentConvexClient(auth);
+  if (!client) throw new Error("Convex is not configured");
+
+  try {
+    if (usesOwnerScopedAgentAuth(auth)) {
+      return await client.query(api.designState.getForUserAgent, {
+        projectId,
+        actingUserId: auth.actingUserId as Id<"users">,
+        serviceSecret: auth.serviceSecret!,
+      });
+    }
+    if (auth.serviceSecret) {
+      return await client.query(api.designState.getForAgent, {
+        projectId,
+        serviceSecret: auth.serviceSecret,
+      });
+    }
+    if (!auth.bearerToken) {
+      throw new Error("Bearer token or service secret required");
+    }
+    return await client.query(api.designState.get, { projectId });
+  } finally {
+    client.clearAuth();
+  }
+}

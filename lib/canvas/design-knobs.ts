@@ -3,7 +3,7 @@ import type { IntentProfile } from "@/types/intent-profile";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
 import type { FidelityMode } from "./directive-compiler";
 
-type DeepPartial<T> = {
+export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
@@ -105,11 +105,21 @@ export function deriveDesignKnobs(args: {
     referenceIndex: number;
   }>;
   compositionBlueprint?: string;
+  /**
+   * How strongly the archetype preset applies (layered compile, 1.5): the
+   * archetype is a hint weighted by its confidence, not the ontology. Omitted
+   * (legacy) → the preset applies fully.
+   */
+  archetypeWeight?: number;
+  /** Learned knob preferences in scope (applied after derived signals, before designer overrides). */
+  patch?: DeepPartial<DesignKnobVector>;
 }): DesignKnobVector {
   const taste = args.tasteProfile;
   const intent = args.intentProfile;
   const preset = DESIGN_KNOB_PRESETS[taste?.archetypeMatch ?? ""] ?? DESIGN_KNOB_PRESETS["premium-saas"] ?? baseKnobs;
-  let knobs = mergeKnobs(baseKnobs, preset);
+  let knobs = args.archetypeWeight === undefined
+    ? mergeKnobs(baseKnobs, preset)
+    : blendKnobVectors(baseKnobs, preset, clamp01(args.archetypeWeight));
 
   if (taste) {
     knobs = mergeKnobs(knobs, {
@@ -172,7 +182,87 @@ export function deriveDesignKnobs(args: {
     knobs.layout.asymmetry = clamp01(knobs.layout.asymmetry + 0.1);
     knobs.typography.scaleContrast = clamp01(knobs.typography.scaleContrast + 0.1);
   }
+
+  if (args.patch) knobs = mergeKnobs(knobs, sanitizeKnobPatch(args.patch));
+
+  // Designer corrections win over everything derived above.
+  const overrides = taste?.userOverrides;
+  if (overrides?.palette && overrides.palette.length > 0) {
+    knobs = mergeKnobs(knobs, { color: { palette: overrides.palette } });
+  }
+  if (overrides?.knobs) {
+    knobs = mergeKnobs(knobs, sanitizeKnobPatch(overrides.knobs));
+  }
   return knobs;
+}
+
+const KNOB_ENUMS: Record<string, readonly string[]> = {
+  "typography.letterSpacingIntent": ["neutral", "tracked", "tight-display"],
+  "typography.casing": ["mixed", "uppercase", "lowercase"],
+  "typography.bodyTone": ["neutral", "warm", "technical", "literary"],
+  "color.mode": ["light", "dark", "mixed", "adaptive"],
+  "imagery.treatment": ["raw", "filtered", "duotone", "high-contrast", "desaturated"],
+  "imagery.role": ["hero", "supporting", "texture", "product", "documentary"],
+};
+
+/**
+ * Keep only known knob paths with valid values (0–1 numbers clamped, enums checked,
+ * section counts 1–12, palette as hex strings). Safe for persisted/untrusted patches.
+ */
+export function sanitizeKnobPatch(patch: unknown): DeepPartial<DesignKnobVector> {
+  if (!patch || typeof patch !== "object") return {};
+  const out: Record<string, Record<string, unknown>> = {};
+  const base = baseKnobs as unknown as Record<string, Record<string, unknown>>;
+  for (const [section, sectionPatch] of Object.entries(patch as Record<string, unknown>)) {
+    const baseSection = base[section];
+    if (!baseSection || !sectionPatch || typeof sectionPatch !== "object") continue;
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(sectionPatch as Record<string, unknown>)) {
+      const baseValue = baseSection[key];
+      if (baseValue === undefined) continue;
+      if (section === "layout" && key === "sectionCount") {
+        if (!value || typeof value !== "object") continue;
+        const range = value as { min?: unknown; max?: unknown };
+        const count: Record<string, number> = {};
+        for (const bound of ["min", "max"] as const) {
+          const n = range[bound];
+          if (typeof n === "number" && Number.isFinite(n)) count[bound] = Math.max(1, Math.min(12, Math.round(n)));
+        }
+        if (Object.keys(count).length > 0) clean.sectionCount = count;
+      } else if (section === "color" && key === "palette") {
+        if (Array.isArray(value)) {
+          const palette = value.filter((c): c is string => typeof c === "string" && /^#[0-9a-fA-F]{3,8}$/.test(c));
+          if (palette.length > 0) clean.palette = palette.slice(0, 12);
+        }
+      } else if (typeof baseValue === "number") {
+        if (typeof value === "number" && Number.isFinite(value)) clean[key] = clamp01(value);
+      } else if (typeof baseValue === "string") {
+        const allowed = KNOB_ENUMS[`${section}.${key}`];
+        if (typeof value === "string" && (!allowed || allowed.includes(value))) clean[key] = value.slice(0, 80);
+      }
+    }
+    if (Object.keys(clean).length > 0) out[section] = clean;
+  }
+  return out as DeepPartial<DesignKnobVector>;
+}
+
+/** Deep-merge two knob patches (later wins per leaf; section counts merge per bound). */
+export function mergeKnobPatches(
+  base: DeepPartial<DesignKnobVector>,
+  patch: DeepPartial<DesignKnobVector>,
+): DeepPartial<DesignKnobVector> {
+  const out: Record<string, Record<string, unknown>> = {};
+  const sections = new Set([...Object.keys(base), ...Object.keys(patch)]);
+  for (const section of sections) {
+    const a = (base as Record<string, Record<string, unknown> | undefined>)[section] ?? {};
+    const b = (patch as Record<string, Record<string, unknown> | undefined>)[section] ?? {};
+    const merged: Record<string, unknown> = { ...a, ...b };
+    if (a.sectionCount || b.sectionCount) {
+      merged.sectionCount = { ...(a.sectionCount as object | undefined), ...(b.sectionCount as object | undefined) };
+    }
+    out[section] = merged;
+  }
+  return out as DeepPartial<DesignKnobVector>;
 }
 
 function applyCompositionSignal(knobs: DesignKnobVector, args: {
@@ -185,10 +275,8 @@ function applyCompositionSignal(knobs: DesignKnobVector, args: {
   intentProfile?: IntentProfile | null;
 }): DesignKnobVector {
   let next = knobs;
-  const roleByReference = new Map<string, { role: string; weight: "primary" | "default" | "muted" }>();
-  for (const role of args.intentProfile?.referenceRoles ?? []) {
-    roleByReference.set(role.referenceId, { role: role.role, weight: role.weight });
-  }
+  // Reference roles are index-aligned with the reference list (ids may be real item ids).
+  const roles = args.intentProfile?.referenceRoles ?? [];
 
   let totalWeight = 0;
   let asymmetry = 0;
@@ -203,8 +291,7 @@ function applyCompositionSignal(knobs: DesignKnobVector, args: {
   let ctaProminence = 0;
 
   for (const item of args.compositionData) {
-    const refId = `reference-${item.referenceIndex + 1}`;
-    const roleSignal = roleByReference.get(refId);
+    const roleSignal = roles[item.referenceIndex];
     const sourceWeight = roleSignal?.weight ?? item.weight;
     if (sourceWeight === "muted" || item.weight === "muted") continue;
 
@@ -286,10 +373,13 @@ function applyCompositionSignal(knobs: DesignKnobVector, args: {
   return next;
 }
 
-export function serializeDesignKnobsForPrompt(knobs: DesignKnobVector): string {
+export function serializeDesignKnobsForPrompt(
+  knobs: DesignKnobVector,
+  options: { omitSectionCount?: boolean } = {},
+): string {
   return [
     "## Design Knob Vector",
-    `- section count: ${knobs.layout.sectionCount.min}-${knobs.layout.sectionCount.max}`,
+    ...(options.omitSectionCount ? [] : [`- section count: ${knobs.layout.sectionCount.min}-${knobs.layout.sectionCount.max}`]),
     `- density ${n(knobs.layout.density)}, whitespace drama ${n(knobs.layout.whitespaceDrama)}, asymmetry ${n(knobs.layout.asymmetry)}, rhythm variation ${n(knobs.layout.rhythmVariation)}`,
     `- full-bleed ratio ${n(knobs.layout.fullBleedRatio)}, grid strictness ${n(knobs.layout.gridStrictness)}, height variance ${n(knobs.layout.sectionHeightVariance)}`,
     `- type scale contrast ${n(knobs.typography.scaleContrast)}, serif bias ${n(knobs.typography.editorialSerifBias)}, casing ${knobs.typography.casing}, body tone ${knobs.typography.bodyTone}`,
@@ -319,6 +409,26 @@ function mergeKnobs(base: DesignKnobVector, patch: DeepPartial<DesignKnobVector>
     components: { ...base.components, ...patch.components },
     content: { ...base.content, ...patch.content },
   };
+}
+
+/** Numeric knobs interpolate base → preset by `weight`; categorical knobs follow the preset from 0.5. */
+function blendKnobVectors(base: DesignKnobVector, preset: DesignKnobVector, weight: number): DesignKnobVector {
+  const out = mergeKnobs(base, {}) as unknown as Record<string, Record<string, unknown>>;
+  for (const [section, values] of Object.entries(preset) as Array<[string, Record<string, unknown>]>) {
+    for (const [key, value] of Object.entries(values)) {
+      const current = out[section]![key];
+      if (typeof value === "number" && typeof current === "number") {
+        out[section]![key] = clamp01(current + (value - current) * weight);
+      } else if (key === "sectionCount") {
+        const a = current as { min: number; max: number };
+        const b = value as { min: number; max: number };
+        out[section]![key] = { min: Math.round(a.min + (b.min - a.min) * weight), max: Math.round(a.max + (b.max - a.max) * weight) };
+      } else if (weight >= 0.5) {
+        out[section]![key] = value;
+      }
+    }
+  }
+  return out as unknown as DesignKnobVector;
 }
 
 function clamp01(value: number): number {

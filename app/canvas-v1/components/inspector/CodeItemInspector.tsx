@@ -19,7 +19,10 @@ function useDebouncedCallback<T extends (...args: unknown[]) => void>(
 ) {
   const timeoutRef = React.useRef<number | null>(null);
   const fnRef = React.useRef(fn);
-  fnRef.current = fn;
+  // Keep the latest callback without writing a ref during render.
+  React.useEffect(() => {
+    fnRef.current = fn;
+  }, [fn]);
   React.useEffect(() => {
     return () => {
       if (timeoutRef.current != null) window.clearTimeout(timeoutRef.current);

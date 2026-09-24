@@ -1,6 +1,7 @@
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
-import { extractIntentProfile, type IntentProfile } from "@/types/intent-profile";
+import type { IntentProfile, IntentReferenceInput } from "@/types/intent-profile";
+import { buildIntentReferences, resolveIntentProfile } from "@/lib/canvas/intent-classifier";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
@@ -8,18 +9,20 @@ import type { DesignNode } from "@/lib/canvas/design-node";
 import {
   callModel,
   describeModelFailure,
-  getRouter,
   getV6TokenBudgets,
-  SONNET_4_6,
-  imageUrlBlock,
   type ModelFailureInfo,
+  tracedCompletion,
+  modelFor,
+  cacheablePromptParts,
 } from "@/lib/ai/model-router";
+import { labeledReferenceBlocks } from "@/lib/intent/labels";
+import { layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
 import { deriveDesignKnobs, type DesignKnobVector } from "@/lib/canvas/design-knobs";
 import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
 import { resolveDesignMediaUrls } from "@/lib/canvas/design-media-resolver";
 import {
-  buildDesignTreePrompt,
+  buildDesignTreePromptParts,
   resolveEffectiveArchetype,
 } from "@/lib/canvas/design-tree-prompt";
 import {
@@ -61,6 +64,14 @@ export type GenerateAppScreenSetInput = {
     referenceIndex: number;
   }>;
   compositionContext?: string;
+  /** Real reference ids / weights / annotations, index-aligned with referenceUrls. */
+  references?: IntentReferenceInput[];
+  /** Classification the caller already routed on (validated; reused so routing and generation agree). */
+  intentClassification?: unknown;
+  /** Layered taste from the engine (1.5): measured + learned directives with provenance. */
+  layeredTaste?: LayeredTaste | null;
+  /** Step events for async runs: "planned", "screen-complete", "screen-failed". */
+  onProgress?: (step: string, detail?: string) => void | Promise<void>;
 };
 
 export type GenerateAppScreenSetResult =
@@ -145,7 +156,8 @@ Rules:
 - No marketing landing sections`;
 
   const raw = await callModel({
-    model: SONNET_4_6,
+    step: "screens.plan",
+    model: modelFor("generate"),
     messages: [{ role: "user", content: planPrompt }],
     maxTokens: 1200,
     temperature: 0.3,
@@ -163,13 +175,18 @@ export async function generateAppScreenSet(
     tokens,
     siteName,
     siteType,
-    tasteProfile,
+    tasteProfile: requestTaste,
+    layeredTaste,
     referenceUrls,
     fidelityMode,
     breakpoint = "desktop",
     compositionData,
     compositionContext,
+    references,
+    intentClassification,
+    onProgress,
   } = input;
+  const tasteProfile = layeredTaste?.tasteProfile ?? requestTaste;
 
   if (!process.env.OPENROUTER_API_KEY) {
     return {
@@ -185,13 +202,15 @@ export async function generateAppScreenSet(
   const resolvedSiteName = siteName ?? (prompt.trim().slice(0, 40) || "App");
   const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
   const resolvedFidelityMode = fidelityMode ?? "balanced";
-  const intentProfile = extractIntentProfile({
+  const intentProfile = await resolveIntentProfile({
     prompt,
     siteType,
-    references: cappedReferenceUrls.map((url, index) => ({
-      id: `reference-${index + 1}`,
-      annotation: url,
-    })),
+    classification: intentClassification,
+    references: buildIntentReferences({
+      references,
+      referenceUrls: cappedReferenceUrls,
+      compositionData: compositionData,
+    }),
   });
 
   const effectiveArchetype = resolveEffectiveArchetype({
@@ -211,6 +230,7 @@ export async function generateAppScreenSet(
 
   const knobVector = deriveDesignKnobs({
     tasteProfile: tasteProfile ?? null,
+    ...layeredKnobOptions(layeredTaste),
     intentProfile,
     compositionData,
     compositionBlueprint,
@@ -230,11 +250,10 @@ export async function generateAppScreenSet(
     return { ok: false, failure, error: failure.message };
   }
 
+  await onProgress?.("planned", plan.map((item) => item.id).join(", "));
+
   const v6Budgets = getV6TokenBudgets();
-  const router = getRouter();
-  const referenceImageBlocks = cappedReferenceUrls
-    .slice(0, 4)
-    .map((url) => imageUrlBlock(url, "low"));
+  const referenceImageBlocks = labeledReferenceBlocks(cappedReferenceUrls.slice(0, 4), references);
 
   const screens: GeneratedAppScreen[] = [];
   const generatedSummaries: Array<{ name: string; summary: string }> = [];
@@ -247,15 +266,17 @@ export async function generateAppScreenSet(
       generatedSummaries,
     });
 
-    const screenPrompt = `${buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
+    const screenPromptParts = buildDesignTreePromptParts(tokens, prompt, resolvedSiteName, {
       tasteProfile: tasteProfile ?? null,
+      layeredTaste,
       intentProfile,
       knobVector,
       fidelityMode: resolvedFidelityMode,
       compositionBlueprint,
       compositionContext,
       breakpoint,
-    })}
+    });
+    const screenSuffix = `${screenPromptParts.suffix}
 
 ${screenContext}
 
@@ -268,12 +289,12 @@ Required elements: ${screenPlan.keyElements.join(", ")}
 Return one root frame representing this single app screen (with full shell if desktop/mobile grammar requires it).`;
 
     try {
-      const response = await router.chat.completions.create({
-        model: SONNET_4_6,
+      const response = await tracedCompletion("screens.screen", {
+        model: modelFor("generate"),
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: screenPrompt },
+            ...cacheablePromptParts(screenPromptParts.prefix, screenSuffix),
             ...referenceImageBlocks,
           ],
         }],
@@ -290,6 +311,7 @@ Return one root frame representing this single app screen (with full shell if de
           screen: screenPlan.name,
           reason: validated.reason,
         });
+        await onProgress?.("screen-failed", screenPlan.id);
         continue;
       }
 
@@ -297,6 +319,7 @@ Return one root frame representing this single app screen (with full shell if de
       const gate = evaluateV6TasteGate({
         tree,
         tasteProfile: tasteProfile ?? null,
+        layeredTaste,
         intentProfile,
         knobVector,
         fidelityMode: resolvedFidelityMode,
@@ -320,11 +343,13 @@ Return one root frame representing this single app screen (with full shell if de
         name: screenPlan.name,
         summary: summarizeScreenTree(tree),
       });
+      await onProgress?.("screen-complete", screenPlan.id);
     } catch (err) {
       logSafe("[SCREEN-SET] Screen generation failed", {
         screen: screenPlan.name,
         error: err instanceof Error ? err.message : "unknown",
       });
+      await onProgress?.("screen-failed", screenPlan.id);
     }
   }
 

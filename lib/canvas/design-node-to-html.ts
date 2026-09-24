@@ -4,6 +4,7 @@
 import type { DesignNode, DesignNodeStyle } from "./design-node";
 import { designStyleToCSS } from "./design-style-to-css";
 import { BREAKPOINT_WIDTHS } from "./compose";
+import { designFontLinkTags } from "./font-links";
 import type { CSSProperties } from "react";
 
 // ── Style serialization ────────────────────────────────────────────────────
@@ -286,13 +287,14 @@ export type DesignNodeToHTMLOptions = {
 /** @deprecated Use DesignNodeToHTMLOptions */
 export type ExportHTMLOptions = DesignNodeToHTMLOptions;
 
-function wrapHtmlDocument(fragment: string): string {
+function wrapHtmlDocument(fragment: string, fontLinkTags: string): string {
+  const fontLinks = fontLinkTags ? `\n${fontLinkTags}` : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Export</title>
+<title>Export</title>${fontLinks}
 </head>
 <body>
 ${fragment}
@@ -333,7 +335,7 @@ export function designNodeToHTML(
 
   const outputMode = options?.outputMode ?? "fragment";
   if (outputMode === "document") {
-    return wrapHtmlDocument(html);
+    return wrapHtmlDocument(html, designFontLinkTags(node));
   }
 
   return html;

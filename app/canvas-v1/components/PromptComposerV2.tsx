@@ -18,15 +18,25 @@ import { getProjectState, upsertProjectState } from "@/lib/project-store";
 import { TasteCard } from "./TasteCard";
 import { ReferenceRail } from "./ReferenceRail";
 import { TasteFeedbackDialog } from "./TasteFeedbackDialog";
-import { detectTasteEdits } from "@/lib/canvas/taste-edit-tracker";
+import {
+  applyTasteEditsToOverrides,
+  buildGenerationBaseline,
+  detectTasteEditsFromBaseline,
+  isGenerationBaseline,
+} from "@/lib/canvas/taste-edit-tracker";
 import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
+import { screenIdForArtboard } from "@/lib/taste/preferences";
+import { applySliderValue, type IntentSliderId } from "@/lib/taste/intent-sliders";
+import { IntentSliders } from "./intent/IntentSliders";
+import { IntentCard } from "./intent/IntentCard";
+import { TasteMemoryPanel } from "./intent/TasteMemoryPanel";
+import { intentCardModel, type IntentCardBrief } from "@/lib/intent/reference-actions";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import {
   getArtboardStartX,
   getEffectiveReferenceWeight,
   getGenerationStage,
   getGenerationStageLabel,
-  getMoodboardReferenceSize,
 } from "@/lib/canvas/unified-canvas-state";
 import type {
   CanvasItem,
@@ -38,16 +48,23 @@ import type {
 } from "@/lib/canvas/unified-canvas-state";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { PageNode } from "@/lib/canvas/compose";
-import type { TasteProfile } from "@/types/taste-profile";
+import { mergeRefreshedTasteProfile, type TasteProfile } from "@/types/taste-profile";
+import { useProjectDesignState } from "@/lib/canvas/use-project-design-state";
+import { useConvex } from "convex/react";
+import {
+  editorPayloadFromRun,
+  partialSectionsFromRun,
+  progressLabels,
+  startEngineRun,
+  waitForEngineRun,
+} from "@/lib/engine/client";
+import { engineReferencesFromItems } from "@/lib/engine/references";
 import type { SiteType } from "@/lib/canvas/templates";
 import { isHintSeen, markHintSeen } from "./OnboardingHint";
 import { getNodeTree } from "@/lib/canvas/canvas-item-conversion";
 import { isDesignNodeTree } from "@/lib/canvas/compose";
 import { buildSectionContext } from "@/lib/canvas/section-context-builder";
 import { buildDesignTreeSectionPrompt } from "@/lib/canvas/design-tree-prompt";
-import { summarizeCompositionsForTaste } from "@/lib/canvas/composition-blueprint";
-import type { CompositionAnalysis } from "@/types/composition-analysis";
-import { extractIntentProfile } from "@/types/intent-profile";
 
 // ─── Helpers (copied from InspectorPanelV3) ─────────────────────────────────
 
@@ -160,64 +177,23 @@ function snapshotArtboards(artboards: ArtboardItem[]): PromptRunArtboard[] {
   }));
 }
 
-function buildFallbackTokens(existingTokens: DesignSystemTokens | null): DesignSystemTokens {
-  if (existingTokens) return existingTokens;
+/** Ordered references (primary first) with identity, weight and annotation for taste extraction. */
+function toTasteExtractReferences(refs: ReferenceItem[]) {
+  return refs.map((ref) => ({
+    id: ref.id,
+    url: ref.imageUrl,
+    weight: getEffectiveReferenceWeight(ref),
+    annotation: ref.annotation?.trim() || undefined,
+  }));
+}
 
-  return {
-    colors: {
-      primary: "#4B57DB",
-      secondary: "#0F172A",
-      accent: "#4B83F7",
-      background: "#FAFAF8",
-      surface: "#FFFFFF",
-      text: "#1A1A1A",
-      textMuted: "#6B6B6B",
-      border: "#E5E5E0",
-    },
-    typography: {
-      fontFamily: "'IBM Plex Sans', 'Helvetica Neue', sans-serif",
-      scale: {
-        xs: "0.75rem",
-        sm: "0.875rem",
-        base: "1rem",
-        lg: "1.125rem",
-        xl: "1.25rem",
-        "2xl": "1.5rem",
-        "3xl": "1.875rem",
-        "4xl": "2.25rem",
-      },
-      weights: { normal: 400, medium: 500, semibold: 600, bold: 700 },
-      lineHeight: { tight: "1.25", normal: "1.5", relaxed: "1.75" },
-    },
-    spacing: {
-      unit: 8,
-      scale: {
-        "0": "0",
-        "1": "8px",
-        "2": "16px",
-        "3": "24px",
-        "4": "32px",
-        "6": "48px",
-        "8": "64px",
-        "12": "96px",
-        "16": "128px",
-      },
-    },
-    radii: { sm: "8px", md: "16px", lg: "24px", xl: "32px", full: "9999px" },
-    shadows: {
-      sm: "0 6px 16px rgba(15, 23, 42, 0.08)",
-      md: "0 18px 40px rgba(15, 23, 42, 0.12)",
-      lg: "0 28px 60px rgba(15, 23, 42, 0.16)",
-    },
-    animation: {
-      spring: {
-        smooth: { stiffness: 120, damping: 16 },
-        snappy: { stiffness: 220, damping: 18 },
-        gentle: { stiffness: 90, damping: 20 },
-        bouncy: { stiffness: 260, damping: 14 },
-      },
-    },
-  };
+/** Attach a persisted generation baseline to each generated V6 artboard. */
+function withGenerationBaselines(artboards: ArtboardItem[]): ArtboardItem[] {
+  return artboards.map((artboard) =>
+    isDesignNodeTree(artboard.pageTree)
+      ? { ...artboard, generationBaseline: buildGenerationBaseline(artboard.pageTree as DesignNode) }
+      : artboard,
+  );
 }
 
 function relativeTime(iso: string): string {
@@ -401,6 +377,13 @@ export function PromptComposerV2({
   const [tasteProfile, setTasteProfile] = React.useState<TasteProfile | null>(
     () => (projectId ? getProjectState(projectId).canvas?.tasteProfile ?? null : null)
   );
+  // Taste + tokens: localStorage cache, written through to Convex when signed in (agents read it).
+  const {
+    persistDesignState,
+    serverBacked: designServerBacked,
+    convexProjectId,
+  } = useProjectDesignState(projectId, { onRemoteTaste: setTasteProfile });
+  const convex = useConvex();
 
   // Fidelity mode: persisted in project state, same pattern as tasteProfile
   const [fidelityMode, setFidelityMode] = React.useState<FidelityMode>(
@@ -467,36 +450,26 @@ export function PromptComposerV2({
     (edits: TasteEdit[]) => {
       if (!tasteProfile) return;
 
-      const overrides: NonNullable<typeof tasteProfile.userOverrides> = { ...tasteProfile.userOverrides };
-
-      for (const edit of edits) {
-        switch (edit.dimension) {
-          case "headingFont":
-            overrides.headingFont = edit.after as string;
-            break;
-          case "bodyFont":
-            overrides.bodyFont = edit.after as string;
-            break;
-          case "density": {
-            const spacing = edit.after as number;
-            overrides.density = spacing < 48 ? "dense" : spacing > 72 ? "spacious" : "balanced";
-            break;
-          }
-          case "palette":
-            // Palette diff captured — store new color list as override palette
-            break;
+      const overrides = applyTasteEditsToOverrides(tasteProfile.userOverrides, edits);
+      // Approve boundary: the designer confirmed these edits as taste.
+      for (const item of items) {
+        if (item.kind !== "artboard" || !isGenerationBaseline(item.generationBaseline)) continue;
+        const tree = getNodeTree(item);
+        const approved = tree ? detectTasteEditsFromBaseline(tree, item.generationBaseline) : [];
+        if (approved.length > 0) {
+          dispatch({ type: "RECORD_DESIGN_SIGNAL", signal: { kind: "edits", boundary: "approve", screenId: screenIdForArtboard(item), edits: approved } });
         }
       }
 
       const updatedProfile = { ...tasteProfile, userOverrides: overrides };
       setTasteProfile(updatedProfile);
       if (projectId) {
-        upsertProjectState(projectId, { canvas: { tasteProfile: updatedProfile } });
+        persistDesignState({ tasteProfile: updatedProfile });
       }
 
       dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
     },
-    [tasteProfile, projectId, dispatch]
+    [tasteProfile, projectId, dispatch, persistDesignState, items]
   );
 
   const [isRefreshingTaste, setIsRefreshingTaste] = React.useState(false);
@@ -513,31 +486,22 @@ export function PromptComposerV2({
     setIsRefreshingTaste(true);
     setRefreshError(false);
     try {
-      const imageUrls = weightedReferenceItems
-        .map((r) => r.imageUrl)
-        .filter(Boolean);
-
-      const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
-        acc[ref.imageUrl] = getEffectiveReferenceWeight(ref);
-        return acc;
-      }, {});
-
       const res = await fetch("/api/taste/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          referenceUrls: imageUrls,
-          referenceWeights,
+          references: toTasteExtractReferences(weightedReferenceItems.filter((ref) => ref.imageUrl)),
           prompt: prompt.value?.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error("Taste extraction failed");
       const data = await res.json();
       if (data && typeof data === "object" && data.summary) {
-        const profile = data as TasteProfile;
+        // Refresh re-extracts taste but keeps the designer's corrections.
+        const profile = mergeRefreshedTasteProfile(tasteProfile, data as TasteProfile);
         setTasteProfile(profile);
-        upsertProjectState(projectId, { canvas: { tasteProfile: profile } });
+        persistDesignState({ tasteProfile: profile });
       }
     } catch (err) {
       console.error("[TasteCard] Refresh failed:", err);
@@ -546,7 +510,7 @@ export function PromptComposerV2({
     } finally {
       setIsRefreshingTaste(false);
     }
-  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value]);
+  }, [isRefreshingTaste, usableRefCount, weightedReferenceItems, projectId, prompt.value, tasteProfile, persistDesignState]);
 
   const hasArtboards = items.some((i) => i.kind === "artboard");
   const chips = getSuggestionChips(selectedNode, hasArtboards);
@@ -569,6 +533,9 @@ export function PromptComposerV2({
 
   // Guard: skip taste edit detection when continuing after dialog confirmation
   const skipTasteCheckRef = React.useRef(false);
+  // Intent Card (1.8): what the last run understood, and answers to its question.
+  const [lastBrief, setLastBrief] = React.useState<IntentCardBrief | null>(null);
+  const [briefAnswers, setBriefAnswers] = React.useState<Record<string, string>>({});
 
   // ── Generation pipeline ────────────────────────────────────────────
 
@@ -583,15 +550,16 @@ export function PromptComposerV2({
     // ── Taste feedback detection ───────────────────────────────────────
     // Only check on full-page generation (not section regen), and only when
     // we have a snapshot from a previous generation to compare against.
-    if (!skipTasteCheckRef.current && !selectedSection && state.generatedTreeSnapshot) {
+    if (!skipTasteCheckRef.current && !selectedSection) {
       const allEdits: TasteEdit[] = [];
-      for (const [itemId, snapshot] of Object.entries(state.generatedTreeSnapshot)) {
-        const item = items.find((i) => i.id === itemId);
-        if (!item) continue;
+      for (const item of items) {
+        if (item.kind !== "artboard" || !isGenerationBaseline(item.generationBaseline)) continue;
         const currentTree = getNodeTree(item);
         if (!currentTree) continue;
-        const edits = detectTasteEdits(currentTree, snapshot);
+        const edits = detectTasteEditsFromBaseline(currentTree, item.generationBaseline);
         allEdits.push(...edits);
+        // Regenerate boundary: the edits made since this screen was generated.
+        dispatch({ type: "RECORD_DESIGN_SIGNAL", signal: { kind: "edits", boundary: "regenerate", screenId: screenIdForArtboard(item), edits } });
       }
 
       if (allEdits.length > 0) {
@@ -624,6 +592,12 @@ export function PromptComposerV2({
         const rawPrompt = prompt.value.trim();
         const mode = SECTION_REGEN_MODES.find((option) => option.prompt === rawPrompt);
         const intent = mode?.intent ?? "more-like-this";
+        if (item.kind === "artboard") {
+          dispatch({
+            type: "RECORD_DESIGN_SIGNAL",
+            signal: { kind: "section-regenerate", screenId: screenIdForArtboard(item), sectionName: context.targetName, intent: intent === "different-approach" ? "different" : "similar" },
+          });
+        }
 
         dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
 
@@ -695,222 +669,75 @@ export function PromptComposerV2({
     });
 
     try {
-      const imageUrls = weightedReferenceItems.slice(0, 6).map((ref) => ref.imageUrl);
-      let tokens = buildFallbackTokens(projectTokens);
-
-      // Keep generation working in local/demo environments by falling back to
-      // project/default tokens whenever remote image analysis is unavailable.
-      if (imageUrls.length > 0) {
-        dispatch({
-          type: "SET_PROMPT_STATUS",
-          agentSteps: ["Analyzing references..."],
-        });
-        try {
-          const analyzeRes = await fetch("/api/canvas/analyze", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ images: imageUrls }),
-          });
-
-          if (!analyzeRes.ok) {
-            const data = await analyzeRes.json().catch(() => ({}));
-            throw new Error(data.error || `Analysis failed (${analyzeRes.status})`);
-          }
-
-          const analyzeData = await analyzeRes.json();
-          dispatch({
-            type: "SET_PROMPT_STATUS",
-            agentSteps: ["Analyzing references...", "Extracting design tokens..."],
-          });
-
-          const systemRes = await fetch("/api/canvas/generate-system", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ analysis: analyzeData.analysis, mode: "auto" }),
-          });
-
-          if (!systemRes.ok) {
-            const data = await systemRes.json().catch(() => ({}));
-            throw new Error(data.error || `Token generation failed (${systemRes.status})`);
-          }
-
-          const systemData = await systemRes.json();
-          if (systemData.tokens) {
-            tokens = systemData.tokens;
-          }
-        } catch (analysisErr) {
-          console.warn("[prompt] Falling back to local tokens:", analysisErr);
-          dispatch({
-            type: "SET_PROMPT_STATUS",
-            agentSteps: ["Analyzing references...", "Using local design defaults..."],
-          });
-        }
-      } else {
-        dispatch({
-          type: "SET_PROMPT_STATUS",
-          agentSteps: ["Using local design defaults..."],
-        });
-      }
-
-      if (projectId) {
-        // Keep the artboard renderer in sync with the freshly chosen token set
-        // so generated pages immediately render instead of falling back to
-        // "No design tokens available" on first paint.
-        upsertProjectState(projectId, { canvas: { designTokens: tokens } });
-      }
-
-      // Step 2.5a: Analyze compositions for weighted references (cached per reference item)
-      const compositionData: Array<{
-        analysis: CompositionAnalysis;
-        weight: "primary" | "default" | "muted";
-        referenceIndex: number;
-      }> = [];
-
-      for (let i = 0; i < weightedReferenceItems.length && i < 6; i++) {
-        const ref = weightedReferenceItems[i];
-
-        // Use cached analysis if available
-        if (ref.compositionAnalysis) {
-          compositionData.push({
-            analysis: ref.compositionAnalysis,
-            weight: getEffectiveReferenceWeight(ref),
-            referenceIndex: i,
-          });
-          continue;
-        }
-
-        // Analyze uncached reference — fail open on any error
-        try {
-          const compRes = await fetch("/api/taste/analyze-composition", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: ref.imageUrl }),
-          });
-          if (compRes.ok) {
-            const analysis: CompositionAnalysis = await compRes.json();
-            const effectiveWeight = getEffectiveReferenceWeight({
-              ...ref,
-              compositionAnalysis: analysis,
-            });
-            const moodboardSize = getMoodboardReferenceSize(
-              ref.width,
-              ref.height,
-              effectiveWeight
-            );
-            // Cache analysis and let high-confidence references take more visual space.
-            dispatch({
-              type: "UPDATE_ITEM",
-              itemId: ref.id,
-              changes: {
-                compositionAnalysis: analysis,
-                ...(!ref.weight && effectiveWeight !== "default" ? moodboardSize : {}),
-              } as Partial<ReferenceItem>,
-            });
-            compositionData.push({
-              analysis,
-              weight: effectiveWeight,
-              referenceIndex: i,
-            });
-          }
-        } catch (compErr) {
-          console.warn("[COMPOSITION] Failed to analyze reference", ref.id, compErr);
-          // Continue without this reference's composition — fail open
-        }
-      }
-
-      const compositionContext = summarizeCompositionsForTaste(compositionData);
-
-      // Step 2.5: Extract taste profile if we have references but no taste profile yet
-      let resolvedTaste = tasteProfile;
-      console.log("[TASTE DEBUG] tasteProfile source:", resolvedTaste ? "project-state (cached)" : "will-extract");
-      console.log("[TASTE DEBUG] tasteProfile archetype:", resolvedTaste?.archetypeMatch ?? "none");
-      console.log("[TASTE DEBUG] tasteProfile avoid:", resolvedTaste?.avoid?.length ?? 0, "items");
-      if (!resolvedTaste && imageUrls.length > 0 && projectId) {
-        dispatch({
-          type: "SET_PROMPT_STATUS",
-          agentSteps: ["Analyzing references...", "Extracting taste profile..."],
-        });
-        try {
-          const referenceWeights = weightedReferenceItems.reduce<Record<string, string>>((acc, ref) => {
-            acc[ref.imageUrl] = getEffectiveReferenceWeight(ref);
-            return acc;
-          }, {});
-
-          const tasteRes = await fetch("/api/taste/extract", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              projectId,
-              referenceUrls: imageUrls,
-              referenceWeights,
-              existingTokens: tokens,
-              prompt: prompt.value?.trim() || undefined,
-              compositionContext: compositionContext || undefined,
-              compositionData: compositionData.length > 0 ? compositionData : undefined,
-            }),
-          });
-          if (tasteRes.ok) {
-            const tasteData = await tasteRes.json();
-            if (tasteData && typeof tasteData === "object" && tasteData.summary) {
-              resolvedTaste = tasteData as TasteProfile;
-              setTasteProfile(resolvedTaste);
-              upsertProjectState(projectId, { canvas: { tasteProfile: resolvedTaste } });
-            }
-          }
-        } catch (tasteErr) {
-          console.warn("[prompt] Taste extraction failed, continuing without:", tasteErr);
-        }
-      }
-
-      // Step 3: Compose layout + generate component/site
-      const analysisPrefix = imageUrls.length > 0 ? ["Analyzing references..."] : [];
-      const intentProfile = extractIntentProfile({
+      // One server-side pipeline (lib/engine) shared with agents and benchmarks:
+      // references → analysis → brief → taste → generate → verify. Progress below
+      // comes only from the run's real step events.
+      const engineReferences = engineReferencesFromItems(referenceItems);
+      const engineProjectId = convexProjectId ?? projectId ?? "local";
+      const started = await startEngineRun({
+        projectId: engineProjectId,
         prompt: prompt.value.trim(),
         siteType: prompt.siteType,
+        siteName: prompt.value.trim().slice(0, 50),
+        fidelityMode,
+        references: engineReferences,
+        ...(Object.keys(briefAnswers).length > 0 ? { answers: briefAnswers } : {}),
+        // Signed in, the server reads taste + tokens from design memory; local projects send their cache.
+        ...(designServerBacked ? {} : { tasteProfile, designTokens: projectTokens }),
       });
-      const isAppUiIntent =
-        intentProfile.outputType === "web-app-ui" ||
-        intentProfile.outputType === "mobile-app-ui";
-      const generationMode = isAppUiIntent ? "screens" : "variants";
-
-      dispatch({
-        type: "SET_PROMPT_STATUS",
-        agentSteps: [...analysisPrefix, isAppUiIntent ? "Planning app screens..." : "Composing layout..."],
+      let liveSectionCount = 0;
+      const run = await waitForEngineRun({
+        runId: started.runId,
+        projectId: engineProjectId,
+        convex,
+        serverBacked: started.serverBacked,
+        onUpdate: (current) => {
+          const labels = progressLabels(current);
+          // Live Build: sections render on the artboard as they stream in.
+          const sections = partialSectionsFromRun(current);
+          if (sections.length !== liveSectionCount) {
+            liveSectionCount = sections.length;
+            dispatch({ type: "SET_PROMPT_STATUS", ...(labels.length > 0 ? { agentSteps: labels } : {}), liveSections: sections });
+          } else if (labels.length > 0) {
+            dispatch({ type: "SET_PROMPT_STATUS", agentSteps: labels });
+          }
+        },
       });
-
-      // Timed split: transition from "composing" to "creating" after ~10s
-      // since the long API call has no real midpoint event.
-      const creatingTimer = setTimeout(() => {
-        dispatch({
-          type: "SET_PROMPT_STATUS",
-          agentSteps: [...analysisPrefix, isAppUiIntent ? "Generating screens..." : "Creating variations..."],
-        });
-      }, 10_000);
-
-      const generateRes = await fetch("/api/canvas/generate-component", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: generationMode,
-          prompt: prompt.value.trim(),
-          tokens,
-          referenceUrls: imageUrls,
-          siteType: prompt.siteType,
-          siteName: prompt.value.trim().slice(0, 50),
-          tasteProfile: resolvedTaste,
-          fidelityMode,
-          useDesignNode: true,
-          compositionData: compositionData.length > 0 ? compositionData : undefined,
-          compositionContext: compositionContext || undefined,
-        }),
-      });
-
-      clearTimeout(creatingTimer);
-
-      const generateData = await generateRes.json();
-      if (!generateRes.ok) {
-        throw new Error(generateData.error || "Generation failed");
+      if (run.status === "failed") {
+        const failure = (run.result ?? {}) as { generationResult?: string };
+        throw new Error([run.error ?? "Generation failed", failure.generationResult].filter(Boolean).join(" · "));
       }
+      const payload = editorPayloadFromRun(run);
+      if (!payload) throw new Error("Generation returned no output");
+
+      // Cache composition analyses on their references, and keep taste + tokens the run used.
+      for (const entry of payload.analyses) {
+        const ref = referenceItems.find((item) => item.id === entry.referenceId);
+        if (ref && !ref.compositionAnalysis) {
+          dispatch({ type: "UPDATE_ITEM", itemId: ref.id, changes: { compositionAnalysis: entry.analysis } as Partial<ReferenceItem> });
+        }
+      }
+      // X-ray facts on each reference, and the brief for the Intent Card.
+      for (const entry of payload.perceptions ?? []) {
+        if (referenceItems.some((item) => item.id === entry.referenceId)) {
+          dispatch({ type: "UPDATE_ITEM", itemId: entry.referenceId, changes: { perception: entry.summary } as Partial<ReferenceItem> });
+        }
+      }
+      if (payload.brief) setLastBrief(payload.brief);
+      if (payload.sources.tasteProfile === "extracted" && payload.tasteProfile) {
+        setTasteProfile(payload.tasteProfile);
+        // A server-backed run already saved it as the derived layer (with its brief cache key).
+        persistDesignState({ tasteProfile: payload.tasteProfile }, { localOnly: started.serverBacked });
+      }
+      if (payload.sources.designTokens === "derived" || !projectTokens) {
+        persistDesignState({ designTokens: payload.designTokens });
+      }
+
+      const generationMode = payload.kind === "screen-set" ? "screens" : "variants";
+      const intentProfile = { outputType: payload.intent.outputType };
+      const isAppUiIntent = generationMode === "screens";
+      const analysisPrefix: string[] = [];
+      const generateData = { variants: payload.variants, generationResult: payload.generationResult };
 
       dispatch({
         type: "SET_PROMPT_STATUS",
@@ -957,17 +784,8 @@ export function PromptComposerV2({
           artboards: snapshotArtboards(artboards),
         };
 
-        dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
-
-        const snapshots: Record<string, DesignNode> = {};
-        for (const artboard of artboards) {
-          if (isDesignNodeTree(artboard.pageTree)) {
-            snapshots[artboard.id] = structuredClone(artboard.pageTree as DesignNode);
-          }
-        }
-        if (Object.keys(snapshots).length > 0) {
-          dispatch({ type: "SET_GENERATED_SNAPSHOT", snapshots });
-        }
+        dispatch({ type: "REPLACE_SITE", artboards: withGenerationBaselines(artboards), promptEntry });
+        dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
 
         dispatch({
           type: "SET_PROMPT_STATUS",
@@ -1020,18 +838,9 @@ export function PromptComposerV2({
         artboards: snapshotArtboards(artboards),
       };
 
-      dispatch({ type: "REPLACE_SITE", artboards, promptEntry });
-
-      // After REPLACE_SITE, snapshot the generated trees for taste feedback tracking
-      const snapshots: Record<string, DesignNode> = {};
-      for (const artboard of artboards) {
-        if (isDesignNodeTree(artboard.pageTree)) {
-          snapshots[artboard.id] = structuredClone(artboard.pageTree as DesignNode);
-        }
-      }
-      if (Object.keys(snapshots).length > 0) {
-        dispatch({ type: "SET_GENERATED_SNAPSHOT", snapshots });
-      }
+      // Generated artboards carry a persisted baseline for taste feedback tracking.
+      dispatch({ type: "REPLACE_SITE", artboards: withGenerationBaselines(artboards), promptEntry });
+      dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
 
       // ── Variant carousel: set up Base + Pushed preview (V6 DesignNode only) ──
       // The route returns 3 variants (safe=base, creative=pushed, alternative=restructured).
@@ -1089,7 +898,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, weightedReferenceItems, selection.selectedNodeId, selectedSection, items, state.generatedTreeSnapshot]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId, selectedSection, items, persistDesignState, convex, convexProjectId, designServerBacked, briefAnswers]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {
@@ -1106,6 +915,85 @@ export function PromptComposerV2({
       handleGenerate();
     }
   }, [varySignal, handleGenerate]);
+
+  // ── Intent sliders (1.7) ───────────────────────────────────────────
+  // Slider values are explicit taste (userOverrides.knobs): applied at once,
+  // written through to design memory once the designer stops dragging.
+  const sliderSaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => {
+    if (sliderSaveTimer.current) clearTimeout(sliderSaveTimer.current);
+  }, []);
+  const handleSliderChange = React.useCallback(
+    (id: IntentSliderId, value: number) => {
+      if (!tasteProfile) return;
+      const updated = applySliderValue(tasteProfile, id, value);
+      setTasteProfile(updated);
+      if (sliderSaveTimer.current) clearTimeout(sliderSaveTimer.current);
+      sliderSaveTimer.current = setTimeout(() => {
+        if (projectId) persistDesignState({ tasteProfile: updated });
+      }, 400);
+    },
+    [tasteProfile, projectId, persistDesignState],
+  );
+
+  // Restyle: regenerate with the knob delta — the selected section when there
+  // is one (section-level prompt), otherwise the page from its last prompt.
+  const pendingRestyleRef = React.useRef(false);
+  const handleRestyle = React.useCallback(
+    (delta: string) => {
+      const lastPrompt = prompt.history[prompt.history.length - 1]?.label ?? "";
+      const base = selectedSection ? "" : prompt.value.trim() || lastPrompt || "Restyle the current design";
+      const next = selectedSection ? `Restyle this section: ${delta}` : `${base} — restyle: ${delta}`;
+      // Write the slider values now so the run reads them from design memory.
+      if (sliderSaveTimer.current) {
+        clearTimeout(sliderSaveTimer.current);
+        sliderSaveTimer.current = null;
+        if (projectId && tasteProfile) persistDesignState({ tasteProfile });
+      }
+      pendingRestyleRef.current = true;
+      skipTasteCheckRef.current = true;
+      dispatch({ type: "SET_PROMPT", value: next });
+    },
+    [dispatch, prompt.history, prompt.value, selectedSection, projectId, tasteProfile, persistDesignState],
+  );
+  React.useEffect(() => {
+    if (!pendingRestyleRef.current) return;
+    pendingRestyleRef.current = false;
+    handleGenerate();
+  }, [prompt.value, handleGenerate]);
+  const pendingAnswerRef = React.useRef(false);
+  const handleBriefAnswer = React.useCallback((questionId: string, option: string) => {
+    pendingAnswerRef.current = true;
+    skipTasteCheckRef.current = true;
+    setBriefAnswers((current) => ({ ...current, [questionId]: option }));
+  }, []);
+  React.useEffect(() => {
+    if (!pendingAnswerRef.current) return;
+    pendingAnswerRef.current = false;
+    if (!prompt.value.trim()) {
+      const lastPrompt = prompt.history[prompt.history.length - 1]?.label;
+      if (lastPrompt) {
+        pendingRestyleRef.current = true;
+        dispatch({ type: "SET_PROMPT", value: lastPrompt });
+        return;
+      }
+    }
+    handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per answer
+  }, [briefAnswers]);
+  const intentCard = React.useMemo(() => {
+    if (!lastBrief) return null;
+    const names = Object.fromEntries(
+      referenceItems.map((item, index) => [item.id, item.title?.trim() || `Reference ${String.fromCharCode(65 + (index % 26))}`]),
+    );
+    return intentCardModel(lastBrief, names);
+  }, [lastBrief, referenceItems]);
+
+  const appOutput = React.useMemo(
+    () => items.some((item) => item.kind === "artboard" && Boolean(item.screenRole)),
+    [items],
+  );
+  const sliderBaselineKey = prompt.history[prompt.history.length - 1]?.id ?? "none";
 
   // ── Restore from history ───────────────────────────────────────────
 
@@ -1215,6 +1103,16 @@ export function PromptComposerV2({
               hasReferences={usableRefCount > 0}
             />
           </div>
+          <IntentSliders
+            tasteProfile={tasteProfile}
+            appOutput={appOutput}
+            baselineKey={sliderBaselineKey}
+            disabled={isGenerating}
+            onChange={handleSliderChange}
+            onRestyle={items.some((item) => item.kind === "artboard") ? handleRestyle : undefined}
+          />
+          {intentCard && <IntentCard model={intentCard} disabled={isGenerating} onAnswer={handleBriefAnswer} />}
+          {convexProjectId && <TasteMemoryPanel convexProjectId={convexProjectId} />}
           <div className="border-b border-[#E5E5E0] dark:border-[#333333]">
             <ReferenceRail references={referenceItems} />
           </div>

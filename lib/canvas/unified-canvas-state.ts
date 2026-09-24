@@ -6,9 +6,11 @@
  * `composeDocument`, and `canvasSession` legacy stores.
  */
 
+import type { GenerationBaseline } from "./taste-edit-tracker";
 import type { PageNode } from "./compose";
 import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
 import type { TasteEdit } from "./taste-edit-tracker";
+import type { DesignSignal } from "@/lib/taste/preferences";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
 
 // ─── Variant Preview ─────────────────────────────────────────────────────────
@@ -90,6 +92,8 @@ export type UnifiedCanvasState = {
     isGenerating: boolean;
     agentSteps: string[];
     generationResult: GenerationResult;
+    /** Live Build (1.9): top-level sections that have streamed in for the running generation. Transient — NOT persisted. */
+    liveSections?: DesignNode[];
   };
   aiPreview: AIPreviewSession | null;
   masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing
@@ -99,6 +103,8 @@ export type UnifiedCanvasState = {
   generatedTreeSnapshot?: Record<string, DesignNode>;
   /** Taste edits detected at generation boundary, pending user confirmation. Session-transient — NOT persisted. */
   pendingTasteEdits?: TasteEdit[];
+  /** Design actions queued for preference learning (1.6). Session-transient — NOT persisted. */
+  designSignals?: DesignSignal[];
   updatedAt: string;
 };
 
@@ -124,6 +130,16 @@ export type ReferenceItem = BaseCanvasItem & {
   isStyleRef?: boolean;
   weight?: "primary" | "default" | "muted";
   compositionAnalysis?: CompositionAnalysis;  // cached composition data
+  /** Convex file-storage id when `imageUrl` is an uploaded asset (not a data URL). */
+  storageId?: string;
+  /** SHA-256 of the uploaded (downscaled) bytes. */
+  contentHash?: string;
+  /** Roles the designer assigned with role chips (1.8); win over annotation and inference. */
+  roles?: import("@/lib/design-memory/types").ReferenceRole[];
+  /** Lasso regions with their own role, normalized [x, y, w, h] image coordinates (1.8). */
+  regions?: import("@/lib/intent/reference-actions").ReferenceRegion[];
+  /** Compact measured + perceived facts from the last run, for the X-ray overlay (1.8). */
+  perception?: import("@/lib/intent/reference-actions").PerceptionSummary;
 };
 
 export type ArtboardItem = BaseCanvasItem & {
@@ -137,6 +153,8 @@ export type ArtboardItem = BaseCanvasItem & {
   screenRole?: string;
   /** Screen purpose summary from screen-set plan (Phase 6). */
   screenPurpose?: string;
+  /** Compact record of what generation produced — persisted so taste-edit detection survives reloads. */
+  generationBaseline?: GenerationBaseline;
 };
 
 export type NoteItem = BaseCanvasItem & {
@@ -486,6 +504,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     variantPreview: null,
     generatedTreeSnapshot: undefined,
     pendingTasteEdits: undefined,
+    designSignals: undefined,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -953,6 +972,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
           variantPreview: null,
           generatedTreeSnapshot: undefined,
           pendingTasteEdits: undefined,
+          designSignals: undefined,
         };
       }
     }

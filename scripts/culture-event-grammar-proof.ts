@@ -6,7 +6,7 @@ function read(path: string): string {
 }
 
 const templateIndex = read("lib/canvas/templates/index.ts");
-const tasteRoute = read("app/api/taste/extract/route.ts");
+const tasteRoute = read("lib/taste/extract-core.ts");
 const designPrompt = read("lib/canvas/design-tree-prompt.ts");
 const legacyPrompt = read("lib/canvas/generate-site.ts");
 const v6Bans = read("lib/canvas/design-archetype-bans.ts");

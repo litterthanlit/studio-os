@@ -34,7 +34,7 @@ export async function buildExportZipBlob(
   }
 
   const readmeLines = [
-    "Open `index.html` in a web browser. External images load from the network.",
+    "Open `index.html` in a web browser. External images and design fonts (Google Fonts / Fontshare stylesheets linked in `<head>`) load from the network.",
   ];
   if (payload.tsx) {
     readmeLines.push(

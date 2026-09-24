@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { imageUrlBlock, SONNET_4_6 } from "@/lib/ai/model-router";
+import { imageUrlBlock, tracedCompletion, modelFor } from "@/lib/ai/model-router";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { DesignNode } from "./design-node";
 import { renderDesignNodeScreenshotDataUrl } from "./design-node-screenshot";
@@ -10,6 +10,7 @@ import {
 import { validateAndNormalizeDesignTree } from "./design-tree-validator";
 import { resolveDesignMediaUrls } from "./design-media-resolver";
 import type { FidelityMode } from "./directive-compiler";
+import { BREAKPOINT_WIDTHS } from "./compose";
 
 export type VisualRefineIteration = {
   iteration: number;
@@ -30,7 +31,7 @@ export type VisualRefineLoopArgs = {
   tasteProfile: TasteProfile;
   referenceUrls: string[];
   designPrompt: string;
-  referenceImageBlocks: ReturnType<typeof imageUrlBlock>[];
+  referenceImageBlocks: OpenAI.Chat.Completions.ChatCompletionContentPart[];
   router: OpenAI;
   retryMaxTokens: number;
   fidelityMode: FidelityMode;
@@ -42,6 +43,8 @@ export type VisualRefineLoopArgs = {
     content: OpenAI.Chat.Completions.ChatCompletionContentPart[],
   ) => Promise<DesignNode | null>;
   startedAtMs?: number;
+  /** Artboard width for the screenshot viewport (1440 desktop / 375 mobile). */
+  viewportWidth?: number;
 };
 
 const VISUAL_REFINE_MAX_ELAPSED_MS = 40_000;
@@ -90,7 +93,7 @@ export function buildVisualCritiqueRetryPrompt(
 export function buildVisualRefineRegenerationContent(args: {
   designPrompt: string;
   critiquePrompt: string;
-  referenceImageBlocks: ReturnType<typeof imageUrlBlock>[];
+  referenceImageBlocks: OpenAI.Chat.Completions.ChatCompletionContentPart[];
   screenshotDataUrl: string;
   referenceCount: number;
   score: TasteFidelityScore;
@@ -110,6 +113,7 @@ export function buildVisualRefineRegenerationContent(args: {
   return [
     { type: "text", text: `${args.designPrompt}\n\n${args.critiquePrompt}\n\n${instruction}` },
     ...args.referenceImageBlocks,
+    { type: "text" as const, text: "Generated output (screenshot)" },
     imageUrlBlock(args.screenshotDataUrl, "high"),
   ];
 }
@@ -125,10 +129,11 @@ async function scoreTreeScreenshot(
   referenceUrls: string[],
   tasteProfile: TasteProfile,
   scoreScreenshot?: VisualRefineLoopArgs["scoreScreenshot"],
+  viewportWidth: number = BREAKPOINT_WIDTHS.desktop,
 ): Promise<ScoredTree | null> {
   const screenshotDataUrl = scoreScreenshot
     ? `data:image/png;base64,mock-${tree.id}`
-    : await renderDesignNodeScreenshotDataUrl(tree);
+    : await renderDesignNodeScreenshotDataUrl(tree, { width: viewportWidth });
   if (!screenshotDataUrl) return null;
 
   try {
@@ -151,7 +156,7 @@ async function regenerateTreeFromCritique(args: {
   designPrompt: string;
   visualScore: TasteFidelityScore;
   tasteProfile: TasteProfile;
-  referenceImageBlocks: ReturnType<typeof imageUrlBlock>[];
+  referenceImageBlocks: OpenAI.Chat.Completions.ChatCompletionContentPart[];
   screenshotDataUrl: string;
   referenceUrls: string[];
   router: OpenAI;
@@ -174,13 +179,17 @@ async function regenerateTreeFromCritique(args: {
       return await args.regenerateFromCritique(content);
     }
 
-    const retryResponse = await args.router.chat.completions.create({
-      model: SONNET_4_6,
-      messages: [{ role: "user", content }],
-      max_tokens: args.retryMaxTokens,
-      temperature: 0.4,
-      response_format: { type: "json_object" },
-    });
+    const retryResponse = await tracedCompletion(
+      "visual-refine.regenerate",
+      {
+        model: modelFor("generate"),
+        messages: [{ role: "user", content }],
+        max_tokens: args.retryMaxTokens,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+      },
+      { router: args.router },
+    );
 
     const retryRaw = retryResponse.choices[0]?.message?.content ?? "";
     const retryParsed = args.parseDesignNodeResponse(
@@ -213,6 +222,7 @@ export async function runVisualRefineLoop(
     scoreScreenshot,
     regenerateFromCritique,
     startedAtMs = Date.now(),
+    viewportWidth = BREAKPOINT_WIDTHS.desktop,
   } = args;
 
   const emptyResult = (current: DesignNode): VisualRefineLoopResult => ({
@@ -223,7 +233,8 @@ export async function runVisualRefineLoop(
     iterations: [],
   });
 
-  if (referenceUrls.length === 0 || !process.env.OPENROUTER_API_KEY) {
+  // The key is only needed for real vision scoring; injected scorers (proofs) run without it.
+  if (referenceUrls.length === 0 || (!process.env.OPENROUTER_API_KEY && !scoreScreenshot)) {
     return emptyResult(tree);
   }
 
@@ -249,6 +260,7 @@ export async function runVisualRefineLoop(
       referenceUrls,
       tasteProfile,
       scoreScreenshot,
+      viewportWidth,
     );
     if (!scored) {
       if (iteration === 0) return emptyResult(tree);
@@ -322,6 +334,7 @@ export async function scoreDesignNodeVisualFidelity(args: {
   tree: DesignNode;
   referenceUrls: string[];
   tasteProfile: TasteProfile;
+  viewportWidth?: number;
 }): Promise<TasteFidelityScore | null> {
   if (args.referenceUrls.length === 0 || !process.env.OPENROUTER_API_KEY) {
     return null;
@@ -331,6 +344,8 @@ export async function scoreDesignNodeVisualFidelity(args: {
     args.tree,
     args.referenceUrls,
     args.tasteProfile,
+    undefined,
+    args.viewportWidth,
   );
   return scored?.score ?? null;
 }

@@ -57,6 +57,25 @@ export type DesignTasteValidationResult = {
   metrics: DesignNodeTasteMetrics;
 };
 
+/** Nodes named "Status: success|warning|danger|error|info …" mark status UI. */
+const STATUS_NODE_NAME = /^\s*status\s*:\s*(success|warning|danger|error|info)\b/i;
+
+export function isStatusNode(node: DesignNode): boolean {
+  return STATUS_NODE_NAME.test(node.name ?? "");
+}
+
+/** Ids of status-tagged nodes and all their descendants. */
+export function collectStatusNodeIds(tree: DesignNode): Set<string> {
+  const ids = new Set<string>();
+  const visit = (node: DesignNode, inStatus: boolean) => {
+    const status = inStatus || isStatusNode(node);
+    if (status) ids.add(node.id);
+    node.children?.forEach((child) => visit(child, status));
+  };
+  visit(tree, false);
+  return ids;
+}
+
 export function computeDesignNodeTasteMetrics(tree: DesignNode, palette: string[] = []): DesignNodeTasteMetrics {
   const sections = tree.children ?? [];
   const sectionPadding = sections.map((section) => averagePadding(section.style.padding)).filter((value) => value > 0);
@@ -94,8 +113,10 @@ export function computeDesignNodeTasteMetrics(tree: DesignNode, palette: string[
     if (isIconRow(section)) iconRowCount++;
   }
 
+  const statusNodeIds = collectStatusNodeIds(tree);
   walkDesignTree(tree, (node) => {
-    collectStyleColors(node, colors, colorObservations);
+    // Status UI (badges, alerts, toasts) may use status colors; keep it out of palette checks.
+    collectStyleColors(node, colors, statusNodeIds.has(node.id) ? [] : colorObservations);
     if (node.type === "image") imageNodeCount++;
     if (node.type === "button") buttonCount++;
     if (node.type === "text" && (node.style.textDecoration === "underline" || /→|learn more|view|read|contact/i.test(node.content?.text ?? ""))) textLinkCount++;
@@ -268,8 +289,9 @@ export function repairDesignNodeTaste(tree: DesignNode, result: DesignTasteValid
   const shouldReduceChrome = result.violations.some((v) => v.repair === "reduce-chrome");
   const shouldConvertButtons = result.violations.some((v) => v.repair === "convert-secondary-buttons-to-links");
   const shouldAdjustSpacing = result.violations.some((v) => v.repair === "adjust-spacing");
+  const statusNodeIds = collectStatusNodeIds(next);
   walkDesignTree(next, (node) => {
-    if (palette.length > 0) {
+    if (palette.length > 0 && !statusNodeIds.has(node.id)) {
       if (node.style.background) node.style.background = nearestPaletteColor(node.style.background, palette, node.type === "button" ? "accent" : "background");
       if (node.style.foreground) node.style.foreground = nearestPaletteColor(node.style.foreground, palette, "text");
       if (node.style.borderColor) node.style.borderColor = nearestPaletteColor(node.style.borderColor, palette, "border");

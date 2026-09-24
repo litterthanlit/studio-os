@@ -1,3 +1,5 @@
+import type { DeepPartial, DesignKnobVector } from "@/lib/canvas/design-knobs";
+
 export type TasteProfile = {
   // Core identity
   summary: string;
@@ -73,6 +75,8 @@ export type TasteProfile = {
     addToAvoid?: string[];
     ctaStyle?: string;
     spacing?: { sectionPadding?: number };
+    /** Structural corrections learned from design edits; applied last in deriveDesignKnobs. */
+    knobs?: DeepPartial<DesignKnobVector>;
   };
 
   // Metadata
@@ -88,5 +92,29 @@ export type TasteProfile = {
     heading?: number;
     body?: number;
   };
+  /** "fallback": approximated from headingToBodyRatio (SOFT); "measured": fitted from pixels (1.3). Absent on legacy profiles. */
+  typeScaleSource?: "measured" | "fallback";
   measuredDensity?: string;
 };
+
+/**
+ * A refreshed extraction replaces the extracted fields but never the designer's
+ * corrections: previous `userOverrides` are kept, merged over any the refresh carries.
+ */
+export function mergeRefreshedTasteProfile(
+  previous: TasteProfile | null | undefined,
+  refreshed: TasteProfile,
+): TasteProfile {
+  const kept = previous?.userOverrides;
+  if (!kept || Object.keys(kept).length === 0) return refreshed;
+  return {
+    ...refreshed,
+    userOverrides: {
+      ...refreshed.userOverrides,
+      ...kept,
+      knobs: kept.knobs || refreshed.userOverrides?.knobs
+        ? { ...refreshed.userOverrides?.knobs, ...kept.knobs }
+        : undefined,
+    },
+  };
+}

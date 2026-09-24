@@ -7,6 +7,7 @@ import type { DesignSystemTokens } from "./generate-system";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { IntentProfile } from "@/types/intent-profile";
 import type { DesignNode } from "./design-node";
+import { compileLayeredDirectives, layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import {
   compileTasteToDirectives,
   directivesToPromptText,
@@ -363,9 +364,9 @@ SECTION COUNT: 3-6 sections. Break expectations.
       return `
 ## SECTION GRAMMAR — APP DASHBOARD (DESKTOP SHELL)
 
-You are generating an IN-APP screen — NOT a marketing landing page.
+You are generating an IN-APP screen — NOT a marketing page.
 
-DO NOT USE these landing-page patterns:
+DO NOT USE these marketing-page patterns:
 - Marketing hero with headline + subtext + dual CTA
 - Logo strip / social proof bar
 - Pricing tiers or "Start free trial" bands
@@ -534,7 +535,198 @@ function getDesignArchetypeStructuralGuard(archetype: string | undefined): strin
 
 // ─── Main Generation Prompt ─────────────────────────────────────────────────
 
+// ─── Prompt frame by archetype ───────────────────────────────────────────────
+
+export type DesignPromptFrame = {
+  kind: "marketing" | "app";
+  intro: string;
+  mentalModel: string;
+  nameLabel: string;
+  schemaIdLine: string;
+  schemaNameLine: string;
+  gridTemplateLine: string;
+  gradientLine: string;
+  responsiveSection: string;
+  sizingAndVocabulary: string;
+  rootRule: string;
+  copyRule: string;
+  compositionRule: string;
+};
+
+export function isAppArchetype(archetype: string | undefined): boolean {
+  return archetype === "app-dashboard" || archetype === "app-mobile";
+}
+
+/** Grid tracks the app frame teaches (validator/renderer accept any fr track list). */
+export const APP_GRID_TEMPLATES = [
+  "repeat(2, 1fr)", "repeat(3, 1fr)", "repeat(4, 1fr)", "repeat(5, 1fr)", "repeat(6, 1fr)",
+  "2fr 1fr", "1fr 2fr", "3fr 1fr", "2fr 1fr 1fr", "2fr 1fr 1fr 1fr", "3fr 1fr 1fr 1fr", "2fr 1fr 1fr 1fr 1fr",
+] as const;
+
+/** Name prefix that marks status UI (badges, alerts, toasts); the taste validator exempts it from palette checks. */
+export const STATUS_NODE_NAME_PREFIX = "Status:";
+
+/**
+ * The framing around the archetype grammar: marketing archetypes compose a page of
+ * sections; app archetypes compose an in-app screen with no section count, hero or
+ * pacing rules, table grid tracks, and empty/loading/error state patterns.
+ */
+export function buildFrameForArchetype(archetype: string | undefined): DesignPromptFrame {
+  if (!isAppArchetype(archetype)) {
+    return {
+      kind: "marketing",
+      intro: `You are a senior editorial designer composing a landing page as a DesignNode JSON tree.`,
+      mentalModel: `Frames are the building blocks. The page is a root frame whose children are section frames.`,
+      nameLabel: "Site name",
+      schemaIdLine: `  "id": string,           // unique, e.g. "hero-a1b2"
+`,
+      schemaNameLine: `  "name": string,         // human-readable, e.g. "Hero", "Headline"
+`,
+      gridTemplateLine: `    "gridTemplate": string,   // ONLY: "repeat(2, 1fr)", "repeat(3, 1fr)", "repeat(4, 1fr)", "2fr 1fr", "1fr 2fr", "3fr 2fr", "2fr 1fr 1fr", "1fr 2fr 1fr"
+`,
+      gradientLine: `    // Use gradient for hero backgrounds, section transitions, and decorative fills. Prefer 2-3 stops. Subtle gradients over dramatic ones. gradient renders on top of background but behind coverImage.
+`,
+      responsiveSection: `## Responsive Overrides (mobile)
+
+Each node MAY include a \`responsiveOverrides\` object with a \`mobile\` key containing style properties that should differ on mobile (375px viewport). Only include properties that ACTUALLY DIFFER from the desktop (base) styles. If a node looks identical at 375px, omit responsiveOverrides entirely.
+
+Common mobile overrides:
+- fontSize: reduce by ~30-40% (e.g. desktop 48 → mobile 28)
+- flexDirection: "column" for horizontal layouts that should stack vertically on mobile
+- padding: compress by ~40-50% (e.g. "64px 80px" → "32px 20px")
+- gap: reduce proportionally
+- width: change fixed widths to "fill" for full-width mobile
+- gridTemplateColumns: simplify multi-column grids to "1fr"
+
+To hide a node on mobile, use the separate \`hidden\` field: \`"hidden": { "mobile": true }\`
+
+Example:
+\`\`\`json
+{
+  "id": "hero-section",
+  "type": "frame",
+  "name": "Hero",
+  "style": {
+    "flexDirection": "row",
+    "padding": "80px 120px",
+    "gap": "60px",
+    "fontSize": 56
+  },
+  "responsiveOverrides": {
+    "mobile": {
+      "flexDirection": "column",
+      "padding": "40px 20px",
+      "gap": "24px",
+      "fontSize": 32
+    }
+  },
+  "children": [...]
+}
+\`\`\`
+
+Keep overrides SPARSE. A typical page should have responsiveOverrides on 30-50% of nodes, not every node. Only nodes whose layout or typography needs to change at mobile width should have overrides.
+
+`,
+      sizingAndVocabulary: `## Sizing Model
+
+Every node has a sizing mode for each axis:
+- **Fixed** (number): explicit pixel size. Use for heroes (height: 600-720), images, and elements that need exact dimensions.
+- **Fill** ("fill"): stretch to fill parent. Use for section frames (width), containers that should span their parent, and dividers.
+- **Hug** ("hug"): shrink to fit content. Use for text nodes, buttons, and containers that should wrap their children tightly.
+
+When generating new trees, use explicit sizing modes:
+- Frame width: "fill". Frame height: "hug" (or fixed for hero/visual sections).
+- Text: "hug" both axes.
+- Image: fixed both axes (always provide explicit width and height numbers).
+- Button: "hug" both axes.
+- Divider: "fill" width, omit height.
+
+ONLY use fixed pixel values when the design demands exact dimensions.
+Prefer "fill" for containers and "hug" for content nodes.
+Do NOT set width/height to fixed numbers on section-level frames unless creating a specific visual height (e.g. hero: 680).
+
+## Composition Vocabulary
+
+**LAYERING** — Frame with coverImage + child text = photo + overlaid headline. Add coverScrim for text readability over light photos. Set foreground: "#FFFFFF" on the frame.
+
+**ASYMMETRY** — Frame with display: "grid", gridTemplate: "3fr 2fr" = asymmetric 2-column spread. Use for text + image editorial pairs.
+
+**PACING** — Vary section heights. Hero: 600-720px. Photo break: 400-500px. Pullquote: 200-300px. Footer: minimal. Never uniform heights.
+
+**CONTRAST** — Alternate light/dark backgrounds. Dark pullquote between light sections = designed moment. Max 2-3 bg colors.
+
+**FULL-BLEED** — Frame with coverImage and zero padding = edge-to-edge photo. Frame with 64-120px padding = contained text. Alternate.
+
+`,
+      rootRule: `1. Root node MUST be type "frame" with section-level frame children
+`,
+      copyRule: `2. Write COMPELLING, ORIGINAL copy — not placeholders. Write like the brand's copywriter.
+`,
+      compositionRule: `9. Choose 4-7 sections based on the brief. The page should feel like ONE DESIGNED ARTIFACT.
+`,
+    };
+  }
+
+  const mobile = archetype === "app-mobile";
+  return {
+    kind: "app",
+    intro: "You are a senior product designer composing an in-app screen as a DesignNode JSON tree.",
+    mentalModel: `Frames are the building blocks. The screen is a root frame (the app shell) whose children are its regions: ${mobile ? "header, scrollable body and tab bar" : "sidebar, top bar and content area"}.`,
+    nameLabel: "Product name",
+    schemaIdLine: `  "id": string,           // unique, e.g. "table-a1b2"\n`,
+    schemaNameLine: `  "name": string,         // human-readable, e.g. "Top Bar", "Invoices Table", "Status: success · Paid"\n`,
+    gridTemplateLine: `    "gridTemplate": string,   // ONLY: ${APP_GRID_TEMPLATES.map((t) => `"${t}"`).join(", ")}\n`,
+    gradientLine: "    // Gradients are rare in product UI — use for a chart fill or an avatar placeholder only.\n",
+    responsiveSection: `## Breakpoint
+
+This screen is generated for one breakpoint (${mobile ? "375px mobile" : "1440px desktop"}). App screens are designed per breakpoint, so omit \`responsiveOverrides\` unless a single node truly needs to adapt.
+
+`,
+    sizingAndVocabulary: `## Sizing Model
+
+Every node has a sizing mode for each axis:
+- **Fixed** (number): explicit pixel size. Use for the shell (${mobile ? "375 × 812" : "1440 × 900"}), sidebars, icons, avatars and control heights.
+- **Fill** ("fill"): stretch to fill parent. Use for regions, table rows, inputs and dividers.
+- **Hug** ("hug"): shrink to fit content. Use for text nodes, buttons, badges and chips.
+
+Prefer "fill" for containers and "hug" for content nodes. Keep control heights consistent (32–44px).
+
+## Product UI Vocabulary
+
+**TABLES** — A table is a column frame: a header row frame plus repeated row frames, all using the SAME gridTemplate (e.g. "2fr 1fr 1fr 1fr"). Header cells: fontSize 12, fontWeight 600, muted. Rows: padding 12/16, borderColor + borderWidth 1 as row separators. Numbers right-aligned.
+
+**STATES** — Design the state the screen is in, and name it:
+- **Empty state** — centered column: muted icon frame + title + one line of guidance + primary button.
+- **Loading state** — skeleton frames (muted surface, borderRadius 4) in the shape of the content they replace; no spinners as the only content.
+- **Error state** — inline alert frame named "Status: danger · …" with a message and a retry action.
+
+**STATUS** — Badges, alerts and toasts carry meaning with text AND color. Name them "Status: success · …", "Status: warning · …", "Status: danger · …" or "Status: info · …". Never use status colors decoratively.
+
+**DENSITY** — Product UI is denser than marketing: 8px spacing grid, 12–16px gaps inside cards, 24–32px between regions.
+
+`,
+    rootRule: `1. Root node MUST be type "frame" — the app shell — with region frames as children\n`,
+    copyRule: `2. Write realistic product microcopy and data — concise labels, plausible names, numbers and dates. No marketing headlines, no lorem ipsum.\n`,
+    compositionRule: `9. Compose only the regions this screen needs — no section count, no hero, no marketing pacing. The screen should feel like ONE product surface.\n`,
+  };
+}
+
+export type DesignTreePromptParts = {
+  /** Stable per prompt frame (marketing / app): schema, grammar, rules. Cacheable. */
+  prefix: string;
+  /** Per request: brief, taste directives, knobs, composition, tokens. */
+  suffix: string;
+};
+
+/** The full design prompt: the cacheable prefix, then the per-request suffix. */
 export function buildDesignTreePrompt(
+  ...args: Parameters<typeof buildDesignTreePromptParts>
+): string {
+  const { prefix, suffix } = buildDesignTreePromptParts(...args);
+  return `${prefix}\n\n${suffix}`;
+}
+
+export function buildDesignTreePromptParts(
   tokens: DesignSystemTokens,
   prompt: string,
   siteName: string,
@@ -547,36 +739,40 @@ export function buildDesignTreePrompt(
     compositionBlueprint?: string;
     compositionContext?: string;
     breakpoint?: "desktop" | "mobile";
+    /** Layered taste (1.5): measured + learned directives with provenance. */
+    layeredTaste?: LayeredTaste | null;
   }
-): string {
-  const tasteProfile = options?.tasteProfile;
+): DesignTreePromptParts {
+  const tasteProfile = options?.layeredTaste?.tasteProfile ?? options?.tasteProfile;
   const knobVector = options?.knobVector ?? deriveDesignKnobs({
     tasteProfile,
     intentProfile: options?.intentProfile ?? null,
     fidelityMode: options?.fidelityMode ?? "balanced",
+    ...layeredKnobOptions(options?.layeredTaste),
   });
-  const compiledDirectives = compileTasteToDirectives(
-    tasteProfile,
-    options?.fidelityMode ?? "balanced"
-  );
-  const tasteSection = directivesToPromptText(compiledDirectives);
-  const intentSection = options?.intentProfile
-    ? `\n## Intent Profile\n- summary: ${options.intentProfile.summary}\n- goal: ${options.intentProfile.businessGoal}\n- output type: ${options.intentProfile.outputType}\n- content priority: ${options.intentProfile.contentPriority.join(", ")}\n- must include: ${options.intentProfile.mustInclude.join(", ") || "none"}\n- must avoid: ${options.intentProfile.mustAvoid.join(", ") || "none"}\n- copy tone: ${options.intentProfile.copyTone}\n- literalness: ${options.intentProfile.literalness}\n`
-    : "";
-  const knobSection = `\n${serializeDesignKnobsForPrompt(knobVector)}\n`;
-  const blueprintSection = options?.compositionBlueprint
-    ? `\n${options.compositionBlueprint}\n`
-    : "";
-  const compositionContextSection = options?.compositionContext
-    ? `\n## Reference Composition Context\n${options.compositionContext}\n`
-    : "";
   const effectiveArchetype = resolveEffectiveArchetype({
     tasteArchetype: tasteProfile?.archetypeMatch,
     intentProfile: options?.intentProfile ?? null,
     prompt,
     breakpoint: options?.breakpoint,
   });
+  const appScreen = isAppArchetype(effectiveArchetype);
+  const compiledDirectives = options?.layeredTaste
+    ? compileLayeredDirectives(options.layeredTaste, options?.fidelityMode ?? "balanced", { appScreen })
+    : compileTasteToDirectives(tasteProfile, options?.fidelityMode ?? "balanced", { appScreen });
+  const tasteSection = directivesToPromptText(compiledDirectives);
+  const intentSection = options?.intentProfile
+    ? `\n## Intent Profile\n- summary: ${options.intentProfile.summary}\n- goal: ${options.intentProfile.businessGoal}\n- output type: ${options.intentProfile.outputType}\n- content priority: ${options.intentProfile.contentPriority.join(", ")}\n- must include: ${options.intentProfile.mustInclude.join(", ") || "none"}\n- must avoid: ${options.intentProfile.mustAvoid.join(", ") || "none"}\n- copy tone: ${options.intentProfile.copyTone}\n- literalness: ${options.intentProfile.literalness}\n`
+    : "";
+  const knobSection = `\n${serializeDesignKnobsForPrompt(knobVector, { omitSectionCount: appScreen })}\n`;
+  const blueprintSection = options?.compositionBlueprint
+    ? `\n${options.compositionBlueprint}\n`
+    : "";
+  const compositionContextSection = options?.compositionContext
+    ? `\n## Reference Composition Context\n${options.compositionContext}\n`
+    : "";
   const archetypeGrammar = getDesignArchetypeGrammar(effectiveArchetype);
+  const frame = buildFrameForArchetype(effectiveArchetype);
 
   const banDescriptions = getArchetypeBanDescriptions(effectiveArchetype);
   const banSection =
@@ -588,7 +784,7 @@ export function buildDesignTreePrompt(
     ? `\n${buildProductPrimitiveAccentMapping4A(tokens)}\n`
     : "";
 
-  return `You are a senior editorial designer composing a landing page as a DesignNode JSON tree.
+  const prefix = `${frame.intro}
 
 ## Mental Model
 You are placing rectangles on a page. Every element is one of 5 types:
@@ -598,23 +794,14 @@ You are placing rectangles on a page. Every element is one of 5 types:
 - **button** — a clickable rectangle with text.
 - **divider** — a horizontal line.
 
-Frames are the building blocks. The page is a root frame whose children are section frames.
+${frame.mentalModel}
 
-## Creative Brief
-"${prompt}"
-
-Site name: ${siteName}
-${archetypeGrammar}${banSection}
-
-${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionContextSection}${accentMapping4A}
 ## DesignNode Schema
 
 \`\`\`
 {
-  "id": string,           // unique, e.g. "hero-a1b2"
-  "type": "frame" | "text" | "image" | "button" | "divider",
-  "name": string,         // human-readable, e.g. "Hero", "Headline"
-  "content": {
+${frame.schemaIdLine}  "type": "frame" | "text" | "image" | "button" | "divider",
+${frame.schemaNameLine}  "content": {
     "text": string,       // text content (text + button)
     "src": "photo:...",   // image URL — ALWAYS "photo:specific description" (image nodes)
     "alt": string,        // alt text (image nodes)
@@ -634,8 +821,7 @@ ${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionCon
     "gap": number,
     "alignItems": "flex-start" | "center" | "flex-end" | "stretch",
     "justifyContent": "flex-start" | "center" | "flex-end" | "space-between",
-    "gridTemplate": string,   // ONLY: "repeat(2, 1fr)", "repeat(3, 1fr)", "repeat(4, 1fr)", "2fr 1fr", "1fr 2fr", "3fr 2fr", "2fr 1fr 1fr", "1fr 2fr 1fr"
-    "flexGrow": number,
+${frame.gridTemplateLine}    "flexGrow": number,
 
     // SPACING
     "padding": { "top": N, "right": N, "bottom": N, "left": N },
@@ -654,8 +840,7 @@ ${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionCon
     "background": "#hex",
     "gradient": { "type": "linear"|"radial", "angle": number, "position": { "x": 50, "y": 50 }, "stops": [{ "color": "#hex or rgba()", "position": 0-100 }], "interpolation": "srgb"|"oklch" },
     // gradient: angle is degrees 0-360 (linear only, 180 = top-to-bottom); position is radial center as %; interpolation defaults to srgb, use oklch for distant hues (e.g. blue to orange) to avoid muddy midpoints.
-    // Use gradient for hero backgrounds, section transitions, and decorative fills. Prefer 2-3 stops. Subtle gradients over dramatic ones. gradient renders on top of background but behind coverImage.
-    "transform": { "rotate": number, "scale": { "x": number, "y": number } },
+${frame.gradientLine}    "transform": { "rotate": number, "scale": { "x": number, "y": number } },
     // transform: rotate is degrees clockwise (default 0), scale x/y are multipliers (default 1/1).
     // Rotate is available but use it rarely. Most elements should not be rotated. Only use rotate when the brief explicitly asks for dynamic or playful composition. Default is 0. Subtle rotations (1-5deg) are more useful than dramatic ones. Use scale sparingly — prefer explicit width/height for sizing.
     "transformOrigin": { "x": number, "y": number },
@@ -699,76 +884,34 @@ ${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionCon
 }
 \`\`\`
 
-## Responsive Overrides (mobile)
+${frame.responsiveSection}${frame.sizingAndVocabulary}## Shadow Effects
 
-Each node MAY include a \`responsiveOverrides\` object with a \`mobile\` key containing style properties that should differ on mobile (375px viewport). Only include properties that ACTUALLY DIFFER from the desktop (base) styles. If a node looks identical at 375px, omit responsiveOverrides entirely.
+effects: [{ type: "dropShadow"|"innerShadow", x, y, blur, spread, color, enabled }]
+Structured shadow effects. Most elements need 0 or 1 shadow effect.
+Use subtle drop shadows for card elevation: { type: "dropShadow", x: 0, y: 2, blur: 8, spread: 0, color: "rgba(0,0,0,0.08)", enabled: true }
+Use inner shadows rarely — only for pressed/recessed effects.
+Do not stack more than 2 shadow effects on a single element unless the brief explicitly calls for complex depth.
 
-Common mobile overrides:
-- fontSize: reduce by ~30-40% (e.g. desktop 48 → mobile 28)
-- flexDirection: "column" for horizontal layouts that should stack vertically on mobile
-- padding: compress by ~40-50% (e.g. "64px 80px" → "32px 20px")
-- gap: reduce proportionally
-- width: change fixed widths to "fill" for full-width mobile
-- gridTemplateColumns: simplify multi-column grids to "1fr"
+## Rules
 
-To hide a node on mobile, use the separate \`hidden\` field: \`"hidden": { "mobile": true }\`
+${frame.rootRule}${frame.copyRule}3. Kickers, subtitles, bylines, prices, badges are CHILD TEXT NODES with semantic names — NOT content fields. Content only has: text, src, alt, href, label.
+4. Use "photo:specific description" for ALL images. Descriptive: "photo:fashion model in dramatic side lighting, editorial portrait" not "photo:image".
+5. coverImage on frames = background photos. content.src on image nodes = inline photos.
+6. Every ID unique — format "type-xxxx" (4+ random lowercase chars)
+7. Keep JSON compact. Omit undefined/null fields. Omit display/flexDirection when defaults (flex/column) work.
+8. gridTemplate MUST be one of the allowed patterns (see schema).
+${frame.compositionRule}10. coverScrim is OPTIONAL. Only add it when placing light text over a light photo. Omit for dark photos or when no text overlays the image.
+11. Use effects[] for all shadows — do NOT use legacy "shadow" string fields. Keep effects compact and purposeful (0-2 entries for most nodes).
 
-Example:
-\`\`\`json
-{
-  "id": "hero-section",
-  "type": "frame",
-  "name": "Hero",
-  "style": {
-    "flexDirection": "row",
-    "padding": "80px 120px",
-    "gap": "60px",
-    "fontSize": 56
-  },
-  "responsiveOverrides": {
-    "mobile": {
-      "flexDirection": "column",
-      "padding": "40px 20px",
-      "gap": "24px",
-      "fontSize": 32
-    }
-  },
-  "children": [...]
-}
-\`\`\`
+## Output
+Return ONLY valid JSON. No markdown fences. No explanation. Just the root DesignNode object starting with {.`;
+  const suffix = `## Creative Brief
+"${prompt}"
 
-Keep overrides SPARSE. A typical page should have responsiveOverrides on 30-50% of nodes, not every node. Only nodes whose layout or typography needs to change at mobile width should have overrides.
+${frame.nameLabel}: ${siteName}
+${archetypeGrammar}${banSection}
 
-## Sizing Model
-
-Every node has a sizing mode for each axis:
-- **Fixed** (number): explicit pixel size. Use for heroes (height: 600-720), images, and elements that need exact dimensions.
-- **Fill** ("fill"): stretch to fill parent. Use for section frames (width), containers that should span their parent, and dividers.
-- **Hug** ("hug"): shrink to fit content. Use for text nodes, buttons, and containers that should wrap their children tightly.
-
-When generating new trees, use explicit sizing modes:
-- Frame width: "fill". Frame height: "hug" (or fixed for hero/visual sections).
-- Text: "hug" both axes.
-- Image: fixed both axes (always provide explicit width and height numbers).
-- Button: "hug" both axes.
-- Divider: "fill" width, omit height.
-
-ONLY use fixed pixel values when the design demands exact dimensions.
-Prefer "fill" for containers and "hug" for content nodes.
-Do NOT set width/height to fixed numbers on section-level frames unless creating a specific visual height (e.g. hero: 680).
-
-## Composition Vocabulary
-
-**LAYERING** — Frame with coverImage + child text = photo + overlaid headline. Add coverScrim for text readability over light photos. Set foreground: "#FFFFFF" on the frame.
-
-**ASYMMETRY** — Frame with display: "grid", gridTemplate: "3fr 2fr" = asymmetric 2-column spread. Use for text + image editorial pairs.
-
-**PACING** — Vary section heights. Hero: 600-720px. Photo break: 400-500px. Pullquote: 200-300px. Footer: minimal. Never uniform heights.
-
-**CONTRAST** — Alternate light/dark backgrounds. Dark pullquote between light sections = designed moment. Max 2-3 bg colors.
-
-**FULL-BLEED** — Frame with coverImage and zero padding = edge-to-edge photo. Frame with 64-120px padding = contained text. Alternate.
-
+${tasteSection}${intentSection}${knobSection}${blueprintSection}${compositionContextSection}${accentMapping4A}
 ## Design Tokens
 - background: ${tokens.colors.background}
 - surface: ${tokens.colors.surface}
@@ -780,30 +923,8 @@ Do NOT set width/height to fixed numbers on section-level frames unless creating
 - border: ${tokens.colors.border}
 - headingFont: ${tokens.typography.fontFamily}
 
-## Shadow Effects
-
-effects: [{ type: "dropShadow"|"innerShadow", x, y, blur, spread, color, enabled }]
-Structured shadow effects. Most elements need 0 or 1 shadow effect.
-Use subtle drop shadows for card elevation: { type: "dropShadow", x: 0, y: 2, blur: 8, spread: 0, color: "rgba(0,0,0,0.08)", enabled: true }
-Use inner shadows rarely — only for pressed/recessed effects.
-Do not stack more than 2 shadow effects on a single element unless the brief explicitly calls for complex depth.
-
-## Rules
-
-1. Root node MUST be type "frame" with section-level frame children
-2. Write COMPELLING, ORIGINAL copy — not placeholders. Write like the brand's copywriter.
-3. Kickers, subtitles, bylines, prices, badges are CHILD TEXT NODES with semantic names — NOT content fields. Content only has: text, src, alt, href, label.
-4. Use "photo:specific description" for ALL images. Descriptive: "photo:fashion model in dramatic side lighting, editorial portrait" not "photo:image".
-5. coverImage on frames = background photos. content.src on image nodes = inline photos.
-6. Every ID unique — format "type-xxxx" (4+ random lowercase chars)
-7. Keep JSON compact. Omit undefined/null fields. Omit display/flexDirection when defaults (flex/column) work.
-8. gridTemplate MUST be one of the allowed patterns (see schema).
-9. Choose 4-7 sections based on the brief. The page should feel like ONE DESIGNED ARTIFACT.
-10. coverScrim is OPTIONAL. Only add it when placing light text over a light photo. Omit for dark photos or when no text overlays the image.
-11. Use effects[] for all shadows — do NOT use legacy "shadow" string fields. Keep effects compact and purposeful (0-2 entries for most nodes).
-
-## Output
-Return ONLY valid JSON. No markdown fences. No explanation. Just the root DesignNode object starting with {.`;
+Return ONLY the root DesignNode JSON object for this brief.`;
+  return { prefix, suffix };
 }
 
 // ─── Variant Transformation Prompts ─────────────────────────────────────────

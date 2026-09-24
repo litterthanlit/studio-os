@@ -604,35 +604,50 @@ async function generateVariants(
   const useDesignNodeValue =
     useDesignNodeOverride !== undefined ? useDesignNodeOverride : USE_DESIGN_NODE;
 
+  // Same server-side pipeline as the editor and agents (master plan 1.2).
   const body = {
+    projectId: "benchmark",
+    target: "benchmark" as const,
+    mode: "screen" as const,
     prompt: brief,
-    tokens: NEUTRAL_TOKENS,
-    mode: "variants" as const,
+    designTokens: NEUTRAL_TOKENS,
     tasteProfile: tasteProfile ?? null,
-    referenceUrls: sendableRefs,
+    references: sendableRefs.map((url, index) => ({ id: `ref-${index + 1}`, url, weight: "default" as const })),
     fidelityMode: tasteProfile ? "balanced" : undefined,
-    useDesignNode: useDesignNodeValue,
   };
+  if (useDesignNodeValue === false) {
+    console.warn("    ⚠ V5 (non-DesignNode) generation is not part of the engine pipeline; running V6");
+  }
 
   try {
-    const res = await fetch(`${DEV_BASE}/api/canvas/generate-component`, {
+    const started = await fetch(`${DEV_BASE}/api/engine/runs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(300_000), // 5 min timeout for generation (V6 DesignNode is larger)
+      signal: AbortSignal.timeout(30_000),
     });
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.error(`    ✗ Generation failed (${res.status}): ${errBody.slice(0, 200)}`);
+    const startData = (await started.json().catch(() => ({}))) as { runId?: string; error?: string };
+    if (!started.ok || !startData.runId) {
+      console.error(`    ✗ Could not start run (${started.status}): ${String(startData.error ?? "").slice(0, 200)}`);
       return null;
     }
 
-    const data = (await res.json()) as {
-      siteName: string;
-      variants: VariantResult[];
-    };
-    return data;
+    const deadline = Date.now() + 300_000; // 5 min for V6 generation
+    for (;;) {
+      if (Date.now() > deadline) throw new Error("run timed out");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const res = await fetch(`${DEV_BASE}/api/engine/runs/${startData.runId}?projectId=benchmark`);
+      if (!res.ok) continue;
+      const run = (await res.json()) as { status: string; error?: string; result?: { json?: string } };
+      if (run.status === "failed") {
+        console.error(`    ✗ Generation failed: ${String(run.error ?? "").slice(0, 200)}`);
+        return null;
+      }
+      if (run.status === "complete" || run.status === "partial") {
+        const payload = JSON.parse(run.result?.json ?? "{}") as { siteName: string; variants: VariantResult[] };
+        return { siteName: payload.siteName, variants: payload.variants };
+      }
+    }
   } catch (err) {
     console.error(
       `    ✗ Generation error: ${err instanceof Error ? err.message : String(err)}`

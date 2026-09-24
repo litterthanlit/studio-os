@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-09-24T19:31:42.522Z",
+  "convexLimits": {
+    "maxNestingDepth": 16,
+    "maxDocumentBytes": 1048576,
+    "source": "Convex data-type limits as cited in the 2026-09-22 architecture review; confirmed only by the live run."
+  },
+  "countingRule": "Every object or array in canvasDocuments.state counts as one nesting level.",
+  "payloads": {
+    "a_twelveLevelTree": {
+      "depth": 27,
+      "bytes": 2134,
+      "withinDepth": false,
+      "withinSize": true
+    },
+    "b_dataUrlReference": {
+      "depth": 3,
+      "bytes": 1534003,
+      "withinDepth": true,
+      "withinSize": false
+    }
+  },
+  "deepestFittingTreeLevels": 6,
+  "live": {
+    "status": "not-run",
+    "reason": "No Convex dev deployment reachable from the proof environment. Set NEXT_PUBLIC_CONVEX_URL, CONVEX_INTERNAL_API_SECRET and CONVEX_LIMITS_PROOF_PROJECT_ID and re-run."
+  },
+  "verdict": {
+    "a": "exceeds the documented nesting limit offline; the live run decides whether Phase 3 moves to the front",
+    "b": "exceeds the documented document size; new uploads now go to file storage (see uploads)"
+  },
+  "uploads": {
+    "canvasBytesAddedPerUploadedReference": 342,
+    "maxLongestSidePx": 2048,
+    "lazyMigration": "data-URL references upload on the next signed-in session"
+  }
+}

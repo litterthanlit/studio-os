@@ -1,6 +1,7 @@
 import type { TasteProfile } from "@/types/taste-profile";
 import type { PageNode } from "./compose";
-import { callModel, GEMINI_FLASH, SONNET_4_6, imageUrlBlock } from "@/lib/ai/model-router";
+import { callModel, imageUrlBlock, modelFor } from "@/lib/ai/model-router";
+import { labeledReferenceBlocks } from "@/lib/intent/labels";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -316,7 +317,7 @@ Return ONLY valid JSON:
 {"palette":N,"typography":N,"density":N,"structure":N,"overall":N,"justification":"one sentence"}`;
 
   const raw = await callModel({
-    model: GEMINI_FLASH,
+    model: modelFor("judgeRealtime"),
     messages: [{ role: "user", content: prompt }],
     maxTokens: 200,
     temperature: 0.2,
@@ -402,12 +403,13 @@ Return ONLY valid JSON:
 {"palette":N,"typography":N,"density":N,"structure":N,"overall":N,"justification":"brief explanation"}`;
 
   const imageBlocks = [
-    ...referenceImageUrls.map(url => imageUrlBlock(url, "low")),
+    ...labeledReferenceBlocks(referenceImageUrls),
+    { type: "text" as const, text: "Generated output (screenshot)" },
     imageUrlBlock(generatedScreenshotUrl, "low"),
   ];
 
   const raw = await callModel({
-    model: SONNET_4_6,
+    model: modelFor("judge"),
     messages: [{
       role: "user",
       content: [

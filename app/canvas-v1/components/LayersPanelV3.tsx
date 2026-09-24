@@ -5,6 +5,7 @@
  * Groups: Site (artboards with page tree), References, Notes, Code.
  */
 
+import { screenIdForArtboard } from "@/lib/taste/preferences";
 import * as React from "react";
 import {
   Monitor, Smartphone, ChevronRight, Layout, Type,
@@ -857,6 +858,13 @@ export function LayersPanelV3({
           tasteProfile = ps.canvas?.tasteProfile ?? null;
           tokens = (ps.canvas?.designTokens ?? {}) as DesignSystemTokens;
         } catch {}
+      }
+
+      if (item.kind === "artboard") {
+        dispatch({
+          type: "RECORD_DESIGN_SIGNAL",
+          signal: { kind: "section-regenerate", screenId: screenIdForArtboard(item), sectionName: context.targetName, intent: intent === "different-approach" ? "different" : "similar" },
+        });
       }
 
       // Push history before replacement

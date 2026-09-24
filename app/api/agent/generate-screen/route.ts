@@ -1,22 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { agentRunStoreFor, startAgentRun } from "@/lib/agent/agent-runs";
 import {
   agentConvexAuthFromResult,
   authorizeAgentProjectAccess,
 } from "@/lib/agent/agent-api-auth";
-import {
-  buildCanvasSummary,
-  extractReferenceUrls,
-} from "@/lib/agent/canvas-agent-ops";
-import { applyCanvasDocumentWrite } from "@/lib/canvas/canvas-document";
-import {
-  agentLoadCanvas,
-  agentSaveCanvas,
-} from "@/lib/agent/convex-agent-client";
-import { defaultDesignTokens } from "@/lib/agent/default-design-tokens";
+import { executeAgentGenerateScreen } from "@/lib/agent/agent-generation";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
-import { generateV6DesignVariants } from "@/lib/canvas/generate-design-core";
-import { inferSiteName } from "@/lib/canvas/compose";
-import { normalizeRemoteCanvasState } from "@/lib/canvas/canvas-convex-sync";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
@@ -24,7 +13,12 @@ import { API_LIMITS, readGuardedJson } from "@/lib/security/api-guard";
 /**
  * POST /api/agent/generate-screen
  * Generates a screen from project context and writes it to the canvas.
+ * Taste and tokens: request body, else the project's stored design state, else defaults.
+ * `async: true` (the MCP default) queues a run and answers { runId, status } at once;
+ * the run executes after the response and is polled via /api/agent/runs/:id.
  */
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   const guarded = await readGuardedJson<{
     projectId: string;
@@ -34,6 +28,7 @@ export async function POST(req: NextRequest) {
     fidelityMode?: FidelityMode;
     tasteProfile?: TasteProfile | null;
     designTokens?: DesignSystemTokens | null;
+    async?: boolean;
   }>(req, {
     requireAuth: false,
     maxBytes: API_LIMITS.aiRequestBytes,
@@ -41,16 +36,7 @@ export async function POST(req: NextRequest) {
   });
   if (!guarded.ok) return guarded.response;
 
-  const {
-    projectId,
-    prompt,
-    breakpoint = "desktop",
-    name,
-    fidelityMode,
-    tasteProfile,
-    designTokens,
-  } = guarded.body;
-
+  const { projectId, prompt } = guarded.body;
   if (!projectId || !prompt?.trim()) {
     return NextResponse.json({ error: "projectId and prompt are required" }, { status: 400 });
   }
@@ -61,79 +47,52 @@ export async function POST(req: NextRequest) {
   }
 
   const convexAuth = agentConvexAuthFromResult(auth);
+  const { async: runAsync, ...runInput } = guarded.body;
+
+  if (runAsync) {
+    try {
+      const store = agentRunStoreFor(convexAuth);
+      const started = await startAgentRun({
+        store,
+        projectId: auth.projectId!,
+        kind: "screen",
+        // Compact run input (taste/tokens are resolved at execution; only record whether they were passed).
+        input: JSON.parse(JSON.stringify({
+          prompt: prompt.trim().slice(0, 2000),
+          breakpoint: runInput.breakpoint,
+          fidelityMode: runInput.fidelityMode,
+          tasteProfilePassed: Boolean(runInput.tasteProfile),
+          designTokensPassed: Boolean(runInput.designTokens),
+        })),
+        schedule: (task) => after(task),
+        execute: (progress) =>
+          executeAgentGenerateScreen({
+            ...runInput,
+            auth: convexAuth,
+            projectId: auth.projectId!,
+            prompt,
+            onProgress: progress,
+          }),
+      });
+      return NextResponse.json({ ...started, pollWith: "get_run" }, { status: 202 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start run";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
 
   try {
-    const doc = await agentLoadCanvas(convexAuth, auth.projectId!);
-    const currentState = doc?.state
-      ? normalizeRemoteCanvasState(doc.state)
-      : normalizeRemoteCanvasState(null);
-    const tokens = designTokens ?? defaultDesignTokens();
-    const referenceUrls = extractReferenceUrls(currentState);
-
-    const generation = await generateV6DesignVariants({
-      prompt: prompt.trim(),
-      tokens,
-      siteName: name ?? inferSiteName(prompt),
-      tasteProfile: tasteProfile ?? null,
-      referenceUrls,
-      fidelityMode: fidelityMode ?? "balanced",
-    });
-
-    if (!generation.ok || !generation.variants?.[0]?.pageTree) {
-      const failureMessage = generation.ok
-        ? "Generation returned no variants"
-        : generation.v6Failure?.message ?? "Generation failed";
-      const failureKind = generation.ok
-        ? "v6-failed"
-        : generation.v6Failure?.kind ?? generation.generationResult ?? "v6-failed";
-      return NextResponse.json({
-        error: failureMessage,
-        generationResult: failureKind,
-        v6Debug: generation.v6Debug,
-      }, { status: !generation.ok && generation.v6Failure?.kind === "credit-exhaustion" ? 402 : 502 });
-    }
-
-    const artboardName = name ?? generation.siteName ?? "Generated Screen";
-    const { state, schemaVersion, applied, errors } = applyCanvasDocumentWrite(currentState, [
-      {
-        type: "add_artboard",
-        name: artboardName,
-        breakpoint,
-        tree: generation.variants[0].pageTree,
-      },
-    ]);
-
-    if (applied.length === 0) {
-      return NextResponse.json(
-        { error: "Failed to add generated artboard", details: errors },
-        { status: 500 },
-      );
-    }
-
-    const saveResult = await agentSaveCanvas(convexAuth, {
+    const outcome = await executeAgentGenerateScreen({
+      auth: convexAuth,
       projectId: auth.projectId!,
-      state,
-      expectedRevision: doc?.revision,
-      schemaVersion,
+      prompt,
+      breakpoint: guarded.body.breakpoint,
+      name: guarded.body.name,
+      fidelityMode: guarded.body.fidelityMode,
+      tasteProfile: guarded.body.tasteProfile,
+      designTokens: guarded.body.designTokens,
     });
-
-    const summary = buildCanvasSummary(state);
-    const artboardId = summary.artboards.at(-1)?.id ?? null;
-
-    return NextResponse.json({
-      projectId,
-      artboardId,
-      revision: saveResult.revision,
-      siteName: generation.siteName,
-      generationResult: generation.generationResult,
-      v6Debug: generation.v6Debug,
-      summary,
-      variant: {
-        id: generation.variants[0].id,
-        name: generation.variants[0].name,
-        description: generation.variants[0].description,
-      },
-    });
+    return NextResponse.json(outcome.body, { status: outcome.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to generate screen";
     return NextResponse.json({ error: message }, { status: 502 });

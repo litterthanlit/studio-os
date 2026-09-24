@@ -1,4 +1,5 @@
 import type { TasteProfile } from "@/types/taste-profile";
+import type { Provenance } from "@/lib/design-memory/types";
 import { getArchetypeBannedNodeTypes } from "./archetype-bans";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -8,6 +9,8 @@ export interface Directive {
   rule: string;
   value: string | number | string[];
   source: "extracted" | "user-override" | "feedback";
+  /** Where the directive comes from (1.5). Never rendered into prompt text. */
+  provenance?: Provenance;
 }
 
 export interface CompiledDirectives {
@@ -76,9 +79,74 @@ const CORNER_RADIUS_MAP: Record<string, string> = {
 
 // ─── Compiler ───────────────────────────────────────────────────────────────
 
+export type CompileDirectivesOptions = {
+  /** In-app screens (web/mobile app UI): drop page-composition directives, allow status colors. */
+  appScreen?: boolean;
+};
+
+/** Page-composition dimensions that only make sense for marketing pages. */
+const MARKETING_ONLY_DIMENSIONS = new Set(["heroStyle", "sectionFlow", "rhythm", "composition", "imageSizing"]);
+
 export function compileTasteToDirectives(
   taste: TasteProfile | null | undefined,
-  fidelityMode: FidelityMode = "balanced"
+  fidelityMode: FidelityMode = "balanced",
+  options: CompileDirectivesOptions = {},
+): CompiledDirectives {
+  const result = compileTasteDirectivesForPage(taste, fidelityMode);
+  if (options.appScreen) {
+    const keep = (d: Directive) => !MARKETING_ONLY_DIMENSIONS.has(d.dimension);
+    result.hard = result.hard.filter(keep);
+    result.soft = result.soft.filter(keep);
+    result.soft.push(buildStatusColorDirective(taste));
+  }
+  return withProvenance(result, taste);
+}
+
+/** Every directive carries provenance: extracted → perceived, override → explicit, feedback → learned. */
+function withProvenance(result: CompiledDirectives, taste: TasteProfile | null | undefined): CompiledDirectives {
+  const perceived = typeof taste?.confidence === "number" ? taste.confidence : 0.5;
+  const tag = (d: Directive): Directive =>
+    d.provenance
+      ? d
+      : {
+          ...d,
+          provenance:
+            d.source === "user-override"
+              ? { source: "explicit", confidence: 1 }
+              : d.source === "feedback"
+                ? { source: "learned", confidence: perceived }
+                : { source: "perceived", confidence: perceived },
+        };
+  result.hard = result.hard.map(tag);
+  result.soft = result.soft.map(tag);
+  result.avoid = result.avoid.map(tag);
+  return result;
+}
+
+/**
+ * App screens may use status colors (success / warning / danger / info) on status UI
+ * only, tuned to the palette's temperature. The taste validator exempts nodes named
+ * "Status: …" from palette violations.
+ */
+export function buildStatusColorDirective(taste: TasteProfile | null | undefined): Directive {
+  const temperature = taste?.colorBehavior?.temperature;
+  const tones =
+    temperature === "warm"
+      ? { success: "#3F8F5A", warning: "#D98E1F", danger: "#C8473B", info: "#3A6EA5" }
+      : temperature === "cool"
+        ? { success: "#1F9D7A", warning: "#E0A21B", danger: "#D64550", info: "#3B6FD8" }
+        : { success: "#2E9A63", warning: "#E09B1A", danger: "#D14343", info: "#3A72C8" };
+  return {
+    dimension: "statusColors",
+    rule: `Status colors are allowed ONLY on status UI (badges, alerts, toasts, validation) named "Status: <tone> · …" — success ${tones.success}, warning ${tones.warning}, danger ${tones.danger}, info ${tones.info}. Shift them toward the palette's ${temperature ?? "neutral"} temperature and pair every status color with a text label. Everything else stays on the palette.`,
+    value: [tones.success, tones.warning, tones.danger, tones.info],
+    source: "extracted",
+  };
+}
+
+function compileTasteDirectivesForPage(
+  taste: TasteProfile | null | undefined,
+  fidelityMode: FidelityMode,
 ): CompiledDirectives {
   const result: CompiledDirectives = {
     hard: [],
@@ -157,12 +225,24 @@ export function compileTasteToDirectives(
     if (taste.typeScale.display) sizeParts.push(`display ${taste.typeScale.display}px`);
     if (taste.typeScale.heading) sizeParts.push(`heading ${taste.typeScale.heading}px`);
     if (taste.typeScale.body) sizeParts.push(`body ${taste.typeScale.body}px`);
-    result.hard.push({
-      dimension: "typeScale",
-      rule: `Type sizes MUST use: ${sizeParts.join("; ")}`,
-      value: sizeParts.join("; "),
-      source: "extracted",
-    });
+    if (taste.typeScaleSource === "fallback") {
+      // Approximated from a qualitative heading-to-body ratio, not measured: SOFT.
+      result.soft.push({
+        dimension: "typeScale",
+        rule: `Approximate type sizes (estimated from the reference's heading-to-body ratio, not measured): ${sizeParts.join("; ")}`,
+        value: sizeParts.join("; "),
+        source: "extracted",
+        provenance: { source: "fallback", confidence: 0.4 },
+      });
+    } else {
+      result.hard.push({
+        dimension: "typeScale",
+        rule: `Type sizes MUST use: ${sizeParts.join("; ")}`,
+        value: sizeParts.join("; "),
+        source: "extracted",
+        ...(taste.typeScaleSource === "measured" ? { provenance: { source: "measured" as const, confidence: 0.8 } } : {}),
+      });
+    }
   } else {
     allDirectives.push({
       _dimKey: "typeScale",
@@ -534,6 +614,19 @@ export function compileTasteToDirectives(
     if (ov.bodyFont) {
       const existing = result.hard.findIndex(d => d.dimension === "bodyFont");
       const override: Directive = { dimension: "bodyFont", rule: `Body font MUST be: ${ov.bodyFont}`, value: ov.bodyFont, source: "user-override" };
+      if (existing >= 0) result.hard[existing] = override;
+      else result.hard.push(override);
+    }
+
+    if (ov.palette && ov.palette.length > 0) {
+      result.soft = result.soft.filter(d => d.dimension !== "palette");
+      const existing = result.hard.findIndex(d => d.dimension === "palette");
+      const override: Directive = {
+        dimension: "palette",
+        rule: `Primary palette MUST use only: ${ov.palette.join(", ")} (designer correction)`,
+        value: ov.palette,
+        source: "user-override",
+      };
       if (existing >= 0) result.hard[existing] = override;
       else result.hard.push(override);
     }

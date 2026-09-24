@@ -37,12 +37,17 @@ description: Use this skill when modifying any Studio OS canvas component, panel
 - The migration layer (`migrateToV3`) must be error-tolerant — wrap each step in try/catch, drop malformed subsections rather than failing the whole project.
 
 ### Design System
-- Blue `#1E5DF2` is the ONLY accent color. Everything else is grayscale. No exceptions.
-- Bespoke Serif is for display headings ONLY — never body copy, never UI labels, never buttons.
-- Panel chrome is always `bg-white/95 backdrop-blur-sm border-[#E5E5E0]`. No dither inside panels.
+Source of truth: the Design System section of `CLAUDE.md`. Keep this block in sync with it.
+- Violet-blue `#4B57DB` is the ONLY accent color (hover `#3D49C7`, light `#D1E4FC`, subtle `#EDF1FE`). Everything else is neutral. No exceptions.
+- Backgrounds: `#FAFAF8` (primary), `#F5F5F0` (panels), `#FFFFFF` (surfaces). Borders: `#EFEFEC` (chrome, 0.5px), `#E5E5E0` (controls, 1px), `#4B57DB` (active, 1.5px). Text: `#1A1A1A` / `#6B6B6B` / `#A0A0A0`.
+- Bespoke Serif (`font-serif`) is for display headings ONLY: never body copy, UI labels or buttons. Geist Sans for all UI text. IBM Plex Mono for `.mono-kicker` overlines (10px uppercase, tracking 1px, `#A0A0A0`), code and data.
+- Panel chrome is solid `bg-white`: no blur, no transparency, no dither inside panels. Panel headers use the `.mono-kicker` pattern.
 - The halftone dot grid (`app-shell::before`) uses `3.5px` spacing for the app shell. The canvas uses `20px` spacing for the pin-board feel. These are different and intentional.
-- Use hex values directly in V2/V3 components (`#1A1A1A`, `#E5E5E0`), not CSS variable tokens (`var(--text-primary)`).
-- Form inputs: `border border-[#E5E5E0] rounded-[2px]`. Cards/buttons: `rounded-[4px]`. No `rounded-xl`, no pills.
+- Use hex values directly (`#1A1A1A`, `#E5E5E0`), not CSS variable tokens. Inside the editor, the semantic theme classes (`bg-card-bg`, `text-text-secondary`) handle dark mode.
+- Radius: inputs `rounded-[2px]`, cards/buttons `rounded-[4px]`, containers `rounded-[6px]`. No `rounded-xl`, `rounded-lg` or pills.
+- Inputs: `focus:border-[#D1E4FC] focus:ring-2 focus:ring-[#D1E4FC]/40`.
+- Icons: Lucide only. Sidebar 18px `strokeWidth={1}`; elsewhere 16px `strokeWidth={1.5}`.
+- Compact list rows (40px thumb, hover borders), not big cards. No decorative gradients, heavy shadows or emojis.
 
 ### Routes
 - `/canvas?project=:id` is the canonical workspace route. No `step` parameter in V3.
@@ -102,8 +107,8 @@ grep -rn '"Geist Mono"' app/ components/ --include="*.tsx" --include="*.ts"
 ### Selection Outline Audit
 ```bash
 # Verify selection uses inline styles not Tailwind (to avoid conflicts with generated site styles)
-grep -rn "outline.*1E5DF2\|outline.*D1E4FC" \
-  app/canvas-v1/components/ComposeDocumentView.tsx \
+grep -rn "outline.*4B57DB\|outline.*D1E4FC" \
+  app/canvas-v1/components/ComposeDocumentViewV6.tsx \
   app/canvas-v1/components/CanvasArtboard.tsx
 ```
 

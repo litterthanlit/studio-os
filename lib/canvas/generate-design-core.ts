@@ -1,21 +1,27 @@
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import { compileTasteToDirectives, type FidelityMode } from "@/lib/canvas/directive-compiler";
-import { inferSiteName, type VariantMode } from "@/lib/canvas/compose";
+import { BREAKPOINT_WIDTHS, inferSiteName, type VariantMode } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
 import type { TasteProfile } from "@/types/taste-profile";
-import { extractIntentProfile, type IntentProfile } from "@/types/intent-profile";
+import type { IntentProfile, IntentReferenceInput } from "@/types/intent-profile";
+import { buildIntentReferences, resolveIntentProfile } from "@/lib/canvas/intent-classifier";
 import {
   callModel,
   describeModelFailure,
   getRouter,
   getV6TokenBudgets,
-  SONNET_4_6,
-  imageUrlBlock,
   type ModelFailureInfo,
+  tracedCompletion,
+  tracedStreamCompletion,
+  modelFor,
+  cacheablePromptParts,
 } from "@/lib/ai/model-router";
+import { labeledReferenceBlocks } from "@/lib/intent/labels";
+import { createSectionStreamParser, type StreamedSection } from "@/lib/engine/stream-parse";
+import { compileLayeredDirectives, layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import {
-  buildDesignTreePrompt,
+  buildDesignTreePromptParts,
   buildDesignPushedVariantPrompt,
   buildDesignRestructuredVariantPrompt,
 } from "@/lib/canvas/design-tree-prompt";
@@ -146,8 +152,11 @@ export function evaluateV6TasteGate(args: {
   intentProfile: IntentProfile | null;
   knobVector: DesignKnobVector;
   fidelityMode: FidelityMode;
+  layeredTaste?: LayeredTaste | null;
 }): Omit<V6TasteGate, "repaired" | "attempts" | "warnings"> {
-  const directives = compileTasteToDirectives(args.tasteProfile, args.fidelityMode);
+  const directives = args.layeredTaste
+    ? compileLayeredDirectives(args.layeredTaste, args.fidelityMode)
+    : compileTasteToDirectives(args.tasteProfile, args.fidelityMode);
   const validation = validateDesignNodeTaste({
     tree: args.tree,
     tasteProfile: args.tasteProfile,
@@ -226,6 +235,14 @@ export type GenerateV6DesignVariantsInput = {
     referenceIndex: number;
   }>;
   compositionContext?: string;
+  /** Real reference ids / weights / annotations, index-aligned with referenceUrls. */
+  references?: IntentReferenceInput[];
+  /** Classification the caller already routed on (validated; reused so routing and generation agree). */
+  intentClassification?: unknown;
+  /** Layered taste from the engine (1.5): measured + learned directives with provenance. */
+  layeredTaste?: LayeredTaste | null;
+  /** Live Build (1.9): stream the base generation and report each top-level section as it completes. */
+  onSection?: (section: StreamedSection) => void;
 };
 
 export type GenerateV6DesignVariantsResult =
@@ -253,13 +270,17 @@ export async function generateV6DesignVariants(
     tokens,
     siteName,
     siteType,
-    tasteProfile,
+    tasteProfile: requestTaste,
+    layeredTaste,
     referenceUrls,
     fidelityMode,
     strictV6,
     compositionData,
     compositionContext,
+    references,
+    intentClassification,
   } = input;
+  const tasteProfile = layeredTaste?.tasteProfile ?? requestTaste;
 
   const resolvedSiteName = siteName || inferSiteName(prompt);
   const cappedReferenceUrls = capStringArray(referenceUrls, API_LIMITS.maxReferenceUrls);
@@ -275,7 +296,7 @@ export async function generateV6DesignVariants(
 
   const v6Debug: V6GenerationDebug = {
     attempted: true,
-    model: SONNET_4_6,
+    model: modelFor("generate"),
     strict: strictV6Mode,
     maxTokens: {
       base: v6Budgets.baseMaxTokens,
@@ -311,13 +332,15 @@ export async function generateV6DesignVariants(
 
   logSafe("[V6-GEN] Starting DesignNode generation", { siteName: resolvedSiteName });
   const resolvedFidelityMode = fidelityMode ?? "balanced";
-  const intentProfile = extractIntentProfile({
+  const intentProfile = await resolveIntentProfile({
     prompt,
     siteType,
-    references: cappedReferenceUrls.map((url, index) => ({
-      id: `reference-${index + 1}`,
-      annotation: url,
-    })),
+    classification: intentClassification,
+    references: buildIntentReferences({
+      references,
+      referenceUrls: cappedReferenceUrls,
+      compositionData: cappedCompositionData,
+    }),
   });
 
   let compositionBlueprint = "";
@@ -333,21 +356,24 @@ export async function generateV6DesignVariants(
 
   const knobVector = deriveDesignKnobs({
     tasteProfile: tasteProfile ?? null,
+    ...layeredKnobOptions(layeredTaste),
     intentProfile,
     compositionData: cappedCompositionData,
     compositionBlueprint,
     fidelityMode: resolvedFidelityMode,
   });
 
-  const designPrompt = buildDesignTreePrompt(tokens, prompt, resolvedSiteName, {
+  const designPromptParts = buildDesignTreePromptParts(tokens, prompt, resolvedSiteName, {
     variantMode: "safe",
     tasteProfile: tasteProfile ?? null,
+    layeredTaste,
     intentProfile,
     knobVector,
     fidelityMode: resolvedFidelityMode,
     compositionBlueprint,
     compositionContext: cappedCompositionContext,
   });
+  const designPrompt = `${designPromptParts.prefix}\n\n${designPromptParts.suffix}`;
 
   if (cappedCompositionContext) {
     logSafe("[COMPOSITION] Context wired into generation prompt", {
@@ -357,28 +383,31 @@ export async function generateV6DesignVariants(
 
   logSafe("[V6-GEN] Prompt built", { promptLength: designPrompt.length });
 
-  const referenceImageBlocks = cappedReferenceUrls
-    .slice(0, 4)
-    .map((url) => imageUrlBlock(url, "low"));
+  const referenceImageBlocks = labeledReferenceBlocks(cappedReferenceUrls.slice(0, 4), references);
 
   let baseTree: DesignNode | null = null;
   let baseTasteGate: V6TasteGate | null = null;
 
   try {
     const router = getRouter();
-    const response = await router.chat.completions.create({
-      model: SONNET_4_6,
+    const baseParams: Parameters<typeof tracedCompletion>[1] = {
+      model: modelFor("generate"),
       messages: [{
         role: "user",
         content: [
-          { type: "text", text: designPrompt },
+          // Stable prefix first (cache breakpoint), then the per-request suffix.
+          ...cacheablePromptParts(designPromptParts.prefix, designPromptParts.suffix),
           ...referenceImageBlocks,
         ],
       }],
       max_tokens: v6Budgets.baseMaxTokens,
       temperature: 0.5,
       response_format: { type: "json_object" },
-    });
+    };
+    const liveParser = input.onSection ? createSectionStreamParser({ onSection: input.onSection }) : null;
+    const response = liveParser
+      ? await tracedStreamCompletion("design.base", baseParams, (delta) => void liveParser.push(delta))
+      : await tracedCompletion("design.base", baseParams);
 
     const raw = response.choices[0]?.message?.content ?? "";
     const finishReason = response.choices[0]?.finish_reason;
@@ -388,7 +417,9 @@ export async function generateV6DesignVariants(
     if (raw.length === 0) throw new Error("Empty response");
 
     if (finishReason === "length") console.warn(`[V6-GEN] Truncated — attempting recovery`);
-    const parsed = parseDesignNodeResponse(raw, finishReason);
+    // A truncated stream recovers from its last complete section (exact), else the generic repair.
+    const streamRecovered = finishReason === "length" ? liveParser?.recover() : null;
+    const parsed = streamRecovered ? JSON.parse(streamRecovered) : parseDesignNodeResponse(raw, finishReason);
 
     const validated = validateAndNormalizeDesignTree(parsed);
     if (!validated.ok) throw new Error(`Validation failed: ${validated.reason}`);
@@ -399,6 +430,7 @@ export async function generateV6DesignVariants(
     let gate = evaluateV6TasteGate({
       tree: baseTree,
       tasteProfile: tasteProfile ?? null,
+      layeredTaste,
       intentProfile,
       knobVector,
       fidelityMode: resolvedFidelityMode,
@@ -411,6 +443,7 @@ export async function generateV6DesignVariants(
       const repairedGate = evaluateV6TasteGate({
         tree: repairedTree,
         tasteProfile: tasteProfile ?? null,
+        layeredTaste,
         intentProfile,
         knobVector,
         fidelityMode: resolvedFidelityMode,
@@ -426,13 +459,12 @@ export async function generateV6DesignVariants(
     if (!gate.passed) {
       attempts = 2;
       v6Debug.retryAttempted = true;
-      const retryPrompt = `${designPrompt}\n\n${buildTasteRetryPrompt(gate.validation)}`;
-      const retryResponse = await router.chat.completions.create({
-        model: SONNET_4_6,
+      const retryResponse = await tracedCompletion("design.taste-retry", {
+        model: modelFor("generate"),
         messages: [{
           role: "user",
           content: [
-            { type: "text", text: retryPrompt },
+            ...cacheablePromptParts(designPromptParts.prefix, `${designPromptParts.suffix}\n\n${buildTasteRetryPrompt(gate.validation)}`),
             ...referenceImageBlocks,
           ],
         }],
@@ -449,6 +481,7 @@ export async function generateV6DesignVariants(
         const retryGate = evaluateV6TasteGate({
           tree: retryTree,
           tasteProfile: tasteProfile ?? null,
+          layeredTaste,
           intentProfile,
           knobVector,
           fidelityMode: resolvedFidelityMode,
@@ -483,6 +516,8 @@ export async function generateV6DesignVariants(
         retryMaxTokens: v6Budgets.retryMaxTokens,
         fidelityMode: resolvedFidelityMode,
         parseDesignNodeResponse,
+        // Generated trees are desktop artboards.
+        viewportWidth: BREAKPOINT_WIDTHS.desktop,
       });
       if (visualRefine.iterations.length > 0) {
         v6Debug.visualRefineIterations = visualRefine.iterations;
@@ -492,6 +527,7 @@ export async function generateV6DesignVariants(
         gate = evaluateV6TasteGate({
           tree: baseTree,
           tasteProfile: tasteProfile ?? null,
+          layeredTaste,
           intentProfile,
           knobVector,
           fidelityMode: resolvedFidelityMode,
@@ -547,6 +583,7 @@ export async function generateV6DesignVariants(
     const fallbackGate = evaluateV6TasteGate({
       tree: baseTree,
       tasteProfile: tasteProfile ?? null,
+      layeredTaste,
       intentProfile,
       knobVector,
       fidelityMode: resolvedFidelityMode,
@@ -566,14 +603,16 @@ export async function generateV6DesignVariants(
   if (tasteProfile) {
     const [pushedResult, restructuredResult] = await Promise.allSettled([
       callModel({
-        model: SONNET_4_6,
+        step: "design.variant-pushed",
+        model: modelFor("variant"),
         messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree, tasteProfile) }],
         maxTokens: v6Budgets.variantMaxTokens,
         temperature: 0.4,
         jsonMode: true,
       }),
       callModel({
-        model: SONNET_4_6,
+        step: "design.variant-restructured",
+        model: modelFor("variant"),
         messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree, tasteProfile) }],
         maxTokens: v6Budgets.variantMaxTokens,
         temperature: 0.5,
@@ -644,7 +683,8 @@ export async function generateV6DesignVariants(
           tasteProfile,
           rederive: async () => {
             const raw = await callModel({
-              model: SONNET_4_6,
+              step: "design.variant-pushed.rederive",
+              model: modelFor("variant"),
               messages: [{ role: "user", content: buildDesignPushedVariantPrompt(baseTree!, tasteProfile) }],
               maxTokens: v6Budgets.variantMaxTokens,
               temperature: 0.4,
@@ -661,7 +701,8 @@ export async function generateV6DesignVariants(
           tasteProfile,
           rederive: async () => {
             const raw = await callModel({
-              model: SONNET_4_6,
+              step: "design.variant-restructured.rederive",
+              model: modelFor("variant"),
               messages: [{ role: "user", content: buildDesignRestructuredVariantPrompt(baseTree!, tasteProfile) }],
               maxTokens: v6Budgets.variantMaxTokens,
               temperature: 0.5,
@@ -692,6 +733,7 @@ export async function generateV6DesignVariants(
   const pushedTasteGate = evaluateV6TasteGate({
     tree: pushedTree,
     tasteProfile: tasteProfile ?? null,
+    layeredTaste,
     intentProfile,
     knobVector,
     fidelityMode: resolvedFidelityMode,
@@ -699,6 +741,7 @@ export async function generateV6DesignVariants(
   const restructuredTasteGate = evaluateV6TasteGate({
     tree: restructuredTree,
     tasteProfile: tasteProfile ?? null,
+    layeredTaste,
     intentProfile,
     knobVector,
     fidelityMode: resolvedFidelityMode,

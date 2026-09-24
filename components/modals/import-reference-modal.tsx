@@ -1,5 +1,6 @@
 "use client";
 
+import { useCanvasAssetUpload } from "@/lib/canvas/use-canvas-asset-upload";
 import * as React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -110,6 +111,8 @@ export function ImportReferenceModal({
   initialUrl = "",
 }: Props) {
   const [mode, setMode] = React.useState<ImportMode>(initialMode);
+  // Uploads go to file storage when signed in (downscaled data URL when local-only).
+  const imageUploader = useCanvasAssetUpload(projectId);
   const [isBusy, setIsBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -146,10 +149,10 @@ export function ImportReferenceModal({
 
     for (let i = 0; i < validFiles.length; i += 1) {
       const file = validFiles[i];
-      const dataUrl = await fileToDataUrl(file);
+      const asset = await imageUploader.upload(file);
       imported.push({
         id: makeId("upload"),
-        imageUrl: dataUrl,
+        imageUrl: asset.imageUrl,
         source: "upload",
         title: file.name,
         addedAt: now,

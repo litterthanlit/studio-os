@@ -72,11 +72,13 @@ export function stripCanvasForPersistence(state: UnifiedCanvasState): UnifiedCan
       isGenerating: false,
       agentSteps: [],
       generationResult: null,
+      liveSections: undefined,
     },
     aiPreview: null,
     masterEditSession: null,
     variantPreview: null,
     generatedTreeSnapshot: undefined,
     pendingTasteEdits: undefined,
+    designSignals: undefined,
   };
 }

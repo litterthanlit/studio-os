@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAgentDesignState } from "@/lib/agent/agent-design-state";
 import {
   agentConvexAuthFromResult,
   authorizeAgentProjectAccess,
@@ -71,9 +72,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!tasteProfile) {
+    // Taste: request body, else the project's stored design state.
+    const design = await resolveAgentDesignState({
+      auth: agentConvexAuthFromResult(auth),
+      projectId: auth.projectId!,
+      tasteProfile,
+    });
+    const resolvedTaste = design.tasteProfile;
+    if (!resolvedTaste) {
       return NextResponse.json(
-        { error: "tasteProfile is required for screenshot scoring" },
+        { error: "No taste profile: pass tasteProfile or extract taste in the project first" },
         { status: 400 },
       );
     }
@@ -82,13 +90,13 @@ export async function POST(req: NextRequest) {
       projectId,
       projectName: projectName ?? projectId,
       state: canvasState,
-      tasteProfile,
+      tasteProfile: resolvedTaste,
     });
 
     const benchmarkScore = await scoreDesignBenchmarkFidelity(
       referenceUrls,
       screenshotDataUrl,
-      tasteProfile,
+      resolvedTaste,
     );
 
     const result = createVisualReviewFromBenchmarkScore({

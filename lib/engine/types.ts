@@ -17,10 +17,12 @@ import type {
   GenerateAppScreenSetInput,
   GenerateAppScreenSetResult,
 } from "@/lib/canvas/generate-screen-set-core";
-import type { AnalyzeCompositionResult } from "@/lib/taste/analyze-composition-core";
 import type { TasteExtractBody, TasteExtractResult } from "@/lib/taste/extract-core";
 import type { ReferenceImageAnalysisResult } from "@/lib/canvas/analyze-images-core";
-import type { DesignBrief } from "@/lib/design-memory/types";
+import type { BriefReference, DesignBrief, ReferenceRole } from "@/lib/design-memory/types";
+import type { BriefDirective } from "@/lib/intent/brief";
+import type { LabeledImageRef } from "@/lib/intent/labels";
+import type { ReferencePerception } from "@/lib/intent/perceive";
 import type { ClassifyIntentArgs } from "@/lib/canvas/intent-classifier";
 import type { RunStore } from "./run-store";
 
@@ -36,7 +38,7 @@ export const ENGINE_STEPS = [
 export type EngineStepKey = (typeof ENGINE_STEPS)[number];
 
 /** Bump when composition analysis output changes, so cached analyses are recomputed. */
-export const ANALYZER_VERSION = "composition-v1";
+export const ANALYZER_VERSION = "perceive-v1";
 
 export type EngineReference = {
   id: string;
@@ -45,6 +47,9 @@ export type EngineReference = {
   annotation?: string;
   /** SHA-256 of the uploaded bytes when known (file-storage assets). */
   contentHash?: string;
+  /** Roles the designer assigned (role chips); win over annotation and inference. */
+  roles?: ReferenceRole[];
+  regions?: BriefReference["regions"];
 };
 
 export type EngineInput = {
@@ -64,6 +69,8 @@ export type EngineInput = {
   /** Request overrides; otherwise the project's design memory, else extraction. */
   tasteProfile?: TasteProfile | null;
   designTokens?: DesignSystemTokens | null;
+  /** Answers to brief questions (question id → option). */
+  answers?: Record<string, string>;
 };
 
 export type ResolvedAsset = EngineReference & { hash: string };
@@ -73,13 +80,18 @@ export type ReferenceAnalysisEntry = {
   hash: string;
   referenceIndex: number;
   weight: "primary" | "default" | "muted";
-  analysis: CompositionAnalysis;
+  /** Legacy composition view (derived from the perception call); null when unavailable. */
+  analysis: CompositionAnalysis | null;
+  perception: ReferencePerception;
   cached: boolean;
 };
 
 export type BriefCheckpoint = {
   brief: Omit<DesignBrief, "id" | "projectId" | "version" | "createdAt">;
   briefId?: string;
+  /** Changes whenever roles, weights, regions or answers change (invalidates derived taste). */
+  cacheKey: string;
+  directives: BriefDirective[];
   intentProfile: IntentProfile;
   intentClassification: { outputType: string; businessGoal: string; confidence: number; alternatives: unknown[] };
   kind: "screen" | "screen-set";
@@ -119,6 +131,8 @@ export type EngineCheckpoints = {
 export type EngineProjectState = {
   tasteProfile: TasteProfile | null;
   designTokens: DesignSystemTokens | null;
+  /** Brief cache key the stored derived taste was extracted under (null: set by the designer). */
+  tasteCacheKey?: string | null;
 };
 
 export type EngineDeps = {
@@ -127,12 +141,13 @@ export type EngineDeps = {
   loadProjectState: () => Promise<EngineProjectState | null>;
   /** Reference-analysis cache (design memory); omitted when signed out. */
   analysisCache?: {
-    get: (hash: string, analyzerVersion: string) => Promise<CompositionAnalysis | null>;
-    save: (hash: string, analyzerVersion: string, analysis: CompositionAnalysis) => Promise<void>;
+    get: (hash: string, analyzerVersion: string) => Promise<ReferencePerception | null>;
+    save: (hash: string, analyzerVersion: string, perception: ReferencePerception) => Promise<void>;
   };
   saveBrief?: (brief: BriefCheckpoint["brief"]) => Promise<{ briefId: string }>;
-  saveDerivedTaste?: (profile: TasteProfile) => Promise<void>;
-  analyzeComposition: (url: string) => Promise<AnalyzeCompositionResult>;
+  saveDerivedTaste?: (profile: TasteProfile, cacheKey: string) => Promise<void>;
+  /** Perception + measurement of one reference (1.3/1.4). */
+  perceiveReference: (ref: LabeledImageRef, options: { measureType?: boolean }) => Promise<ReferencePerception>;
   analyzeImages: (urls: string[]) => Promise<ReferenceImageAnalysisResult>;
   extractTaste: (body: TasteExtractBody) => Promise<TasteExtractResult>;
   classifyIntent: (args: ClassifyIntentArgs) => Promise<IntentProfile>;
@@ -160,8 +175,13 @@ export type EngineStep<K extends EngineStepKey> = {
   run: (ctx: StepContext) => Promise<NonNullable<EngineCheckpoints[K]>>;
 };
 
-export function intentReferencesFor(assets: ResolvedAsset[]): IntentReferenceInput[] {
+export function intentReferencesFor(assets: ResolvedAsset[], rolesById?: Map<string, string[]>): IntentReferenceInput[] {
   return assets
     .filter((asset) => asset.weight !== "muted")
-    .map((asset) => ({ id: asset.id, weight: asset.weight, annotation: asset.annotation }));
+    .map((asset) => ({
+      id: asset.id,
+      weight: asset.weight,
+      annotation: asset.annotation,
+      ...(rolesById?.get(asset.id) ? { roles: rolesById.get(asset.id) } : {}),
+    }));
 }

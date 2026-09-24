@@ -65,6 +65,8 @@ export type IntentReferenceInput = {
   id?: string;
   annotation?: string;
   weight?: "primary" | "default" | "muted";
+  /** Brief roles (1.4), used to label images in model calls. */
+  roles?: string[];
 };
 
 export type IntentAlternative = {

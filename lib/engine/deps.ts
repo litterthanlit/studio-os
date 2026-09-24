@@ -13,9 +13,8 @@ import { classifyIntent } from "@/lib/canvas/intent-classifier";
 import { isConvexConfigured } from "@/lib/convex/is-configured";
 import { createDesignMemoryClient } from "@/lib/design-memory/client";
 import { splitTasteProfile } from "@/lib/design-memory/types";
-import { analyzeCompositionImage } from "@/lib/taste/analyze-composition-core";
+import { perceiveReference, type ReferencePerception } from "@/lib/intent/perceive";
 import { extractTasteProfile } from "@/lib/taste/extract-core";
-import type { CompositionAnalysis } from "@/types/composition-analysis";
 import type { TasteProfile } from "@/types/taste-profile";
 import { runStoreFor, type RunStore } from "./run-store";
 import type { EngineDeps } from "./types";
@@ -42,31 +41,41 @@ export function createEngineDeps(args: {
       if (!hasConvexCredentials(auth)) return null;
       const row = await agentLoadDesignState(auth, pid);
       return row
-        ? { tasteProfile: (row.tasteProfile as TasteProfile | null) ?? null, designTokens: (row.designTokens as DesignSystemTokens | null) ?? null }
+        ? {
+            tasteProfile: (row.tasteProfile as TasteProfile | null) ?? null,
+            designTokens: (row.designTokens as DesignSystemTokens | null) ?? null,
+            tasteCacheKey: row.tasteCacheKey ?? null,
+          }
         : null;
     },
     ...(memory
       ? {
           analysisCache: {
             get: async (hash: string, analyzerVersion: string) =>
-              ((await memory.getReferenceAnalysis(projectId, { assetHash: hash, analyzerVersion }))?.perceived as CompositionAnalysis | undefined) ?? null,
-            save: async (hash: string, analyzerVersion: string, analysis: CompositionAnalysis) => {
-              // Composition analysis is the vision model's perception; measured values arrive in 1.3.
-              await memory.saveReferenceAnalysis(projectId, { assetHash: hash, analyzerVersion, measured: {}, perceived: analysis, confidence: 0.7 });
+              ((await memory.getReferenceAnalysis(projectId, { assetHash: hash, analyzerVersion }))?.perceived as ReferencePerception | undefined) ?? null,
+            save: async (hash: string, analyzerVersion: string, perception: ReferencePerception) => {
+              await memory.saveReferenceAnalysis(projectId, {
+                assetHash: hash,
+                analyzerVersion,
+                measured: perception.measured,
+                perceived: perception,
+                confidence: perception.confidence,
+              });
             },
           },
           saveBrief: async (brief) => ({ briefId: (await memory.saveBrief(projectId, brief)).briefId }),
-          saveDerivedTaste: async (profile) => {
+          saveDerivedTaste: async (profile, cacheKey) => {
             const { derived } = splitTasteProfile(profile as unknown as Parameters<typeof splitTasteProfile>[0]);
             await memory.saveTasteLayer(projectId, {
               kind: "derived",
               data: derived,
               provenance: [{ source: "perceived", confidence: typeof profile.confidence === "number" ? profile.confidence : 0.5 }],
+              cacheKey,
             });
           },
         }
       : {}),
-    analyzeComposition: analyzeCompositionImage,
+    perceiveReference: (ref, options) => perceiveReference(ref, options),
     analyzeImages: analyzeReferenceImages,
     extractTaste: extractTasteProfile,
     classifyIntent,

@@ -18,7 +18,8 @@ export const generate: EngineStep<"generate"> = {
     const taste = checkpoints.compileTaste!;
     const assets = (checkpoints.resolveAssets?.assets ?? []).filter((asset) => asset.weight !== "muted");
     const referenceUrls = assets.map((asset) => asset.url);
-    const references = intentReferencesFor(assets);
+    const rolesById = new Map(brief.brief.references.map((ref) => [ref.assetId, ref.roles as string[]]));
+    const references = intentReferencesFor(assets, rolesById);
     const compositionContext = taste.compositionData.length > 0
       ? summarizeCompositionsForTaste(taste.compositionData)
       : undefined;

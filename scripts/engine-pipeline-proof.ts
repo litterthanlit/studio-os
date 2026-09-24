@@ -91,9 +91,9 @@ function mockedOverrides(count: ReturnType<typeof counters>, capture: GenerateV6
       count.project++;
       return { tasteProfile: storedTaste, designTokens: storedTokens };
     },
-    analyzeComposition: async (url) => {
+    perceiveReference: async (ref) => {
       count.analyze++;
-      return { ok: true, analysis: analysisFor(url) };
+      return { assetId: ref.id, composition: analysisFor(ref.url), qualities: [], measured: { grid: null, type: null }, mode: "unknown", confidence: 0.5 };
     },
     analyzeImages: async () => ({ ok: false, status: 500, error: "not needed" }),
     extractTaste: async () => ({ ok: false, status: 500, error: "not needed" }),
@@ -160,7 +160,7 @@ async function testEditorAndAgentMatch() {
       saveCanvas: async () => ({ id: "doc" as any, revision: 4, unchanged: false }),
       loadDesignState: async () => ({ tasteProfile: storedTaste, designTokens: storedTokens, tasteUpdatedAt: 1, tokensUpdatedAt: 1, updatedAt: 1 }),
       generateScreen: overrides.generateScreen!,
-      engine: { analyzeComposition: overrides.analyzeComposition!, analyzeImages: overrides.analyzeImages!, extractTaste: overrides.extractTaste! },
+      engine: { perceiveReference: overrides.perceiveReference!, analyzeImages: overrides.analyzeImages!, extractTaste: overrides.extractTaste! },
     },
   );
   assert.equal(outcome.status, 200, JSON.stringify(outcome.body).slice(0, 300));
@@ -182,7 +182,7 @@ async function testEditorAndAgentMatch() {
   const briefStep = editorRun.steps.find((s) => s.key === "buildBrief")!;
   assert.equal(typeof (briefStep.checkpoint as any).json, "string", "checkpoints are JSON strings");
   const brief = JSON.parse((briefStep.checkpoint as any).json).brief;
-  assert.deepEqual(brief.references.map((r: any) => [r.weight, r.roles[0]]), [["primary", "typography"], ["default", "mood"], ["muted", "ignore"]]);
+  assert.deepEqual(brief.references.map((r: any) => [r.weight, r.roles[0]]), [["primary", "typography"], ["default", "imagery"], ["muted", "ignore"]]);
   console.log("[proof] 1. editor and agent entrypoints feed generation identical brief + taste inputs (taste: project memory; primary first; muted ignored)");
   return editorRun;
 }
@@ -228,7 +228,7 @@ async function testResume() {
 }
 
 function testRealProgress(run: Awaited<ReturnType<typeof testEditorAndAgentMatch>>) {
-  const known = new Set(["queued", "running", "resumed", "loading-context", "analyzing-reference", "brief", "taste", "generating", "planned", "screen-complete", "screen-failed", "verifying", "writing-canvas", "rebased", "complete", "partial", "failed"]);
+  const known = new Set(["queued", "running", "resumed", "loading-context", "analyzing-reference", "brief", "brief-questions", "taste", "taste-invalidated", "generating", "planned", "screen-complete", "screen-failed", "verifying", "writing-canvas", "rebased", "complete", "partial", "failed"]);
   for (const row of run.progress) assert.ok(known.has(row.step), `progress row "${row.step}" is a real step event`);
   const labels = progressLabels(run);
   assert.deepEqual(labels, ["Preparing references...", "Analyzing references...", "Understanding the brief...", "Compiling taste...", "Generating design...", "Checking the output..."]);

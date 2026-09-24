@@ -37,6 +37,9 @@ export type CompositionAnalysis = {
     details: string;
   }>;
 
+  // App-UI vocabulary (product screens), alongside the editorial vocabulary above
+  appUi?: AppUiComposition;
+
   // Type-specific (only one populated based on referenceType)
   screenshot?: ScreenshotComposition;
   photograph?: PhotographComposition;
@@ -50,7 +53,7 @@ export type ScreenshotComposition = {
     heightCharacter: "tall" | "medium" | "compact";
   }>;
   gridProportions: string[];
-  navigationStyle: "top-bar" | "sticky" | "minimal" | "hidden";
+  navigationStyle: "top-bar" | "sticky" | "minimal" | "hidden" | AppNavigationModel;
   typeDensityZone: "hero-heavy" | "distributed" | "footer-loaded";
   textBlockWidth: "narrow-column" | "wide-measure" | "full-width";
   componentSignature: {
@@ -86,4 +89,16 @@ export type EditorialComposition = {
   captionTreatment?: "small-below" | "side-aligned" | "integrated" | "none";
   pullQuoteScale?: "subtle" | "moderate" | "dramatic";
   paragraphSpacing: "indents" | "line-breaks" | "extra-leading";
+};
+
+// ── App-UI vocabulary (master plan 1.4) ─────────────────────────────────────
+
+export type AppNavigationModel = "sidebar" | "tab-bar" | "toolbar" | "command-palette" | "top-bar" | "none";
+
+export type AppUiComposition = {
+  navigationModel: AppNavigationModel;
+  density: "compact" | "comfortable" | "spacious";
+  dataDisplay: Array<"table" | "cards" | "list" | "chart" | "kanban" | "timeline" | "form" | "detail">;
+  controls: Array<"buttons" | "segmented" | "toggles" | "inputs" | "selects" | "chips" | "sliders" | "menus">;
+  iconography: "none" | "outline" | "filled" | "duotone" | "emoji";
 };

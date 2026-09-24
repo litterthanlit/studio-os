@@ -35,6 +35,7 @@
     "proof:design-memory": "npx tsx scripts/design-memory-proof.ts",
     "proof:engine-pipeline": "npx tsx scripts/engine-pipeline-proof.ts",
     "proof:intent-measure": "npx tsx scripts/intent-measure-proof.ts",
+    "proof:intent-engine": "npx tsx scripts/intent-engine-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

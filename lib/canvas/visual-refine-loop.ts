@@ -31,7 +31,7 @@ export type VisualRefineLoopArgs = {
   tasteProfile: TasteProfile;
   referenceUrls: string[];
   designPrompt: string;
-  referenceImageBlocks: ReturnType<typeof imageUrlBlock>[];
+  referenceImageBlocks: OpenAI.Chat.Completions.ChatCompletionContentPart[];
   router: OpenAI;
   retryMaxTokens: number;
   fidelityMode: FidelityMode;
@@ -93,7 +93,7 @@ export function buildVisualCritiqueRetryPrompt(
 export function buildVisualRefineRegenerationContent(args: {
   designPrompt: string;
   critiquePrompt: string;
-  referenceImageBlocks: ReturnType<typeof imageUrlBlock>[];
+  referenceImageBlocks: OpenAI.Chat.Completions.ChatCompletionContentPart[];
   screenshotDataUrl: string;
   referenceCount: number;
   score: TasteFidelityScore;
@@ -113,6 +113,7 @@ export function buildVisualRefineRegenerationContent(args: {
   return [
     { type: "text", text: `${args.designPrompt}\n\n${args.critiquePrompt}\n\n${instruction}` },
     ...args.referenceImageBlocks,
+    { type: "text" as const, text: "Generated output (screenshot)" },
     imageUrlBlock(args.screenshotDataUrl, "high"),
   ];
 }
@@ -155,7 +156,7 @@ async function regenerateTreeFromCritique(args: {
   designPrompt: string;
   visualScore: TasteFidelityScore;
   tasteProfile: TasteProfile;
-  referenceImageBlocks: ReturnType<typeof imageUrlBlock>[];
+  referenceImageBlocks: OpenAI.Chat.Completions.ChatCompletionContentPart[];
   screenshotDataUrl: string;
   referenceUrls: string[];
   router: OpenAI;

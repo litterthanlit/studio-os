@@ -11,10 +11,10 @@ import {
   describeModelFailure,
   getV6TokenBudgets,
   SONNET_4_6,
-  imageUrlBlock,
   type ModelFailureInfo,
   tracedCompletion,
 } from "@/lib/ai/model-router";
+import { labeledReferenceBlocks } from "@/lib/intent/labels";
 import { buildCompositionBlueprint } from "@/lib/canvas/composition-blueprint";
 import { deriveDesignKnobs, type DesignKnobVector } from "@/lib/canvas/design-knobs";
 import { validateAndNormalizeDesignTree } from "@/lib/canvas/design-tree-validator";
@@ -246,9 +246,7 @@ export async function generateAppScreenSet(
   await onProgress?.("planned", plan.map((item) => item.id).join(", "));
 
   const v6Budgets = getV6TokenBudgets();
-  const referenceImageBlocks = cappedReferenceUrls
-    .slice(0, 4)
-    .map((url) => imageUrlBlock(url, "low"));
+  const referenceImageBlocks = labeledReferenceBlocks(cappedReferenceUrls.slice(0, 4), references);
 
   const screens: GeneratedAppScreen[] = [];
   const generatedSummaries: Array<{ name: string; summary: string }> = [];

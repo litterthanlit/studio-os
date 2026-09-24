@@ -682,7 +682,8 @@ export function PromptComposerV2({
       }
       if (payload.sources.tasteProfile === "extracted" && payload.tasteProfile) {
         setTasteProfile(payload.tasteProfile);
-        persistDesignState({ tasteProfile: payload.tasteProfile });
+        // A server-backed run already saved it as the derived layer (with its brief cache key).
+        persistDesignState({ tasteProfile: payload.tasteProfile }, { localOnly: started.serverBacked });
       }
       if (payload.sources.designTokens === "derived" || !projectTokens) {
         persistDesignState({ designTokens: payload.designTokens });

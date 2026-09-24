@@ -159,6 +159,7 @@ export type AgentDesignStateRow = {
   tasteUpdatedAt: number | null;
   tokensUpdatedAt: number | null;
   updatedAt: number;
+  tasteCacheKey?: string | null;
 } | null;
 
 /** Project taste profile + design tokens written by the signed-in editor. */

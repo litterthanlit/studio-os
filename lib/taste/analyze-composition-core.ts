@@ -15,7 +15,7 @@ const VALID_REFERENCE_TYPES = new Set<ReferenceType>([
 ]);
 
 // ── System prompt ────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are an expert visual analyst specializing in design composition, art direction, and typographic layout. You analyze reference images to extract structural and compositional data that will inform AI-powered design generation.
+export const COMPOSITION_SYSTEM_PROMPT = `You are an expert visual analyst specializing in design composition, art direction, and typographic layout. You analyze reference images to extract structural and compositional data that will inform AI-powered design generation.
 
 You MUST respond with a single JSON object matching the CompositionAnalysis schema. Be precise and specific — your analysis directly controls how designs are generated.
 
@@ -96,7 +96,7 @@ If you detect ANY of these patterns, include a specialLayouts array entry with t
 Respond with ONLY the JSON object, no markdown fences, no explanation.`;
 
 // ── Validation ───────────────────────────────────────────────────────────────
-function validateCompositionAnalysis(raw: Partial<CompositionAnalysis>): CompositionAnalysis | null {
+export function validateCompositionAnalysis(raw: Partial<CompositionAnalysis>): CompositionAnalysis | null {
   if (!raw.referenceType || !VALID_REFERENCE_TYPES.has(raw.referenceType)) return null;
   if (!raw.keyCompositionalMove || !raw.balance || !raw.density || !raw.tension) return null;
 
@@ -118,6 +118,7 @@ function validateCompositionAnalysis(raw: Partial<CompositionAnalysis>): Composi
     letterSpacingIntent: raw.letterSpacingIntent ?? "neutral",
     headingToBodyRatio: raw.headingToBodyRatio ?? "moderate",
     specialLayouts: raw.specialLayouts,
+    ...(raw.appUi ? { appUi: raw.appUi } : {}),
     screenshot: raw.screenshot,
     photograph: raw.photograph,
     editorial: raw.editorial,
@@ -146,7 +147,7 @@ export async function analyzeCompositionImage(imageUrl: string): Promise<Analyze
     temperature: 0.3,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: COMPOSITION_SYSTEM_PROMPT },
       {
         role: "user",
         content: [

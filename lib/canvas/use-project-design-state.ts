@@ -48,15 +48,19 @@ export function useProjectDesignState(
     [convexProjectId, saveDesignState, serverBacked],
   );
 
-  /** Cache locally, then write through to Convex when signed in. */
+  /**
+   * Cache locally, then write through to Convex when signed in. `localOnly`
+   * caches what the server already stored (e.g. taste an engine run derived,
+   * which keeps its brief cache key server-side).
+   */
   const persistDesignState = useCallback(
-    (patch: DesignStatePatch) => {
+    (patch: DesignStatePatch, options: { localOnly?: boolean } = {}) => {
       if (!projectId) return;
       const canvas: Record<string, unknown> = {};
       if (patch.tasteProfile !== undefined) canvas.tasteProfile = patch.tasteProfile;
       if (patch.designTokens !== undefined) canvas.designTokens = patch.designTokens;
       upsertProjectState(projectId, { canvas });
-      pushRemote(patch);
+      if (!options.localOnly) pushRemote(patch);
     },
     [projectId, pushRemote],
   );

@@ -36,6 +36,8 @@ const designStateResult = v.union(
     tasteUpdatedAt: v.union(v.null(), v.number()),
     tokensUpdatedAt: v.union(v.null(), v.number()),
     updatedAt: v.number(),
+    /** Brief cache key the derived layer was extracted under (absent: set by the designer). */
+    tasteCacheKey: v.optional(v.union(v.null(), v.string())),
   }),
 );
 
@@ -65,6 +67,7 @@ async function readDesignState(ctx: QueryCtx | MutationCtx, projectId: Id<"proje
       tasteUpdatedAt,
       tokensUpdatedAt: tokenSet?.updatedAt ?? null,
       updatedAt: Math.max(tasteUpdatedAt ?? 0, tokenSet?.updatedAt ?? 0),
+      tasteCacheKey: (tasteLayers.find((row: any) => row.kind === "derived") as any)?.cacheKey ?? null,
     };
   }
 

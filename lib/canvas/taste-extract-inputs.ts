@@ -2,7 +2,7 @@
 // Inputs for /api/taste/extract: the reference list (identity, weight, role), the
 // cache signature over everything that shapes the result, and labelled vision blocks.
 
-import { imageUrlBlock } from "@/lib/ai/model-router";
+import { imageLabel, labeledImageBlocks } from "@/lib/intent/labels";
 import type { CompositionInput } from "@/lib/canvas/composition-blueprint";
 import { inferReferenceRole, type IntentReferenceRole } from "@/types/intent-profile";
 
@@ -111,18 +111,16 @@ export function buildTasteSignature(args: {
 }
 
 export function tasteImageLabel(ref: TasteExtractReference, index: number): string {
-  return [`Image ${index + 1}`, ref.id, ref.weight, ...(ref.role ? [`role: ${ref.role}`] : [])].join(" · ");
+  return imageLabel({ id: ref.id, weight: ref.weight, roles: ref.role ? [ref.role] : [] }, index);
 }
 
 /**
  * One text label + one image block per reference. Primary and role-bearing
  * references are sent at high detail; the rest at low detail.
  */
-export function buildTasteImageContent(references: TasteExtractReference[]): Array<
-  { type: "text"; text: string } | ReturnType<typeof imageUrlBlock>
-> {
-  return references.flatMap((ref, index) => [
-    { type: "text" as const, text: tasteImageLabel(ref, index) },
-    imageUrlBlock(ref.url, ref.weight === "primary" || ref.role ? "high" : "low"),
-  ]);
+export function buildTasteImageContent(references: TasteExtractReference[]) {
+  return labeledImageBlocks(
+    references.map((ref) => ({ id: ref.id, url: ref.url, weight: ref.weight, roles: ref.role ? [ref.role] : [] })),
+    (ref) => (ref.weight === "primary" || (ref.roles?.length ?? 0) > 0 ? "high" : "low"),
+  );
 }

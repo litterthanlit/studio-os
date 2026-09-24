@@ -100,7 +100,9 @@ export function buildRunResult(input: EngineInput, checkpoints: EngineCheckpoint
       tasteProfile: taste.tasteProfile,
       designTokens: taste.designTokens,
       sources: taste.sources,
-      analyses: (checkpoints.analyzeReferences?.analyses ?? []).map((entry) => ({ referenceId: entry.referenceId, analysis: entry.analysis })),
+      analyses: (checkpoints.analyzeReferences?.analyses ?? []).flatMap((entry) =>
+        entry.analysis ? [{ referenceId: entry.referenceId, analysis: entry.analysis }] : [],
+      ),
       intent: brief.intentClassification,
       breakpoint: brief.breakpoint,
       briefId: brief.briefId ?? null,

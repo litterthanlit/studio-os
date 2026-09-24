@@ -11,10 +11,10 @@ import {
   getRouter,
   getV6TokenBudgets,
   SONNET_4_6,
-  imageUrlBlock,
   type ModelFailureInfo,
   tracedCompletion,
 } from "@/lib/ai/model-router";
+import { labeledReferenceBlocks } from "@/lib/intent/labels";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import {
   buildDesignTreePrompt,
@@ -367,9 +367,7 @@ export async function generateV6DesignVariants(
 
   logSafe("[V6-GEN] Prompt built", { promptLength: designPrompt.length });
 
-  const referenceImageBlocks = cappedReferenceUrls
-    .slice(0, 4)
-    .map((url) => imageUrlBlock(url, "low"));
+  const referenceImageBlocks = labeledReferenceBlocks(cappedReferenceUrls.slice(0, 4), references);
 
   let baseTree: DesignNode | null = null;
   let baseTasteGate: V6TasteGate | null = null;

@@ -295,9 +295,9 @@ function testWiring() {
     assert.match(src, /export const maxDuration = \d+/, `${route} sets maxDuration`);
   }
   assert.match(readFileSync("app/api/agent/runs/[id]/route.ts", "utf8"), /agentRunStoreFor/);
-  assert.match(readFileSync("convex/schema.ts", "utf8"), /agentRuns: defineTable/);
+  assert.match(readFileSync("convex/schema.ts", "utf8"), /generationRuns: defineTable/);
   assert.match(readFileSync("extensions/cursor/skills/studio-canvas/SKILL.md", "utf8"), /get_run/);
-  console.log("[proof] wiring: routes use after(); runs route + agentRuns table + skill doc present");
+  console.log("[proof] wiring: routes use after(); runs route + generationRuns table + skill doc present");
 }
 
 async function main() {

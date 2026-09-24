@@ -142,13 +142,22 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_owner", ["ownerId"]),
 
-  // Async agent generation runs (MCP generate_screen / generate_screen_set).
-  // Created queued, executed after the response, polled via get_run.
-  // Absorbed into generationRuns in master-plan task 1.1.
-  agentRuns: defineTable({
+  // Generation runs (master plan 1.1; absorbs the 0.10 agentRuns table). Every
+  // editor, agent and benchmark generation is one row: queued → running →
+  // complete | partial | failed, with step checkpoints, progress events and outputs.
+  generationRuns: defineTable({
     ownerId: v.id("users"),
     projectId: v.id("projects"),
-    kind: v.union(v.literal("screen"), v.literal("screen-set")),
+    kind: v.union(
+      v.literal("screen"),
+      v.literal("screen-set"),
+      v.literal("section"),
+      v.literal("restyle"),
+      v.literal("stress-test"),
+      v.literal("benchmark")
+    ),
+    briefId: v.optional(v.id("designBriefs")),
+    inputHash: v.string(),
     status: v.union(
       v.literal("queued"),
       v.literal("running"),
@@ -157,33 +166,114 @@ export default defineSchema({
       v.literal("failed")
     ),
     input: v.any(),
+    steps: v.array(
+      v.object({
+        key: v.string(),
+        status: v.union(v.literal("pending"), v.literal("running"), v.literal("done"), v.literal("failed")),
+        startedAt: v.optional(timestamp),
+        endedAt: v.optional(timestamp),
+        error: v.optional(v.string()),
+        checkpoint: v.optional(v.any()),
+      })
+    ),
     progress: v.array(v.object({ step: v.string(), at: timestamp, detail: v.optional(v.string()) })),
+    outputs: v.array(v.object({ kind: v.string(), ref: v.string(), data: v.optional(v.any()) })),
     result: v.optional(v.any()),
     error: v.optional(v.string()),
-    missingScreenIds: v.optional(v.array(v.string())),
+    missing: v.optional(v.array(v.string())),
+    costMicros: v.optional(v.number()),
     createdAt: timestamp,
     updatedAt: timestamp,
     completedAt: v.optional(timestamp),
   })
     .index("by_project", ["projectId"])
+    .index("by_status", ["status"])
     .index("by_owner", ["ownerId"]),
 
-  // Uploaded canvas images (references, image-node replacements) in Convex file
-  // storage. The canvas document stores only the URL, storage id and content
-  // hash, so uploads never grow `canvasDocuments.state`.
-  canvasAssets: defineTable({
+  // Uploaded images in Convex file storage (references, image-node replacements,
+  // later captures). The canvas document stores only url + storage id + hash.
+  assets: defineTable({
     ownerId: v.id("users"),
-    projectId: v.id("projects"),
+    projectId: v.optional(v.id("projects")),
     storageId: v.id("_storage"),
-    contentHash: v.string(),
-    contentType: v.string(),
+    url: v.string(),
+    hash: v.string(),
+    mime: v.string(),
     byteSize: v.number(),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    source: v.union(v.literal("upload"), v.literal("import"), v.literal("generated"), v.literal("capture")),
     createdAt: timestamp,
   })
-    .index("by_project_hash", ["projectId", "contentHash"])
+    .index("by_hash", ["hash"])
+    .index("by_project", ["projectId"])
+    .index("by_project_hash", ["projectId", "hash"])
     .index("by_owner", ["ownerId"]),
+
+  // ── Design Memory (master plan 1.1) ─────────────────────────────────────
+  // Measured + perceived reference analysis, cached per content hash + analyzer version.
+  referenceAnalyses: defineTable({
+    ownerId: v.id("users"),
+    assetHash: v.string(),
+    assetId: v.optional(v.id("assets")),
+    analyzerVersion: v.string(),
+    measured: v.any(),
+    perceived: v.any(),
+    confidence: v.number(),
+    createdAt: timestamp,
+  }).index("by_owner_asset_version", ["ownerId", "assetHash", "analyzerVersion"]),
+
+  // Versioned design briefs (goal, output type, per-reference roles, conflicts, questions).
+  designBriefs: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.id("projects"),
+    version: v.number(),
+    brief: v.any(),
+    createdAt: timestamp,
+  }).index("by_project_version", ["projectId", "version"]),
+
+  // Taste in layers: derived (from references) ← explicit (designer) ← learned (accepted preferences).
+  tasteLayers: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.id("projects"),
+    kind: v.union(v.literal("derived"), v.literal("explicit"), v.literal("learned")),
+    cacheKey: v.optional(v.string()),
+    data: v.any(),
+    provenance: v.array(v.any()),
+    updatedAt: timestamp,
+  }).index("by_project_kind", ["projectId", "kind"]),
+
+  // Scoped preferences learned from design actions (proposed → accepted | rejected).
+  preferences: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.optional(v.id("projects")),
+    dimension: v.string(),
+    rule: v.string(),
+    value: v.any(),
+    scope: v.object({
+      level: v.union(v.literal("node"), v.literal("screen"), v.literal("project"), v.literal("user")),
+      targetId: v.optional(v.string()),
+    }),
+    evidence: v.object({ eventIds: v.array(v.string()), count: v.number() }),
+    confidence: v.number(),
+    status: v.union(v.literal("proposed"), v.literal("accepted"), v.literal("rejected")),
+    origin: v.union(v.literal("human-edit"), v.literal("agent-edit"), v.literal("variant-pick"), v.literal("inferred")),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+    .index("by_owner", ["ownerId"])
+    .index("by_project_status", ["projectId", "status"]),
+
+  // Design token sets (legacy DesignSystemTokens + DTCG form).
+  tokenSets: defineTable({
+    ownerId: v.id("users"),
+    projectId: v.id("projects"),
+    name: v.string(),
+    tokens: v.any(),
+    dtcg: v.optional(v.any()),
+    modes: v.optional(v.any()),
+    updatedAt: timestamp,
+  }).index("by_project", ["projectId"]),
 
   // Model-call telemetry (tokens, latency, cost estimate), batched from the server.
   modelCalls: defineTable({

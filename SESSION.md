@@ -24,7 +24,7 @@ This repo has no external project-memory service. Continuity for the next coding
 - **Agent writes.** They go through `writeCanvasWithRebase`: on `CANVAS_REVISION_CONFLICT` it reloads, re-applies the operations and retries (up to 3). A caller-pinned `expectedRevision` is not rebased. `select_on_canvas` reports `selection.persisted: false` until presence ships (3.4).
 - **Design state.** Taste and tokens live in Convex `projectDesignState`, written through from the editor (`useProjectDesignState`). Every agent route resolves them in the order request > project > defaults.
 - **Async runs.** MCP `generate_screen` / `generate_screen_set` are async: they return a `runId` at once and execute with `after()` into Convex `agentRuns`. Agents poll with `get_run`. Screen sets end `complete | partial | failed` and list missing screen ids.
-- **Uploads.** References and image replacements upload to Convex file storage (`canvasAssets`, 2048px longest side). Existing data-URL references migrate lazily.
+- **Uploads.** References and image replacements upload to Convex file storage (`assets`, 2048px longest side). Existing data-URL references migrate lazily.
 - **Model telemetry.** Model calls go through `tracedCompletion` into Convex `modelCalls`, batched.
 - **Intent.** Classification uses a model with a word-boundary heuristic fallback (`lib/canvas/intent-classifier.ts`). Generation receives real reference ids, weights and annotations.
 - **Taste corrections.** Overrides persist: palette becomes a HARD directive, and structural edits write `userOverrides.knobs`. Generated artboards carry a persisted `generationBaseline`.
@@ -97,7 +97,7 @@ Paths the next agent should open instead of rediscovering the tree from `extensi
 - `lib/agent/canvas-write-rebase.ts`
 - `lib/agent/mcp-tool-registry.ts`
 - `convex/designState.ts`
-- `convex/agentRuns.ts`
+- `convex/generationRuns.ts`
 - `convex/assets.ts`
 - `lib/canvas/intent-classifier.ts`
 - `lib/canvas/font-links.ts`

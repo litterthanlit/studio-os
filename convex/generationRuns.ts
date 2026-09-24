@@ -3,10 +3,10 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { canWriteProject, now } from "./auth";
+import { canWriteProject, now } from "./authHelpers";
 
 /**
- * Async agent runs. Callers authenticate like the canvas functions:
+ * Generation runs (master plan 1.1, absorbing the 0.10 agentRuns). Callers authenticate like the canvas functions:
  * service secret (+ optional acting owner) for agent tokens, otherwise the
  * signed-in project owner.
  */
@@ -48,16 +48,32 @@ async function authorizeProject(
   return project;
 }
 
-function toRecord(run: Doc<"agentRuns">) {
+const runKind = v.union(
+  v.literal("screen"),
+  v.literal("screen-set"),
+  v.literal("section"),
+  v.literal("restyle"),
+  v.literal("stress-test"),
+  v.literal("benchmark"),
+);
+
+const stepStatus = v.union(v.literal("pending"), v.literal("running"), v.literal("done"), v.literal("failed"));
+
+function toRecord(run: Doc<"generationRuns">) {
   return {
     runId: run._id,
     projectId: run.projectId,
     kind: run.kind,
     status: run.status,
+    briefId: run.briefId ?? null,
+    inputHash: run.inputHash,
+    steps: run.steps,
     progress: run.progress,
+    outputs: run.outputs,
     result: run.result ?? null,
     error: run.error ?? null,
-    missingScreenIds: run.missingScreenIds ?? [],
+    missingScreenIds: run.missing ?? [],
+    costMicros: run.costMicros ?? null,
     createdAt: run.createdAt,
     updatedAt: run.updatedAt,
     completedAt: run.completedAt ?? null,
@@ -67,21 +83,28 @@ function toRecord(run: Doc<"agentRuns">) {
 export const create = mutation({
   args: {
     projectId: v.id("projects"),
-    kind: v.union(v.literal("screen"), v.literal("screen-set")),
+    kind: runKind,
     input: v.any(),
+    inputHash: v.optional(v.string()),
+    briefId: v.optional(v.id("designBriefs")),
+    stepKeys: v.optional(v.array(v.string())),
     ...access,
   },
-  returns: v.id("agentRuns"),
+  returns: v.id("generationRuns"),
   handler: async (ctx, args) => {
     const project = await authorizeProject(ctx, args.projectId, args);
     const time = now();
-    return await ctx.db.insert("agentRuns", {
+    return await ctx.db.insert("generationRuns", {
       ownerId: project.ownerId,
       projectId: args.projectId,
       kind: args.kind,
+      ...(args.briefId ? { briefId: args.briefId } : {}),
+      inputHash: args.inputHash ?? "",
       status: "queued",
       input: args.input,
+      steps: (args.stepKeys ?? []).map((key) => ({ key, status: "pending" as const })),
       progress: [{ step: "queued", at: time }],
+      outputs: [],
       createdAt: time,
       updatedAt: time,
     });
@@ -90,8 +113,13 @@ export const create = mutation({
 
 export const update = mutation({
   args: {
-    runId: v.id("agentRuns"),
+    runId: v.id("generationRuns"),
     status: v.optional(runStatus),
+    stepKey: v.optional(v.string()),
+    stepStatus: v.optional(stepStatus),
+    checkpoint: v.optional(v.any()),
+    output: v.optional(v.object({ kind: v.string(), ref: v.string(), data: v.optional(v.any()) })),
+    costMicros: v.optional(v.number()),
     step: v.optional(v.string()),
     detail: v.optional(v.string()),
     result: v.optional(v.any()),
@@ -109,7 +137,7 @@ export const update = mutation({
     }
 
     const time = now();
-    const patch: Partial<Doc<"agentRuns">> = { updatedAt: time };
+    const patch: Partial<Doc<"generationRuns">> = { updatedAt: time };
     if (args.status) {
       patch.status = args.status;
       if (args.status === "complete" || args.status === "partial" || args.status === "failed") {
@@ -124,7 +152,29 @@ export const update = mutation({
     }
     if (args.result !== undefined) patch.result = args.result;
     if (args.error !== undefined) patch.error = args.error.slice(0, 2000);
-    if (args.missingScreenIds) patch.missingScreenIds = args.missingScreenIds.slice(0, 20);
+    if (args.missingScreenIds) patch.missing = args.missingScreenIds.slice(0, 20);
+    if (args.costMicros !== undefined) patch.costMicros = args.costMicros;
+    if (args.stepKey && args.stepStatus) {
+      const steps = run.steps.some((step: any) => step.key === args.stepKey)
+        ? run.steps
+        : [...run.steps, { key: args.stepKey, status: "pending" as const }];
+      patch.steps = steps.map((step: any) =>
+        step.key !== args.stepKey
+          ? step
+          : {
+              ...step,
+              status: args.stepStatus!,
+              ...(args.stepStatus === "running" ? { startedAt: time } : {}),
+              ...(args.stepStatus === "done" || args.stepStatus === "failed" ? { endedAt: time } : {}),
+              ...(args.checkpoint !== undefined ? { checkpoint: args.checkpoint } : {}),
+              ...(args.stepStatus === "failed" && args.error ? { error: args.error.slice(0, 500) } : {}),
+            },
+      );
+    }
+    if (args.output) {
+      const outputs = run.outputs.filter((output: any) => output.ref !== args.output!.ref);
+      patch.outputs = [...outputs, args.output].slice(-60);
+    }
     await ctx.db.patch(args.runId, patch);
     return null;
   },
@@ -132,7 +182,7 @@ export const update = mutation({
 
 export const get = query({
   args: {
-    runId: v.id("agentRuns"),
+    runId: v.id("generationRuns"),
     ...access,
   },
   returns: v.union(v.null(), v.any()),

@@ -70,7 +70,7 @@ export function createConvexAgentRunStore(auth: AgentConvexAuth): AgentRunStore 
   return {
     create: (args) =>
       withClient((client) =>
-        client.mutation(api.agentRuns.create, {
+        client.mutation(api.generationRuns.create, {
           projectId: args.projectId as Id<"projects">,
           kind: args.kind,
           input: args.input,
@@ -79,15 +79,15 @@ export function createConvexAgentRunStore(auth: AgentConvexAuth): AgentRunStore 
       ),
     update: (runId, patch) =>
       withClient(async (client) => {
-        await client.mutation(api.agentRuns.update, {
-          runId: runId as Id<"agentRuns">,
+        await client.mutation(api.generationRuns.update, {
+          runId: runId as Id<"generationRuns">,
           ...patch,
           ...accessArgs(auth),
         });
       }),
     get: (runId) =>
       withClient((client) =>
-        client.query(api.agentRuns.get, { runId: runId as Id<"agentRuns">, ...accessArgs(auth) }),
+        client.query(api.generationRuns.get, { runId: runId as Id<"generationRuns">, ...accessArgs(auth) }),
       ),
   };
 }

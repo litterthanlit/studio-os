@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
-import { canWriteProject, now, requireUser } from "./auth";
+import { canWriteProject, now, requireUser } from "./authHelpers";
 
 /**
  * Canvas image uploads go to Convex file storage; the canvas document keeps
@@ -51,8 +51,8 @@ export const register = mutation({
     }
 
     const existing = await ctx.db
-      .query("canvasAssets")
-      .withIndex("by_project_hash", (q: any) => q.eq("projectId", args.projectId).eq("contentHash", args.contentHash))
+      .query("assets")
+      .withIndex("by_project_hash", (q: any) => q.eq("projectId", args.projectId).eq("hash", args.contentHash))
       .first();
     if (existing && existing.storageId !== args.storageId) {
       const existingUrl = await ctx.storage.getUrl(existing.storageId);
@@ -65,15 +65,17 @@ export const register = mutation({
     const url = await ctx.storage.getUrl(args.storageId);
     if (!url) throw new Error("UPLOAD_NOT_FOUND");
     if (!existing) {
-      await ctx.db.insert("canvasAssets", {
+      await ctx.db.insert("assets", {
         ownerId: user._id,
         projectId: args.projectId,
         storageId: args.storageId,
-        contentHash: args.contentHash,
-        contentType,
+        url,
+        hash: args.contentHash,
+        mime: contentType,
         byteSize: meta.size,
-        width: args.width,
-        height: args.height,
+        ...(args.width ? { width: args.width } : {}),
+        ...(args.height ? { height: args.height } : {}),
+        source: "upload",
         createdAt: now(),
       });
     }

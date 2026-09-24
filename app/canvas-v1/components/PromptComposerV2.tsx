@@ -25,6 +25,7 @@ import {
   isGenerationBaseline,
 } from "@/lib/canvas/taste-edit-tracker";
 import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
+import { screenIdForArtboard } from "@/lib/taste/preferences";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import {
   getArtboardStartX,
@@ -444,6 +445,15 @@ export function PromptComposerV2({
       if (!tasteProfile) return;
 
       const overrides = applyTasteEditsToOverrides(tasteProfile.userOverrides, edits);
+      // Approve boundary: the designer confirmed these edits as taste.
+      for (const item of items) {
+        if (item.kind !== "artboard" || !isGenerationBaseline(item.generationBaseline)) continue;
+        const tree = getNodeTree(item);
+        const approved = tree ? detectTasteEditsFromBaseline(tree, item.generationBaseline) : [];
+        if (approved.length > 0) {
+          dispatch({ type: "RECORD_DESIGN_SIGNAL", signal: { kind: "edits", boundary: "approve", screenId: screenIdForArtboard(item), edits: approved } });
+        }
+      }
 
       const updatedProfile = { ...tasteProfile, userOverrides: overrides };
       setTasteProfile(updatedProfile);
@@ -453,7 +463,7 @@ export function PromptComposerV2({
 
       dispatch({ type: "SET_PENDING_TASTE_EDITS", edits: [] });
     },
-    [tasteProfile, projectId, dispatch, persistDesignState]
+    [tasteProfile, projectId, dispatch, persistDesignState, items]
   );
 
   const [isRefreshingTaste, setIsRefreshingTaste] = React.useState(false);
@@ -537,7 +547,10 @@ export function PromptComposerV2({
         if (item.kind !== "artboard" || !isGenerationBaseline(item.generationBaseline)) continue;
         const currentTree = getNodeTree(item);
         if (!currentTree) continue;
-        allEdits.push(...detectTasteEditsFromBaseline(currentTree, item.generationBaseline));
+        const edits = detectTasteEditsFromBaseline(currentTree, item.generationBaseline);
+        allEdits.push(...edits);
+        // Regenerate boundary: the edits made since this screen was generated.
+        dispatch({ type: "RECORD_DESIGN_SIGNAL", signal: { kind: "edits", boundary: "regenerate", screenId: screenIdForArtboard(item), edits } });
       }
 
       if (allEdits.length > 0) {
@@ -570,6 +583,12 @@ export function PromptComposerV2({
         const rawPrompt = prompt.value.trim();
         const mode = SECTION_REGEN_MODES.find((option) => option.prompt === rawPrompt);
         const intent = mode?.intent ?? "more-like-this";
+        if (item.kind === "artboard") {
+          dispatch({
+            type: "RECORD_DESIGN_SIGNAL",
+            signal: { kind: "section-regenerate", screenId: screenIdForArtboard(item), sectionName: context.targetName, intent: intent === "different-approach" ? "different" : "similar" },
+          });
+        }
 
         dispatch({ type: "PUSH_HISTORY", description: `Regenerate section: ${context.targetName}` });
 

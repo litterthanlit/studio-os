@@ -64,7 +64,7 @@ export function createEngineDeps(args: {
             },
           },
           loadLearned: async () =>
-            (await memory.listPreferences(projectId, "accepted")).map((p) => ({
+            (await memory.listPreferences(projectId, "accepted", { includeUserScope: true })).map((p) => ({
               id: p.id,
               dimension: p.dimension,
               rule: p.rule,

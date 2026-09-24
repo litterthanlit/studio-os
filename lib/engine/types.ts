@@ -72,6 +72,8 @@ export type EngineInput = {
   designTokens?: DesignSystemTokens | null;
   /** Answers to brief questions (question id → option). */
   answers?: Record<string, string>;
+  /** The screen being (re)generated ("<siteId>:<name>"): screen-scoped preferences apply to it. */
+  screenId?: string;
 };
 
 export type ResolvedAsset = EngineReference & { hash: string };

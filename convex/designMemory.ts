@@ -365,7 +365,13 @@ const preferenceStatus = v.union(v.literal("proposed"), v.literal("accepted"), v
 
 const listPreferencesTrio = accessTrio(
   "query",
-  { status: v.optional(preferenceStatus) },
+  {
+    status: v.optional(preferenceStatus),
+    /** Also the owner's user-scoped rows from other projects (they apply everywhere). */
+    includeUserScope: v.optional(v.boolean()),
+    /** Also the owner's project- and user-scoped rows from other projects (scope inference evidence). */
+    includeOwnerEvidence: v.optional(v.boolean()),
+  },
   async (ctx, access, args: any) => {
     const statuses = args.status ? [args.status] : ["proposed", "accepted", "rejected"];
     const rows = [];
@@ -375,6 +381,15 @@ const listPreferencesTrio = accessTrio(
           .query("preferences")
           .withIndex("by_project_status", (q: any) => q.eq("projectId", access.project._id).eq("status", status))
           .collect()),
+      );
+    }
+    if (args.includeUserScope || args.includeOwnerEvidence) {
+      const levels = args.includeOwnerEvidence ? ["user", "project"] : ["user"];
+      const owned = await ctx.db.query("preferences").withIndex("by_owner", (q: any) => q.eq("ownerId", access.ownerId)).collect();
+      rows.push(
+        ...owned.filter(
+          (row: any) => row.projectId !== access.project._id && levels.includes(row.scope?.level) && statuses.includes(row.status),
+        ),
       );
     }
     return rows.map(publicPreference);

@@ -20,7 +20,11 @@ export type EngineRunRequestBody = {
   references?: Array<Partial<EngineReference>>;
   tasteProfile?: EngineInput["tasteProfile"];
   designTokens?: EngineInput["designTokens"];
+  answers?: Record<string, unknown>;
+  screenId?: string;
 };
+
+const ROLES = new Set(["layout", "typography", "color", "imagery", "components", "mood", "ignore"]);
 
 export function parseEngineInput(body: EngineRunRequestBody): { ok: true; input: EngineInput } | { ok: false; error: string } {
   const projectId = typeof body.projectId === "string" ? body.projectId.trim().slice(0, 120) : "";
@@ -36,7 +40,16 @@ export function parseEngineInput(body: EngineRunRequestBody): { ok: true; input:
       weight: ref.weight === "primary" || ref.weight === "muted" ? ref.weight : "default",
       ...(typeof ref.annotation === "string" && ref.annotation.trim() ? { annotation: ref.annotation.trim().slice(0, 500) } : {}),
       ...(typeof ref.contentHash === "string" ? { contentHash: ref.contentHash.slice(0, 64) } : {}),
+      ...(Array.isArray(ref.roles) && ref.roles.some((role) => ROLES.has(role))
+        ? { roles: [...new Set(ref.roles.filter((role) => ROLES.has(role)))].slice(0, 3) as EngineReference["roles"] }
+        : {}),
     }));
+  const answers = Object.fromEntries(
+    Object.entries(body.answers && typeof body.answers === "object" ? body.answers : {})
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[0].length <= 80)
+      .slice(0, 3)
+      .map(([id, answer]) => [id, answer.slice(0, 120)]),
+  );
 
   return {
     ok: true,
@@ -52,6 +65,8 @@ export function parseEngineInput(body: EngineRunRequestBody): { ok: true; input:
       references,
       ...(body.tasteProfile && typeof body.tasteProfile === "object" ? { tasteProfile: body.tasteProfile } : {}),
       ...(body.designTokens && typeof body.designTokens === "object" ? { designTokens: body.designTokens } : {}),
+      ...(Object.keys(answers).length > 0 ? { answers } : {}),
+      ...(typeof body.screenId === "string" && body.screenId ? { screenId: body.screenId.slice(0, 200) } : {}),
     },
   };
 }

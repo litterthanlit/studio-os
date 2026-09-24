@@ -83,7 +83,7 @@ export const compileTaste: EngineStep<"compileTaste"> = {
       derived: tasteProfile,
       learned,
       briefDirectives: brief?.directives ?? [],
-      scope: { projectId: input.projectId },
+      scope: { projectId: input.projectId, ...(input.screenId ? { screenId: input.screenId } : {}) },
     });
     const baseTokens = designTokens ?? defaultDesignTokens();
     const compiledTokens = tokensSource === "derived" || tokensSource === "default" ? layeredTokens(baseTokens, layered) : baseTokens;

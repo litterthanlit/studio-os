@@ -78,5 +78,6 @@ export function stripCanvasForPersistence(state: UnifiedCanvasState): UnifiedCan
     variantPreview: null,
     generatedTreeSnapshot: undefined,
     pendingTasteEdits: undefined,
+    designSignals: undefined,
   };
 }

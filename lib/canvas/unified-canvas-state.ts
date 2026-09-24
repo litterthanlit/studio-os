@@ -10,6 +10,7 @@ import type { GenerationBaseline } from "./taste-edit-tracker";
 import type { PageNode } from "./compose";
 import type { DesignNode, ComponentMaster, DesignNodeStyle, DesignNodeContent, ComponentInstanceRef } from "./design-node";
 import type { TasteEdit } from "./taste-edit-tracker";
+import type { DesignSignal } from "@/lib/taste/preferences";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
 
 // ─── Variant Preview ─────────────────────────────────────────────────────────
@@ -100,6 +101,8 @@ export type UnifiedCanvasState = {
   generatedTreeSnapshot?: Record<string, DesignNode>;
   /** Taste edits detected at generation boundary, pending user confirmation. Session-transient — NOT persisted. */
   pendingTasteEdits?: TasteEdit[];
+  /** Design actions queued for preference learning (1.6). Session-transient — NOT persisted. */
+  designSignals?: DesignSignal[];
   updatedAt: string;
 };
 
@@ -493,6 +496,7 @@ export function createEmptyCanvas(): UnifiedCanvasState {
     variantPreview: null,
     generatedTreeSnapshot: undefined,
     pendingTasteEdits: undefined,
+    designSignals: undefined,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -960,6 +964,7 @@ export function loadUnifiedCanvas(projectId: string): UnifiedCanvasState {
           variantPreview: null,
           generatedTreeSnapshot: undefined,
           pendingTasteEdits: undefined,
+          designSignals: undefined,
         };
       }
     }

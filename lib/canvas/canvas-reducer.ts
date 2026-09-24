@@ -22,6 +22,17 @@ import {
 } from "./component-resolver";
 import { cloneDesignNodeWithIdMap } from "./design-node";
 import { buildGenerationBaseline } from "./taste-edit-tracker";
+import { screenIdForArtboard, type DesignSignal } from "@/lib/taste/preferences";
+
+/** A design signal before the reducer stamps its id and time. */
+export type DesignSignalInput = DesignSignal extends infer S ? (S extends DesignSignal ? Omit<S, "id" | "at"> : never) : never;
+
+const MAX_QUEUED_SIGNALS = 50;
+
+function queueSignal(state: CanvasReducerState, signal: DesignSignalInput): DesignSignal[] {
+  const stamped = { ...signal, id: uid("signal"), at: Date.now() } as DesignSignal;
+  return [...(state.designSignals ?? []), stamped].slice(-MAX_QUEUED_SIGNALS);
+}
 import { isBuiltinMasterId } from "./component-builtins";
 import type {
   ComponentMaster, ComponentInstanceRef, NodeOverride,
@@ -191,6 +202,9 @@ export type CanvasAction =
   // Taste feedback loop
   | { type: "SET_GENERATED_SNAPSHOT"; snapshots: Record<string, import("./design-node").DesignNode> }
   | { type: "SET_PENDING_TASTE_EDITS"; edits: import("./taste-edit-tracker").TasteEdit[] }
+  /** Preference learning (1.6): queue a design action; the editor's learning hook drains the queue. */
+  | { type: "RECORD_DESIGN_SIGNAL"; signal: DesignSignalInput }
+  | { type: "CLEAR_DESIGN_SIGNALS"; ids: string[] }
 
   // Variant comparison (1+1 derivation)
   | { type: "SET_VARIANT_PREVIEW"; itemId: string; variants: VariantPreviewVariant[] }
@@ -2549,6 +2563,15 @@ export function canvasReducer(
       return { ...state, pendingTasteEdits: action.edits };
     }
 
+    case "RECORD_DESIGN_SIGNAL": {
+      return { ...state, designSignals: queueSignal(state, action.signal) };
+    }
+
+    case "CLEAR_DESIGN_SIGNALS": {
+      const drained = new Set(action.ids);
+      return { ...state, designSignals: (state.designSignals ?? []).filter((signal) => !drained.has(signal.id)) };
+    }
+
     // ── Component System (Track 3) ─────────────────────────────────────
 
     case "CREATE_MASTER": {
@@ -3298,9 +3321,19 @@ export function canvasReducer(
       const { itemId, variants } = state.variantPreview;
       const chosen = variants[action.variantIndex];
       if (!chosen) return state;
+      const pickedArtboard = state.items.find((item) => item.id === itemId && item.kind === "artboard");
+      const designSignals = pickedArtboard && pickedArtboard.kind === "artboard"
+        ? queueSignal(state, {
+            kind: "variant-pick",
+            screenId: screenIdForArtboard(pickedArtboard),
+            picked: chosen.label,
+            rejected: variants.filter((_, index) => index !== action.variantIndex).map((variant) => variant.label),
+          })
+        : state.designSignals;
 
       return {
         ...state,
+        designSignals,
         items: state.items.map((item) => {
           if (item.id !== itemId || item.kind !== "artboard") return item;
           // The picked variant is now what generation produced for this artboard.

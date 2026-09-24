@@ -60,7 +60,7 @@ export type DesignMemoryClient = {
   saveTokenSet(projectId: string, set: { name?: string; tokens: unknown; dtcg?: unknown; modes?: unknown }): Promise<{ tokenSetId: string }>;
   getReferenceAnalysis(projectId: string, key: { assetHash: string; analyzerVersion: string }): Promise<{ measured: unknown; perceived: unknown; confidence: number } | null>;
   saveReferenceAnalysis(projectId: string, analysis: { assetHash: string; analyzerVersion: string; measured: unknown; perceived: unknown; confidence: number }): Promise<{ analysisId: string }>;
-  listPreferences(projectId: string, status?: Preference["status"]): Promise<Preference[]>;
+  listPreferences(projectId: string, status?: Preference["status"], options?: { includeUserScope?: boolean }): Promise<Preference[]>;
   proposePreference(projectId: string, proposal: { dimension: string; rule: string; value: unknown; scope: Preference["scope"]; eventIds: string[]; confidence: number; origin: Preference["origin"] }): Promise<{ preferenceId: string; merged: boolean }>;
   setPreferenceStatus(projectId: string, preferenceId: string, status: Preference["status"], scope?: Preference["scope"]): Promise<{ preferenceId: string; status: string }>;
   migrateProjectDesignState(projectId: string): Promise<{ migrated: boolean; layers: number; tokenSet: boolean }>;
@@ -76,8 +76,12 @@ export function createDesignMemoryClient(auth: AgentConvexAuth): DesignMemoryCli
     getReferenceAnalysis: (projectId, key) => call(auth, "query", "getReferenceAnalysis", { projectId: pid(projectId), ...key }),
     saveReferenceAnalysis: (projectId, analysis) =>
       call(auth, "mutation", "saveReferenceAnalysis", { projectId: pid(projectId), ...analysis }),
-    listPreferences: (projectId, status) =>
-      call(auth, "query", "listPreferences", { projectId: pid(projectId), ...(status ? { status } : {}) }),
+    listPreferences: (projectId, status, options) =>
+      call(auth, "query", "listPreferences", {
+        projectId: pid(projectId),
+        ...(status ? { status } : {}),
+        ...(options?.includeUserScope ? { includeUserScope: true } : {}),
+      }),
     proposePreference: (projectId, proposal) => call(auth, "mutation", "proposePreference", { projectId: pid(projectId), ...proposal }),
     setPreferenceStatus: (projectId, preferenceId, status, scope) =>
       call(auth, "mutation", "setPreferenceStatus", { projectId: pid(projectId), preferenceId, status, ...(scope ? { scope } : {}) }),

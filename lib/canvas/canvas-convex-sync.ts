@@ -78,6 +78,7 @@ export function normalizeRemoteCanvasState(value: unknown): UnifiedCanvasState {
     variantPreview: null,
     generatedTreeSnapshot: undefined,
     pendingTasteEdits: undefined,
+    designSignals: undefined,
   };
 }
 

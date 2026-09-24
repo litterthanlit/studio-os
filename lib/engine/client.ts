@@ -12,6 +12,7 @@ import type { DesignNode } from "@/lib/canvas/design-node";
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { CompositionAnalysis } from "@/types/composition-analysis";
 import type { TasteProfile } from "@/types/taste-profile";
+import type { IntentCardBrief, PerceptionSummary } from "@/lib/intent/reference-actions";
 import type { RunRecord } from "./run-store";
 import type { EngineReference } from "./types";
 
@@ -34,6 +35,10 @@ export type EngineEditorPayload = {
   designTokens: DesignSystemTokens;
   sources: { tasteProfile: string; designTokens: string };
   analyses: Array<{ referenceId: string; analysis: CompositionAnalysis }>;
+  /** X-ray facts per reference (1.8). */
+  perceptions?: Array<{ referenceId: string; summary: PerceptionSummary }>;
+  /** What the run understood, for the Intent Card (1.8). */
+  brief?: IntentCardBrief;
   intent: { outputType: string; businessGoal: string; confidence: number; alternatives: unknown[] };
   breakpoint: "desktop" | "mobile";
   briefId: string | null;
@@ -75,6 +80,8 @@ export async function startEngineRun(body: {
   references: EngineReference[];
   tasteProfile?: TasteProfile | null;
   designTokens?: DesignSystemTokens | null;
+  /** Answers to brief questions (Intent Card). */
+  answers?: Record<string, string>;
 }): Promise<{ runId: string; serverBacked: boolean }> {
   const res = await fetch("/api/engine/runs", {
     method: "POST",

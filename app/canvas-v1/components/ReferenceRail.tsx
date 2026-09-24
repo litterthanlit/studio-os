@@ -70,6 +70,14 @@ export function ReferenceRail({ references }: ReferenceRailProps) {
                 draggable={false}
               />
 
+              {/* Assigned roles (role chips, 1.8) */}
+              {ref.roles && ref.roles.length > 0 && (
+                <span className="max-w-10 truncate font-mono text-[8px] uppercase leading-[10px] text-[#4B57DB]" title={ref.roles.join(", ")}>
+                  {ref.roles[0] === "typography" ? "type" : ref.roles[0]}
+                  {ref.roles.length > 1 ? `+${ref.roles.length - 1}` : ""}
+                </span>
+              )}
+
               {/* Color dots (up to 3, 50% opacity per spec) */}
               {colors.length > 0 && (
                 <div className="flex gap-0.5">

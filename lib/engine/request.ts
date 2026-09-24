@@ -43,6 +43,14 @@ export function parseEngineInput(body: EngineRunRequestBody): { ok: true; input:
       ...(Array.isArray(ref.roles) && ref.roles.some((role) => ROLES.has(role))
         ? { roles: [...new Set(ref.roles.filter((role) => ROLES.has(role)))].slice(0, 3) as EngineReference["roles"] }
         : {}),
+      ...(Array.isArray(ref.regions)
+        ? (() => {
+            const regions = ref.regions
+              .filter((region) => region && ROLES.has(region.role) && Array.isArray(region.bbox) && region.bbox.length === 4 && region.bbox.every((n) => typeof n === "number" && n >= 0 && n <= 1))
+              .slice(0, 8);
+            return regions.length > 0 ? { regions } : {};
+          })()
+        : {}),
     }));
   const answers = Object.fromEntries(
     Object.entries(body.answers && typeof body.answers === "object" ? body.answers : {})

@@ -4,6 +4,7 @@
 // nesting limit); a resumed run skips every step already done. Progress rows
 // come only from real step events.
 
+import { summarizePerception } from "@/lib/intent/reference-actions";
 import { createHash } from "node:crypto";
 import { currentModelTelemetryContext, flushModelTelemetry, withModelTelemetryContext } from "@/lib/ai/model-telemetry";
 import { screenSetRunStatus } from "@/lib/agent/agent-runs";
@@ -103,6 +104,16 @@ export function buildRunResult(input: EngineInput, checkpoints: EngineCheckpoint
       analyses: (checkpoints.analyzeReferences?.analyses ?? []).flatMap((entry) =>
         entry.analysis ? [{ referenceId: entry.referenceId, analysis: entry.analysis }] : [],
       ),
+      perceptions: (checkpoints.analyzeReferences?.analyses ?? []).map((entry) => ({
+        referenceId: entry.referenceId,
+        summary: summarizePerception(entry.perception),
+      })),
+      brief: {
+        references: brief.brief.references,
+        conflicts: brief.brief.conflicts,
+        questions: brief.brief.questions,
+        directives: (brief.directives ?? []).map((d) => ({ dimension: d.dimension, rule: d.rule, provenance: d.provenance })),
+      },
       intent: brief.intentClassification,
       breakpoint: brief.breakpoint,
       briefId: brief.briefId ?? null,

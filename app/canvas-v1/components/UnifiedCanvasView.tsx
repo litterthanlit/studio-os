@@ -8,6 +8,7 @@
  * Handles pan/zoom gestures, item dragging, file drop, and clipboard paste.
  */
 
+import { useReferenceXray } from "../hooks/useReferenceXray";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "@/lib/canvas/canvas-context";
@@ -119,6 +120,8 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
   const { viewport, items } = state;
   const loadingArtboards = React.useMemo(() => createLoadingArtboards(items), [items]);
   const hasArtboards = items.some((item) => item.kind === "artboard");
+  // Reference X-ray (1.8): X toggles, 1–7 assign roles, Esc exits.
+  const [xray] = useReferenceXray();
 
   // Welcome overlay for first-time users
   const { visible: welcomeVisible, dismiss: dismissWelcome } = useWelcomeOverlay();
@@ -1070,6 +1073,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   isDragging={draggingId === item.id}
                   isResizing={resizingId === item.id}
                   isAnalyzing={isAnalyzing(item.id)}
+                  xray={xray}
                   onPointerDown={dragHandlers.onPointerDown}
                   onResizeHandlePointerDown={resizeHandlers.onHandlePointerDown}
                 />

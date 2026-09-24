@@ -134,6 +134,12 @@ export type ReferenceItem = BaseCanvasItem & {
   storageId?: string;
   /** SHA-256 of the uploaded (downscaled) bytes. */
   contentHash?: string;
+  /** Roles the designer assigned with role chips (1.8); win over annotation and inference. */
+  roles?: import("@/lib/design-memory/types").ReferenceRole[];
+  /** Lasso regions with their own role, normalized [x, y, w, h] image coordinates (1.8). */
+  regions?: import("@/lib/intent/reference-actions").ReferenceRegion[];
+  /** Compact measured + perceived facts from the last run, for the X-ray overlay (1.8). */
+  perception?: import("@/lib/intent/reference-actions").PerceptionSummary;
 };
 
 export type ArtboardItem = BaseCanvasItem & {

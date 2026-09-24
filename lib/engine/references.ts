@@ -16,5 +16,7 @@ export function engineReferencesFromItems(items: ReferenceItem[]): EngineReferen
       weight: getEffectiveReferenceWeight(ref),
       ...(ref.annotation?.trim() ? { annotation: ref.annotation.trim() } : {}),
       ...(ref.contentHash ? { contentHash: ref.contentHash } : {}),
+      ...(ref.roles && ref.roles.length > 0 ? { roles: ref.roles } : {}),
+      ...(ref.regions && ref.regions.length > 0 ? { regions: ref.regions } : {}),
     }));
 }

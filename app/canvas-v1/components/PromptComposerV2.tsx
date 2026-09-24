@@ -28,6 +28,9 @@ import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
 import { screenIdForArtboard } from "@/lib/taste/preferences";
 import { applySliderValue, type IntentSliderId } from "@/lib/taste/intent-sliders";
 import { IntentSliders } from "./intent/IntentSliders";
+import { IntentCard } from "./intent/IntentCard";
+import { TasteMemoryPanel } from "./intent/TasteMemoryPanel";
+import { intentCardModel, type IntentCardBrief } from "@/lib/intent/reference-actions";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import {
   getArtboardStartX,
@@ -530,6 +533,9 @@ export function PromptComposerV2({
 
   // Guard: skip taste edit detection when continuing after dialog confirmation
   const skipTasteCheckRef = React.useRef(false);
+  // Intent Card (1.8): what the last run understood, and answers to its question.
+  const [lastBrief, setLastBrief] = React.useState<IntentCardBrief | null>(null);
+  const [briefAnswers, setBriefAnswers] = React.useState<Record<string, string>>({});
 
   // ── Generation pipeline ────────────────────────────────────────────
 
@@ -675,6 +681,7 @@ export function PromptComposerV2({
         siteName: prompt.value.trim().slice(0, 50),
         fidelityMode,
         references: engineReferences,
+        ...(Object.keys(briefAnswers).length > 0 ? { answers: briefAnswers } : {}),
         // Signed in, the server reads taste + tokens from design memory; local projects send their cache.
         ...(designServerBacked ? {} : { tasteProfile, designTokens: projectTokens }),
       });
@@ -710,6 +717,13 @@ export function PromptComposerV2({
           dispatch({ type: "UPDATE_ITEM", itemId: ref.id, changes: { compositionAnalysis: entry.analysis } as Partial<ReferenceItem> });
         }
       }
+      // X-ray facts on each reference, and the brief for the Intent Card.
+      for (const entry of payload.perceptions ?? []) {
+        if (referenceItems.some((item) => item.id === entry.referenceId)) {
+          dispatch({ type: "UPDATE_ITEM", itemId: entry.referenceId, changes: { perception: entry.summary } as Partial<ReferenceItem> });
+        }
+      }
+      if (payload.brief) setLastBrief(payload.brief);
       if (payload.sources.tasteProfile === "extracted" && payload.tasteProfile) {
         setTasteProfile(payload.tasteProfile);
         // A server-backed run already saved it as the derived layer (with its brief cache key).
@@ -884,7 +898,7 @@ export function PromptComposerV2({
         agentSteps: [],
       });
     }
-  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId, selectedSection, items, persistDesignState, convex, convexProjectId, designServerBacked]);
+  }, [dispatch, projectId, projectTokens, tasteProfile, fidelityMode, prompt.siteType, prompt.value, referenceItems, selection.selectedNodeId, selectedSection, items, persistDesignState, convex, convexProjectId, designServerBacked, briefAnswers]);
 
   // Expose handleGenerate to parent via ref for retry wiring
   React.useEffect(() => {
@@ -947,6 +961,34 @@ export function PromptComposerV2({
     pendingRestyleRef.current = false;
     handleGenerate();
   }, [prompt.value, handleGenerate]);
+  const pendingAnswerRef = React.useRef(false);
+  const handleBriefAnswer = React.useCallback((questionId: string, option: string) => {
+    pendingAnswerRef.current = true;
+    skipTasteCheckRef.current = true;
+    setBriefAnswers((current) => ({ ...current, [questionId]: option }));
+  }, []);
+  React.useEffect(() => {
+    if (!pendingAnswerRef.current) return;
+    pendingAnswerRef.current = false;
+    if (!prompt.value.trim()) {
+      const lastPrompt = prompt.history[prompt.history.length - 1]?.label;
+      if (lastPrompt) {
+        pendingRestyleRef.current = true;
+        dispatch({ type: "SET_PROMPT", value: lastPrompt });
+        return;
+      }
+    }
+    handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per answer
+  }, [briefAnswers]);
+  const intentCard = React.useMemo(() => {
+    if (!lastBrief) return null;
+    const names = Object.fromEntries(
+      referenceItems.map((item, index) => [item.id, item.title?.trim() || `Reference ${String.fromCharCode(65 + (index % 26))}`]),
+    );
+    return intentCardModel(lastBrief, names);
+  }, [lastBrief, referenceItems]);
+
   const appOutput = React.useMemo(
     () => items.some((item) => item.kind === "artboard" && Boolean(item.screenRole)),
     [items],
@@ -1069,6 +1111,8 @@ export function PromptComposerV2({
             onChange={handleSliderChange}
             onRestyle={items.some((item) => item.kind === "artboard") ? handleRestyle : undefined}
           />
+          {intentCard && <IntentCard model={intentCard} disabled={isGenerating} onAnswer={handleBriefAnswer} />}
+          {convexProjectId && <TasteMemoryPanel convexProjectId={convexProjectId} />}
           <div className="border-b border-[#E5E5E0] dark:border-[#333333]">
             <ReferenceRail references={referenceItems} />
           </div>

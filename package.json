@@ -41,6 +41,7 @@
     "proof:model-routes": "npx tsx scripts/model-routes-proof.ts",
     "proof:stream-parse": "npx tsx scripts/stream-parse-proof.ts",
     "proof:intent-sliders": "npx tsx scripts/intent-sliders-proof.ts",
+    "proof:intent-ui": "npx tsx scripts/intent-ui-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

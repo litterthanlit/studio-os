@@ -30,10 +30,11 @@ export function IntentSliders({ tasteProfile, appOutput, baselineKey, disabled, 
   const [open, setOpen] = React.useState(false);
   const values = React.useMemo(() => sliderValues(tasteProfile), [tasteProfile]);
   const [baseline, setBaseline] = React.useState(values);
-  const [baselineFor, setBaselineFor] = React.useState(baselineKey);
-  // A new generation resets what "Restyle" compares against.
-  if (baselineFor !== baselineKey) {
-    setBaselineFor(baselineKey);
+  // A new generation (or the taste profile arriving) resets what "Restyle" compares against.
+  const baselineKeyWithTaste = `${baselineKey}:${tasteProfile ? "taste" : "none"}`;
+  const [baselineFor, setBaselineFor] = React.useState(baselineKeyWithTaste);
+  if (baselineFor !== baselineKeyWithTaste) {
+    setBaselineFor(baselineKeyWithTaste);
     setBaseline(values);
   }
   const delta = describeSliderDelta(baseline, values, appOutput);

@@ -67,6 +67,7 @@ function toRecord(run: Doc<"generationRuns">) {
     status: run.status,
     briefId: run.briefId ?? null,
     inputHash: run.inputHash,
+    input: run.input ?? null,
     steps: run.steps,
     progress: run.progress,
     outputs: run.outputs,

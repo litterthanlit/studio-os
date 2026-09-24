@@ -161,9 +161,14 @@ function checkReferenceRoles() {
     assert.doesNotMatch(src, /annotation:\s*url/, `${file} must not pass the URL as annotation`);
     assert.match(src, /resolveIntentProfile\(/, `${file} resolves intent through the classifier`);
   }
+  // Since 1.2 the editor starts an engine run with mode "auto"; the pipeline's brief step
+  // classifies with the model classifier and generation reuses that classification.
   const composer = readFileSync("app/canvas-v1/components/PromptComposerV2.tsx", "utf8");
-  assert.match(composer, /\/api\/intent\/classify/, "editor routes on the model classifier");
-  assert.match(composer, /intentClassification:/, "editor forwards its routing classification");
+  assert.match(composer, /startEngineRun\(/, "editor generates through the engine pipeline");
+  const briefStep = readFileSync("lib/engine/steps/buildBrief.ts", "utf8");
+  assert.match(briefStep, /deps\.classifyIntent\(/, "brief step routes on the model classifier");
+  assert.match(briefStep, /input\.mode === "auto"/, "auto mode routes app outputs to screen sets");
+  assert.match(readFileSync("lib/engine/steps/generate.ts", "utf8"), /intentClassification: brief\.intentClassification/, "generation reuses the routing classification");
   console.log("[proof] reference roles carry real ids, weights and annotations");
 }
 

@@ -85,5 +85,5 @@ export function useProjectDesignState(
     if (Object.keys(hydrate).length > 0) upsertProjectState(projectId, { canvas: hydrate });
   }, [onRemoteTaste, projectId, pushRemote, remote, serverBacked]);
 
-  return { persistDesignState, serverBacked };
+  return { persistDesignState, serverBacked, convexProjectId: serverBacked ? (convexProjectId as string) : null };
 }

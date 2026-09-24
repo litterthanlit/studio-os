@@ -1,149 +1,32 @@
 // lib/agent/agent-runs.ts
 // Async agent runs: authorize, insert a queued run, answer immediately, then
 // execute after the response (`after()` in routes), writing progress rows per
-// step. Agents poll with `get_run`. Convex-backed; in-memory only when Convex
-// is unreachable (dev auth bypass).
+// step. Agents poll with `get_run`. The store lives in lib/engine/run-store.ts
+// (Convex `generationRuns`); the names below are kept for existing callers.
 
-import type { Id } from "@/convex/_generated/dataModel";
-import { api } from "@/convex/_generated/api";
-import { isConvexConfigured } from "@/lib/convex/is-configured";
-import { createAgentConvexClient, type AgentConvexAuth } from "./convex-agent-client";
 import type { AgentGenerationOutcome } from "./agent-generation";
 import { flushModelTelemetry, withModelTelemetryContext } from "@/lib/ai/model-telemetry";
+import {
+  createConvexRunStore,
+  createMemoryRunStore,
+  runStoreFor,
+  type RunKind,
+  type RunPatch,
+  type RunProgress,
+  type RunRecord,
+  type RunStatus,
+  type RunStore,
+} from "@/lib/engine/run-store";
 
-export type AgentRunKind = "screen" | "screen-set";
-export type AgentRunStatus = "queued" | "running" | "complete" | "partial" | "failed";
-
-export type AgentRunRecord = {
-  runId: string;
-  projectId: string;
-  kind: AgentRunKind;
-  status: AgentRunStatus;
-  progress: Array<{ step: string; at: number; detail?: string }>;
-  result: Record<string, unknown> | null;
-  error: string | null;
-  missingScreenIds: string[];
-  createdAt: number;
-  updatedAt: number;
-  completedAt: number | null;
-};
-
-export type AgentRunPatch = {
-  status?: AgentRunStatus;
-  step?: string;
-  detail?: string;
-  result?: Record<string, unknown>;
-  error?: string;
-  missingScreenIds?: string[];
-};
-
-export interface AgentRunStore {
-  create(args: { projectId: string; kind: AgentRunKind; input: Record<string, unknown> }): Promise<string>;
-  update(runId: string, patch: AgentRunPatch): Promise<void>;
-  get(runId: string): Promise<AgentRunRecord | null>;
-}
-
-export type AgentRunProgress = (step: string, detail?: string) => Promise<void>;
-
-const TERMINAL: ReadonlySet<AgentRunStatus> = new Set(["complete", "partial", "failed"]);
-
-function accessArgs(auth: AgentConvexAuth) {
-  if (auth.serviceSecret) {
-    return {
-      serviceSecret: auth.serviceSecret,
-      ...(auth.actingUserId ? { actingUserId: auth.actingUserId as Id<"users"> } : {}),
-    };
-  }
-  return {};
-}
-
-export function createConvexAgentRunStore(auth: AgentConvexAuth): AgentRunStore {
-  const withClient = async <T>(fn: (client: NonNullable<ReturnType<typeof createAgentConvexClient>>) => Promise<T>) => {
-    const client = createAgentConvexClient(auth);
-    if (!client) throw new Error("Convex is not configured");
-    try {
-      return await fn(client);
-    } finally {
-      client.clearAuth();
-    }
-  };
-  return {
-    create: (args) =>
-      withClient((client) =>
-        client.mutation(api.generationRuns.create, {
-          projectId: args.projectId as Id<"projects">,
-          kind: args.kind,
-          input: args.input,
-          ...accessArgs(auth),
-        }),
-      ),
-    update: (runId, patch) =>
-      withClient(async (client) => {
-        await client.mutation(api.generationRuns.update, {
-          runId: runId as Id<"generationRuns">,
-          ...patch,
-          ...accessArgs(auth),
-        });
-      }),
-    get: (runId) =>
-      withClient((client) =>
-        client.query(api.generationRuns.get, { runId: runId as Id<"generationRuns">, ...accessArgs(auth) }),
-      ),
-  };
-}
-
-const memoryRuns = new Map<string, AgentRunRecord>();
-
-/** Process-local store (dev auth bypass and proofs). Not durable across instances. */
-export function createMemoryAgentRunStore(runs: Map<string, AgentRunRecord> = memoryRuns): AgentRunStore {
-  let counter = 0;
-  return {
-    async create(args) {
-      const time = Date.now();
-      const runId = `run_mem_${time.toString(36)}_${(counter++).toString(36)}`;
-      runs.set(runId, {
-        runId,
-        projectId: args.projectId,
-        kind: args.kind,
-        status: "queued",
-        progress: [{ step: "queued", at: time }],
-        result: null,
-        error: null,
-        missingScreenIds: [],
-        createdAt: time,
-        updatedAt: time,
-        completedAt: null,
-      });
-      return runId;
-    },
-    async update(runId, patch) {
-      const run = runs.get(runId);
-      if (!run) throw new Error("RUN_NOT_FOUND");
-      const time = Date.now();
-      runs.set(runId, {
-        ...run,
-        status: patch.status ?? run.status,
-        progress: patch.step
-          ? [...run.progress, { step: patch.step, at: time, ...(patch.detail ? { detail: patch.detail } : {}) }]
-          : run.progress,
-        result: patch.result ?? run.result,
-        error: patch.error ?? run.error,
-        missingScreenIds: patch.missingScreenIds ?? run.missingScreenIds,
-        updatedAt: time,
-        completedAt: patch.status && TERMINAL.has(patch.status) ? time : run.completedAt,
-      });
-    },
-    async get(runId) {
-      return runs.get(runId) ?? null;
-    },
-  };
-}
-
-/** Convex when reachable with credentials; process memory under the dev auth bypass. */
-export function agentRunStoreFor(auth: AgentConvexAuth): AgentRunStore {
-  const hasCredentials = Boolean(auth.serviceSecret || auth.bearerToken);
-  return isConvexConfigured() && hasCredentials ? createConvexAgentRunStore(auth) : createMemoryAgentRunStore();
-}
+export type AgentRunKind = RunKind;
+export type AgentRunStatus = RunStatus;
+export type AgentRunRecord = RunRecord;
+export type AgentRunPatch = RunPatch;
+export type AgentRunStore = RunStore;
+export type AgentRunProgress = RunProgress;
+export const createConvexAgentRunStore = createConvexRunStore;
+export const createMemoryAgentRunStore = createMemoryRunStore;
+export const agentRunStoreFor = runStoreFor;
 
 /** complete when every planned screen landed, partial when some did, failed when none. */
 export function screenSetRunStatus(

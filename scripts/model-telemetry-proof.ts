@@ -188,8 +188,9 @@ function testCallSites() {
     "lib/canvas/design-taste-evaluator.ts",
     "lib/canvas/intent-classifier.ts",
     "lib/ai/image-scorer.ts",
-    "app/api/taste/extract/route.ts",
-    "app/api/taste/analyze-composition/route.ts",
+    "lib/taste/extract-core.ts",
+    "lib/taste/analyze-composition-core.ts",
+    "lib/canvas/analyze-images-core.ts",
   ];
   for (const file of files) {
     const src = readFileSync(file, "utf8");

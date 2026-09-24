@@ -33,6 +33,7 @@
     "proof:convex-canvas-limits": "npx tsx scripts/convex-canvas-limits-proof.ts",
     "proof:model-telemetry": "npx tsx scripts/model-telemetry-proof.ts",
     "proof:design-memory": "npx tsx scripts/design-memory-proof.ts",
+    "proof:engine-pipeline": "npx tsx scripts/engine-pipeline-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

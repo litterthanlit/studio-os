@@ -1,11 +1,12 @@
 // lib/agent/agent-generation.ts
-// Agent screen / screen-set generation, shared by the synchronous routes and
-// async agent runs. Taste and tokens come from the request, else from the
-// project's stored design state (`resolveAgentDesignState`), else defaults.
+// Agent screen / screen-set generation. Since master plan 1.2 this is a thin
+// entrypoint into the shared engine pipeline (lib/engine): the canvas's
+// references become the run's references, taste and tokens resolve request →
+// project design memory → extraction, and the persist step writes the canvas
+// (rebasing on revision conflicts).
 
 import type { Id } from "@/convex/_generated/dataModel";
 import { normalizeRemoteCanvasState } from "@/lib/canvas/canvas-convex-sync";
-import { BREAKPOINT_WIDTHS, inferSiteName } from "@/lib/canvas/compose";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import {
   generateV6DesignVariants,
@@ -20,11 +21,14 @@ import {
 import type { DesignSystemTokens } from "@/lib/canvas/generate-system";
 import type { ReferenceItem, UnifiedCanvasState } from "@/lib/canvas/unified-canvas-state";
 import { getEffectiveReferenceWeight } from "@/lib/canvas/unified-canvas-state";
+import { createEngineDeps } from "@/lib/engine/deps";
+import { executePipeline, engineInputHash } from "@/lib/engine/pipeline";
+import { createMemoryRunStore, type RunPatch, type RunStore } from "@/lib/engine/run-store";
+import { ENGINE_STEPS, type EngineDeps, type EngineInput, type EngineReference } from "@/lib/engine/types";
+import { engineReferencesFromItems } from "@/lib/engine/references";
 import type { TasteProfile } from "@/types/taste-profile";
 import type { IntentReferenceInput } from "@/types/intent-profile";
-import { buildCanvasSummary } from "./canvas-agent-ops";
-import { writeCanvasWithRebase } from "./canvas-write-rebase";
-import { resolveAgentDesignState, type ResolvedAgentDesignState } from "./agent-design-state";
+import { resolveAgentDesignState } from "./agent-design-state";
 import {
   agentLoadCanvas,
   agentLoadDesignState,
@@ -40,6 +44,8 @@ export type AgentGenerationDeps = {
   loadDesignState: typeof agentLoadDesignState;
   generateScreen: (input: GenerateV6DesignVariantsInput) => Promise<GenerateV6DesignVariantsResult>;
   generateScreenSet: (input: GenerateAppScreenSetInput) => Promise<GenerateAppScreenSetResult>;
+  /** Further engine dependency overrides (proofs, benchmarks). */
+  engine?: Partial<EngineDeps>;
 };
 
 export const defaultAgentGenerationDeps: AgentGenerationDeps = {
@@ -71,12 +77,8 @@ export type AgentGenerateScreenInput = {
 
 export type AgentGenerateScreenSetInput = Omit<AgentGenerateScreenInput, "name">;
 
-/** Non-muted references, primary first — the same ordering the editor sends. */
-export function extractReferenceInputs(state: UnifiedCanvasState): {
-  referenceUrls: string[];
-  references: IntentReferenceInput[];
-} {
-  const refs = state.items
+function nonMutedReferences(state: UnifiedCanvasState): ReferenceItem[] {
+  return state.items
     .filter((item): item is ReferenceItem => item.kind === "reference" && Boolean(item.imageUrl))
     .filter((item) => getEffectiveReferenceWeight(item) !== "muted")
     .sort(
@@ -84,6 +86,14 @@ export function extractReferenceInputs(state: UnifiedCanvasState): {
         (getEffectiveReferenceWeight(a) === "primary" ? 0 : 1) -
         (getEffectiveReferenceWeight(b) === "primary" ? 0 : 1),
     );
+}
+
+/** Non-muted references, primary first — the same ordering the editor sends. */
+export function extractReferenceInputs(state: UnifiedCanvasState): {
+  referenceUrls: string[];
+  references: IntentReferenceInput[];
+} {
+  const refs = nonMutedReferences(state);
   return {
     referenceUrls: refs.map((ref) => ref.imageUrl),
     references: refs.map((ref) => ({
@@ -94,199 +104,106 @@ export function extractReferenceInputs(state: UnifiedCanvasState): {
   };
 }
 
-function designStateSummary(design: ResolvedAgentDesignState) {
+/** Canvas references as engine references (the editor builds its list with the same helper). */
+export function engineReferencesFromCanvas(state: UnifiedCanvasState): EngineReference[] {
+  return engineReferencesFromItems(state.items.filter((item): item is ReferenceItem => item.kind === "reference"));
+}
+
+/** Progress events worth forwarding to an enclosing run (terminal / status rows are its own). */
+const STATUS_ROWS = new Set(["queued", "running", "resumed", "complete", "partial", "failed"]);
+
+function forwardingStore(inner: RunStore, onProgress?: AgentGenerateScreenInput["onProgress"]): RunStore {
+  if (!onProgress) return inner;
   return {
-    tasteSource: design.source.tasteProfile,
-    tokensSource: design.source.designTokens,
-    archetype: design.tasteProfile?.archetypeMatch ?? null,
+    ...inner,
+    update: async (runId: string, patch: RunPatch) => {
+      await inner.update(runId, patch);
+      if (patch.step && !STATUS_ROWS.has(patch.step)) await onProgress(patch.step, patch.detail);
+    },
   };
 }
 
-async function loadContext(
-  input: AgentGenerateScreenInput | AgentGenerateScreenSetInput,
+async function runAgentPipeline(
+  input: AgentGenerateScreenInput,
+  mode: "screen" | "screen-set",
   deps: AgentGenerationDeps,
-) {
-  const [doc, design] = await Promise.all([
-    deps.loadCanvas(input.auth, input.projectId),
-    resolveAgentDesignState({
-      auth: input.auth,
-      projectId: input.projectId,
-      tasteProfile: input.tasteProfile,
-      designTokens: input.designTokens,
-      load: deps.loadDesignState,
-    }),
-  ]);
-  const currentState = normalizeRemoteCanvasState(doc?.state ?? null);
-  return { doc, design, currentState, ...extractReferenceInputs(currentState) };
+): Promise<AgentGenerationOutcome> {
+  const doc = await deps.loadCanvas(input.auth, input.projectId);
+  const state = normalizeRemoteCanvasState(doc?.state ?? null);
+
+  const engineInput: EngineInput = {
+    projectId: input.projectId,
+    mode,
+    target: "agent",
+    prompt: input.prompt,
+    ...(input.name ? { artboardName: input.name, siteName: input.name } : {}),
+    fidelityMode: input.fidelityMode ?? "balanced",
+    breakpoint: input.breakpoint ?? "desktop",
+    references: engineReferencesFromCanvas(state),
+    ...(input.tasteProfile ? { tasteProfile: input.tasteProfile } : {}),
+    ...(input.designTokens ? { designTokens: input.designTokens } : {}),
+  };
+
+  const store = forwardingStore(createMemoryRunStore(new Map()), input.onProgress);
+  const engineDeps = createEngineDeps({
+    auth: input.auth,
+    projectId: input.projectId,
+    store,
+    overrides: {
+      ...deps.engine,
+      loadProjectState: async () => {
+        const design = await resolveAgentDesignState({ auth: input.auth, projectId: input.projectId, load: deps.loadDesignState });
+        return { tasteProfile: design.tasteProfile, designTokens: design.storedDesignTokens };
+      },
+      generateScreen: deps.generateScreen,
+      generateScreenSet: deps.generateScreenSet,
+      canvas: {
+        initialDoc: doc,
+        load: () => deps.loadCanvas(input.auth, input.projectId),
+        save: async (payload) => {
+          const saved = await deps.saveCanvas(input.auth, { projectId: input.projectId, ...payload });
+          return { revision: saved.revision, unchanged: saved.unchanged };
+        },
+      },
+    },
+  });
+
+  const runId = await store.create({
+    projectId: input.projectId,
+    kind: mode,
+    input: {},
+    inputHash: engineInputHash(engineInput),
+    stepKeys: [...ENGINE_STEPS],
+  });
+  const outcome = await executePipeline({ runId, input: engineInput, deps: engineDeps });
+
+  if (outcome.status === "failed" || !outcome.result) {
+    const run = await store.get(runId);
+    const failure = (run?.result ?? {}) as Record<string, unknown>;
+    return {
+      ok: false,
+      status: outcome.errorKind === "credit-exhaustion" ? 402 : outcome.failedStep === "persist" ? 500 : 502,
+      body: {
+        error: outcome.error ?? "Generation failed",
+        generationResult: outcome.errorKind ?? "v6-failed",
+        failedStep: outcome.failedStep,
+        ...(failure.v6Debug ? { v6Debug: failure.v6Debug } : {}),
+      },
+    };
+  }
+  return { ok: true, status: 200, body: outcome.result };
 }
 
 export async function executeAgentGenerateScreen(
   input: AgentGenerateScreenInput,
   deps: AgentGenerationDeps = defaultAgentGenerationDeps,
 ): Promise<AgentGenerationOutcome> {
-  await input.onProgress?.("loading-context");
-  const { doc, design, referenceUrls, references } = await loadContext(input, deps);
-  const breakpoint = input.breakpoint ?? "desktop";
-
-  await input.onProgress?.("generating", `taste: ${design.source.tasteProfile}, references: ${referenceUrls.length}`);
-  const generation = await deps.generateScreen({
-    prompt: input.prompt.trim(),
-    tokens: design.designTokens,
-    siteName: input.name ?? inferSiteName(input.prompt),
-    tasteProfile: design.tasteProfile,
-    referenceUrls,
-    references,
-    fidelityMode: input.fidelityMode ?? "balanced",
-  });
-
-  if (!generation.ok || !generation.variants?.[0]?.pageTree) {
-    const failureMessage = generation.ok
-      ? "Generation returned no variants"
-      : generation.v6Failure?.message ?? "Generation failed";
-    const failureKind = generation.ok
-      ? "v6-failed"
-      : generation.v6Failure?.kind ?? generation.generationResult ?? "v6-failed";
-    return {
-      ok: false,
-      status: !generation.ok && generation.v6Failure?.kind === "credit-exhaustion" ? 402 : 502,
-      body: {
-        error: failureMessage,
-        generationResult: failureKind,
-        v6Debug: generation.v6Debug,
-        designState: designStateSummary(design),
-      },
-    };
-  }
-
-  await input.onProgress?.("writing-canvas");
-  const artboardName = input.name ?? generation.siteName ?? "Generated Screen";
-  const pageTree = generation.variants[0].pageTree;
-  // add_artboard commutes with designer edits: on a revision conflict, reload and re-apply.
-  const write = await writeCanvasWithRebase({
-    initialDoc: doc,
-    load: () => deps.loadCanvas(input.auth, input.projectId),
-    save: (payload) => deps.saveCanvas(input.auth, { projectId: input.projectId, ...payload }),
-    buildOperations: () => [{ type: "add_artboard", name: artboardName, breakpoint, tree: pageTree }],
-    onRebase: (attempt) => input.onProgress?.("rebased", `revision conflict; retry ${attempt}`),
-  });
-  const { state, applied, errors } = write;
-
-  if (applied.length === 0 || !write.save) {
-    return { ok: false, status: 500, body: { error: "Failed to add generated artboard", details: errors } };
-  }
-  const saveResult = write.save;
-
-  const summary = buildCanvasSummary(state);
-  return {
-    ok: true,
-    status: 200,
-    body: {
-      projectId: input.projectId,
-      artboardId: summary.artboards.at(-1)?.id ?? null,
-      revision: saveResult.revision,
-      siteName: generation.siteName,
-      generationResult: generation.generationResult,
-      v6Debug: generation.v6Debug,
-      designState: designStateSummary(design),
-      summary,
-      variant: {
-        id: generation.variants[0].id,
-        name: generation.variants[0].name,
-        description: generation.variants[0].description,
-      },
-    },
-  };
+  return runAgentPipeline(input, "screen", deps);
 }
 
 export async function executeAgentGenerateScreenSet(
   input: AgentGenerateScreenSetInput,
   deps: AgentGenerationDeps = defaultAgentGenerationDeps,
 ): Promise<AgentGenerationOutcome> {
-  await input.onProgress?.("loading-context");
-  const { doc, design, referenceUrls, references } = await loadContext(input, deps);
-  const breakpoint = input.breakpoint ?? "desktop";
-
-  await input.onProgress?.("generating", `taste: ${design.source.tasteProfile}, references: ${referenceUrls.length}`);
-  const generation = await deps.generateScreenSet({
-    prompt: input.prompt.trim(),
-    tokens: design.designTokens,
-    siteName: inferSiteName(input.prompt),
-    tasteProfile: design.tasteProfile,
-    referenceUrls,
-    references,
-    fidelityMode: input.fidelityMode ?? "balanced",
-    breakpoint,
-    onProgress: input.onProgress,
-  });
-
-  if (!generation.ok) {
-    return {
-      ok: false,
-      status: generation.failure?.kind === "credit-exhaustion" ? 402 : 502,
-      body: {
-        error: generation.error,
-        generationResult: generation.failure?.kind ?? "v6-failed",
-        designState: designStateSummary(design),
-      },
-    };
-  }
-
-  await input.onProgress?.("writing-canvas");
-  const siteId = `site-${Date.now()}`;
-  const artboardWidth = BREAKPOINT_WIDTHS[breakpoint] ?? 1440;
-  const gap = 80;
-
-  // Positions derive from the latest state, so a rebased retry places screens after any new artboards.
-  const buildOperations = (latest: UnifiedCanvasState) => {
-    const baseX = 120 + latest.items.filter((item) => item.kind === "artboard").length * 40;
-    return generation.screens.map((screen, index) => ({
-      type: "add_artboard" as const,
-      name: screen.name,
-      breakpoint,
-      tree: screen.pageTree,
-      siteId,
-      screenRole: screen.screenRole,
-      screenPurpose: screen.screenPurpose,
-      x: baseX + index * (artboardWidth + gap),
-      y: 100,
-    }));
-  };
-
-  const write = await writeCanvasWithRebase({
-    initialDoc: doc,
-    load: () => deps.loadCanvas(input.auth, input.projectId),
-    save: (payload) => deps.saveCanvas(input.auth, { projectId: input.projectId, ...payload }),
-    buildOperations,
-    onRebase: (attempt) => input.onProgress?.("rebased", `revision conflict; retry ${attempt}`),
-  });
-  const { state, applied, errors } = write;
-  if (applied.length === 0 || !write.save) {
-    return { ok: false, status: 500, body: { error: "Failed to add generated screens", details: errors } };
-  }
-  const saveResult = write.save;
-
-  const summary = buildCanvasSummary(state);
-  return {
-    ok: true,
-    status: 200,
-    body: {
-      projectId: input.projectId,
-      siteId,
-      revision: saveResult.revision,
-      siteName: generation.siteName,
-      generationResult: "v6-screens",
-      effectiveArchetype: generation.effectiveArchetype,
-      designState: designStateSummary(design),
-      plan: generation.plan,
-      screens: generation.screens.map((screen, index) => ({
-        id: summary.artboards.at(-generation.screens.length + index)?.id ?? screen.id,
-        planId: screen.id,
-        name: screen.name,
-        screenRole: screen.screenRole,
-        screenPurpose: screen.screenPurpose,
-      })),
-      summary,
-      applied,
-    },
-  };
+  return runAgentPipeline(input, "screen-set", deps);
 }

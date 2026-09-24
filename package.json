@@ -40,6 +40,7 @@
     "proof:preferences": "npx tsx scripts/preferences-proof.ts",
     "proof:model-routes": "npx tsx scripts/model-routes-proof.ts",
     "proof:stream-parse": "npx tsx scripts/stream-parse-proof.ts",
+    "proof:intent-sliders": "npx tsx scripts/intent-sliders-proof.ts",
     "mcp:server": "npx tsx mcp-server/index.ts",
     "qa:v6-preflight": "npx tsx scripts/v6-generation-preflight.ts",
     "convex:dev": "convex dev",

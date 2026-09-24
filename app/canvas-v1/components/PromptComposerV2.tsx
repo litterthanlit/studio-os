@@ -26,6 +26,8 @@ import {
 } from "@/lib/canvas/taste-edit-tracker";
 import type { TasteEdit } from "@/lib/canvas/taste-edit-tracker";
 import { screenIdForArtboard } from "@/lib/taste/preferences";
+import { applySliderValue, type IntentSliderId } from "@/lib/taste/intent-sliders";
+import { IntentSliders } from "./intent/IntentSliders";
 import type { FidelityMode } from "@/lib/canvas/directive-compiler";
 import {
   getArtboardStartX,
@@ -900,6 +902,57 @@ export function PromptComposerV2({
     }
   }, [varySignal, handleGenerate]);
 
+  // ── Intent sliders (1.7) ───────────────────────────────────────────
+  // Slider values are explicit taste (userOverrides.knobs): applied at once,
+  // written through to design memory once the designer stops dragging.
+  const sliderSaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => {
+    if (sliderSaveTimer.current) clearTimeout(sliderSaveTimer.current);
+  }, []);
+  const handleSliderChange = React.useCallback(
+    (id: IntentSliderId, value: number) => {
+      if (!tasteProfile) return;
+      const updated = applySliderValue(tasteProfile, id, value);
+      setTasteProfile(updated);
+      if (sliderSaveTimer.current) clearTimeout(sliderSaveTimer.current);
+      sliderSaveTimer.current = setTimeout(() => {
+        if (projectId) persistDesignState({ tasteProfile: updated });
+      }, 400);
+    },
+    [tasteProfile, projectId, persistDesignState],
+  );
+
+  // Restyle: regenerate with the knob delta — the selected section when there
+  // is one (section-level prompt), otherwise the page from its last prompt.
+  const pendingRestyleRef = React.useRef(false);
+  const handleRestyle = React.useCallback(
+    (delta: string) => {
+      const lastPrompt = prompt.history[prompt.history.length - 1]?.label ?? "";
+      const base = selectedSection ? "" : prompt.value.trim() || lastPrompt || "Restyle the current design";
+      const next = selectedSection ? `Restyle this section: ${delta}` : `${base} — restyle: ${delta}`;
+      // Write the slider values now so the run reads them from design memory.
+      if (sliderSaveTimer.current) {
+        clearTimeout(sliderSaveTimer.current);
+        sliderSaveTimer.current = null;
+        if (projectId && tasteProfile) persistDesignState({ tasteProfile });
+      }
+      pendingRestyleRef.current = true;
+      skipTasteCheckRef.current = true;
+      dispatch({ type: "SET_PROMPT", value: next });
+    },
+    [dispatch, prompt.history, prompt.value, selectedSection, projectId, tasteProfile, persistDesignState],
+  );
+  React.useEffect(() => {
+    if (!pendingRestyleRef.current) return;
+    pendingRestyleRef.current = false;
+    handleGenerate();
+  }, [prompt.value, handleGenerate]);
+  const appOutput = React.useMemo(
+    () => items.some((item) => item.kind === "artboard" && Boolean(item.screenRole)),
+    [items],
+  );
+  const sliderBaselineKey = prompt.history[prompt.history.length - 1]?.id ?? "none";
+
   // ── Restore from history ───────────────────────────────────────────
 
   const handleRestore = React.useCallback(
@@ -1008,6 +1061,14 @@ export function PromptComposerV2({
               hasReferences={usableRefCount > 0}
             />
           </div>
+          <IntentSliders
+            tasteProfile={tasteProfile}
+            appOutput={appOutput}
+            baselineKey={sliderBaselineKey}
+            disabled={isGenerating}
+            onChange={handleSliderChange}
+            onRestyle={items.some((item) => item.kind === "artboard") ? handleRestyle : undefined}
+          />
           <div className="border-b border-[#E5E5E0] dark:border-[#333333]">
             <ReferenceRail references={referenceItems} />
           </div>

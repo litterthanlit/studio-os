@@ -1,5 +1,6 @@
 "use client";
 
+import { LiveBuildPreview } from "./live-build/LiveBuildPreview";
 import { useCanvasImageUploader } from "@/lib/canvas/use-canvas-asset-upload";
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ type CanvasArtboardProps = {
   activeTool?: string;
   isDragging?: boolean;
   isGenerating?: boolean;
+  /** Live Build (1.9): sections streamed in so far for the running generation. */
+  liveSections?: import("@/lib/canvas/design-node").DesignNode[];
   agentSteps?: string[];
   generationResult?: GenerationResult;
   onPointerDown?: (e: React.PointerEvent, itemId: string, x: number, y: number) => void;
@@ -31,7 +34,7 @@ type CanvasArtboardProps = {
   onRetry?: () => void;
 };
 
-export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging, isGenerating, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onOpenComponentGallery, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
+export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging, isGenerating, liveSections, agentSteps, generationResult, onPointerDown, onOpenSectionLibrary, onOpenComponentGallery, onFocusPromptWithPrefill, onRetry }: CanvasArtboardProps) {
   const { state, dispatch } = useCanvas();
   const isSelected = state.selection.selectedItemIds.includes(item.id);
   const isActiveArtboard = state.selection.activeItemId === item.id;
@@ -302,7 +305,9 @@ export function CanvasArtboard({ item, tokens, activeTool = "select", isDragging
           }}
         >
           {/* Show animation during generation or during handoff collapse */}
-          {(isGenerating || handoffState === "collapsing") ? (
+          {isGenerating && item.breakpoint !== "mobile" && liveSections && liveSections.length > 0 ? (
+            <LiveBuildPreview sections={liveSections} width={breakpointWidth} />
+          ) : (isGenerating || handoffState === "collapsing") ? (
             <GenerationAnimation
               stage={isGenerating ? getGenerationStage(agentSteps ?? []) : "building"}
               width={breakpointWidth}

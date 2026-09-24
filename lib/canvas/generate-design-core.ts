@@ -12,10 +12,12 @@ import {
   getV6TokenBudgets,
   type ModelFailureInfo,
   tracedCompletion,
+  tracedStreamCompletion,
   modelFor,
   cacheablePromptParts,
 } from "@/lib/ai/model-router";
 import { labeledReferenceBlocks } from "@/lib/intent/labels";
+import { createSectionStreamParser, type StreamedSection } from "@/lib/engine/stream-parse";
 import { compileLayeredDirectives, layeredKnobOptions, type LayeredTaste } from "@/lib/taste/compile";
 import type { DesignNode } from "@/lib/canvas/design-node";
 import {
@@ -239,6 +241,8 @@ export type GenerateV6DesignVariantsInput = {
   intentClassification?: unknown;
   /** Layered taste from the engine (1.5): measured + learned directives with provenance. */
   layeredTaste?: LayeredTaste | null;
+  /** Live Build (1.9): stream the base generation and report each top-level section as it completes. */
+  onSection?: (section: StreamedSection) => void;
 };
 
 export type GenerateV6DesignVariantsResult =
@@ -386,7 +390,7 @@ export async function generateV6DesignVariants(
 
   try {
     const router = getRouter();
-    const response = await tracedCompletion("design.base", {
+    const baseParams: Parameters<typeof tracedCompletion>[1] = {
       model: modelFor("generate"),
       messages: [{
         role: "user",
@@ -399,7 +403,11 @@ export async function generateV6DesignVariants(
       max_tokens: v6Budgets.baseMaxTokens,
       temperature: 0.5,
       response_format: { type: "json_object" },
-    });
+    };
+    const liveParser = input.onSection ? createSectionStreamParser({ onSection: input.onSection }) : null;
+    const response = liveParser
+      ? await tracedStreamCompletion("design.base", baseParams, (delta) => void liveParser.push(delta))
+      : await tracedCompletion("design.base", baseParams);
 
     const raw = response.choices[0]?.message?.content ?? "";
     const finishReason = response.choices[0]?.finish_reason;
@@ -409,7 +417,9 @@ export async function generateV6DesignVariants(
     if (raw.length === 0) throw new Error("Empty response");
 
     if (finishReason === "length") console.warn(`[V6-GEN] Truncated — attempting recovery`);
-    const parsed = parseDesignNodeResponse(raw, finishReason);
+    // A truncated stream recovers from its last complete section (exact), else the generic repair.
+    const streamRecovered = finishReason === "length" ? liveParser?.recover() : null;
+    const parsed = streamRecovered ? JSON.parse(streamRecovered) : parseDesignNodeResponse(raw, finishReason);
 
     const validated = validateAndNormalizeDesignTree(parsed);
     if (!validated.ok) throw new Error(`Validation failed: ${validated.reason}`);

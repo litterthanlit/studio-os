@@ -175,6 +175,63 @@ export async function tracedCompletion(
   }
 }
 
+/**
+ * Streamed variant of tracedCompletion (Live Build, 1.9): forwards each content
+ * delta to `onDelta` and resolves to a non-streamed-shaped completion (full
+ * content, finish reason, usage) so callers parse and validate it as before.
+ */
+export async function tracedStreamCompletion(
+  step: string,
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+  onDelta: (text: string) => void,
+  options?: { router?: OpenAI; timeout?: number },
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+  const startedAt = Date.now();
+  try {
+    const stream = await (options?.router ?? getRouter()).chat.completions.create(
+      { ...withCacheHints(params), stream: true, stream_options: { include_usage: true } },
+      options?.timeout ? { timeout: options.timeout } : undefined,
+    );
+    // A client that answers with a full completion instead of a stream: one delta.
+    if (!(Symbol.asyncIterator in Object(stream))) {
+      const completion = stream as unknown as OpenAI.Chat.Completions.ChatCompletion;
+      const whole = completion.choices?.[0]?.message?.content ?? "";
+      if (whole) onDelta(whole);
+      recordModelCall(
+        buildModelCallRecord({ step, model: completion.model || params.model, usage: completion.usage, latencyMs: Date.now() - startedAt, finishReason: completion.choices?.[0]?.finish_reason ?? null }),
+      );
+      return completion;
+    }
+    let content = "";
+    let finishReason: OpenAI.Chat.Completions.ChatCompletion.Choice["finish_reason"] | null = null;
+    let usage: OpenAI.Completions.CompletionUsage | undefined;
+    let model = params.model;
+    for await (const chunk of stream) {
+      model = chunk.model || model;
+      if (chunk.usage) usage = chunk.usage;
+      const choice = chunk.choices?.[0];
+      const delta = choice?.delta?.content;
+      if (delta) {
+        content += delta;
+        onDelta(delta);
+      }
+      if (choice?.finish_reason) finishReason = choice.finish_reason;
+    }
+    recordModelCall(buildModelCallRecord({ step, model, usage, latencyMs: Date.now() - startedAt, finishReason }));
+    return {
+      id: `stream-${startedAt}`,
+      object: "chat.completion",
+      created: Math.floor(startedAt / 1000),
+      model,
+      usage,
+      choices: [{ index: 0, logprobs: null, finish_reason: finishReason ?? "stop", message: { role: "assistant", content, refusal: null } }],
+    };
+  } catch (error) {
+    recordModelCall(buildModelCallRecord({ step, model: params.model, usage: null, latencyMs: Date.now() - startedAt, error }));
+    throw error;
+  }
+}
+
 // ── Convenience caller ────────────────────────────────────────
 export async function callModel(options: {
   model: string;

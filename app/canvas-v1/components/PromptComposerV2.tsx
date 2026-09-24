@@ -48,6 +48,7 @@ import { useProjectDesignState } from "@/lib/canvas/use-project-design-state";
 import { useConvex } from "convex/react";
 import {
   editorPayloadFromRun,
+  partialSectionsFromRun,
   progressLabels,
   startEngineRun,
   waitForEngineRun,
@@ -675,6 +676,7 @@ export function PromptComposerV2({
         // Signed in, the server reads taste + tokens from design memory; local projects send their cache.
         ...(designServerBacked ? {} : { tasteProfile, designTokens: projectTokens }),
       });
+      let liveSectionCount = 0;
       const run = await waitForEngineRun({
         runId: started.runId,
         projectId: engineProjectId,
@@ -682,7 +684,14 @@ export function PromptComposerV2({
         serverBacked: started.serverBacked,
         onUpdate: (current) => {
           const labels = progressLabels(current);
-          if (labels.length > 0) dispatch({ type: "SET_PROMPT_STATUS", agentSteps: labels });
+          // Live Build: sections render on the artboard as they stream in.
+          const sections = partialSectionsFromRun(current);
+          if (sections.length !== liveSectionCount) {
+            liveSectionCount = sections.length;
+            dispatch({ type: "SET_PROMPT_STATUS", ...(labels.length > 0 ? { agentSteps: labels } : {}), liveSections: sections });
+          } else if (labels.length > 0) {
+            dispatch({ type: "SET_PROMPT_STATUS", agentSteps: labels });
+          }
         },
       });
       if (run.status === "failed") {

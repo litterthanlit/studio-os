@@ -144,7 +144,7 @@ export type CanvasAction =
   | { type: "TOGGLE_PROMPT_PANEL" }
   | { type: "SET_SPLIT_RATIO"; ratio: number }
   | { type: "ADD_PROMPT_HISTORY"; entry: PromptRun }
-  | { type: "SET_PROMPT_STATUS"; isGenerating?: boolean; agentSteps?: string[]; generationResult?: import("./unified-canvas-state").GenerationResult }
+  | { type: "SET_PROMPT_STATUS"; isGenerating?: boolean; agentSteps?: string[]; generationResult?: import("./unified-canvas-state").GenerationResult; liveSections?: DesignNode[] }
 
   // Generation
   | { type: "REPLACE_SITE"; artboards: ArtboardItem[]; promptEntry: PromptRun }
@@ -2486,6 +2486,9 @@ export function canvasReducer(
           ...(action.generationResult !== undefined
             ? { generationResult: action.generationResult }
             : {}),
+          ...(action.liveSections ? { liveSections: action.liveSections } : {}),
+          // A generation that starts or stops clears the previous Live Build.
+          ...(typeof action.isGenerating === "boolean" && !action.liveSections ? { liveSections: undefined } : {}),
         },
       };
     }

@@ -1083,6 +1083,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
                   activeTool={activeTool}
                   isDragging={draggingId === item.id}
                   isGenerating={state.prompt.isGenerating}
+                  liveSections={state.prompt.liveSections}
                   agentSteps={state.prompt.agentSteps}
                   generationResult={state.prompt.generationResult}
                   onOpenSectionLibrary={handleOpenSectionLibrary}
@@ -1152,6 +1153,7 @@ export function UnifiedCanvasView({ projectId }: UnifiedCanvasViewProps) {
               item={item}
               tokens={tokens}
               isGenerating
+              liveSections={state.prompt.liveSections}
               agentSteps={state.prompt.agentSteps}
               generationResult={state.prompt.generationResult}
               onRetry={handleRetryGeneration}

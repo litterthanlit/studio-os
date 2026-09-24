@@ -92,6 +92,8 @@ export type UnifiedCanvasState = {
     isGenerating: boolean;
     agentSteps: string[];
     generationResult: GenerationResult;
+    /** Live Build (1.9): top-level sections that have streamed in for the running generation. Transient — NOT persisted. */
+    liveSections?: DesignNode[];
   };
   aiPreview: AIPreviewSession | null;
   masterEditSession: MasterEditSession | null;  // Track 3 — isolated master editing

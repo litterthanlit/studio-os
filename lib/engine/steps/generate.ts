@@ -1,6 +1,7 @@
 import { summarizeCompositionsForTaste } from "@/lib/canvas/composition-blueprint";
 import { inferSiteName } from "@/lib/canvas/compose";
 import type { SiteType } from "@/lib/canvas/templates";
+import type { StreamedSection } from "../stream-parse";
 import { intentReferencesFor, type EngineStep, type GenerateCheckpoint } from "../types";
 
 export class GenerationFailedError extends Error {
@@ -13,7 +14,7 @@ export class GenerationFailedError extends Error {
 /** Screen (V6 variants) or screen set, with the brief's classification and the compiled taste. */
 export const generate: EngineStep<"generate"> = {
   key: "generate",
-  async run({ input, deps, checkpoints, progress }) {
+  async run({ runId, input, deps, checkpoints, progress }) {
     const brief = checkpoints.buildBrief!;
     const taste = checkpoints.compileTaste!;
     const assets = (checkpoints.resolveAssets?.assets ?? []).filter((asset) => asset.weight !== "muted");
@@ -50,7 +51,27 @@ export const generate: EngineStep<"generate"> = {
       return { kind: "screen-set", result } satisfies GenerateCheckpoint;
     }
 
-    const result = await deps.generateScreen({ ...common, siteName: input.siteName ?? input.artboardName ?? inferSiteName(input.prompt) });
+    // Live Build (1.9): each top-level section lands on the run as a partial
+    // output while the rest of the page streams; the final tree is validated as before.
+    let landed: Promise<unknown> = Promise.resolve();
+    const onSection = (section: StreamedSection) => {
+      const name = typeof section.node.name === "string" ? section.node.name : `Section ${section.index + 1}`;
+      landed = landed.then(() =>
+        deps.store
+          .update(runId, {
+            output: { kind: "section", ref: `section-${section.index}`, data: JSON.stringify({ index: section.index, node: section.node }) },
+            step: "section-ready",
+            detail: name,
+          })
+          .catch(() => undefined),
+      );
+    };
+    const result = await deps.generateScreen({
+      ...common,
+      siteName: input.siteName ?? input.artboardName ?? inferSiteName(input.prompt),
+      onSection,
+    });
+    await landed;
     if (!result.ok || !result.variants?.[0]?.pageTree) {
       const failure = result.ok ? null : result.v6Failure;
       throw new GenerationFailedError(

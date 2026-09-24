@@ -46,6 +46,7 @@ const STEP_LABELS: Record<string, string> = {
   brief: "Understanding the brief...",
   taste: "Compiling taste...",
   generating: "Generating design...",
+  "section-ready": "Building sections...",
   planned: "Planning screens...",
   "screen-complete": "Building screens...",
   verifying: "Checking the output...",
@@ -154,4 +155,23 @@ export function editorPayloadFromRun(run: RunRecord): EngineEditorPayload | null
   const result = run.result as { target?: string; json?: string } | null;
   if (!result || (result.target !== "editor" && result.target !== "benchmark") || typeof result.json !== "string") return null;
   return JSON.parse(result.json) as EngineEditorPayload;
+}
+
+/**
+ * Live Build (1.9): the sections that have landed on a running screen run, in
+ * order. Empty once none have streamed (screen sets report whole screens).
+ */
+export function partialSectionsFromRun(run: Pick<RunRecord, "outputs"> | null | undefined): DesignNode[] {
+  return (run?.outputs ?? [])
+    .filter((output) => output.kind === "section" && typeof output.data === "string")
+    .map((output) => {
+      try {
+        return JSON.parse(output.data as string) as { index: number; node: DesignNode };
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry): entry is { index: number; node: DesignNode } => Boolean(entry?.node))
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => entry.node);
 }

@@ -208,7 +208,6 @@ Lucide only. Sidebar: 18px `strokeWidth={1}`. Elsewhere: 16px `strokeWidth={1.5}
 ## Caveats
 
 - `useSearchParams()` must be in a `<Suspense>` boundary (caused production build outage)
-- `@react-pdf/renderer` requires `transpilePackages` in `next.config.ts`
 - `ignoreBuildErrors: true` is intentional — ~32 pre-existing TS errors are not regressions
 - Marketing images (`public/marketing/*.webp`) are gitignored — run `npm run generate:marketing-images`
 - `.next-build-verify/` is a stale build cache — in `.gitignore` + `.vercelignore`, do not commit

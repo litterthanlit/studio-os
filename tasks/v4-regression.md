@@ -3,7 +3,7 @@
 ## Automated Checks
 
 - [x] `npx tsc --noEmit` — 34 errors, all pre-existing (documented in CLAUDE.md)
-- [x] CSS variable token audit — zero in V2/V3/V4 components (old tokens only in legacy `project-room-page-client.tsx` and `command-palette.tsx`)
+- [x] CSS variable token audit — zero in V2/V3/V4 components (old tokens only in `command-palette.tsx`)
 - [x] Geist Mono audit — zero references (IBM Plex Mono migration complete)
 - [x] DitherSurface audit — only in `components/ui/dither-surface.tsx` definition, not used in panels
 

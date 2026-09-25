@@ -6,7 +6,7 @@ This repo has no external project-memory service. Continuity for the next coding
 
 ## Last updated
 
-2026-09-23 — architecture review and master plan (design brain → Atlas) written; docs only, no application code changed. Next: milestone M0 (Phase 0) of the master plan.
+2026-09-25 — leftover dashboard stage clients behind redirect shells deleted (`brief`/`flow`/`type`/`vision`/`project-room` plus exclusive moodboard PDF/collage export). Redirect pages remain. Program is still the design-brain master plan.
 
 ## Resume point
 
@@ -15,7 +15,7 @@ This repo has no external project-memory service. Continuity for the next coding
 - Later milestones each need Nick's sign-off.
 - Several Phase 0 tasks were handed out as separate sessions on 2026-09-23, so check open branches and PRs before starting one.
 
-**Platform state (unchanged):** Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only; the unused Collect/Compose `CanvasPage` and `(canvas-view)` moodboard client are gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
+**Platform state (unchanged):** Signed-in editor and agents still share one `canvasDocuments` row and `revision` counter. The live canvas route is `UnifiedCanvasPage` → `UnifiedCanvasView` only; the unused Collect/Compose `CanvasPage` and `(canvas-view)` moodboard client are gone. Dashboard `/brief` `/flow` `/type` `/vision` `/projects/:id` stay as redirects; their unused stage clients are gone. Code/spec items (`kind: "code"`) live in `UnifiedCanvasState.items` with no DesignNode tree; agents use `add_code_item` / `patch_code` / `get_code`. Agent writes stamp `lastWriter: "agent"`, `lastAgentAt`, and `lastAgentRevision`; the editor’s `loadCanvas` query shows “Agent updated canvas · rev N”. Human undo cannot persist over a newer remote revision (toast + reload; `APPLY_REMOTE_STATE` resets history). Convex writes stay dirty-fingerprint only with an 8s trailing debounce; identical `contentHash` is a no-op; snapshots are agent / every-20 / 10min, keep newest 20. Proof: `npm run proof:code-on-canvas`, `npm run proof:agent-presence`, `npm run proof:canvas-save-throttle`, `npm run proof:convex-canvas-sync`, `npm run security:regression`. Open docs PR #5 is unrelated; do not regress `extensions/cursor/`.
 
 ## Product
 

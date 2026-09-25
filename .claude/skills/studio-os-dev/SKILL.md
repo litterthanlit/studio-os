@@ -47,7 +47,7 @@ description: Use this skill when modifying any Studio OS canvas component, panel
 ### Routes
 - `/canvas?project=:id` is the canonical workspace route. No `step` parameter in V3.
 - `/projects/:id` redirects to `/canvas?project=:id`.
-- `/explore`, `/brief`, `/vision`, `/flow`, `/type` are thin redirect shells — not deleted, just redirecting.
+- `/explore`, `/brief`, `/vision`, `/flow`, `/type` are thin redirect shells to `/projects`. Stage clients are gone; do not reintroduce them.
 - The sidebar only has Home, Projects, Settings. Nothing else.
 
 ### TypeScript
